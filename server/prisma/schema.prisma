@@ -1,0 +1,18 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model TradeLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  kimp      Float
+  action    String
+  amount    Float
+  result    String
+}
