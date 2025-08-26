@@ -19,7 +19,7 @@ function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
   // 디버깅용 로그
-  console.log('App Router 상태:', { isAuthenticated, isLoading, user });
+  console.log("App Router 상태:", { isAuthenticated, isLoading, user });
 
   // 로딩 중 표시
   if (isLoading) {
@@ -35,7 +35,7 @@ function Router() {
 
   // 로그인하지 않은 사용자는 로그인 페이지로
   if (!isAuthenticated) {
-    console.log('인증되지 않음, 로그인 페이지 표시');
+    console.log("인증되지 않음, 로그인 페이지 표시");
     return <LoginPage />;
   }
 

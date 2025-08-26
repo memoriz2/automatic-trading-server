@@ -9,6 +9,7 @@ import { TradingService } from "./services/trading.js";
 import { multiStrategyTradingService } from "./services/new-kimchi-trading.js";
 import { UpbitService } from "./services/upbit.js";
 import { BinanceService } from "./services/binance.js";
+import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
 import {
   insertTradingSettingsSchema,
   insertExchangeSchema,
@@ -34,7 +35,71 @@ export async function registerRoutes(
   const kimchiService = new KimchiService();
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
+  const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
   const tradingService = new TradingService();
+  // kimpga API (완전 통합)
+  app.get("/api/kimpga/current", async (_req, res) => {
+    try {
+      const data = await simpleKimchiService.calculateSimpleKimchi(["BTC"]);
+      const d = data.find((x) => x.symbol === "BTC");
+      res.json({
+        kimp: d?.premiumRate ?? null,
+        upbit_price: d?.upbitPrice ?? null,
+        binance_price: d?.binanceFuturesPrice ?? null,
+        usdkrw: d?.usdKrwRate ?? null,
+      });
+    } catch (e) {
+      console.error("/api/kimpga/current error", e);
+      res.status(500).json({ error: "failed" });
+    }
+  });
+
+  app.get("/api/kimpga/status", async (_req, res) => {
+    try {
+      res.json(kimpgaSvc.getStatus());
+    } catch (e) {
+      res.status(500).json({ error: "failed" });
+    }
+  });
+
+  app.get("/api/kimpga/health", (_req, res) => {
+    res.json({ thread_alive: kimpgaSvc.getStatus().running });
+  });
+
+  app.get("/api/kimpga/metrics", (_req, res) => {
+    const m = kimpgaSvc.getMetrics();
+    res.json(m);
+  });
+
+  app.get("/api/kimpga/balance", async (_req, res) => {
+    try {
+      const userId = "1";
+      const ex = await storage.getExchangesByUserId(userId);
+      const up = ex.find((e: any) => e.exchange === "upbit" && e.isActive);
+      const bi = ex.find((e: any) => e.exchange === "binance" && e.isActive);
+      res.json({
+        real: { krw: 0, btc_upbit: 0, usdt: 0 },
+        connected: { upbit: !!up, binance: !!bi },
+      });
+    } catch (e) {
+      res.json({ real: { krw: 0, btc_upbit: 0, usdt: 0 } });
+    }
+  });
+
+  app.post("/api/kimpga/start", async (_req, res) => {
+    kimpgaSvc.start();
+    res.json({ ok: true });
+  });
+
+  app.post("/api/kimpga/stop", async (_req, res) => {
+    kimpgaSvc.stop();
+    res.json({ ok: true });
+  });
+
+  app.post("/api/kimpga/force-exit", async (_req, res) => {
+    const result = kimpgaSvc.forceExit();
+    res.json(result);
+  });
 
   // 🔐 Authentication Routes
 
@@ -377,19 +442,64 @@ export async function registerRoutes(
     }
   });
 
-  // 거래 설정 업데이트
+  // 거래 설정 업데이트 (디버깅 로그 강화)
   app.put("/api/trading-settings/:userId", async (req, res) => {
+    const userId = req.params.userId; // string으로 처리
     try {
-      const userId = req.params.userId; // string으로 처리
+      console.log(
+        `[${new Date().toISOString()}] PUT /api/trading-settings/${userId} body:`,
+        req.body
+      );
+
+      // 유저 현 설정 스냅샷 로그
+      try {
+        const current = await storage.getTradingSettingsByUserId(userId);
+        console.log(
+          `[${new Date().toISOString()}] current settings for user ${userId}:`,
+          current
+        );
+      } catch (snapErr) {
+        console.warn(
+          `[${new Date().toISOString()}] failed to fetch current settings for user ${userId}:`,
+          snapErr
+        );
+      }
+
       const settingsData = insertTradingSettingsSchema.parse(req.body);
+      console.log(
+        `[${new Date().toISOString()}] parsed settingsData:`,
+        settingsData
+      );
 
       const settings = await storage.updateTradingSettings(
         userId,
         settingsData
       );
+      console.log(
+        `[${new Date().toISOString()}] updated settings for user ${userId}:`,
+        settings
+      );
       res.json(settings);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid trading settings data" });
+    } catch (error: any) {
+      const zodIssues =
+        error?.issues || error?.errors
+          ? error.issues || error.errors
+          : undefined;
+      console.error(
+        `[${new Date().toISOString()}] trading-settings update error for user ${userId}:`,
+        {
+          message: error?.message,
+          name: error?.name,
+          code: error?.code,
+          issues: zodIssues,
+          body: req.body,
+        }
+      );
+      res.status(400).json({
+        error: "Invalid trading settings data",
+        message: error?.message,
+        issues: zodIssues,
+      });
     }
   });
 
@@ -467,13 +577,21 @@ export async function registerRoutes(
     try {
       const userId = req.params.userId; // string으로 처리
       const { strategyType = "positive_kimchi" } = req.body;
-
-      console.log(`[자동매매 시작] 사용자: ${userId}, 전략: ${strategyType}`);
+      const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
+      console.log(
+        `[TRACE ${traceId}] [자동매매 시작] 사용자: ${userId}, 전략: ${strategyType}`
+      );
+      console.log(`[TRACE ${traceId}] 요청 헤더`, req.headers);
+      console.log(`[TRACE ${traceId}] 요청 바디`, req.body);
 
       // 사용자별 거래 설정 확인
       const settings = await storage.getTradingSettingsByUserId(userId);
+      console.log(`[TRACE ${traceId}] 현재 저장된 설정`, settings);
       if (!settings) {
-        return res.status(400).json({ error: "거래 설정을 먼저 구성해주세요" });
+        console.log(`[TRACE ${traceId}] 설정이 없습니다 → 400 반환`);
+        return res
+          .status(400)
+          .json({ error: "거래 설정을 먼저 구성해주세요", traceId });
       }
 
       // 다중 전략 자동매매 시작
@@ -487,19 +605,24 @@ export async function registerRoutes(
 
       if (result.success) {
         console.log(
-          `[자동매매 시작 성공] 사용자: ${userId}, 활성 전략: ${result.activeStrategies}`
+          `[TRACE ${traceId}] [자동매매 시작 성공] 사용자: ${userId}, 활성 전략: ${result.activeStrategies}`
         );
         res.json({
           message: "자동매매가 시작되었습니다",
           activeStrategies: result.activeStrategies,
           settings: settings,
+          traceId,
         });
       } else {
-        res.status(400).json({ error: "자동매매 시작 실패" });
+        console.log(`[TRACE ${traceId}] 시작 실패 → 400 반환`);
+        res.status(400).json({ error: "자동매매 시작 실패", traceId });
       }
     } catch (error) {
-      console.error("자동매매 시작 오류:", error);
-      res.status(500).json({ error: "자동매매 시작 중 오류가 발생했습니다" });
+      const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
+      console.error(`[TRACE ${traceId}] 자동매매 시작 오류:`, error);
+      res
+        .status(500)
+        .json({ error: "자동매매 시작 중 오류가 발생했습니다", traceId });
     }
   });
 
