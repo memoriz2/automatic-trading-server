@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage.js";
 import { KimchiService } from "./services/kimchi.js";
@@ -27,7 +27,10 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(
+  app: Express,
+  server: Server
+): Promise<void> {
   const kimchiService = new KimchiService();
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
@@ -556,58 +559,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/exchanges/:userId", async (req, res) => {
     try {
       const userId = req.params.userId; // string으로 처리
+      console.log(
+        `[${new Date().toISOString()}] 거래소 정보 조회 요청 - 사용자: ${userId}`
+      );
       const exchanges = await storage.getExchangesByUserId(userId);
+      console.log(
+        `[${new Date().toISOString()}] 조회된 거래소 수: ${exchanges.length}`
+      );
+      console.log(
+        `[${new Date().toISOString()}] 조회된 거래소 데이터:`,
+        exchanges
+      );
 
       // 보안을 위해 API 키는 앞 8자리만 표시
-      const safeExchanges = exchanges.map((exchange) => ({
+      const safeExchanges = exchanges.map((exchange: any) => ({
         id: exchange.id,
-        name: exchange.name,
+        name: exchange.exchange || "Unknown", // exchange 컬럼 사용
         isActive: exchange.isActive,
         apiKeyStart: exchange.apiKey.substring(0, 8) + "...",
         hasApiKey: !!exchange.apiKey,
-        hasSecretKey: !!exchange.secretKey,
+        hasApiSecret: !!exchange.apiSecret,
       }));
 
+      console.log(
+        `[${new Date().toISOString()}] 안전하게 필터링된 거래소 데이터:`,
+        safeExchanges
+      );
       res.json(safeExchanges);
     } catch (error) {
-      console.error("거래소 정보 조회 오류:", error);
-      res
-        .status(500)
-        .json({ error: "거래소 정보 조회 중 오류가 발생했습니다" });
+      console.error(
+        `[${new Date().toISOString()}] 거래소 정보 조회 오류 - 사용자: ${
+          req.params.userId
+        }:`,
+        error
+      );
+      console.error(`[${new Date().toISOString()}] 오류 상세 정보:`, {
+        message: (error as any).message,
+        stack: (error as any).stack,
+        code: (error as any).code,
+        detail: (error as any).detail,
+        hint: (error as any).hint,
+        fullError: error,
+      });
+      res.status(500).json({
+        error: "거래소 정보 조회 중 오류가 발생했습니다",
+        details: (error as any).message,
+      });
     }
   });
 
   // 거래소 API 키 설정
   app.post("/api/exchanges/:userId", async (req, res) => {
+    // ✅ 강제 로그 출력 - 모든 로그를 console.log로 변경
+    console.log(
+      `🚀 [${new Date().toISOString()}] *** API 키 저장 요청 수신됨 *** - URL: ${
+        req.url
+      }`
+    );
+    console.log(
+      `📋 [${new Date().toISOString()}] 요청 메서드: ${req.method}, 요청 헤더:`,
+      req.headers
+    );
+    console.log(
+      `📝 [${new Date().toISOString()}] 요청 바디 (민감 정보 제외):`,
+      {
+        userId: req.params.userId,
+        exchange: req.body.exchange,
+      }
+    );
+    console.log(
+      `🔐 [${new Date().toISOString()}] 요청 바디 상세 (민감 정보 마스킹):`,
+      {
+        name: req.body.name,
+        apiKey: req.body.apiKey
+          ? req.body.apiKey.substring(0, 8) + "..."
+          : "없음",
+        apiSecretPresent: !!(req.body.apiSecret || req.body.secretKey),
+        apiSecretSource: req.body.apiSecret
+          ? "apiSecret"
+          : req.body.secretKey
+          ? "secretKey"
+          : "none",
+      }
+    );
     try {
       const userId = req.params.userId; // string으로 처리
-      const { name, apiKey, secretKey } = req.body;
+      const { exchange, apiKey, apiSecret, secretKey } = req.body;
+      const resolvedSecret = apiSecret ?? secretKey;
 
-      if (!name || !apiKey || !secretKey) {
+      console.log(
+        `💾 [${new Date().toISOString()}] API 키 저장 요청 수신 - 사용자: ${userId}, 거래소: ${exchange}`
+      );
+      console.log(
+        `🔑 [${new Date().toISOString()}] API 키 시작 부분: ${
+          apiKey ? apiKey.substring(0, 8) + "..." : "없음"
+        }`
+      );
+
+      if (!exchange || !apiKey || !resolvedSecret) {
+        console.log(
+          `❌ [${new Date().toISOString()}] 필수 정보 누락 - exchange: ${!!exchange}, apiKey: ${!!apiKey}, apiSecret: ${!!resolvedSecret}`
+        );
         return res
           .status(400)
           .json({ error: "거래소명, API 키, Secret 키를 모두 입력해주세요" });
       }
 
-      const exchange = await storage.createOrUpdateExchange({
+      console.log(
+        `⏳ [${new Date().toISOString()}] API 키 저장 중... - 사용자: ${userId}, 거래소: ${exchange}`
+      );
+      console.log(
+        `⏳ [${new Date().toISOString()}] storage.createOrUpdateExchange 호출 시작...`
+      );
+
+      // storage 객체 테스트
+      console.log(`🔍 [${new Date().toISOString()}] storage 객체 테스트:`, {
+        storageType: typeof storage,
+        hasCreateOrUpdateExchange: typeof storage.createOrUpdateExchange,
+        storageMethods: Object.getOwnPropertyNames(
+          Object.getPrototypeOf(storage)
+        ),
+        storageKeys: Object.keys(storage),
+      });
+
+      const exchangeRecord = await storage.createOrUpdateExchange({
         userId: parseInt(userId),
-        name,
+        exchange: exchange,
         apiKey,
-        secretKey,
+        apiSecret: resolvedSecret,
         // isActive: true // 스키마에서 제외
       });
 
+      console.log(
+        `🔍 [${new Date().toISOString()}] storage.createOrUpdateExchange 결과:`,
+        {
+          exchangeRecord: exchangeRecord,
+          type: typeof exchangeRecord,
+          hasId: !!exchangeRecord?.id,
+          id: exchangeRecord?.id,
+          userId: exchangeRecord?.userId,
+          exchange: exchangeRecord?.exchange,
+          isActive: exchangeRecord?.isActive,
+        }
+      );
+
+      if (!exchangeRecord) {
+        console.error(
+          `❌ [${new Date().toISOString()}] exchangeRecord가 undefined입니다!`
+        );
+        return res.status(500).json({
+          error: "거래소 정보 저장에 실패했습니다",
+          details: "저장된 거래소 정보를 가져올 수 없습니다",
+        });
+      }
+
+      console.log(
+        `✅ [${new Date().toISOString()}] API 키 저장 성공 - 사용자: ${userId}, 거래소: ${exchange}, ID: ${
+          exchangeRecord.id
+        }`
+      );
+
+      // 저장된 데이터 확인을 위한 추가 로그
+      console.log(
+        `🔍 [${new Date().toISOString()}] 저장된 거래소 데이터 상세:`,
+        {
+          id: exchangeRecord.id,
+          userId: exchangeRecord.userId,
+          exchange: exchangeRecord.exchange,
+          apiKeyLength: exchangeRecord.apiKey?.length || 0,
+          apiSecretLength: exchangeRecord.apiSecret?.length || 0,
+          isActive: exchangeRecord.isActive,
+          createdAt: exchangeRecord.createdAt,
+          updatedAt: exchangeRecord.updatedAt,
+        }
+      );
+
+      // 저장 후 즉시 조회해서 실제 저장 확인
+      try {
+        const savedExchange = await storage.getExchangesByUserId(userId);
+        console.log(
+          `🔍 [${new Date().toISOString()}] 저장 후 즉시 조회 결과:`,
+          {
+            totalExchanges: savedExchange.length,
+            savedExchange: savedExchange.map((ex) => ({
+              id: ex.id,
+              exchange: ex.exchange,
+              userId: ex.userId,
+              hasApiKey: !!ex.apiKey,
+              hasApiSecret: !!ex.apiSecret,
+              isActive: ex.isActive,
+            })),
+          }
+        );
+      } catch (verifyError) {
+        console.error(
+          `❌ [${new Date().toISOString()}] 저장 후 조회 실패:`,
+          verifyError
+        );
+      }
+
       res.json({
-        message: `${name} 거래소 연결이 완료되었습니다`,
+        message: `${exchange} 거래소 연결이 완료되었습니다`,
         exchange: {
-          id: exchange.id,
-          name: exchange.name,
+          id: exchangeRecord.id,
+          exchange: exchangeRecord.exchange,
           apiKeyStart: apiKey.substring(0, 8) + "...",
         },
       });
     } catch (error) {
-      console.error("거래소 연결 오류:", error);
-      res.status(500).json({ error: "거래소 연결 중 오류가 발생했습니다" });
+      console.error(
+        `💥 [${new Date().toISOString()}] 거래소 연결 오류 - 사용자: ${
+          req.params.userId
+        }, 거래소: ${req.body.exchange || req.body.name || "알 수 없음"}:`,
+        error
+      );
+      console.error(`🔍 [${new Date().toISOString()}] 오류 상세 정보:`, {
+        message: (error as any).message,
+        stack: (error as any).stack,
+        code: (error as any).code,
+        detail: (error as any).detail,
+        hint: (error as any).hint,
+        requestBody: req.body,
+        requestParams: req.params,
+        requestHeaders: req.headers,
+      });
+      res.status(500).json({
+        error: "거래소 연결 중 오류가 발생했습니다",
+        details: (error as any).message,
+        requestBody: req.body,
+        timestamp: new Date().toISOString(),
+      });
     }
   });
 
@@ -620,10 +801,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const exchange of exchanges) {
         try {
-          if (exchange.name === "upbit") {
+          if (exchange.exchange === "upbit") {
             const upbitService = new UpbitService(
               exchange.apiKey,
-              exchange.secretKey
+              exchange.apiSecret
             );
             const accounts = await upbitService.getAccounts();
             results.push({
@@ -632,10 +813,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               accounts: accounts.length,
               message: `업비트 연결 성공 (${accounts.length}개 계정)`,
             });
-          } else if (exchange.name === "binance") {
+          } else if (exchange.exchange === "binance") {
             const binanceService = new BinanceService(
               exchange.apiKey,
-              exchange.secretKey
+              exchange.apiSecret
             );
             const accountInfo = await binanceService.getAccount();
             results.push({
@@ -647,10 +828,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (error: any) {
           results.push({
-            exchange: exchange.name,
+            exchange: exchange.exchange,
             connected: false,
             error: error.message,
-            message: `${exchange.name} 연결 실패: ${error.message}`,
+            message: `${exchange.exchange} 연결 실패: ${error.message}`,
           });
         }
       }
@@ -682,9 +863,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 보안을 위해 API 키 정보 로깅
       const exchangeDebugInfo = exchanges.map((ex) => ({
         id: ex.id,
-        name: ex.name,
+        name: ex.exchange || "Unknown",
         hasApiKey: !!ex.apiKey,
-        hasSecretKey: !!ex.secretKey,
+        hasApiSecret: !!ex.apiSecret,
         apiKeyStart: ex.apiKey ? ex.apiKey.substring(0, 8) + "..." : "none",
       }));
       console.log(
@@ -692,14 +873,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exchangeDebugInfo
       );
 
-      const balances: any = {};
+      const balances: any = {
+        upbit: { krw: 0, connected: false },
+        binance: { usdt: 0, connected: false },
+      };
 
       for (const exchange of exchanges) {
         const exchangeInfo = {
           id: exchange.id,
-          name: exchange.name,
+          name: exchange.exchange || "Unknown",
           hasApiKey: !!exchange.apiKey,
-          hasSecretKey: !!exchange.secretKey,
+          hasApiSecret: !!exchange.apiSecret,
           isActive: exchange.isActive,
           apiKeyStart: exchange.apiKey
             ? exchange.apiKey.substring(0, 8) + "..."
@@ -711,7 +895,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         try {
-          if (exchange.name === "upbit") {
+          if (exchange.exchange === "upbit") {
             console.log(
               `[${new Date().toISOString()}] Trying to connect to Upbit with API key: ${exchange.apiKey.substring(
                 0,
@@ -720,7 +904,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
             const upbitService = new UpbitService(
               exchange.apiKey,
-              exchange.secretKey
+              exchange.apiSecret
             );
             const accounts = await upbitService.getAccounts();
 
@@ -731,7 +915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               krw: krwAccount ? parseFloat(krwAccount.balance) : 0,
               connected: true,
             };
-          } else if (exchange.name === "binance") {
+          } else if (exchange.exchange === "binance") {
             console.log(
               `[${new Date().toISOString()}] Trying to connect to Binance with API key: ${exchange.apiKey.substring(
                 0,
@@ -740,7 +924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
             const binanceService = new BinanceService(
               exchange.apiKey,
-              exchange.secretKey
+              exchange.apiSecret
             );
             const usdtBalance = await binanceService.getUSDTBalance();
 
@@ -755,17 +939,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error: any) {
           console.error(
             `[${new Date().toISOString()}] Error fetching ${
-              exchange.name
+              exchange.exchange || "unknown"
             } balance:`,
             error
           );
           console.error(`[${new Date().toISOString()}] Full error details:`, {
             message: error.message,
             stack: error.stack,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            fullError: error,
           });
 
-          balances[exchange.name] = {
-            [exchange.name === "upbit" ? "krw" : "usdt"]: 0,
+          balances[exchange.exchange || "unknown"] = {
+            [exchange.exchange === "upbit" ? "krw" : "usdt"]: 0,
             connected: false,
             error: error.message,
           };
@@ -774,8 +962,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(balances);
     } catch (error) {
-      console.error("잔고 조회 오류:", error);
-      res.status(500).json({ error: "잔고 조회 중 오류가 발생했습니다" });
+      console.error(`[${new Date().toISOString()}] 잔고 조회 오류:`, error);
+      console.error(`[${new Date().toISOString()}] 오류 상세 정보:`, {
+        message: (error as any).message,
+        stack: (error as any).stack,
+        code: (error as any).code,
+        detail: (error as any).detail,
+        hint: (error as any).hint,
+        fullError: error,
+      });
+      res.status(500).json({
+        error: "잔고 조회 중 오류가 발생했습니다",
+        details: (error as any).message,
+      });
     }
   });
 
@@ -906,9 +1105,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // WebSocket server setup
-  const httpServer = createServer();
-  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  // WebSocket server setup - 기존 HTTP 서버에 부착
+  const wss = new WebSocketServer({ server, path: "/ws" });
 
   // WebSocket connection handling
   wss.on("connection", (ws) => {
@@ -951,6 +1149,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 10초마다 실시간 데이터 전송
   setInterval(sendKimchiData, 10000);
 
+  // 테스트 로그 엔드포인트
+  app.post("/api/test-log", async (req, res) => {
+    try {
+      const { message, timestamp, userId } = req.body;
+
+      console.log(`🔍 [${timestamp}] 테스트 로그 - 사용자: ${userId}`);
+      console.log(`📝 메시지: ${message}`);
+      console.log(`👤 사용자 ID: ${userId}`);
+      console.log(`⏰ 타임스탬프: ${timestamp}`);
+
+      res.json({
+        success: true,
+        message: "로그가 서버에 기록되었습니다",
+        loggedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("테스트 로그 기록 오류:", error);
+      res.status(500).json({ error: "로그 기록 중 오류가 발생했습니다" });
+    }
+  });
+
   // CORS preflight 처리
   app.options("/api/auth/*", (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
@@ -959,5 +1178,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendStatus(200);
   });
 
-  return httpServer;
+  return;
 }

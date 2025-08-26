@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -19,11 +25,11 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
   const queryClient = useQueryClient();
 
   const [settings, setSettings] = useState({
-    kimchiEntryRate: 1.0,      // 진입 김프율 (%)
-    kimchiExitRate: 0.5,       // 청산 김프율 (%)
-    kimchiToleranceRate: 0.1,  // 허용 오차 진입 김프율 (%)
-    binanceLeverage: 1,        // 바이낸스 레버리지
-    upbitEntryAmount: 10000,   // 업비트 기준 진입 금액 (KRW)
+    kimchiEntryRate: 1.0, // 진입 김프율 (%)
+    kimchiExitRate: 0.5, // 청산 김프율 (%)
+    kimchiToleranceRate: 0.1, // 허용 오차 진입 김프율 (%)
+    binanceLeverage: 1, // 바이낸스 레버리지
+    upbitEntryAmount: 10000, // 업비트 기준 진입 금액 (KRW)
     isAutoTrading: false,
   });
 
@@ -36,11 +42,11 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
   useEffect(() => {
     if (currentSettings) {
       setSettings({
-        kimchiEntryRate: currentSettings.kimchiEntryRate || 1.0,
-        kimchiExitRate: currentSettings.kimchiExitRate || 0.5,
-        kimchiToleranceRate: currentSettings.kimchiToleranceRate || 0.1,
-        binanceLeverage: currentSettings.binanceLeverage || 1,
-        upbitEntryAmount: currentSettings.upbitEntryAmount || 10000,
+        kimchiEntryRate: Number(currentSettings.kimchiEntryRate) || 1.0,
+        kimchiExitRate: Number(currentSettings.kimchiExitRate) || 0.5,
+        kimchiToleranceRate: Number(currentSettings.kimchiToleranceRate) || 0.1,
+        binanceLeverage: Number(currentSettings.binanceLeverage) || 1,
+        upbitEntryAmount: Number(currentSettings.upbitEntryAmount) || 10000,
         isAutoTrading: currentSettings.isAutoTrading,
       });
     }
@@ -49,20 +55,20 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
   // 설정 저장
   const saveSettingsMutation = useMutation({
     mutationFn: async (newSettings: any) => {
-      return apiRequest(`/api/trading-settings/${userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(newSettings),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      return apiRequest(
+        "PATCH",
+        `/api/trading-settings/${userId}`,
+        newSettings
+      );
     },
     onSuccess: () => {
       toast({
         title: "설정 저장 완료",
         description: "새로운 김프 전략 설정이 저장되었습니다.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/trading-settings/${userId}`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/trading-settings/${userId}`],
+      });
     },
     onError: (error) => {
       toast({
@@ -74,6 +80,10 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
   });
 
   const handleSave = () => {
+    // 버튼 클릭 테스트
+    alert("저장 버튼이 클릭되었습니다!");
+    console.log("저장 버튼 클릭됨", settings);
+
     // 유효성 검증
     if (settings.kimchiEntryRate <= settings.kimchiExitRate) {
       toast({
@@ -86,7 +96,7 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
 
     if (settings.upbitEntryAmount < 5000) {
       toast({
-        title: "설정 오류", 
+        title: "설정 오류",
         description: "업비트 진입 금액은 최소 5,000원 이상이어야 합니다.",
         variant: "destructive",
       });
@@ -121,10 +131,11 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
           새로운 김프 전략 설정
         </CardTitle>
         <CardDescription>
-          업비트 롱 + 바이낸스 숏으로 자본을 보호하면서 순수 김프 상승으로만 수익을 내는 전략
+          업비트 롱 + 바이낸스 숏으로 자본을 보호하면서 순수 김프 상승으로만
+          수익을 내는 전략
         </CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* 진입/청산 설정 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,10 +151,12 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
               min="0"
               max="10"
               value={settings.kimchiEntryRate}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                kimchiEntryRate: parseFloat(e.target.value) || 0
-              }))}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  kimchiEntryRate: parseFloat(e.target.value) || 0,
+                }))
+              }
               placeholder="1.0"
             />
             <p className="text-xs text-muted-foreground">
@@ -163,10 +176,12 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
               min="0"
               max="5"
               value={settings.kimchiExitRate}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                kimchiExitRate: parseFloat(e.target.value) || 0
-              }))}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  kimchiExitRate: parseFloat(e.target.value) || 0,
+                }))
+              }
               placeholder="0.5"
             />
             <p className="text-xs text-muted-foreground">
@@ -189,10 +204,12 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
               min="0"
               max="1"
               value={settings.kimchiToleranceRate}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                kimchiToleranceRate: parseFloat(e.target.value) || 0
-              }))}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  kimchiToleranceRate: parseFloat(e.target.value) || 0,
+                }))
+              }
               placeholder="0.1"
             />
             <p className="text-xs text-muted-foreground">
@@ -211,16 +228,18 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
               min="1"
               max="10"
               value={settings.binanceLeverage}
-              onChange={(e) => setSettings(prev => ({
-                ...prev,
-                binanceLeverage: parseInt(e.target.value) || 1
-              }))}
+              onChange={(e) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  binanceLeverage: parseInt(e.target.value) || 1,
+                }))
+              }
               placeholder="1"
             />
             <p className="text-xs text-muted-foreground">
               바이낸스 선물 거래에 적용할 레버리지 (1-10배)
             </p>
-          </div>  
+          </div>
         </div>
 
         {/* 투자 금액 설정 */}
@@ -236,10 +255,12 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
             max="10000000"
             step="1000"
             value={settings.upbitEntryAmount}
-            onChange={(e) => setSettings(prev => ({
-              ...prev,
-              upbitEntryAmount: parseInt(e.target.value) || 10000
-            }))}
+            onChange={(e) =>
+              setSettings((prev) => ({
+                ...prev,
+                upbitEntryAmount: parseInt(e.target.value) || 10000,
+              }))
+            }
             placeholder="10000"
           />
           <div className="text-xs text-muted-foreground space-y-1">
@@ -260,10 +281,12 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
           <Switch
             id="auto-trading"
             checked={settings.isAutoTrading}
-            onCheckedChange={(checked) => setSettings(prev => ({
-              ...prev,
-              isAutoTrading: checked
-            }))}
+            onCheckedChange={(checked) =>
+              setSettings((prev) => ({
+                ...prev,
+                isAutoTrading: checked,
+              }))
+            }
           />
         </div>
 
@@ -271,22 +294,37 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
         <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
           <h4 className="font-medium mb-2">전략 요약</h4>
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>• 진입: 김프율 {settings.kimchiEntryRate}% ± {settings.kimchiToleranceRate}% 시</p>
+            <p>
+              • 진입: 김프율 {settings.kimchiEntryRate}% ±{" "}
+              {settings.kimchiToleranceRate}% 시
+            </p>
             <p>• 청산: 김프율 {settings.kimchiExitRate}% 이하 시</p>
-            <p>• 투자: 업비트 {settings.upbitEntryAmount.toLocaleString()}원 매수</p>
+            <p>
+              • 투자: 업비트 {settings.upbitEntryAmount.toLocaleString()}원 매수
+            </p>
             <p>• 헤지: 바이낸스 {settings.binanceLeverage}배 레버리지 숏</p>
             <p>• 수익: 순수 김프율 상승분만큼 안전한 차익거래</p>
           </div>
         </div>
 
         {/* 저장 버튼 */}
-        <Button 
-          onClick={handleSave}
-          disabled={saveSettingsMutation.isPending}
-          className="w-full"
+        <button
+          onClick={() => {
+            alert("HTML 버튼 클릭됨!");
+            handleSave();
+          }}
+          style={{
+            width: "100%",
+            backgroundColor: "red",
+            color: "white",
+            padding: "12px",
+            borderRadius: "4px",
+            border: "none",
+            cursor: "pointer",
+          }}
         >
-          {saveSettingsMutation.isPending ? "저장 중..." : "설정 저장"}
-        </Button>
+          빨간색 테스트 버튼 (설정 저장)
+        </button>
       </CardContent>
     </Card>
   );
