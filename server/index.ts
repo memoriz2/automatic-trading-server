@@ -164,8 +164,31 @@ app.get("/healthz", (_req: Request, res: Response) => {
     logInfo(`✅ 정적 파일 서빙 설정 완료`);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-  logInfo(`🚀 서버 시작 중... 포트: ${port}`);
+  // 환경별 포트 설정
+  const getPort = async (): Promise<number> => {
+    const isLocal = process.env.NODE_ENV === 'development' && (process.env.IS_LOCAL === 'true' || !process.env.IS_SERVER);
+    const isServer = process.env.NODE_ENV === 'production' || process.env.IS_SERVER === 'true';
+    
+    if (isLocal) {
+      // 로컬 개발 환경: 사용 가능한 포트 자동 탐색
+      const preferredPort = parseInt(process.env.PORT || "5001", 10);
+      const availablePort = await findAvailablePort(preferredPort);
+      logInfo(`💻 로컬 개발 환경 감지: 포트 ${availablePort} 사용`);
+      return availablePort;
+    } else if (isServer) {
+      // 서버 환경: 반드시 5000 포트 고정
+      logInfo(`🌐 서버 환경 감지: 포트 5000으로 고정`);
+      return 5000;
+    } else {
+      // 기본값
+      const defaultPort = parseInt(process.env.PORT || "5000", 10);
+      logInfo(`⚙️ 기본 환경: 포트 ${defaultPort} 사용`);
+      return defaultPort;
+    }
+  };
+
+  const port = await getPort();
+  logInfo(`🚀 서버 시작 중... 포트: ${port} (환경: ${process.env.NODE_ENV})`);
 
   // Windows 환경 호환성을 위해 host와 reusePort 옵션 제거
   server.listen(port, () => {
