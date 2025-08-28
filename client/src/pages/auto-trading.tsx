@@ -381,7 +381,7 @@ export default function AutoTrading() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <BalanceDisplay userId={1} />
+            <BalanceDisplay />
             <Button
               variant="destructive"
               onClick={handleEmergencyStop}

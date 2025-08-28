@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,11 +38,11 @@ import { useAuth, authenticatedApiRequest } from "@/hooks/useAuth";
 // 타입 정의
 interface Exchange {
   id: number;
-  userId: number;
-  name: string;
-  apiKey: string;
-  secretKey: string;
+  name: string;        // 실제 API 응답에서는 'name' 필드 사용
   isActive: boolean;
+  apiKeyStart: string; // API 키 시작 부분 (마스킹된)
+  hasApiKey: boolean;  // API 키 보유 여부
+  hasApiSecret: boolean; // API 시크릿 보유 여부
 }
 
 interface BalanceInfo {
@@ -55,9 +55,9 @@ interface BalanceInfo {
 }
 
 const exchangeFormSchema = z.object({
-  name: z.string(),
+  exchange: z.string(),
   apiKey: z.string().min(1, "API 키를 입력해주세요"),
-  secretKey: z.string().min(1, "Secret 키를 입력해주세요"),
+  apiSecret: z.string().min(1, "Secret 키를 입력해주세요"),
 });
 
 export default function Settings() {
@@ -67,15 +67,28 @@ export default function Settings() {
     "upbit"
   );
 
+  // 연동 테스트 상태 관리
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+
   // 인증된 사용자의 ID 사용
   const userId = user?.id;
 
   // Queries
-  const { data: exchanges = [], refetch: refetchExchanges } = useQuery<
+  const { data: exchanges = [], refetch: refetchExchanges, isLoading, error } = useQuery<
     Exchange[]
   >({
     queryKey: [`/api/exchanges/${userId}`],
     enabled: !!userId,
+  });
+
+  // 디버깅 로그
+  console.log('🔍 [settings.tsx] 쿼리 상태:', {
+    userId,
+    exchanges,
+    isLoading,
+    error,
+    queryKey: `/api/exchanges/${userId}`
   });
 
   const { data: balances, refetch: refetchBalances } = useQuery<BalanceInfo>({
@@ -92,6 +105,84 @@ export default function Settings() {
   }>({
     queryKey: ["/api/server-info"],
   });
+
+  // 연동 테스트 함수 (DB에서 기존 API 키 조회)
+  const testExchangeConnection = async (exchangeName: string) => {
+    console.log('🔍 연동테스트 시작:', exchangeName);
+    console.log('📊 현재 exchanges 데이터:', exchanges);
+    console.log('👤 현재 userId:', userId, '타입:', typeof userId);
+    
+    // 해당 거래소의 기존 API 키가 있는지 확인
+    const existingExchange = exchanges.find(ex => ex.name === exchangeName);
+    console.log('🔑 찾은 거래소 데이터:', existingExchange);
+    
+    // 임시로 API 키 체크를 건너뛰고 바로 서버 테스트 진행
+    console.log('🔧 임시 - API 키 체크 건너뛰기');
+
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+
+    try {
+      // userId를 숫자로 변환하여 전송
+      const numericUserId = userId ? (parseInt(userId.toString()) || userId) : userId;
+      console.log('📤 서버로 전송할 데이터:', {
+        exchange: exchangeName,
+        userId: numericUserId,
+        userIdType: typeof numericUserId
+      });
+
+      const response = await fetch('/api/test-exchange-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          exchange: exchangeName,
+          userId: numericUserId
+        })
+      });
+
+      console.log('🌐 서버 응답 상태:', response.status, response.statusText);
+      
+      let result;
+      try {
+        result = await response.json();
+        console.log('📥 서버 응답 데이터:', result);
+      } catch (jsonError) {
+        console.error('JSON 파싱 오류:', jsonError);
+        result = { success: false, error: 'JSON 파싱 실패', details: await response.text() };
+      }
+      
+      setConnectionTestResult(result);
+
+      if (result.success) {
+        toast({
+          title: "연동 테스트 성공! 🎉",
+          description: result.message,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "연동 테스트 실패 ❌",
+          description: `${result.message}: ${result.error}`,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || '연동 테스트 중 오류가 발생했습니다';
+      setConnectionTestResult({
+        success: false,
+        message: '연동 테스트 실패',
+        error: errorMessage
+      });
+      
+      toast({
+        title: "연동 테스트 오류",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
 
   // Exchange Form
   const exchangeForm = useForm({
@@ -112,7 +203,7 @@ export default function Settings() {
       toast({
         title: "API 키 저장 완료",
         description: `${
-          data.name === "upbit" ? "업비트" : "바이낸스"
+          data.exchange === "upbit" ? "업비트" : "바이낸스"
         } API 키가 저장되었습니다.`,
       });
       exchangeForm.reset();
@@ -416,6 +507,8 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+
+
         {/* 거래소 연결 상태 */}
         <Card>
           <CardHeader>
@@ -451,26 +544,62 @@ export default function Settings() {
                     </Badge>
                   </div>
 
-                  {balance?.connected && (
-                    <div className="text-sm text-gray-600">
-                      {balance.krw && (
-                        <span>KRW: {balance.krw.toLocaleString()}원</span>
-                      )}
-                      {balance.usdt && (
-                        <span className="ml-2">
-                          USDT: {balance.usdt.toFixed(2)}
-                        </span>
-                      )}
-                      {balance.btc && (
-                        <span className="ml-2">
-                          BTC: {balance.btc.toFixed(6)}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {balance?.connected && (
+                      <div className="text-sm text-gray-600">
+                        {balance.krw && (
+                          <span>KRW: {balance.krw.toLocaleString()}원</span>
+                        )}
+                        {balance.usdt && (
+                          <span className="ml-2">
+                            USDT: {balance.usdt.toFixed(2)}
+                          </span>
+                        )}
+                        {balance.btc && (
+                          <span className="ml-2">
+                            BTC: {balance.btc.toFixed(6)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 연동테스트 버튼 */}
+                    <Button
+                      onClick={() => testExchangeConnection(exchangeName)}
+                      disabled={isTestingConnection}
+                      variant="outline"
+                      size="sm"
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                    >
+                      {isTestingConnection ? '테스트 중...' : '🔗 연동테스트'}
+                    </Button>
+                  </div>
                 </div>
               );
             })}
+            
+            {/* 연동 테스트 결과 표시 */}
+            {connectionTestResult && (
+              <div className={`p-3 rounded-md border ${
+                connectionTestResult.success 
+                  ? 'bg-green-950/50 border-green-600 text-green-200' 
+                  : 'bg-red-950/50 border-red-600 text-red-200'
+              }`}>
+                <div className="font-medium">
+                  {connectionTestResult.success ? '✅' : '❌'} {connectionTestResult.message}
+                </div>
+                {connectionTestResult.error && (
+                  <div className="text-sm mt-1 opacity-80">
+                    오류: {connectionTestResult.error}
+                  </div>
+                )}
+                {connectionTestResult.details && (
+                  <div className="text-sm mt-1 opacity-80">
+                    상세: {JSON.stringify(connectionTestResult.details)}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

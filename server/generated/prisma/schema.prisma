@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TradeLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  kimp      Float
+  action    String
+  amount    Float
+  result    String
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  username        String    @unique @db.VarChar(50)
+  role            String    @default("user") @db.VarChar(20)
+  isActive        Boolean   @default(true) @map("is_active")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  email           String?   @unique @db.VarChar(100)
+  firstName       String?   @map("first_name") @db.VarChar(50)
+  lastName        String?   @map("last_name") @db.VarChar(50)
+  profileImageUrl String?   @map("profile_image_url") @db.VarChar(500)
+  password        String    @db.Text
+
+  // 관계 정의 (다른 모델과의 연결)
+  // exchanges Exchange[]
+  // performanceStats PerformanceStat[]
+  // positions Position[]
+  // systemAlerts SystemAlert[]
+  // trades Trade[]
+  // tradingSettings TradingSetting?
+  // tradingStrategies TradingStrategy[]
+
+  @@map("users")
+}
+
+model Cryptocurrency {
+  id            Int      @id @default(autoincrement())
+  symbol        String   @unique @db.VarChar(10)
+  name          String   @db.VarChar(50)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  upbitMarket   String?  @map("upbit_market") @db.VarChar(20)
+  binanceSymbol String?  @map("binance_symbol") @db.VarChar(20)
+  priority      Int      @default(0)
+
+  @@map("cryptocurrencies")
+}
+
+model Exchange {
+  id         Int      @id @default(autoincrement())
+  apiKey     String   @map("api_key")
+  isActive   Boolean  @default(true) @map("is_active")
+  userId     Int      @map("user_id")
+  exchange   String   @db.VarChar(20)
+  apiSecret  String   @map("api_secret")
+  passphrase String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // 외래 키 관계 (users 테이블이 정의된 후 활성화)
+  // user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, exchange], name: "idx_exchanges_user_exchange")
+  @@map("exchanges")
+}
+
+model KimchiPremium {
+  id            Int      @id @default(autoincrement())
+  symbol        String   @db.VarChar(10)
+  upbitPrice    Decimal  @map("upbit_price") @db.Decimal(20, 2)
+  binancePrice  Decimal  @map("binance_price") @db.Decimal(20, 2)
+  premiumRate   Decimal  @map("premium_rate") @db.Decimal(10, 4)
+  timestamp     DateTime @default(now())
+  exchangeRate  Decimal  @map("exchange_rate") @db.Decimal(10, 4)
+  premiumAmount Decimal  @map("premium_amount") @db.Decimal(20, 2)
+
+  @@index([symbol, timestamp], name: "idx_kimchi_premiums_symbol_time")
+  @@index([timestamp], name: "idx_kimchi_premiums_timestamp")
+  @@map("kimchi_premiums")
+}
+
+model PerformanceStat {
+  id                Int      @id @default(autoincrement())
+  userId            Int      @map("user_id")
+  date              String   @db.VarChar(10)
+  totalTrades       Int      @default(0) @map("total_trades")
+  successfulTrades  Int      @default(0) @map("successful_trades")
+  dailyProfit       Decimal  @default("0") @map("daily_profit") @db.Decimal(20, 2)
+  dailyVolume       Decimal  @default("0") @map("daily_volume") @db.Decimal(20, 2)
+  winRate           Decimal  @default("0") @map("win_rate") @db.Decimal(5, 2)
+  avgProfitPerTrade Decimal  @default("0") @map("avg_profit_per_trade") @db.Decimal(20, 2)
+  maxDrawdown       Decimal  @default("0") @map("max_drawdown") @db.Decimal(20, 2)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  // 외래 키 관계 (users 테이블이 정의된 후 활성화)
+  // user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, date], name: "idx_performance_user_date")
+  @@map("performance_stats")
+}
+
+model Position {
+  id                 Int       @id @default(autoincrement())
+  userId             Int       @map("user_id")
+  strategyId         Int?      @map("strategy_id")
+  symbol             String    @db.VarChar(10)
+  type               String    @default("kimchi_arbitrage") @db.VarChar(20)
+  entryPrice         Decimal   @map("entry_price") @db.Decimal(20, 8)
+  currentPrice       Decimal?  @map("current_price") @db.Decimal(20, 8)
+  quantity           Decimal   @db.Decimal(20, 8)
+  entryPremiumRate   Decimal   @map("entry_premium_rate") @db.Decimal(10, 4)
+  currentPremiumRate Decimal?  @map("current_premium_rate") @db.Decimal(10, 4)
+  status             String    @default("open") @db.VarChar(20)
+  entryTime          DateTime  @default(now()) @map("entry_time")
+  exitTime           DateTime? @map("exit_time")
+  upbitOrderId       String?   @map("upbit_order_id") @db.VarChar(100)
+  binanceOrderId     String?   @map("binance_order_id") @db.VarChar(100)
+  side               String    @db.VarChar(10)
+  exitPrice          Decimal?  @map("exit_price") @db.Decimal(20, 8)
+  exitPremiumRate    Decimal?  @map("exit_premium_rate") @db.Decimal(10, 4)
+  unrealizedPnl      Decimal?  @default("0") @map("unrealized_pnl") @db.Decimal(20, 2)
+  realizedPnl        Decimal?  @default("0") @map("realized_pnl") @db.Decimal(20, 2)
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // 외래 키 관계 (users, trading_strategies 테이블이 정의된 후 활성화)
+  // user User @relation(fields: [userId], references: [id])
+  // strategy TradingStrategy? @relation(fields: [strategyId], references: [id])
+
+  @@index([entryTime], name: "idx_positions_entry_time")
+  @@index([strategyId], name: "idx_positions_strategy")
+  @@index([userId, status], name: "idx_positions_user_status")
+  @@index([userId, symbol], name: "idx_positions_user_symbol")
+  @@map("positions")
+}
+
+model Session {
+  sid    String   @id
+  sess   Json     @db.JsonB
+  expire DateTime
+
+  @@index([expire], name: "IDX_session_expire")
+  @@map("sessions")
+}
+
+model SystemAlert {
+  id        Int      @id @default(autoincrement())
+  type      String   @db.VarChar(50)
+  title     String   @db.VarChar(200)
+  message   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  userId    Int?     @map("user_id")
+  data      Json?    @db.JsonB
+  priority  String   @default("normal") @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 외래 키 관계 (users 테이블이 정의된 후 활성화)
+  // user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt], name: "idx_alerts_created_at")
+  @@index([userId, isRead], name: "idx_alerts_user_read")
+  @@map("system_alerts")
+}
+
+model Trade {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  positionId      Int?     @map("position_id")
+  symbol          String   @db.VarChar(10)
+  side            String   @db.VarChar(10)
+  exchange        String   @db.VarChar(20)
+  quantity        Decimal  @db.Decimal(20, 8)
+  price           Decimal  @db.Decimal(20, 8)
+  fee             Decimal  @default("0") @db.Decimal(20, 8)
+  orderType       String   @default("market") @map("order_type") @db.VarChar(20)
+  exchangeOrderId String?  @map("exchange_order_id") @db.VarChar(100)
+  exchangeTradeId String?  @map("exchange_trade_id") @db.VarChar(100)
+  executedAt      DateTime @default(now()) @map("executed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // 외래 키 관계 (users, positions 테이블이 정의된 후 활성화)
+  // user User @relation(fields: [userId], references: [id])
+  // position Position? @relation(fields: [positionId], references: [id])
+
+  @@index([executedAt], name: "idx_trades_executed_at")
+  @@index([positionId], name: "idx_trades_position")
+  @@index([userId, symbol], name: "idx_trades_user_symbol")
+  @@map("trades")
+}
+
+model TradingSetting {
+  id                  Int      @id @default(autoincrement())
+  userId              Int      @unique @map("user_id")
+  entryPremiumRate    Decimal  @default("2.5") @map("entry_premium_rate") @db.Decimal(10, 4)
+  exitPremiumRate     Decimal  @default("1.0") @map("exit_premium_rate") @db.Decimal(10, 4)
+  stopLossRate        Decimal  @default("-1.5") @map("stop_loss_rate") @db.Decimal(10, 4)
+  maxPositions        Int      @default(5) @map("max_positions")
+  isAutoTrading       Boolean  @default(false) @map("is_auto_trading")
+  maxInvestmentAmount Decimal  @default("10000000") @map("max_investment_amount") @db.Decimal(20, 2)
+  kimchiEntryRate     Decimal  @default("1.1") @map("kimchi_entry_rate") @db.Decimal(10, 4)
+  kimchiExitRate      Decimal  @default("1.5") @map("kimchi_exit_rate") @db.Decimal(10, 4)
+  kimchiToleranceRate Decimal  @default("0.1") @map("kimchi_tolerance_rate") @db.Decimal(10, 4)
+  binanceLeverage     Int      @default(3) @map("binance_leverage")
+  upbitEntryAmount    Decimal  @default("10000000") @map("upbit_entry_amount") @db.Decimal(20, 2)
+  dailyLossLimit      Decimal  @default("500000") @map("daily_loss_limit") @db.Decimal(10, 2)
+  maxPositionSize     Decimal  @default("2000000") @map("max_position_size") @db.Decimal(10, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // 외래 키 관계 (users 테이블이 정의된 후 활성화)
+  // user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isAutoTrading], name: "idx_trading_settings_user_auto")
+  @@map("trading_settings")
+}
+
+model TradingStrategy {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  name             String   @db.VarChar(100)
+  entryRate        Decimal  @map("entry_rate") @db.Decimal(10, 4)
+  exitRate         Decimal  @map("exit_rate") @db.Decimal(10, 4)
+  leverage         Int      @default(1)
+  investmentAmount Decimal  @map("investment_amount") @db.Decimal(20, 2)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  symbol           String   @db.VarChar(10)
+  tolerance        Decimal  @default("0.1") @db.Decimal(10, 4)
+  isAutoTrading    Boolean  @default(false) @map("is_auto_trading")
+  totalTrades      Int      @default(0) @map("total_trades")
+  successfulTrades Int      @default(0) @map("successful_trades")
+  totalProfit      Decimal  @default("0") @map("total_profit") @db.Decimal(20, 2)
+
+  // 외래 키 관계 (users 테이블이 정의된 후 활성화)
+  // user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isActive], name: "idx_strategies_user_active")
+  @@index([userId, symbol], name: "idx_strategies_user_symbol")
+  @@map("trading_strategies")
+}

@@ -2,10 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Wallet, DollarSign, AlertTriangle } from 'lucide-react';
-
-interface BalanceDisplayProps {
-  userId: number;
-}
+import { useAuth } from '@/hooks/useAuth';
 
 interface BalanceData {
   upbit: {
@@ -18,13 +15,37 @@ interface BalanceData {
   };
 }
 
-export function BalanceDisplay({ userId }: BalanceDisplayProps) {
-  const { data: balances, isLoading } = useQuery<BalanceData>({
-    queryKey: ['/api/balances', userId],
+export function BalanceDisplay() {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const { data: balances, isLoading, error } = useQuery<BalanceData>({
+    queryKey: [`/api/balances/${userId}`],
     refetchInterval: 2500, // 2.5초마다 업데이트
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화
+    enabled: !!userId, // 로그인한 경우에만 API 호출
   });
+
+  // 디버깅 로그 추가
+  console.log('🔍 BalanceDisplay 상태:', {
+    userId,
+    isLoading,
+    balances,
+    error,
+    queryKey: `/api/balances/${userId}`
+  });
+
+  // 로그인하지 않은 경우
+  if (!userId) {
+    return (
+      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+        <div className="flex items-center space-x-1">
+          <Wallet className="h-4 w-4" />
+          <span>로그인이 필요합니다</span>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !balances) {
     return (

@@ -89,7 +89,7 @@ export function RealTimePrices({ kimchiData, currentExchangeRate, onEmergencySto
         <CardContent>
           <div className="space-y-4">
             {/* 잔고 표시 */}
-            <BalanceDisplay userId={1} />
+            <BalanceDisplay />
             
             {/* 긴급 정지 버튼 */}
             <Button 

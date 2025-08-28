@@ -10,6 +10,7 @@ import { multiStrategyTradingService } from "./services/new-kimchi-trading.js";
 import { UpbitService } from "./services/upbit.js";
 import { BinanceService } from "./services/binance.js";
 import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
+import { exchangeTestService } from "./services/exchange-test.js";
 import {
   insertTradingSettingsSchema,
   insertExchangeSchema,
@@ -28,6 +29,77 @@ import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+/**
+ * JWT 토큰에서 사용자 ID 추출
+ */
+function getUserIdFromToken(authHeader?: string): string | null {
+  try {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    return decoded.userId || null;
+  } catch (error) {
+    console.error('JWT 토큰 검증 실패:', error);
+    return null;
+  }
+}
+
+/**
+ * 요청에서 사용자 ID 추출 (토큰 또는 기본값)
+ */
+function getUserIdFromRequest(req: any): string {
+  const userId = getUserIdFromToken(req.headers.authorization);
+  return userId || "1"; // 기본 사용자 ID
+}
+
+/**
+ * 실제 API 키가 있는 활성 사용자를 찾기
+ */
+async function findActiveUserWithApiKeys(): Promise<string> {
+  try {
+    // 알려진 사용자 ID들을 순회하며 API 키가 있는 사용자 찾기
+    const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
+    
+    for (const userId of knownUserIds) {
+      try {
+        const exchanges = await storage.getExchangesByUserId(userId);
+        
+        // 바이낸스 API 키가 있는 사용자 우선 선택
+        const binanceExchange = exchanges.find((ex: any) => 
+          ex.exchange === 'binance' && ex.isActive && ex.apiKey && ex.apiSecret
+        );
+        
+        if (binanceExchange) {
+          console.log(`🔍 활성 사용자 발견: User ID ${userId} (바이낸스 API 키 보유)`);
+          return userId;
+        }
+        
+        // 업비트 API 키가 있는 사용자도 고려
+        const upbitExchange = exchanges.find((ex: any) => 
+          ex.exchange === 'upbit' && ex.isActive && ex.apiKey && ex.apiSecret
+        );
+        
+        if (upbitExchange) {
+          console.log(`🔍 활성 사용자 발견: User ID ${userId} (업비트 API 키 보유)`);
+          return userId;
+        }
+      } catch (error) {
+        // 해당 사용자가 없거나 오류시 다음 사용자로
+        continue;
+      }
+    }
+    
+    console.log(`⚠️ API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용`);
+    return "1";
+  } catch (error) {
+    console.error('활성 사용자 찾기 실패:', error);
+    return "1"; // 실패시 기본값
+  }
+}
+
 export async function registerRoutes(
   app: Express,
   server: Server
@@ -38,9 +110,10 @@ export async function registerRoutes(
   const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
   const tradingService = new TradingService();
   // kimpga API (완전 통합)
-  app.get("/api/kimpga/current", async (_req, res) => {
+  app.get("/api/kimpga/current", async (req, res) => {
     try {
-      const data = await simpleKimchiService.calculateSimpleKimchi(["BTC"]);
+      const userId = getUserIdFromRequest(req);
+      const data = await simpleKimchiService.calculateSimpleKimchi(["BTC"], userId);
       const d = data.find((x) => x.symbol === "BTC");
       res.json({
         kimp: d?.premiumRate ?? null,
@@ -346,8 +419,9 @@ export async function registerRoutes(
   // 단순 김프율 계산 (업비트 + 바이낸스 선물 + 구글 환율)
   app.get("/api/kimchi-premium/simple", async (req, res) => {
     try {
+      const userId = getUserIdFromRequest(req);
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const results = await simpleKimchiService.calculateSimpleKimchi(symbols);
+      const results = await simpleKimchiService.calculateSimpleKimchi(symbols, userId);
       res.json(results);
     } catch (error) {
       console.error("Simple kimchi premium calculation error:", error);
@@ -358,9 +432,10 @@ export async function registerRoutes(
   // 김프 데이터 API 엔드포인트 (프론트엔드 호환성)
   app.get("/api/kimchi-data", async (req, res) => {
     try {
+      const userId = getUserIdFromRequest(req);
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
       const simpleKimchiData = await simpleKimchiService.calculateSimpleKimchi(
-        symbols
+        symbols, userId
       );
 
       // SimpleKimchiData를 KimchiData 형식으로 변환
@@ -379,6 +454,22 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Kimchi data API error:", error);
       res.status(500).json({ error: "Failed to fetch kimchi data" });
+    }
+  });
+
+  // 환율 정보 조회 API
+  app.get("/api/exchange-rate", async (req, res) => {
+    try {
+      // Google Finance에서 실시간 USD/KRW 환율 가져오기
+      const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
+      res.json({
+        rate: exchangeRate,
+        source: "Google Finance",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Exchange rate API error:", error);
+      res.status(500).json({ error: "Failed to fetch exchange rate" });
     }
   });
 
@@ -1025,11 +1116,23 @@ export async function registerRoutes(
                 8
               )}...`
             );
+            
+            // 암호화된 API 키 복호화
+            const decryptedExchange = await storage.getDecryptedExchange(userId, 'upbit');
+            if (!decryptedExchange) {
+              throw new Error('복호화된 API 키를 찾을 수 없습니다');
+            }
+            
+            console.log(`[${new Date().toISOString()}] 복호화된 API 키 길이: ${decryptedExchange.apiKey.length}, Secret 길이: ${decryptedExchange.apiSecret.length}`);
+            
             const upbitService = new UpbitService(
-              exchange.apiKey,
-              exchange.apiSecret
+              decryptedExchange.apiKey,
+              decryptedExchange.apiSecret
             );
+            
+            console.log(`[${new Date().toISOString()}] UpbitService 생성 완료, getAccounts 호출 시작...`);
             const accounts = await upbitService.getAccounts();
+            console.log(`[${new Date().toISOString()}] getAccounts 성공, 계정 수: ${accounts.length}`);
 
             const krwAccount = accounts.find(
               (account) => account.currency === "KRW"
@@ -1231,16 +1334,52 @@ export async function registerRoutes(
   // WebSocket server setup - 기존 HTTP 서버에 부착
   const wss = new WebSocketServer({ server, path: "/ws" });
 
+  // 연결된 클라이언트와 사용자 ID 매핑
+  const wsUserMap = new Map<WebSocket, string>();
+
   // WebSocket connection handling
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, req) => {
     console.log("WebSocket client connected");
 
+    // URL 쿼리에서 토큰 추출 시도
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+    
+    if (token) {
+      const userId = getUserIdFromToken(`Bearer ${token}`);
+      if (userId) {
+        wsUserMap.set(ws, userId);
+        console.log(`WebSocket 사용자 연결: User ID ${userId}`);
+      }
+    }
+
     ws.on("message", (message) => {
-      console.log("WebSocket message received:", message.toString());
+      const messageStr = message.toString();
+      console.log("WebSocket message received:", messageStr);
+      
+      // 인증 메시지 처리
+      try {
+        const msg = JSON.parse(messageStr);
+        if (msg.type === 'auth' && msg.token) {
+          const userId = getUserIdFromToken(`Bearer ${msg.token}`);
+          if (userId) {
+            wsUserMap.set(ws, userId);
+            console.log(`WebSocket 사용자 인증: User ID ${userId}`);
+          }
+        }
+      } catch (error) {
+        // JSON 파싱 실패시 무시
+      }
     });
 
     ws.on("close", () => {
-      console.log("WebSocket client disconnected");
+      const userId = wsUserMap.get(ws);
+      if (userId) {
+        console.log(`WebSocket 사용자 연결 해제: User ID ${userId}`);
+        wsUserMap.delete(ws);
+      } else {
+        console.log("WebSocket client disconnected");
+      }
     });
   });
 
@@ -1248,12 +1387,27 @@ export async function registerRoutes(
   const sendKimchiData = async () => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const kimchiData = await simpleKimchiService.calculateSimpleKimchi(
-        symbols
+      
+      // 실제 API 키가 있는 활성 사용자를 동적으로 찾기
+      const activeUserId = await findActiveUserWithApiKeys();
+      const simpleKimchiData = await simpleKimchiService.calculateSimpleKimchi(
+        symbols, activeUserId
       );
 
+      // SimpleKimchiData를 클라이언트가 기대하는 KimchiPremium 형식으로 변환
+      const kimchiData = simpleKimchiData.map((data) => ({
+        symbol: data.symbol,
+        upbitPrice: data.upbitPrice,
+        binancePrice: data.binancePriceKRW,
+        binancePriceUSD: data.binanceFuturesPrice,
+        premiumRate: data.premiumRate,
+        timestamp: new Date(data.timestamp),
+        exchangeRate: data.usdKrwRate,
+        exchangeRateSource: "Google Finance (실시간 환율)",
+      }));
+
       const message = JSON.stringify({
-        type: "kimchi-data",
+        type: "kimchi-premium",
         data: kimchiData,
         timestamp: new Date().toISOString(),
       });
@@ -1271,6 +1425,70 @@ export async function registerRoutes(
 
   // 10초마다 실시간 데이터 전송
   setInterval(sendKimchiData, 10000);
+
+  // 거래소 연동 테스트 API (중요: 이 라우트는 /api/exchanges/:userId 보다 먼저 선언되어야 함)
+  app.post("/api/test-exchange-connection", async (req, res) => {
+    try {
+      const { exchange, userId } = req.body;
+
+      if (!exchange || !userId) {
+        return res.status(400).json({
+          error: '필수 정보가 누락되었습니다',
+          details: '거래소와 사용자 ID를 입력해주세요'
+        });
+      }
+
+      console.log(`🔍 [${new Date().toISOString()}] 거래소 연동 테스트 시작:`, {
+        exchange,
+        userId,
+        userIdType: typeof userId
+      });
+
+      // DB에서 해당 사용자의 실제 API 키 조회
+      const decryptedExchange = await storage.getDecryptedExchange(userId.toString(), exchange);
+      
+      if (!decryptedExchange) {
+        console.log(`❌ [${new Date().toISOString()}] API 키를 찾을 수 없음:`, {
+          userId,
+          exchange
+        });
+        return res.status(400).json({
+          error: 'API 키를 찾을 수 없습니다',
+          details: `${exchange} 거래소의 API 키가 등록되지 않았습니다`
+        });
+      }
+
+      const { apiKey, apiSecret } = decryptedExchange;
+
+      console.log(`🔑 [${new Date().toISOString()}] API 키 조회 성공:`, {
+        exchange,
+        apiKeyLength: apiKey.length,
+        apiSecretLength: apiSecret.length
+      });
+
+      // 연동테스트 서비스로 실제 테스트 수행
+      const testResult = await exchangeTestService.testExchangeConnection(
+        exchange,
+        apiKey,
+        apiSecret
+      );
+
+      console.log(`✅ [${new Date().toISOString()}] 연동 테스트 완료:`, {
+        exchange,
+        success: testResult.success,
+        message: testResult.message
+      });
+
+      res.json(testResult);
+
+    } catch (error: any) {
+      console.error(`💥 [${new Date().toISOString()}] 연동 테스트 중 에러:`, error);
+      res.status(500).json({
+        error: '연동 테스트 중 오류가 발생했습니다',
+        details: error.message
+      });
+    }
+  });
 
   // 테스트 로그 엔드포인트
   app.post("/api/test-log", async (req, res) => {

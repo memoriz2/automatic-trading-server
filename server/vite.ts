@@ -79,7 +79,15 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // BUT exclude API routes to prevent HTML responses for API calls
+  app.use("*", (req, res, next) => {
+    // API 경로는 제외하고 SPA fallback 적용
+    if (req.originalUrl.startsWith('/api/') || 
+        req.originalUrl.startsWith('/ws') || 
+        req.originalUrl.startsWith('/healthz')) {
+      return next(); // API 요청은 404로 처리하도록 다음으로 넘김
+    }
+    
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

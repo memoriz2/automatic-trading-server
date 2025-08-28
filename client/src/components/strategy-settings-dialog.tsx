@@ -37,6 +37,13 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
     upbitEntryAmount: 10000000,    // 투자금액 (KRW)
   });
 
+  // 연동 테스트 상태 관리
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+  const [selectedExchange, setSelectedExchange] = useState('upbit');
+  const [apiKey, setApiKey] = useState('');
+  const [apiSecret, setApiSecret] = useState('');
+
   // 현재 설정 조회
   const { data: currentSettings } = useQuery<TradingSettings>({
     queryKey: [`/api/trading-settings/${userId}`],
@@ -197,6 +204,61 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
       binanceLeverage: settings.binanceLeverage,
       upbitEntryAmount: settings.upbitEntryAmount.toString(),
     });
+  };
+
+  // 연동 테스트 함수
+  const testExchangeConnection = async (exchange: string, apiKey: string, apiSecret: string) => {
+    if (!apiKey || !apiSecret) {
+      toast({
+        title: "연동 테스트 실패",
+        description: "API 키와 시크릿을 먼저 입력해주세요",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+
+    try {
+      const response = await fetch('/api/exchanges/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exchange, apiKey, apiSecret })
+      });
+
+      const result = await response.json();
+      setConnectionTestResult(result);
+
+      if (result.success) {
+        toast({
+          title: "연동 테스트 성공! 🎉",
+          description: result.message,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "연동 테스트 실패 ❌",
+          description: `${result.message}: ${result.error}`,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || '연동 테스트 중 오류가 발생했습니다';
+      setConnectionTestResult({
+        success: false,
+        message: '연동 테스트 실패',
+        error: errorMessage
+      });
+      
+      toast({
+        title: "연동 테스트 오류",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   // 새로운 김프 자동매매 시작
@@ -444,6 +506,89 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
               <div>• 바이낸스 최소 수량 0.001 이상만 거래 (미만시 자동 거래 제외)</div>
               <div>• 예: 10,000,000원 → BTC 시장가 매수 → 동일 수량 바이낸스 숏</div>
             </div>
+          </div>
+
+          {/* 거래소 연동 테스트 */}
+          <div className="space-y-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <h4 className="font-medium text-slate-200">🔗 거래소 연동 테스트</h4>
+            
+            {/* 거래소 선택 */}
+            <div className="space-y-2">
+              <Label htmlFor="exchange-select">거래소 선택</Label>
+              <Select value={selectedExchange} onValueChange={setSelectedExchange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="거래소를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="upbit">업비트 (Upbit)</SelectItem>
+                  <SelectItem value="binance">바이낸스 (Binance)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* API 키 입력 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="api-key">API Key</Label>
+                <Input
+                  id="api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="API 키를 입력하세요"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="api-secret">API Secret</Label>
+                <Input
+                  id="api-secret"
+                  type="password"
+                  value={apiSecret}
+                  onChange={(e) => setApiSecret(e.target.value)}
+                  placeholder="API 시크릿을 입력하세요"
+                />
+              </div>
+            </div>
+
+            {/* 연동테스트 버튼 */}
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => testExchangeConnection(selectedExchange, apiKey, apiSecret)}
+                disabled={isTestingConnection || !apiKey || !apiSecret}
+                variant="secondary"
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isTestingConnection ? '테스트 중...' : '🔗 연동테스트'}
+              </Button>
+              
+              <div className="text-xs text-muted-foreground">
+                API 키 입력 후 연동테스트를 먼저 진행하세요
+              </div>
+            </div>
+
+            {/* 연동 테스트 결과 표시 */}
+            {connectionTestResult && (
+              <div className={`p-3 rounded-md border ${
+                connectionTestResult.success 
+                  ? 'bg-green-950/50 border-green-600 text-green-200' 
+                  : 'bg-red-950/50 border-red-600 text-red-200'
+              }`}>
+                <div className="font-medium">
+                  {connectionTestResult.success ? '✅' : '❌'} {connectionTestResult.message}
+                </div>
+                {connectionTestResult.error && (
+                  <div className="text-sm mt-1 opacity-80">
+                    오류: {connectionTestResult.error}
+                  </div>
+                )}
+                {connectionTestResult.details && (
+                  <div className="text-sm mt-1 opacity-80">
+                    상세: {JSON.stringify(connectionTestResult.details)}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 전략 요약 */}

@@ -3,11 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { KimchiCards } from "@/components/kimchi-cards";
 import { PositionsTable } from "@/components/positions-table";
+import { BalanceDisplay } from "@/components/balance-display";
 
 import { RealTimePrices } from "@/components/real-time-prices";
 import { CryptoPricesGrid } from "@/components/crypto-prices-grid";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { StopCircle, Wifi, WifiOff, Download } from "lucide-react";
 import type { KimchiPremium, Position, Trade, TradingSettings, SystemAlert } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
@@ -16,20 +18,103 @@ export default function Dashboard() {
   const [kimchiData, setKimchiData] = useState<KimchiPremium[]>([]);
   const [isAutoTrading, setIsAutoTrading] = useState(false);
   const [currentExchangeRate, setCurrentExchangeRate] = useState<number | null>(null);
+  const [previousExchangeRate, setPreviousExchangeRate] = useState<number | null>(null);
   const { isConnected, subscribe } = useWebSocket();
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // 세션에서 로그인한 사용자 ID 사용 (로그인 필수)
+  const userId = user?.id;
+  
+  // 디버깅: 사용자 정보 확인
+  console.log('👤 대시보드 사용자 정보:', { user, userId });
+
+  // 서버 포트 동적 감지
+  const getServerPort = async (): Promise<number> => {
+    try {
+      // 환경별 포트 감지 로직
+      const isProduction = process.env.NODE_ENV === "production";
+      const isServerEnvironment = window.location.hostname !== 'localhost';
+      
+      if (isServerEnvironment || isProduction) {
+        return 5000; // 서버 환경에서는 항상 5000
+      }
+      
+      // 로컬 환경에서는 서버 정보 API로 실제 포트 확인
+      const commonPorts = [5000, 5001, 5002, 5003, 3000, 8000];
+      
+      for (const port of commonPorts) {
+        try {
+          const response = await fetch(`http://localhost:${port}/api/server-info`);
+          if (response.ok) {
+            const serverInfo = await response.json();
+            console.log(`✅ 서버 발견: 포트 ${port}`, serverInfo);
+            return port;
+          }
+        } catch (e) {
+          // 포트 확인 실패, 다음 포트 시도
+        }
+      }
+      
+      return 5000; // 기본값
+    } catch (error) {
+      console.error('서버 포트 감지 실패:', error);
+      return 5000;
+    }
+  };
+
+  // 환율 데이터 쿼리 추가
+  const { data: exchangeRateData, error: exchangeRateError } = useQuery({
+    queryKey: ['/api/exchange-rate'],
+    queryFn: async () => {
+      console.log('환율 API 호출 시작');
+      
+      // 서버 포트 동적 감지
+      const serverPort = await getServerPort();
+      
+      // 환경별 API URL 결정
+      let apiUrl = '/api/exchange-rate';
+      
+      // 로컬 개발 환경에서만 동적 포트 사용
+      if (window.location.hostname === 'localhost' && window.location.port !== serverPort.toString()) {
+        console.log(`로컬 개발 환경 감지: localhost:${serverPort} 사용`);
+        apiUrl = `http://localhost:${serverPort}/api/exchange-rate`;
+      } else {
+        console.log('서버 환경 또는 같은 포트: 상대 경로 사용');
+      }
+      
+      console.log('최종 API URL:', apiUrl);
+      
+      try {
+        const response = await apiRequest('GET', apiUrl);
+        console.log('API 응답 상태:', response.status, response.statusText);
+        const data = await response.json();
+        console.log('환율 API 응답:', data);
+        return data;
+      } catch (error) {
+        console.error('환율 API 호출 중 오류 발생:', error);
+        throw error;
+      }
+    },
+    refetchInterval: 10000, // 10초마다 환율 업데이트
+    refetchIntervalInBackground: true,
+    retry: 3,
+  });
 
   // Queries
   const { data: positions = [], refetch: refetchPositions } = useQuery<Position[]>({
-    queryKey: ['/api/positions/1'], // userId = 1 for demo
+    queryKey: [`/api/positions/${userId}`],
+    enabled: !!userId,
   });
 
   const { data: trades = [] } = useQuery<Trade[]>({
-    queryKey: ['/api/trades/1'],
+    queryKey: [`/api/trades/${userId}`],
+    enabled: !!userId,
   });
 
   const { data: settings, refetch: refetchSettings } = useQuery<TradingSettings>({
-    queryKey: ['/api/trading-settings/1'],
+    queryKey: [`/api/trading-settings/${userId}`],
+    enabled: !!userId,
   });
 
   const { data: alerts = [] } = useQuery<SystemAlert[]>({
@@ -67,9 +152,30 @@ export default function Dashboard() {
     }
   }, [tradingStatus]);
 
+  // 환율 데이터 업데이트
+  useEffect(() => {
+    if (exchangeRateData?.data?.rate) {
+      setPreviousExchangeRate(currentExchangeRate);
+      setCurrentExchangeRate(exchangeRateData.data.rate);
+      console.log('환율 업데이트:', exchangeRateData.data.rate);
+    }
+  }, [exchangeRateData, currentExchangeRate]);
+
+  // 환율 에러 처리
+  useEffect(() => {
+    if (exchangeRateError) {
+      console.error('환율 API 에러:', exchangeRateError);
+      toast({
+        title: "환율 정보 오류",
+        description: "실시간 환율을 가져올 수 없습니다.",
+        variant: "destructive",
+      });
+    }
+  }, [exchangeRateError, toast]);
+
   const handleEmergencyStop = async () => {
     try {
-      await apiRequest('POST', '/api/trading/emergency-stop/1');
+      await apiRequest('POST', `/api/trading/emergency-stop/${userId}`);
       toast({
         title: "긴급 정지",
         description: "긴급 정지가 실행되어 모든 거래가 중단되었습니다.",

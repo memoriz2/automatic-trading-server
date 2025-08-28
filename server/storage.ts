@@ -147,6 +147,7 @@ export class DatabaseStorage implements IStorage {
       .values({
         ...insertUser,
         password: hashedPassword,
+        updatedAt: new Date(), // updatedAt 필드 명시적 설정
       })
       .returning();
     return user;
@@ -777,7 +778,7 @@ export class DatabaseStorage implements IStorage {
     const allUsers = await db.select().from(users);
 
     const usersWithStats = await Promise.all(
-      allUsers.map(async (user) => {
+      allUsers.map(async (user: User) => {
         const tradesCount = await db
           .select()
           .from(trades)
