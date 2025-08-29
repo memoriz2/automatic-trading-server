@@ -66,7 +66,7 @@ export default function AutoTrading() {
       if (!r.ok) throw new Error("current_kimp failed");
       return r.json();
     },
-    refetchInterval: 1500,
+    refetchInterval: 100,
   });
   const { data: kimpgaStatus, refetch: refetchKimpgaStatus } =
     useQuery<KimpgaStatus>({
@@ -76,7 +76,7 @@ export default function AutoTrading() {
         if (!r.ok) throw new Error("status failed");
         return r.json();
       },
-      refetchInterval: 2500,
+      refetchInterval: 100,
     });
   const { data: kimpgaMetrics } = useQuery<KimpgaMetrics>({
     queryKey: ["/api/kimpga/metrics", tick],
@@ -85,7 +85,7 @@ export default function AutoTrading() {
       if (!r.ok) throw new Error("metrics failed");
       return r.json();
     },
-    refetchInterval: 2500,
+    refetchInterval: 100,
   });
 
   // kimpga 제어
@@ -170,7 +170,7 @@ export default function AutoTrading() {
     Position[]
   >({
     queryKey: ["/api/positions", userId],
-    refetchInterval: 1000, // 1초마다 포지션 업데이트
+    refetchInterval: 100, // 1초마다 포지션 업데이트
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화 (TanStack Query v5)
     enabled: !!userId,
@@ -178,7 +178,7 @@ export default function AutoTrading() {
 
   const { data: tradingStatus } = useQuery({
     queryKey: ["/api/trading/status"],
-    refetchInterval: 2000,
+    refetchInterval: 100,
   });
 
   // 서버 저장된 거래 설정 불러와 폼 초기값 세팅
@@ -857,7 +857,7 @@ function TradingStatusCard({
   // 실시간 김프 데이터 가져오기 (대체 엔드포인트 사용)
   const { data: kimchiData, isLoading } = useQuery<any[]>({
     queryKey: ["/api/kimchi-premium/simple"],
-    refetchInterval: 10000, // 10초마다 갱신
+    refetchInterval: 100,
     enabled: newKimchiActive,
   });
 

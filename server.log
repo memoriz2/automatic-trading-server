@@ -1,0 +1,3877 @@
+
+> rest-express@1.0.0 dev
+> cross-env NODE_ENV=development tsx watch server/index.ts
+
+⚠️ DB init warning: Cannot read properties of undefined (reading 'query')
+🚀 [2025-08-29T12:58:08.744Z] 서버 시작 중...
+🌍 [2025-08-29T12:58:08.744Z] NODE_ENV: development
+🔧 [2025-08-29T12:58:08.744Z] PORT: 5001
+📁 [2025-08-29T12:58:08.744Z] 현재 작업 디렉토리: /Users/ahndj/Desktop/project/trading/automatic-trading1
+🔧 [2025-08-29T12:58:08.744Z] DATABASE_URL(host/db): localhost:5432/trading_db
+📊 [2025-08-29T12:58:08.744Z] 로그 레벨: debug
+🔧 [2025-08-29T12:58:08.745Z] HTTP 서버 생성 중...
+ℹ️ [2025-08-29T12:58:08.745Z] 🛣️ 라우트 등록 중... 
+🔍 [2025-08-29T12:58:08.745Z] 라우트 등록 시작 - registerRoutes 함수 호출
+🚀 WebSocket 서비스 초기화 시작...
+🔌 업비트 WebSocket 연결 시도...
+✅ 업비트 WebSocket 서비스 생성 완료
+🔌 바이낸스 WebSocket 연결 시도...
+✅ 바이낸스 WebSocket 서비스 생성 완료
+🔔 업비트 WebSocket 콜백 등록 중...
+✅ 업비트 WebSocket 콜백 등록 완료
+🔔 바이낸스 WebSocket 콜백 등록 중...
+✅ 바이낸스 WebSocket 콜백 등록 완료
+🌐 구글 파이낸스 USD/KRW 환율 업데이트: 1382.67원
+🔍 [2025-08-29T12:58:08.748Z] registerRoutes 함수 실행 완료
+🔍 [2025-08-29T12:58:08.748Z] 등록된 라우트 개수: 44
+ℹ️ [2025-08-29T12:58:08.748Z] ✅ 라우트 등록 완료 
+ℹ️ [2025-08-29T12:58:08.748Z] 🌐 환경 설정 중... NODE_ENV: development 
+ℹ️ [2025-08-29T12:58:08.748Z] ⚡ Vite 개발 서버 설정 중... 
+ℹ️ [2025-08-29T12:58:08.767Z] ✅ Vite 개발 서버 설정 완료 
+ℹ️ [2025-08-29T12:58:08.767Z] 💻 로컬 개발 환경 감지: 포트 5001 사용 
+ℹ️ [2025-08-29T12:58:08.767Z] 🚀 서버 시작 중... 포트: 5001 (환경: development) 
+🎉 [2025-08-29T12:58:08.767Z] 서버가 성공적으로 시작되었습니다!
+ℹ️ [2025-08-29T12:58:08.767Z] 🌐 서버 주소: http://localhost:5001 
+ℹ️ [2025-08-29T12:58:08.767Z] 🔗 API 엔드포인트: http://localhost:5001/api 
+9:58:08 PM [express] serving on port 5001
+🔍 데이터 상태 확인 - 업비트: 0개, 바이낸스: 0개
+⚠️ API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용
+🐘 Using local PostgreSQL database
+✅ 업비트 WebSocket 연결 성공
+🔔 업비트 실시간 티커 구독: [ 'KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-ADA', 'KRW-DOT' ]
+🔍 데이터 상태 확인 - 업비트: 0개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-BTC: ₩154,699,000
+📊 업비트 실시간 가격: BTC = ₩154,699,000
+✅ 바이낸스 WebSocket 연결 성공
+🔍 데이터 상태 확인 - 업비트: 2개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,699,000
+📊 업비트 실시간 가격: BTC = ₩154,699,000
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,027
+📊 업비트 실시간 가격: XRP = ₩4,027
+📊 KRW-XRP: ₩4,027
+📊 업비트 실시간 가격: XRP = ₩4,027
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,699,000
+📊 업비트 실시간 가격: BTC = ₩154,699,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,695,000
+📊 업비트 실시간 가격: BTC = ₩154,695,000
+📊 KRW-BTC: ₩154,695,000
+📊 업비트 실시간 가격: BTC = ₩154,695,000
+📊 KRW-BTC: ₩154,680,000
+📊 업비트 실시간 가격: BTC = ₩154,680,000
+📊 KRW-BTC: ₩154,676,000
+📊 업비트 실시간 가격: BTC = ₩154,676,000
+📊 KRW-BTC: ₩154,605,000
+📊 업비트 실시간 가격: BTC = ₩154,605,000
+🌐 구글 파이낸스 USD/KRW 환율 업데이트: 1382.67원 → 1392.45512원
+📊 KRW-XRP: ₩4,027
+📊 업비트 실시간 가격: XRP = ₩4,027
+📊 KRW-BTC: ₩154,605,000
+📊 업비트 실시간 가격: BTC = ₩154,605,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:11.279Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:11.280Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,027
+📊 업비트 실시간 가격: XRP = ₩4,027
+📊 KRW-XRP: ₩4,027
+📊 업비트 실시간 가격: XRP = ₩4,027
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-ETH: ₩6,154,000
+📊 업비트 실시간 가격: ETH = ₩6,154,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,154,000
+📊 업비트 실시간 가격: ETH = ₩6,154,000
+📊 KRW-BTC: ₩154,609,000
+📊 업비트 실시간 가격: BTC = ₩154,609,000
+📊 KRW-BTC: ₩154,609,000
+📊 업비트 실시간 가격: BTC = ₩154,609,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:12.110Z] ✅ API 응답: GET /api/server-info 304 - 831ms 
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+WebSocket client connected
+WebSocket 사용자 연결: User ID 6
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,027
+📊 업비트 실시간 가격: XRP = ₩4,027
+📊 KRW-ETH: ₩6,154,000
+📊 업비트 실시간 가격: ETH = ₩6,154,000
+📊 KRW-BTC: ₩154,609,000
+📊 업비트 실시간 가격: BTC = ₩154,609,000
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,611,000
+📊 업비트 실시간 가격: BTC = ₩154,611,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,611,000
+📊 업비트 실시간 가격: BTC = ₩154,611,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-ETH: ₩6,154,000
+📊 업비트 실시간 가격: ETH = ₩6,154,000
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,611,000
+📊 업비트 실시간 가격: BTC = ₩154,611,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,155,000
+📊 업비트 실시간 가격: ETH = ₩6,155,000
+📊 KRW-ETH: ₩6,156,000
+📊 업비트 실시간 가격: ETH = ₩6,156,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,156,000
+📊 업비트 실시간 가격: ETH = ₩6,156,000
+📊 KRW-ETH: ₩6,156,000
+📊 업비트 실시간 가격: ETH = ₩6,156,000
+📊 KRW-ETH: ₩6,156,000
+📊 업비트 실시간 가격: ETH = ₩6,156,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-DOT: ₩5,390
+📊 업비트 실시간 가격: DOT = ₩5,390
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-DOT: ₩5,390
+📊 업비트 실시간 가격: DOT = ₩5,390
+📊 KRW-BTC: ₩154,611,000
+📊 업비트 실시간 가격: BTC = ₩154,611,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,611,000
+📊 업비트 실시간 가격: BTC = ₩154,611,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,028
+📊 업비트 실시간 가격: XRP = ₩4,028
+📊 KRW-DOT: ₩5,390
+📊 업비트 실시간 가격: DOT = ₩5,390
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+WebSocket message received: {"type":"ping"}
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,159,000
+📊 업비트 실시간 가격: ETH = ₩6,159,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:20.083Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:20.083Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:20.084Z] Fetching balances for user 6
+🔍 [2025-08-29T12:58:20.084Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:20.084Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+[2025-08-29T12:58:20.090Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:20.090Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:20.090Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:20.090Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:20.093Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:20.093Z] UpbitService 생성 완료, getAccounts 호출 시작...
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+[2025-08-29T12:58:20.200Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:20.200Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:20.200Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:20.201Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:20.309Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:20.310Z] ✅ API 응답: GET /api/balances/6 304 - 227ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:20.611Z] ✅ API 응답: GET /api/server-info 304 - 527ms 
+🔍 [2025-08-29T12:58:20.614Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:20.614Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:20.615Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:20.725Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:20.725Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+ℹ️ [2025-08-29T12:58:21.068Z] ✅ API 응답: GET /api/server-info 304 - 343ms 
+🔍 [2025-08-29T12:58:21.071Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:21.071Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:21.071Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:21.174Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:21.174Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:21.313Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:21.313Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:21.314Z] Fetching balances for user 6
+[2025-08-29T12:58:21.314Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:21.314Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:21.314Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:21.314Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:21.315Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:21.315Z] UpbitService 생성 완료, getAccounts 호출 시작...
+[2025-08-29T12:58:21.358Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:21.358Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:21.358Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:21.359Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:21.421Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:21.421Z] ✅ API 응답: GET /api/balances/6 304 - 108ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:21.504Z] ✅ API 응답: GET /api/server-info 304 - 330ms 
+🔍 [2025-08-29T12:58:21.506Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:21.506Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:21.506Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:21.612Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:21.612Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+ℹ️ [2025-08-29T12:58:21.938Z] ✅ API 응답: GET /api/server-info 304 - 326ms 
+🔍 [2025-08-29T12:58:21.940Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:21.940Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:21.940Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:22.050Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:22.050Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+ℹ️ [2025-08-29T12:58:22.380Z] ✅ API 응답: GET /api/server-info 304 - 330ms 
+🔍 [2025-08-29T12:58:22.382Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:22.382Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:22.382Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:22.424Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:22.424Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:22.424Z] Fetching balances for user 6
+[2025-08-29T12:58:22.425Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:22.425Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:22.425Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:22.425Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:22.425Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:22.425Z] UpbitService 생성 완료, getAccounts 호출 시작...
+[2025-08-29T12:58:22.470Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:22.471Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:22.471Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:22.472Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 [2025-08-29T12:58:22.491Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:22.491Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:22.531Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:22.531Z] ✅ API 응답: GET /api/balances/6 304 - 107ms 
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:22.830Z] ✅ API 응답: GET /api/server-info 304 - 339ms 
+🔍 [2025-08-29T12:58:22.837Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:22.837Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:22.838Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:22.944Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:22.944Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:23.282Z] ✅ API 응답: GET /api/server-info 304 - 338ms 
+🔍 [2025-08-29T12:58:23.284Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:23.284Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:23.284Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:23.390Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:23.391Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:23.538Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:23.538Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:23.538Z] Fetching balances for user 6
+[2025-08-29T12:58:23.540Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:23.540Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:23.540Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:23.540Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:23.541Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:23.541Z] UpbitService 생성 완료, getAccounts 호출 시작...
+[2025-08-29T12:58:23.579Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:23.579Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:23.580Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:23.582Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:23.719Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:23.720Z] ✅ API 응답: GET /api/balances/6 304 - 182ms 
+ℹ️ [2025-08-29T12:58:23.721Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 [2025-08-29T12:58:23.722Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:23.722Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:23.722Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:23.829Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:23.829Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:24.165Z] ✅ API 응답: GET /api/server-info 304 - 336ms 
+🔍 [2025-08-29T12:58:24.170Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:24.170Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:24.171Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:24.224Z] 모든 요청: GET /
+WebSocket 사용자 연결 해제: User ID 6
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:24.347Z] 모든 요청: GET /@vite/client
+🔍 [2025-08-29T12:58:24.348Z] 모든 요청: GET /src/main.tsx
+🔍 [2025-08-29T12:58:24.349Z] 모든 요청: GET /@react-refresh
+🔍 [2025-08-29T12:58:24.362Z] 모든 요청: GET /@fs/Users/ahndj/Desktop/project/trading/automatic-trading1/node_modules/vite/dist/client/env.mjs
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 [2025-08-29T12:58:24.379Z] 모든 요청: GET /src/App.tsx
+🔍 [2025-08-29T12:58:24.380Z] 모든 요청: GET /src/index.css
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:24.502Z] 모든 요청: GET /src/lib/queryClient.ts
+🔍 [2025-08-29T12:58:24.503Z] 모든 요청: GET /src/components/ui/toaster.tsx
+🔍 [2025-08-29T12:58:24.581Z] 모든 요청: GET /src/components/ui/tooltip.tsx
+🔍 [2025-08-29T12:58:24.583Z] 모든 요청: GET /src/components/sidebar.tsx
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 [2025-08-29T12:58:24.721Z] 모든 요청: GET /src/pages/dashboard.tsx
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:24.728Z] 모든 요청: GET /src/pages/auto-trading.tsx
+🔍 [2025-08-29T12:58:24.728Z] 모든 요청: GET /src/pages/ultra-trading.tsx
+🔍 [2025-08-29T12:58:24.728Z] 모든 요청: GET /src/pages/trading.tsx
+🔍 [2025-08-29T12:58:24.728Z] 모든 요청: GET /src/pages/history.tsx
+🔍 [2025-08-29T12:58:24.728Z] 모든 요청: GET /src/pages/settings.tsx
+🔍 [2025-08-29T12:58:24.729Z] 모든 요청: GET /src/pages/login.tsx
+🔍 [2025-08-29T12:58:24.729Z] 모든 요청: GET /src/pages/admin.tsx
+🔍 [2025-08-29T12:58:24.729Z] 모든 요청: GET /src/pages/not-found.tsx
+🔍 [2025-08-29T12:58:24.733Z] 모든 요청: GET /src/hooks/use-toast.ts
+🔍 [2025-08-29T12:58:24.733Z] 모든 요청: GET /src/components/ui/toast.tsx
+🔍 [2025-08-29T12:58:24.733Z] 모든 요청: GET /src/lib/utils.ts
+🔍 [2025-08-29T12:58:24.733Z] 모든 요청: GET /src/hooks/useAuth.ts
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 [2025-08-29T12:58:24.735Z] 모든 요청: GET /src/components/ui/button.tsx
+🔍 [2025-08-29T12:58:24.735Z] 모든 요청: GET /src/components/ui/card.tsx
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:24.761Z] 모든 요청: GET /src/components/ui/badge.tsx
+🔍 [2025-08-29T12:58:24.767Z] 모든 요청: GET /src/components/ui/select.tsx
+🔍 [2025-08-29T12:58:24.767Z] 모든 요청: GET /src/components/ui/input.tsx
+🔍 [2025-08-29T12:58:24.767Z] 모든 요청: GET /src/components/ui/label.tsx
+🔍 [2025-08-29T12:58:24.768Z] 모든 요청: GET /src/components/ui/textarea.tsx
+🔍 [2025-08-29T12:58:24.768Z] 모든 요청: GET /@fs/Users/ahndj/Desktop/project/trading/automatic-trading1/node_modules/react-calendar/dist/Calendar.css
+🔍 [2025-08-29T12:58:24.768Z] 모든 요청: GET /src/hooks/use-websocket.tsx
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 [2025-08-29T12:58:24.782Z] 모든 요청: GET /src/components/ui/tabs.tsx
+🔍 [2025-08-29T12:58:24.782Z] 모든 요청: GET /src/components/ui/alert.tsx
+🔍 [2025-08-29T12:58:24.782Z] 모든 요청: GET /src/components/ui/table.tsx
+🔍 [2025-08-29T12:58:24.783Z] 모든 요청: GET /src/components/ui/dialog.tsx
+🔍 [2025-08-29T12:58:24.783Z] 모든 요청: GET /src/components/ui/switch.tsx
+🔍 [2025-08-29T12:58:24.783Z] 모든 요청: GET /src/components/balance-display.tsx
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:24.796Z] 모든 요청: GET /src/components/positions-table.tsx
+🔍 [2025-08-29T12:58:24.796Z] 모든 요청: GET /src/components/kimchi-cards.tsx
+🔍 [2025-08-29T12:58:24.796Z] 모든 요청: GET /src/components/real-time-prices.tsx
+🔍 [2025-08-29T12:58:24.796Z] 모든 요청: GET /src/components/crypto-prices-grid.tsx
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:24.861Z] 모든 요청: GET /api/trading/status
+ℹ️ [2025-08-29T12:58:24.861Z] 🔌 API 요청: GET /api/trading/status - IP: ::1 
+🔍 [2025-08-29T12:58:24.862Z] 모든 요청: GET /api/alerts
+ℹ️ [2025-08-29T12:58:24.862Z] 🔌 API 요청: GET /api/alerts - IP: ::1 
+ℹ️ [2025-08-29T12:58:24.863Z] ✅ API 응답: GET /api/trading/status 200 - 2ms 
+ℹ️ [2025-08-29T12:58:24.864Z] ✅ API 응답: GET /api/alerts 304 - 2ms 
+🔍 [2025-08-29T12:58:24.865Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:24.865Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:24.865Z] Fetching balances for user 6
+🔍 [2025-08-29T12:58:24.865Z] 모든 요청: GET /api/positions/6
+ℹ️ [2025-08-29T12:58:24.865Z] 🔌 API 요청: GET /api/positions/6 - IP: ::1 
+🔍 [2025-08-29T12:58:24.865Z] 모든 요청: GET /api/trades/6
+ℹ️ [2025-08-29T12:58:24.865Z] 🔌 API 요청: GET /api/trades/6 - IP: ::1 
+🔍 [2025-08-29T12:58:24.865Z] 모든 요청: GET /api/trading-settings/6
+ℹ️ [2025-08-29T12:58:24.865Z] 🔌 API 요청: GET /api/trading-settings/6 - IP: ::1 
+거래 설정 조회 요청: userId=6
+[2025-08-29T12:58:24.866Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:24.866Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:24.866Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:24.866Z] Trying to connect to Upbit with API key: U2FsdGVk...
+ℹ️ [2025-08-29T12:58:24.867Z] ✅ API 응답: GET /api/positions/6 304 - 2ms 
+[2025-08-29T12:58:24.867Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:24.867Z] UpbitService 생성 완료, getAccounts 호출 시작...
+조회된 설정: {
+  id: 104,
+  userId: 6,
+  entryPremiumRate: '2.5000',
+  exitPremiumRate: '1.0000',
+  stopLossRate: '-1.5000',
+  maxPositions: 5,
+  isAutoTrading: false,
+  maxInvestmentAmount: '1000000.00',
+  kimchiEntryRate: '1.1000',
+  kimchiExitRate: '1.5000',
+  kimchiToleranceRate: '0.1000',
+  binanceLeverage: 3,
+  upbitEntryAmount: '10000000.00'
+}
+ℹ️ [2025-08-29T12:58:24.870Z] ✅ API 응답: GET /api/trading-settings/6 304 - 5ms 
+ℹ️ [2025-08-29T12:58:24.870Z] ✅ API 응답: GET /api/trades/6 304 - 5ms 
+🔍 [2025-08-29T12:58:24.878Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:24.878Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 [2025-08-29T12:58:24.882Z] 모든 요청: GET /favicon.ico
+[2025-08-29T12:58:24.906Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:24.906Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:24.906Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:24.908Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:24.967Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:24.968Z] ✅ API 응답: GET /api/balances/6 304 - 103ms 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:25.209Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 [2025-08-29T12:58:25.210Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:25.211Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+WebSocket client connected
+WebSocket 사용자 연결: User ID 6
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:25.547Z] ✅ API 응답: GET /api/server-info 304 - 337ms 
+🔍 [2025-08-29T12:58:25.553Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:25.553Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:25.554Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 [2025-08-29T12:58:25.664Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:25.664Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 [2025-08-29T12:58:25.970Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:25.970Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:25.971Z] Fetching balances for user 6
+[2025-08-29T12:58:25.971Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:25.971Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:25.971Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:25.971Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:25.972Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:25.972Z] UpbitService 생성 완료, getAccounts 호출 시작...
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+ℹ️ [2025-08-29T12:58:25.996Z] ✅ API 응답: GET /api/server-info 304 - 332ms 
+🔍 [2025-08-29T12:58:25.997Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:25.997Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:25.998Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+[2025-08-29T12:58:26.013Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:26.013Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:26.013Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:26.014Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:26.080Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:26.081Z] ✅ API 응답: GET /api/balances/6 304 - 111ms 
+🔍 [2025-08-29T12:58:26.103Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:26.104Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:26.432Z] ✅ API 응답: GET /api/server-info 304 - 329ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:26.438Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:26.438Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:26.440Z] ✅ API 응답: GET /api/exchange-rate 200 - 2ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:26.550Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:26.550Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:26.885Z] ✅ API 응답: GET /api/server-info 304 - 335ms 
+🔍 [2025-08-29T12:58:26.890Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:26.891Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:26.891Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:27.000Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:27.000Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:27.087Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:27.087Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:27.087Z] Fetching balances for user 6
+[2025-08-29T12:58:27.088Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:27.088Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:27.088Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:27.088Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:27.089Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:27.089Z] UpbitService 생성 완료, getAccounts 호출 시작...
+[2025-08-29T12:58:27.130Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:27.130Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:27.130Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:27.132Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:27.194Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:27.194Z] ✅ API 응답: GET /api/balances/6 304 - 107ms 
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+ℹ️ [2025-08-29T12:58:27.338Z] ✅ API 응답: GET /api/server-info 304 - 338ms 
+🔍 [2025-08-29T12:58:27.340Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:27.340Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:27.340Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:27.446Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:27.446Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:27.783Z] ✅ API 응답: GET /api/server-info 304 - 337ms 
+🔍 [2025-08-29T12:58:27.785Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:27.785Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:27.786Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 [2025-08-29T12:58:27.890Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:27.890Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 [2025-08-29T12:58:28.200Z] 모든 요청: GET /api/balances/6
+ℹ️ [2025-08-29T12:58:28.200Z] 🔌 API 요청: GET /api/balances/6 - IP: ::1 
+[2025-08-29T12:58:28.200Z] Fetching balances for user 6
+[2025-08-29T12:58:28.201Z] Retrieved 2 exchanges for user 6
+[2025-08-29T12:58:28.201Z] Exchange details: [
+  {
+    id: 5,
+    name: 'upbit',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  },
+  {
+    id: 6,
+    name: 'binance',
+    hasApiKey: true,
+    hasApiSecret: true,
+    apiKeyStart: 'U2FsdGVk...'
+  }
+]
+[2025-08-29T12:58:28.201Z] Processing exchange: {
+  id: 5,
+  name: 'upbit',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:28.201Z] Trying to connect to Upbit with API key: U2FsdGVk...
+[2025-08-29T12:58:28.202Z] 복호화된 API 키 길이: 40, Secret 길이: 40
+[2025-08-29T12:58:28.202Z] UpbitService 생성 완료, getAccounts 호출 시작...
+ℹ️ [2025-08-29T12:58:28.218Z] ✅ API 응답: GET /api/server-info 304 - 328ms 
+🔍 [2025-08-29T12:58:28.221Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:28.221Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:28.222Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+[2025-08-29T12:58:28.238Z] getAccounts 성공, 계정 수: 4
+[2025-08-29T12:58:28.238Z] Processing exchange: {
+  id: 6,
+  name: 'binance',
+  hasApiKey: true,
+  hasApiSecret: true,
+  isActive: true,
+  apiKeyStart: 'U2FsdGVk...'
+}
+[2025-08-29T12:58:28.238Z] Trying to connect to Binance with session ID: 6...
+[2025-08-29T12:58:28.239Z] 복호화된 바이낸스 API 키 길이: 64, Secret 길이: 64
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 바이낸스 선물 USDT 잔고: $3046.71389514
+[2025-08-29T12:58:28.302Z] Binance connection successful, USDT balance: 3046.71389514
+ℹ️ [2025-08-29T12:58:28.302Z] ✅ API 응답: GET /api/balances/6 304 - 102ms 
+🔍 [2025-08-29T12:58:28.327Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:28.327Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:28.667Z] ✅ API 응답: GET /api/server-info 304 - 340ms 
+🔍 [2025-08-29T12:58:28.669Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:28.669Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:28.669Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:28.774Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:28.774Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+ℹ️ [2025-08-29T12:58:29.100Z] ✅ API 응답: GET /api/server-info 304 - 326ms 
+🔍 [2025-08-29T12:58:29.103Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:29.103Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:29.103Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 [2025-08-29T12:58:29.276Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:29.276Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:29.607Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 [2025-08-29T12:58:29.610Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:29.610Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:29.610Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:30.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:30.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+ℹ️ [2025-08-29T12:58:31.076Z] ✅ API 응답: GET /api/server-info 304 - 799ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:31.080Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:31.080Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:31.080Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 [2025-08-29T12:58:31.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:31.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:31.608Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 [2025-08-29T12:58:31.611Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:31.611Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:31.612Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 [2025-08-29T12:58:32.280Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:32.280Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:32.618Z] ✅ API 응답: GET /api/server-info 304 - 338ms 
+🔍 [2025-08-29T12:58:32.621Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:32.621Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:32.621Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 [2025-08-29T12:58:33.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:33.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:33.620Z] ✅ API 응답: GET /api/server-info 304 - 342ms 
+🔍 [2025-08-29T12:58:33.622Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:33.622Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:33.623Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+🔍 [2025-08-29T12:58:34.276Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:34.276Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+ℹ️ [2025-08-29T12:58:34.607Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:34.611Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:34.611Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:34.611Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:35.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:35.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:35.611Z] ✅ API 응답: GET /api/server-info 304 - 334ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:35.615Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:35.615Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:35.615Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 [2025-08-29T12:58:36.275Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:36.275Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:36.628Z] ✅ API 응답: GET /api/server-info 304 - 353ms 
+🔍 [2025-08-29T12:58:36.631Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:36.631Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:36.631Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:37.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:37.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+ℹ️ [2025-08-29T12:58:37.604Z] ✅ API 응답: GET /api/server-info 304 - 327ms 
+🔍 [2025-08-29T12:58:37.608Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:37.608Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:37.608Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:38.279Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:38.279Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+ℹ️ [2025-08-29T12:58:38.613Z] ✅ API 응답: GET /api/server-info 304 - 334ms 
+🔍 [2025-08-29T12:58:38.615Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:38.615Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:38.615Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-DOT: ₩5,390
+📊 업비트 실시간 가격: DOT = ₩5,390
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:39.279Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:39.279Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:39.612Z] ✅ API 응답: GET /api/server-info 304 - 333ms 
+🔍 [2025-08-29T12:58:39.616Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:39.616Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:39.616Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 [2025-08-29T12:58:40.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:40.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:40.623Z] ✅ API 응답: GET /api/server-info 304 - 346ms 
+🔍 [2025-08-29T12:58:40.628Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:40.628Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:40.628Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 [2025-08-29T12:58:41.279Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:41.279Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+ℹ️ [2025-08-29T12:58:41.610Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 [2025-08-29T12:58:41.613Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:41.613Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:41.613Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:42.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:42.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+ℹ️ [2025-08-29T12:58:42.609Z] ✅ API 응답: GET /api/server-info 304 - 331ms 
+🔍 [2025-08-29T12:58:42.613Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:42.613Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:42.613Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:43.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:43.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:43.623Z] ✅ API 응답: GET /api/server-info 304 - 344ms 
+🔍 [2025-08-29T12:58:43.625Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:43.625Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:43.625Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:44.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:44.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:44.635Z] ✅ API 응답: GET /api/server-info 304 - 358ms 
+🔍 [2025-08-29T12:58:44.639Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:44.639Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:44.639Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:45.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:45.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,173
+📊 업비트 실시간 가격: ADA = ₩1,173
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+ℹ️ [2025-08-29T12:58:45.632Z] ✅ API 응답: GET /api/server-info 304 - 354ms 
+🔍 [2025-08-29T12:58:45.636Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:45.636Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:45.637Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 [2025-08-29T12:58:46.279Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:46.279Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+ℹ️ [2025-08-29T12:58:46.624Z] ✅ API 응답: GET /api/server-info 304 - 345ms 
+🔍 [2025-08-29T12:58:46.628Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:46.628Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:46.628Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:47.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:47.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:47.618Z] ✅ API 응답: GET /api/server-info 304 - 340ms 
+🔍 [2025-08-29T12:58:47.622Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:47.622Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:47.622Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 [2025-08-29T12:58:48.280Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:48.280Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ADA: ₩1,175
+📊 업비트 실시간 가격: ADA = ₩1,175
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+ℹ️ [2025-08-29T12:58:48.618Z] ✅ API 응답: GET /api/server-info 304 - 338ms 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 [2025-08-29T12:58:48.622Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:48.622Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:48.622Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ADA: ₩1,175
+📊 업비트 실시간 가격: ADA = ₩1,175
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 [2025-08-29T12:58:49.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:49.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:49.609Z] ✅ API 응답: GET /api/server-info 304 - 332ms 
+🔍 [2025-08-29T12:58:49.611Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:49.612Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:49.612Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,030
+📊 업비트 실시간 가격: XRP = ₩4,030
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,029
+📊 업비트 실시간 가격: XRP = ₩4,029
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,698,000
+📊 업비트 실시간 가격: BTC = ₩154,698,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 [2025-08-29T12:58:50.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:50.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+ℹ️ [2025-08-29T12:58:50.627Z] ✅ API 응답: GET /api/server-info 304 - 349ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 [2025-08-29T12:58:50.630Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:50.630Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:50.630Z] ✅ API 응답: GET /api/exchange-rate 200 - 0ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:51.277Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:51.277Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:51.637Z] ✅ API 응답: GET /api/server-info 304 - 360ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:51.641Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:51.641Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:51.642Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:52.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:52.279Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+ℹ️ [2025-08-29T12:58:52.645Z] ✅ API 응답: GET /api/server-info 304 - 367ms 
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 [2025-08-29T12:58:52.647Z] 모든 요청: GET /api/exchange-rate
+ℹ️ [2025-08-29T12:58:52.647Z] 🔌 API 요청: GET /api/exchange-rate - IP: ::1 
+ℹ️ [2025-08-29T12:58:52.648Z] ✅ API 응답: GET /api/exchange-rate 200 - 1ms 
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+9:58:52 PM [tsx] change in ./server/services/binance-websocket.ts Restarting...
+c⚠️ DB init warning: Cannot read properties of undefined (reading 'query')
+🚀 [2025-08-29T12:58:53.331Z] 서버 시작 중...
+🌍 [2025-08-29T12:58:53.331Z] NODE_ENV: development
+🔧 [2025-08-29T12:58:53.331Z] PORT: 5001
+📁 [2025-08-29T12:58:53.331Z] 현재 작업 디렉토리: /Users/ahndj/Desktop/project/trading/automatic-trading1
+🔧 [2025-08-29T12:58:53.331Z] DATABASE_URL(host/db): localhost:5432/trading_db
+📊 [2025-08-29T12:58:53.331Z] 로그 레벨: debug
+🔧 [2025-08-29T12:58:53.332Z] HTTP 서버 생성 중...
+ℹ️ [2025-08-29T12:58:53.332Z] 🛣️ 라우트 등록 중... 
+🔍 [2025-08-29T12:58:53.332Z] 라우트 등록 시작 - registerRoutes 함수 호출
+🚀 WebSocket 서비스 초기화 시작...
+🔌 업비트 WebSocket 연결 시도...
+✅ 업비트 WebSocket 서비스 생성 완료
+🔌 바이낸스 WebSocket 연결 시도...
+✅ 바이낸스 WebSocket 서비스 생성 완료
+🔔 업비트 WebSocket 콜백 등록 중...
+✅ 업비트 WebSocket 콜백 등록 완료
+🔔 바이낸스 WebSocket 콜백 등록 중...
+✅ 바이낸스 WebSocket 콜백 등록 완료
+🌐 구글 파이낸스 USD/KRW 환율 업데이트: 1382.67원
+🔍 [2025-08-29T12:58:53.335Z] registerRoutes 함수 실행 완료
+🔍 [2025-08-29T12:58:53.335Z] 등록된 라우트 개수: 44
+ℹ️ [2025-08-29T12:58:53.335Z] ✅ 라우트 등록 완료 
+ℹ️ [2025-08-29T12:58:53.335Z] 🌐 환경 설정 중... NODE_ENV: development 
+ℹ️ [2025-08-29T12:58:53.335Z] ⚡ Vite 개발 서버 설정 중... 
+ℹ️ [2025-08-29T12:58:53.352Z] ✅ Vite 개발 서버 설정 완료 
+ℹ️ [2025-08-29T12:58:53.352Z] 💻 로컬 개발 환경 감지: 포트 5001 사용 
+ℹ️ [2025-08-29T12:58:53.352Z] 🚀 서버 시작 중... 포트: 5001 (환경: development) 
+🎉 [2025-08-29T12:58:53.353Z] 서버가 성공적으로 시작되었습니다!
+ℹ️ [2025-08-29T12:58:53.353Z] 🌐 서버 주소: http://localhost:5001 
+ℹ️ [2025-08-29T12:58:53.353Z] 🔗 API 엔드포인트: http://localhost:5001/api 
+9:58:53 PM [express] serving on port 5001
+🔍 데이터 상태 확인 - 업비트: 0개, 바이낸스: 0개
+⚠️ API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용
+🐘 Using local PostgreSQL database
+✅ 업비트 WebSocket 연결 성공
+🔔 업비트 실시간 티커 구독: [ 'KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-ADA', 'KRW-DOT' ]
+🔍 데이터 상태 확인 - 업비트: 0개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+✅ 바이낸스 WebSocket 연결 성공
+🔍 데이터 상태 확인 - 업비트: 0개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 1개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 1개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 1개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 1개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 2개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 2개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 USD/KRW 환율 업데이트: 1382.67원 → 1392.45512원
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 2개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 2개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 2개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ADA: ₩1,174
+📊 업비트 실시간 가격: ADA = ₩1,174
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,696,000
+📊 업비트 실시간 가격: BTC = ₩154,696,000
+📊 KRW-BTC: ₩154,687,000
+📊 업비트 실시간 가격: BTC = ₩154,687,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,687,000
+📊 업비트 실시간 가격: BTC = ₩154,687,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,687,000
+📊 업비트 실시간 가격: BTC = ₩154,687,000
+🔍 [2025-08-29T12:58:56.278Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:58:56.278Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,160,000
+📊 업비트 실시간 가격: ETH = ₩6,160,000
+📊 KRW-ETH: ₩6,159,000
+📊 업비트 실시간 가격: ETH = ₩6,159,000
+📊 KRW-ETH: ₩6,158,000
+📊 업비트 실시간 가격: ETH = ₩6,158,000
+📊 KRW-ETH: ₩6,157,000
+📊 업비트 실시간 가격: ETH = ₩6,157,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+ℹ️ [2025-08-29T12:58:57.338Z] ✅ API 응답: GET /api/server-info 304 - 1060ms 
+WebSocket client connected
+WebSocket 사용자 연결: User ID 6
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 4개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-DOT: ₩5,390
+📊 업비트 실시간 가격: DOT = ₩5,390
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,696,000
+📊 업비트 실시간 가격: BTC = ₩154,696,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-BTC: ₩154,696,000
+📊 업비트 실시간 가격: BTC = ₩154,696,000
+📊 KRW-BTC: ₩154,687,000
+📊 업비트 실시간 가격: BTC = ₩154,687,000
+📊 KRW-BTC: ₩154,679,000
+📊 업비트 실시간 가격: BTC = ₩154,679,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-BTC: ₩154,679,000
+📊 업비트 실시간 가격: BTC = ₩154,679,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 5개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+9:59:04 PM [tsx] change in ./server/services/binance-websocket.ts Restarting...
+c⚠️ DB init warning: Cannot read properties of undefined (reading 'query')
+🚀 [2025-08-29T12:59:05.127Z] 서버 시작 중...
+🌍 [2025-08-29T12:59:05.128Z] NODE_ENV: development
+🔧 [2025-08-29T12:59:05.128Z] PORT: 5001
+📁 [2025-08-29T12:59:05.128Z] 현재 작업 디렉토리: /Users/ahndj/Desktop/project/trading/automatic-trading1
+🔧 [2025-08-29T12:59:05.128Z] DATABASE_URL(host/db): localhost:5432/trading_db
+📊 [2025-08-29T12:59:05.128Z] 로그 레벨: debug
+🔧 [2025-08-29T12:59:05.129Z] HTTP 서버 생성 중...
+ℹ️ [2025-08-29T12:59:05.129Z] 🛣️ 라우트 등록 중... 
+🔍 [2025-08-29T12:59:05.129Z] 라우트 등록 시작 - registerRoutes 함수 호출
+🚀 WebSocket 서비스 초기화 시작...
+🔌 업비트 WebSocket 연결 시도...
+✅ 업비트 WebSocket 서비스 생성 완료
+🔌 바이낸스 WebSocket 연결 시도...
+✅ 바이낸스 WebSocket 서비스 생성 완료
+🔔 업비트 WebSocket 콜백 등록 중...
+✅ 업비트 WebSocket 콜백 등록 완료
+🔔 바이낸스 WebSocket 콜백 등록 중...
+✅ 바이낸스 WebSocket 콜백 등록 완료
+🌐 구글 파이낸스 USD/KRW 환율 업데이트: 1382.67원
+🔍 [2025-08-29T12:59:05.131Z] registerRoutes 함수 실행 완료
+🔍 [2025-08-29T12:59:05.131Z] 등록된 라우트 개수: 44
+ℹ️ [2025-08-29T12:59:05.131Z] ✅ 라우트 등록 완료 
+ℹ️ [2025-08-29T12:59:05.131Z] 🌐 환경 설정 중... NODE_ENV: development 
+ℹ️ [2025-08-29T12:59:05.131Z] ⚡ Vite 개발 서버 설정 중... 
+ℹ️ [2025-08-29T12:59:05.148Z] ✅ Vite 개발 서버 설정 완료 
+ℹ️ [2025-08-29T12:59:05.148Z] 💻 로컬 개발 환경 감지: 포트 5001 사용 
+ℹ️ [2025-08-29T12:59:05.148Z] 🚀 서버 시작 중... 포트: 5001 (환경: development) 
+🎉 [2025-08-29T12:59:05.149Z] 서버가 성공적으로 시작되었습니다!
+ℹ️ [2025-08-29T12:59:05.149Z] 🌐 서버 주소: http://localhost:5001 
+ℹ️ [2025-08-29T12:59:05.149Z] 🔗 API 엔드포인트: http://localhost:5001/api 
+9:59:05 PM [express] serving on port 5001
+🔍 데이터 상태 확인 - 업비트: 0개, 바이낸스: 0개
+⚠️ API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용
+🐘 Using local PostgreSQL database
+✅ 업비트 WebSocket 연결 성공
+🔔 업비트 실시간 티커 구독: [ 'KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-ADA', 'KRW-DOT' ]
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 1개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+✅ 바이낸스 WebSocket 연결 성공
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 1개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,163,000
+📊 업비트 실시간 가격: ETH = ₩6,163,000
+📊 KRW-ETH: ₩6,163,000
+📊 업비트 실시간 가격: ETH = ₩6,163,000
+📊 KRW-ETH: ₩6,164,000
+📊 업비트 실시간 가격: ETH = ₩6,164,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 0개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 KRW-ETH: ₩6,164,000
+📊 업비트 실시간 가격: ETH = ₩6,164,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🌐 구글 파이낸스 USD/KRW 환율 업데이트: 1382.67원 → 1392.45512원
+📊 바이낸스 실시간 가격: BTC = $110,740
+📊 바이낸스 실시간 가격: BTC = $110,740
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 2개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📤 WebSocket 김프율 데이터 전송: 1개 심볼
+📊 바이낸스 실시간 가격: ETH = $4,406.12
+📊 바이낸스 실시간 가격: ETH = $4,406.12
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 3개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,164,000, 바이낸스 $4,406.12, 김프 0.467%
+📤 WebSocket 김프율 데이터 전송: 2개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 3개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,164,000, 바이낸스 $4,406.12, 김프 0.467%
+📤 WebSocket 김프율 데이터 전송: 2개 심볼
+📊 KRW-ETH: ₩6,164,000
+📊 업비트 실시간 가격: ETH = ₩6,164,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: XRP = $2.886
+📊 바이낸스 실시간 가격: XRP = $2.886
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,164,000, 바이낸스 $4,406.12, 김프 0.467%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-ETH: ₩6,162,000
+📊 업비트 실시간 가격: ETH = ₩6,162,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.12, 김프 0.418%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.12, 김프 0.418%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.12, 김프 0.418%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.12, 김프 0.418%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.12, 김프 0.418%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.12, 김프 0.418%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 바이낸스 실시간 가격: BTC = $110,740
+📊 바이낸스 실시간 가격: BTC = $110,740
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+📊 바이낸스 실시간 가격: ETH = $4,406
+📊 바이낸스 실시간 가격: ETH = $4,406
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: XRP = $2.886
+📊 바이낸스 실시간 가격: XRP = $2.886
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 바이낸스 실시간 가격: BTC = $110,740.01
+📊 바이낸스 실시간 가격: BTC = $110,740.01
+📊 바이낸스 실시간 가격: ETH = $4,406.01
+📊 바이낸스 실시간 가격: ETH = $4,406.01
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: XRP = $2.886
+📊 바이낸스 실시간 가격: XRP = $2.886
+🔍 [2025-08-29T12:59:08.279Z] 모든 요청: GET /api/server-info
+ℹ️ [2025-08-29T12:59:08.279Z] 🔌 API 요청: GET /api/server-info - IP: ::1 
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🌐 구글 파이낸스 환율 확인: 1392.45512원
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+📊 KRW-XRP: ₩4,031
+📊 업비트 실시간 가격: XRP = ₩4,031
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,031, 바이낸스 $2.886, 김프 0.304%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,031, 바이낸스 $2.886, 김프 0.304%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 바이낸스 실시간 가격: BTC = $110,740.01
+📊 바이낸스 실시간 가격: BTC = $110,740.01
+📊 바이낸스 실시간 가격: ETH = $4,406.01
+📊 바이낸스 실시간 가격: ETH = $4,406.01
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,031, 바이낸스 $2.886, 김프 0.304%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.329%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: XRP = $2.886
+📊 바이낸스 실시간 가격: XRP = $2.886
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,740.01, 김프 0.322%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,406.01, 김프 0.421%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+ℹ️ [2025-08-29T12:59:09.939Z] ✅ API 응답: GET /api/server-info 304 - 1660ms 
+WebSocket client connected
+WebSocket 사용자 연결: User ID 6
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 바이낸스 실시간 가격: BTC = $110,732.46
+📊 바이낸스 실시간 가격: BTC = $110,732.46
+📊 바이낸스 실시간 가격: ETH = $4,405.74
+📊 바이낸스 실시간 가격: ETH = $4,405.74
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.886, 김프 0.326%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 바이낸스 실시간 가격: XRP = $2.887
+📊 바이낸스 실시간 가격: XRP = $2.887
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 KRW-ETH: ₩6,161,000
+📊 업비트 실시간 가격: ETH = ₩6,161,000
+📊 KRW-BTC: ₩154,697,000
+📊 업비트 실시간 가격: BTC = ₩154,697,000
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 바이낸스 실시간 가격: DOT = $3.853
+📊 바이낸스 실시간 가격: BTC = $110,732.46
+📊 바이낸스 실시간 가격: BTC = $110,732.46
+📊 바이낸스 실시간 가격: ETH = $4,405.74
+📊 바이낸스 실시간 가격: ETH = $4,405.74
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.315%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: ADA = $0.839
+📊 바이낸스 실시간 가격: XRP = $2.887
+📊 바이낸스 실시간 가격: XRP = $2.887
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.308%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.308%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+📊 KRW-XRP: ₩4,032
+📊 업비트 실시간 가격: XRP = ₩4,032
+🔍 데이터 상태 확인 - 업비트: 3개, 바이낸스: 5개
+🔍 활성 사용자 발견: User ID 6 (바이낸스 API 키 보유)
+📊 BTC: 업비트 ₩154,697,000, 바이낸스 $110,732.46, 김프 0.329%
+📊 ETH: 업비트 ₩6,161,000, 바이낸스 $4,405.74, 김프 0.427%
+📊 XRP: 업비트 ₩4,032, 바이낸스 $2.887, 김프 0.308%
+📤 WebSocket 김프율 데이터 전송: 3개 심볼
+9:59:11 PM [tsx] Previous process hasn't exited yet. Force killing...

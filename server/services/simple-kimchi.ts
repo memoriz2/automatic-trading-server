@@ -1,5 +1,6 @@
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
+import { UpbitWebSocketService } from './upbit-websocket.js';
 import fetch from 'node-fetch';
 import { googleFinanceExchange } from './google-finance-exchange.js';
 import { createHmac } from 'crypto';

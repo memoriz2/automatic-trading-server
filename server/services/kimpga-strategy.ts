@@ -52,7 +52,7 @@ export class KimpgaStrategyService {
         this.pushLog(`오류: ${e?.message ?? String(e)}`);
         this.apiErrors += 1;
       }
-    }, 1500);
+    }, 600);
   }
 
   stop() {

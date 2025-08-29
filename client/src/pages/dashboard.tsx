@@ -96,7 +96,7 @@ export default function Dashboard() {
         throw error;
       }
     },
-    refetchInterval: 10000, // 10초마다 환율 업데이트
+    refetchInterval: 100,
     refetchIntervalInBackground: true,
     retry: 3,
   });

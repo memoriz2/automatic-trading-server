@@ -87,6 +87,17 @@ export class BinanceService {
     }
   }
 
+  // 단일 심볼 가격 조회
+  async getSymbolPrice(symbol: string): Promise<number> {
+    try {
+      const tickers = await this.getTicker([symbol.replace('USDT', '')]);
+      return tickers.length > 0 ? parseFloat(tickers[0].price) : 0;
+    } catch (error) {
+      console.warn(`바이낸스 ${symbol} 가격 조회 실패:`, error);
+      return await this.getFallbackPrice(symbol.replace('USDT', ''));
+    }
+  }
+
   // 다중 소스를 통한 정확한 대체 가격 조회
   private async getFallbackPrice(symbol: string): Promise<number> {
     // 1차: CryptoCompare API 시도

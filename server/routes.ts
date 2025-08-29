@@ -5,6 +5,8 @@ import { storage } from "./storage.js";
 import { KimchiService } from "./services/kimchi.js";
 import { CoinAPIService } from "./services/coinapi.js";
 import { SimpleKimchiService } from "./services/simple-kimchi.js";
+import { UpbitWebSocketService } from "./services/upbit-websocket.js";
+import { BinanceWebSocketService } from "./services/binance-websocket.js";
 import { TradingService } from "./services/trading.js";
 import { multiStrategyTradingService } from "./services/new-kimchi-trading.js";
 import { UpbitService } from "./services/upbit.js";
@@ -107,6 +109,11 @@ export async function registerRoutes(
   const kimchiService = new KimchiService();
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
+  console.log('🚀 WebSocket 서비스 초기화 시작...');
+  const upbitWebSocket = new UpbitWebSocketService();
+  console.log('✅ 업비트 WebSocket 서비스 생성 완료');
+  const binanceWebSocket = new BinanceWebSocketService();
+  console.log('✅ 바이낸스 WebSocket 서비스 생성 완료');
   const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
   const tradingService = new TradingService();
   // kimpga API (완전 통합)
@@ -1342,6 +1349,41 @@ export async function registerRoutes(
 
   // 연결된 클라이언트와 사용자 ID 매핑
   const wsUserMap = new Map<WebSocket, string>();
+  
+  // 실시간 가격 데이터 저장소
+  const upbitPrices = new Map<string, { price: number; timestamp: number; }>();
+  const binancePrices = new Map<string, { price: number; timestamp: number; }>();
+
+  // 업비트 WebSocket에서 실시간 가격 데이터 수신
+  console.log('🔔 업비트 WebSocket 콜백 등록 중...');
+  upbitWebSocket.onData('main', (data) => {
+    // KRW-BTC → BTC로 변환
+    const symbol = data.code.replace('KRW-', '');
+    
+    upbitPrices.set(symbol, {
+      price: data.trade_price,
+      timestamp: data.timestamp
+    });
+    
+    console.log(`📊 업비트 실시간 가격: ${symbol} = ₩${data.trade_price.toLocaleString()}`);
+  });
+  console.log('✅ 업비트 WebSocket 콜백 등록 완료');
+
+  // 바이낸스 WebSocket에서 실시간 가격 데이터 수신
+  console.log('🔔 바이낸스 WebSocket 콜백 등록 중...');
+  binanceWebSocket.onData('main', (data) => {
+    // BTCUSDT → BTC로 변환
+    const symbol = data.s.replace('USDT', '');
+    const price = parseFloat(data.c);
+    
+    binancePrices.set(symbol, {
+      price: price,
+      timestamp: data.E
+    });
+    
+    console.log(`📊 바이낸스 실시간 가격: ${symbol} = $${price.toLocaleString()}`);
+  });
+  console.log('✅ 바이낸스 WebSocket 콜백 등록 완료');
 
   // WebSocket connection handling
   wss.on("connection", (ws, req) => {
@@ -1389,48 +1431,65 @@ export async function registerRoutes(
     });
   });
 
-  // 실시간 김프율 데이터 전송
+  // 실시간 김프율 데이터 전송 (WebSocket 기반)
   const sendKimchiData = async () => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
+      const kimchiData = [];
       
-      // 실제 API 키가 있는 활성 사용자를 동적으로 찾기
+      // 데이터 상태 확인
+      console.log(`🔍 데이터 상태 확인 - 업비트: ${upbitPrices.size}개, 바이낸스: ${binancePrices.size}개`);
+      
+      // 활성 사용자 찾기 (바이낸스 API 키용)
       const activeUserId = await findActiveUserWithApiKeys();
-      const simpleKimchiData = await simpleKimchiService.calculateSimpleKimchi(
-        symbols, activeUserId
-      );
-
-      // SimpleKimchiData를 클라이언트가 기대하는 KimchiPremium 형식으로 변환
-      const kimchiData = simpleKimchiData.map((data) => ({
-        symbol: data.symbol,
-        upbitPrice: data.upbitPrice,
-        binancePrice: data.binancePriceKRW,
-        binancePriceUSD: data.binanceFuturesPrice,
-        premiumRate: data.premiumRate,
-        timestamp: new Date(data.timestamp),
-        exchangeRate: data.usdKrwRate,
-        exchangeRateSource: "Google Finance (실시간 환율)",
-      }));
-
-      const message = JSON.stringify({
-        type: "kimchi-premium",
-        data: kimchiData,
-        timestamp: new Date().toISOString(),
-      });
-
-      // 연결된 모든 WebSocket 클라이언트에 데이터 전송
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
+      
+      // 완전한 WebSocket 기반 (API 호출 없음)
+      for (const symbol of symbols) {
+        const upbitPrice = upbitPrices.get(symbol);
+        const binancePrice = binancePrices.get(symbol);
+        
+        if (upbitPrice && binancePrice) {
+          const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
+          const premiumRate = ((upbitPrice.price - (binancePrice.price * exchangeRate)) / (binancePrice.price * exchangeRate)) * 100;
+          
+          kimchiData.push({
+            symbol,
+            upbitPrice: upbitPrice.price,
+            binancePrice: binancePrice.price * exchangeRate,
+            binancePriceUSD: binancePrice.price,
+            premiumRate: premiumRate,
+            timestamp: new Date(),
+            exchangeRate: exchangeRate,
+            exchangeRateSource: "Google Finance (실시간 환율)",
+          });
+          
+          console.log(`📊 ${symbol}: 업비트 ₩${upbitPrice.price.toLocaleString()}, 바이낸스 $${binancePrice.price.toLocaleString()}, 김프 ${premiumRate.toFixed(3)}%`);
         }
-      });
+      }
+
+      // 데이터가 있을 때만 전송
+      if (kimchiData.length > 0) {
+        const message = JSON.stringify({
+          type: "kimchi-premium",
+          data: kimchiData,
+          timestamp: new Date().toISOString(),
+        });
+
+        // 연결된 모든 WebSocket 클라이언트에 데이터 전송
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+          }
+        });
+        
+        console.log(`📤 WebSocket 김프율 데이터 전송: ${kimchiData.length}개 심볼`);
+      }
     } catch (error) {
       console.error("김프율 데이터 전송 오류:", error);
     }
   };
 
-  // 10초마다 실시간 데이터 전송
-  setInterval(sendKimchiData, 10000);
+  setInterval(sendKimchiData, 100);
 
   // 거래소 연동 테스트 API (중요: 이 라우트는 /api/exchanges/:userId 보다 먼저 선언되어야 함)
   app.post("/api/test-exchange-connection", async (req, res) => {

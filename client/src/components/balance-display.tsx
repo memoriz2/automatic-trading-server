@@ -1,8 +1,27 @@
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Wallet, DollarSign, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+
+// 숫자만 갱신하는 컴포넌트
+const NumberDisplay = React.memo<{ 
+  value: number; 
+  formatter?: (v: number) => string;
+  suffix?: string;
+}>(({ value, formatter, suffix = '' }) => {
+  const displayValue = React.useMemo(() => {
+    if (formatter) {
+      return formatter(value);
+    }
+    return value.toFixed(3);
+  }, [value, formatter]);
+
+  return <>{displayValue}{suffix}</>;
+});
+
+NumberDisplay.displayName = 'NumberDisplay';
 
 interface BalanceData {
   upbit: {
@@ -15,16 +34,30 @@ interface BalanceData {
   };
 }
 
-export function BalanceDisplay() {
+export const BalanceDisplay = React.memo(() => {
   const { user } = useAuth();
   const userId = user?.id;
+  
+  // 이전 값을 유지하는 상태 (부드러운 전환을 위해)
+  const [previousBalances, setPreviousBalances] = useState<BalanceData | null>(null);
+  
   const { data: balances, isLoading, error } = useQuery<BalanceData>({
     queryKey: [`/api/balances/${userId}`],
-    refetchInterval: 2500, // 2.5초마다 업데이트
+    refetchInterval: 1000,
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화
     enabled: !!userId, // 로그인한 경우에만 API 호출
   });
+
+  // 새로운 잔고 데이터가 오면 이전 값 업데이트
+  useEffect(() => {
+    if (balances) {
+      setPreviousBalances(balances);
+    }
+  }, [balances]);
+
+  // 현재 값 또는 이전 값 사용 (부드러운 전환)
+  const stableBalances = balances || previousBalances;
 
   // 디버깅 로그 추가
   console.log('🔍 BalanceDisplay 상태:', {
@@ -47,16 +80,7 @@ export function BalanceDisplay() {
     );
   }
 
-  if (isLoading || !balances) {
-    return (
-      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-        <div className="flex items-center space-x-1">
-          <Wallet className="h-4 w-4 animate-pulse" />
-          <span>잔고 업데이트 중...</span>
-        </div>
-      </div>
-    );
-  }
+  // UI는 항상 표시 (로딩 메시지 제거)
 
   return (
     <div className="flex items-center space-x-4 text-sm">
@@ -67,9 +91,13 @@ export function BalanceDisplay() {
           <Wallet className="h-4 w-4 text-blue-500" />
           <span className="font-medium">업비트</span>
         </div>
-        {balances.upbit.connected ? (
+        {stableBalances?.upbit.connected ? (
           <Badge variant="outline" className="text-xs">
-            {Math.floor(balances.upbit.krw).toLocaleString()} KRW
+            <NumberDisplay 
+              value={Math.floor(stableBalances.upbit.krw)}
+              formatter={(v) => v.toLocaleString()}
+              suffix=" KRW"
+            />
           </Badge>
         ) : (
           <Badge variant="secondary" className="text-xs">
@@ -84,9 +112,9 @@ export function BalanceDisplay() {
           <DollarSign className="h-4 w-4 text-yellow-500" />
           <span className="font-medium">바이낸스 선물</span>
         </div>
-        {balances.binance.connected ? (
+        {stableBalances?.binance.connected ? (
           <>
-            {balances.binance.usdt === 0 ? (
+            {(stableBalances.binance.usdt || 0) === 0 ? (
               <>
                 <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
                   잔고 조회 제한
@@ -104,7 +132,11 @@ export function BalanceDisplay() {
               </>
             ) : (
               <Badge variant="outline" className="text-xs">
-                ${balances.binance.usdt.toLocaleString()} USDT
+                $<NumberDisplay 
+                  value={stableBalances.binance.usdt}
+                  formatter={(v) => v.toLocaleString()}
+                  suffix=" USDT"
+                />
               </Badge>
             )}
           </>
@@ -116,4 +148,4 @@ export function BalanceDisplay() {
       </div>
     </div>
   );
-}
+});
