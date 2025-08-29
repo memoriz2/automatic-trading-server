@@ -146,25 +146,32 @@ export class SimpleKimchiService {
   // 기존 환율 조회 함수 제거됨 - googleExchangeReal 서비스 사용
 
   /**
-   * 바이낸스 선물 가격 조회 (사용자별 API 키 또는 환경변수 사용)
+   * 바이낸스 선물 가격 조회 (세션 ID로 DB 조회하여 복호화된 API 키 사용)
    */
-  private async getBinanceFuturesPrice(symbol: string, userId?: string): Promise<number> {
+  private async getBinanceFuturesPrice(symbol: string, sessionId?: string): Promise<number> {
     try {
-      let apiKey = process.env.BINANCE_API_KEY;
-      let secretKey = process.env.BINANCE_SECRET_KEY;
+      let apiKey: string | undefined;
+      let secretKey: string | undefined;
       
-      // 사용자별 API 키가 있으면 우선 사용
-      if (userId) {
-        const userKeys = await this.getUserExchangeKeys(userId, 'binance');
-        if (userKeys.apiKey && userKeys.secretKey) {
-          apiKey = userKeys.apiKey;
-          secretKey = userKeys.secretKey;
-          console.log(`🔑 사용자 ${userId}의 바이낸스 API 키 사용`);
+      // 세션 ID로 DB에서 복호화된 API 키 조회
+      if (sessionId) {
+        try {
+          // storage에서 복호화된 거래소 정보 가져오기
+          const { storage } = await import('../storage.js');
+          const decryptedExchange = await storage.getDecryptedExchange(sessionId, 'binance');
+          
+          if (decryptedExchange && decryptedExchange.apiKey && decryptedExchange.apiSecret) {
+            apiKey = decryptedExchange.apiKey;
+            secretKey = decryptedExchange.apiSecret;
+            console.log(`🔑 세션 ${sessionId}의 복호화된 바이낸스 API 키 사용`);
+          }
+        } catch (dbError) {
+          console.warn(`DB에서 바이낸스 API 키 조회 실패:`, dbError);
         }
       }
       
       if (!apiKey || !secretKey) {
-        throw new Error('바이낸스 API 키가 환경변수에 설정되지 않음');
+        throw new Error('바이낸스 API 키가 설정되지 않음');
       }
 
       // API 키를 사용한 인증 요청

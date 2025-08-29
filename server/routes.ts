@@ -1143,14 +1143,20 @@ export async function registerRoutes(
             };
           } else if (exchange.exchange === "binance") {
             console.log(
-              `[${new Date().toISOString()}] Trying to connect to Binance with API key: ${exchange.apiKey.substring(
-                0,
-                8
-              )}...`
+              `[${new Date().toISOString()}] Trying to connect to Binance with session ID: ${userId}...`
             );
+            
+            // 암호화된 API 키 복호화
+            const decryptedExchange = await storage.getDecryptedExchange(userId, 'binance');
+            if (!decryptedExchange) {
+              throw new Error('복호화된 바이낸스 API 키를 찾을 수 없습니다');
+            }
+            
+            console.log(`[${new Date().toISOString()}] 복호화된 바이낸스 API 키 길이: ${decryptedExchange.apiKey.length}, Secret 길이: ${decryptedExchange.apiSecret.length}`);
+            
             const binanceService = new BinanceService(
-              exchange.apiKey,
-              exchange.apiSecret
+              decryptedExchange.apiKey,
+              decryptedExchange.apiSecret
             );
             const usdtBalance = await binanceService.getUSDTBalance();
 

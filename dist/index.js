@@ -349,21 +349,41 @@ var insertSystemAlertSchema = createInsertSchema(systemAlerts).pick({
 
 // server/db.ts
 import "dotenv/config";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
-import { drizzle } from "drizzle-orm/neon-serverless";
 import { eq } from "drizzle-orm";
-neonConfig.webSocketConstructor = ws;
-neonConfig.poolQueryViaFetch = true;
 var url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
-var pool = new Pool({
-  connectionString: url,
-  connectionTimeoutMillis: 1e4,
-  idleTimeoutMillis: 3e4,
-  maxUses: 7500
-});
-var db = drizzle({ client: pool, schema: schema_exports });
+var isNeon = url.includes("neon.tech") || process.env.NODE_ENV === "production";
+var db;
+var pool;
+async function initializeDatabase() {
+  if (isNeon) {
+    const { Pool, neonConfig } = await import("@neondatabase/serverless");
+    const ws = await import("ws");
+    const { drizzle } = await import("drizzle-orm/neon-serverless");
+    neonConfig.webSocketConstructor = ws.default;
+    neonConfig.poolQueryViaFetch = true;
+    pool = new Pool({
+      connectionString: url,
+      connectionTimeoutMillis: 1e4,
+      idleTimeoutMillis: 3e4,
+      maxUses: 7500
+    });
+    db = drizzle({ client: pool, schema: schema_exports });
+    console.log("\u{1F310} Using Neon database (serverless)");
+  } else {
+    const { Pool } = await import("pg");
+    const { drizzle } = await import("drizzle-orm/node-postgres");
+    pool = new Pool({
+      connectionString: url,
+      max: 20,
+      idleTimeoutMillis: 3e4,
+      connectionTimeoutMillis: 2e3
+    });
+    db = drizzle(pool, { schema: schema_exports });
+    console.log("\u{1F418} Using local PostgreSQL database");
+  }
+}
+initializeDatabase().catch(console.error);
 async function initializeTestData() {
   try {
     await pool.query("select 1");
@@ -377,7 +397,7 @@ async function initializeTestData() {
         { symbol: "DOT", name: "Polkadot" }
       ]).onConflictDoNothing({ target: cryptocurrencies.symbol });
     }
-    console.log("\u2705 Neon(Postgres) ready (HTTP driver + drizzle)");
+    console.log(`\u2705 Database ready (${isNeon ? "Neon serverless" : "Local PostgreSQL"})`);
   } catch (err) {
     console.warn("\u26A0\uFE0F DB init warning:", err?.message ?? err);
   }
@@ -474,7 +494,9 @@ var DatabaseStorage = class {
     const hashedPassword = await hashPassword(insertUser.password);
     const [user] = await db.insert(users).values({
       ...insertUser,
-      password: hashedPassword
+      password: hashedPassword,
+      updatedAt: /* @__PURE__ */ new Date()
+      // updatedAt 필드 명시적 설정
     }).returning();
     return user;
   }
@@ -659,8 +681,8 @@ var DatabaseStorage = class {
     return await db.select().from(cryptocurrencies);
   }
   async createCryptocurrency(insertCrypto) {
-    const [crypto3] = await db.insert(cryptocurrencies).values(insertCrypto).returning();
-    return crypto3;
+    const [crypto4] = await db.insert(cryptocurrencies).values(insertCrypto).returning();
+    return crypto4;
   }
   // Kimchi Premiums
   async getLatestKimchiPremiums() {
@@ -1915,6 +1937,28 @@ var SimpleKimchiService = class {
     this.binanceService = new BinanceService();
   }
   /**
+   * 사용자별 거래소 API 키 조회
+   */
+  async getUserExchangeKeys(userId, exchange) {
+    try {
+      if (!userId || userId === "undefined" || userId === "null") {
+        return {};
+      }
+      const exchanges2 = await storage.getExchangesByUserId(userId);
+      const exchangeData = exchanges2.find((ex) => ex.exchange === exchange && ex.isActive);
+      if (exchangeData) {
+        return {
+          apiKey: exchangeData.apiKey,
+          secretKey: exchangeData.apiSecret
+        };
+      }
+      return {};
+    } catch (error) {
+      console.warn(`\u26A0\uFE0F \uC0AC\uC6A9\uC790 ${userId}\uC758 ${exchange} API \uD0A4 \uC870\uD68C \uC2E4\uD328:`, error instanceof Error ? error.message : error);
+      return {};
+    }
+  }
+  /**
    * 실시간 USD→KRW 환율 조회 (구글 파이낸스 사용)
    */
   async getRealTimeExchangeRate() {
@@ -1932,14 +1976,14 @@ var SimpleKimchiService = class {
   /**
    * 단순 김프율 계산 - 업비트 KRW + 바이낸스 선물 + 실시간 환율
    */
-  async calculateSimpleKimchi(symbols) {
+  async calculateSimpleKimchi(symbols, userId) {
     const results = [];
     const usdKrwRate = await this.getRealTimeExchangeRate();
     for (const symbol of symbols) {
       try {
         const [upbitPrice, binanceFuturesPrice] = await Promise.all([
-          this.getUpbitPrice(symbol),
-          this.getBinanceFuturesPrice(symbol)
+          this.getUpbitPrice(symbol, userId),
+          this.getBinanceFuturesPrice(symbol, userId)
         ]);
         const binancePriceKRW = binanceFuturesPrice * usdKrwRate;
         const premiumRate = (upbitPrice - binancePriceKRW) / binancePriceKRW * 100;
@@ -1966,10 +2010,16 @@ var SimpleKimchiService = class {
     return results;
   }
   /**
-   * 업비트 KRW 가격 조회
+   * 업비트 KRW 가격 조회 (사용자별 API 키 사용)
    */
-  async getUpbitPrice(symbol) {
+  async getUpbitPrice(symbol, userId) {
     try {
+      if (userId) {
+        const userKeys = await this.getUserExchangeKeys(userId, "upbit");
+        if (userKeys.apiKey && userKeys.secretKey) {
+          console.log(`\u{1F511} \uC0AC\uC6A9\uC790 ${userId}\uC758 \uC5C5\uBE44\uD2B8 API \uD0A4 \uC0AC\uC6A9`);
+        }
+      }
       const tickers = await this.upbitService.getTicker([`KRW-${symbol}`]);
       if (tickers.length === 0) {
         throw new Error(`\uC5C5\uBE44\uD2B8 ${symbol} \uAC00\uACA9 \uC870\uD68C \uACB0\uACFC \uC5C6\uC74C`);
@@ -1981,12 +2031,20 @@ var SimpleKimchiService = class {
   }
   // 기존 환율 조회 함수 제거됨 - googleExchangeReal 서비스 사용
   /**
-   * 바이낸스 선물 가격 조회 (환경변수 API 키 사용)
+   * 바이낸스 선물 가격 조회 (사용자별 API 키 또는 환경변수 사용)
    */
-  async getBinanceFuturesPrice(symbol) {
+  async getBinanceFuturesPrice(symbol, userId) {
     try {
-      const apiKey = process.env.BINANCE_API_KEY;
-      const secretKey = process.env.BINANCE_SECRET_KEY;
+      let apiKey = process.env.BINANCE_API_KEY;
+      let secretKey = process.env.BINANCE_SECRET_KEY;
+      if (userId) {
+        const userKeys = await this.getUserExchangeKeys(userId, "binance");
+        if (userKeys.apiKey && userKeys.secretKey) {
+          apiKey = userKeys.apiKey;
+          secretKey = userKeys.secretKey;
+          console.log(`\u{1F511} \uC0AC\uC6A9\uC790 ${userId}\uC758 \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC0AC\uC6A9`);
+        }
+      }
       if (!apiKey || !secretKey) {
         throw new Error("\uBC14\uC774\uB0B8\uC2A4 API \uD0A4\uAC00 \uD658\uACBD\uBCC0\uC218\uC5D0 \uC124\uC815\uB418\uC9C0 \uC54A\uC74C");
       }
@@ -2072,6 +2130,12 @@ var SimpleKimchiService = class {
       console.log(`\u26A0\uFE0F ${symbol} \uCD5C\uC885 fallback \uAC00\uACA9 \uC0AC\uC6A9: $${fallbackPrices[symbol]}`);
       return fallbackPrices[symbol] || 0;
     }
+  }
+  /**
+   * 현재 저장된 환율 조회 (캐시된 값)
+   */
+  getCurrentExchangeRate() {
+    return googleFinanceExchange.getCurrentRate();
   }
 };
 
@@ -2184,6 +2248,132 @@ var KimpgaStrategyService = class {
   }
 };
 
+// server/services/exchange-test.ts
+import crypto3 from "crypto";
+import fetch5 from "node-fetch";
+import jwt3 from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
+var ExchangeTestService = class {
+  // 업비트 연동 테스트
+  async testUpbitConnection(apiKey, apiSecret) {
+    try {
+      console.log("\u{1F50D} \uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC2DC\uC791...");
+      const payload = {
+        access_key: apiKey,
+        nonce: uuidv4(),
+        timestamp: Date.now()
+      };
+      const token = jwt3.sign(payload, apiSecret);
+      console.log("\u{1F511} \uC5C5\uBE44\uD2B8 JWT \uD1A0\uD070 \uC0DD\uC131 \uC644\uB8CC");
+      const response = await fetch5("https://api.upbit.com/v1/accounts", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      console.log(`\u{1F4E1} \uC5C5\uBE44\uD2B8 API \uC751\uB2F5: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("\u2705 \uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uC131\uACF5:", data);
+        return {
+          success: true,
+          message: "\uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uC131\uACF5! \uACC4\uC815 \uC815\uBCF4\uB97C \uC815\uC0C1\uC801\uC73C\uB85C \uC870\uD68C\uD588\uC2B5\uB2C8\uB2E4.",
+          details: {
+            accountCount: data.length,
+            balance: data[0]?.balance || "N/A"
+          }
+        };
+      } else {
+        const errorData = await response.json().catch(() => ({ error: { message: "\uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328" } }));
+        console.log("\u274C \uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uC2E4\uD328:", errorData);
+        return {
+          success: false,
+          message: "\uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uC2E4\uD328",
+          error: errorData.error?.message || `HTTP ${response.status}`,
+          details: { status: response.status }
+        };
+      }
+    } catch (error) {
+      console.error("\u{1F4A5} \uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC624\uB958:", error);
+      return {
+        success: false,
+        message: "\uC5C5\uBE44\uD2B8 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC911 \uC624\uB958 \uBC1C\uC0DD",
+        error: error.message,
+        details: { error: error.toString() }
+      };
+    }
+  }
+  // 바이낸스 연동 테스트
+  async testBinanceConnection(apiKey, apiSecret) {
+    try {
+      console.log("\u{1F50D} \uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC2DC\uC791...");
+      const timestamp2 = Date.now();
+      const queryString = `timestamp=${timestamp2}`;
+      const signature = this.generateBinanceSignature(queryString, apiSecret);
+      console.log(`\u{1F4E1} \uBC14\uC774\uB0B8\uC2A4 API \uC694\uCCAD: timestamp=${timestamp2}, signature=${signature}`);
+      const response = await fetch5(`https://fapi.binance.com/fapi/v2/account?${queryString}&signature=${signature}`, {
+        method: "GET",
+        headers: {
+          "X-MBX-APIKEY": apiKey,
+          "Content-Type": "application/json"
+        }
+      });
+      console.log(`\u{1F4E1} \uBC14\uC774\uB0B8\uC2A4 API \uC751\uB2F5: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("\u2705 \uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uC131\uACF5:", data);
+        return {
+          success: true,
+          message: "\uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uC131\uACF5! \uACC4\uC815 \uC815\uBCF4\uB97C \uC815\uC0C1\uC801\uC73C\uB85C \uC870\uD68C\uD588\uC2B5\uB2C8\uB2E4.",
+          details: {
+            canTrade: data.canTrade,
+            totalWalletBalance: data.totalWalletBalance
+          }
+        };
+      } else {
+        const errorData = await response.json().catch(() => ({ msg: "\uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328" }));
+        console.log("\u274C \uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uC2E4\uD328:", errorData);
+        return {
+          success: false,
+          message: "\uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uC2E4\uD328",
+          error: errorData.msg || `HTTP ${response.status}`,
+          details: { status: response.status }
+        };
+      }
+    } catch (error) {
+      console.error("\u{1F4A5} \uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC624\uB958:", error);
+      return {
+        success: false,
+        message: "\uBC14\uC774\uB0B8\uC2A4 \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC911 \uC624\uB958 \uBC1C\uC0DD",
+        error: error.message,
+        details: { error: error.toString() }
+      };
+    }
+  }
+  // 바이낸스 서명 생성 (HMAC-SHA256)
+  generateBinanceSignature(queryString, secretKey) {
+    return crypto3.createHmac("sha256", secretKey).update(queryString).digest("hex");
+  }
+  // 거래소별 연동 테스트 실행
+  async testExchangeConnection(exchange, apiKey, apiSecret) {
+    console.log(`\u{1F680} ${exchange} \uAC70\uB798\uC18C \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC2DC\uC791...`);
+    switch (exchange.toLowerCase()) {
+      case "upbit":
+        return await this.testUpbitConnection(apiKey, apiSecret);
+      case "binance":
+        return await this.testBinanceConnection(apiKey, apiSecret);
+      default:
+        return {
+          success: false,
+          message: "\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uAC70\uB798\uC18C\uC785\uB2C8\uB2E4",
+          error: `Unknown exchange: ${exchange}`
+        };
+    }
+  }
+};
+var exchangeTestService = new ExchangeTestService();
+
 // server/utils/ip.ts
 async function getCurrentServerIP() {
   try {
@@ -2201,17 +2391,66 @@ function isReplit() {
 
 // server/routes.ts
 import bcrypt2 from "bcrypt";
-import jwt3 from "jsonwebtoken";
+import jwt4 from "jsonwebtoken";
 var JWT_SECRET2 = process.env.JWT_SECRET || "your-secret-key";
+function getUserIdFromToken(authHeader) {
+  try {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return null;
+    }
+    const token = authHeader.substring(7);
+    const decoded = jwt4.verify(token, JWT_SECRET2);
+    return decoded.userId || null;
+  } catch (error) {
+    console.error("JWT \uD1A0\uD070 \uAC80\uC99D \uC2E4\uD328:", error);
+    return null;
+  }
+}
+function getUserIdFromRequest(req) {
+  const userId = getUserIdFromToken(req.headers.authorization);
+  return userId || "1";
+}
+async function findActiveUserWithApiKeys() {
+  try {
+    const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
+    for (const userId of knownUserIds) {
+      try {
+        const exchanges2 = await storage.getExchangesByUserId(userId);
+        const binanceExchange = exchanges2.find(
+          (ex) => ex.exchange === "binance" && ex.isActive && ex.apiKey && ex.apiSecret
+        );
+        if (binanceExchange) {
+          console.log(`\u{1F50D} \uD65C\uC131 \uC0AC\uC6A9\uC790 \uBC1C\uACAC: User ID ${userId} (\uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uBCF4\uC720)`);
+          return userId;
+        }
+        const upbitExchange = exchanges2.find(
+          (ex) => ex.exchange === "upbit" && ex.isActive && ex.apiKey && ex.apiSecret
+        );
+        if (upbitExchange) {
+          console.log(`\u{1F50D} \uD65C\uC131 \uC0AC\uC6A9\uC790 \uBC1C\uACAC: User ID ${userId} (\uC5C5\uBE44\uD2B8 API \uD0A4 \uBCF4\uC720)`);
+          return userId;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+    console.log(`\u26A0\uFE0F API \uD0A4\uAC00 \uC788\uB294 \uD65C\uC131 \uC0AC\uC6A9\uC790\uB97C \uCC3E\uC9C0 \uBABB\uD568, \uAE30\uBCF8 \uC0AC\uC6A9\uC790 1 \uC0AC\uC6A9`);
+    return "1";
+  } catch (error) {
+    console.error("\uD65C\uC131 \uC0AC\uC6A9\uC790 \uCC3E\uAE30 \uC2E4\uD328:", error);
+    return "1";
+  }
+}
 async function registerRoutes(app2, server) {
   const kimchiService = new KimchiService();
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
   const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
   const tradingService = new TradingService();
-  app2.get("/api/kimpga/current", async (_req, res) => {
+  app2.get("/api/kimpga/current", async (req, res) => {
     try {
-      const data = await simpleKimchiService.calculateSimpleKimchi(["BTC"]);
+      const userId = getUserIdFromRequest(req);
+      const data = await simpleKimchiService.calculateSimpleKimchi(["BTC"], userId);
       const d = data.find((x) => x.symbol === "BTC");
       res.json({
         kimp: d?.premiumRate ?? null,
@@ -2291,7 +2530,7 @@ async function registerRoutes(app2, server) {
         role: "user"
       });
       console.log("\uC0AC\uC6A9\uC790 \uC0DD\uC131 \uC644\uB8CC:", user.id, user.username);
-      const token = jwt3.sign(
+      const token = jwt4.sign(
         { userId: user.id, username: user.username },
         JWT_SECRET2,
         { expiresIn: "24h" }
@@ -2338,7 +2577,7 @@ async function registerRoutes(app2, server) {
         return res.status(401).json({ message: "\uBE44\uBC00\uBC88\uD638\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4" });
       }
       console.log("\uB85C\uADF8\uC778 \uC131\uACF5:", user.username);
-      const token = jwt3.sign(
+      const token = jwt4.sign(
         { userId: user.id, username: user.username },
         JWT_SECRET2,
         { expiresIn: "24h" }
@@ -2446,8 +2685,9 @@ async function registerRoutes(app2, server) {
   });
   app2.get("/api/kimchi-premium/simple", async (req, res) => {
     try {
+      const userId = getUserIdFromRequest(req);
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const results = await simpleKimchiService.calculateSimpleKimchi(symbols);
+      const results = await simpleKimchiService.calculateSimpleKimchi(symbols, userId);
       res.json(results);
     } catch (error) {
       console.error("Simple kimchi premium calculation error:", error);
@@ -2456,9 +2696,11 @@ async function registerRoutes(app2, server) {
   });
   app2.get("/api/kimchi-data", async (req, res) => {
     try {
+      const userId = getUserIdFromRequest(req);
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
       const simpleKimchiData = await simpleKimchiService.calculateSimpleKimchi(
-        symbols
+        symbols,
+        userId
       );
       const kimchiData = simpleKimchiData.map((data) => ({
         symbol: data.symbol,
@@ -2474,6 +2716,19 @@ async function registerRoutes(app2, server) {
     } catch (error) {
       console.error("Kimchi data API error:", error);
       res.status(500).json({ error: "Failed to fetch kimchi data" });
+    }
+  });
+  app2.get("/api/exchange-rate", async (req, res) => {
+    try {
+      const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
+      res.json({
+        rate: exchangeRate,
+        source: "Google Finance",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Exchange rate API error:", error);
+      res.status(500).json({ error: "Failed to fetch exchange rate" });
     }
   });
   app2.get("/api/kimchi-premiums", async (req, res) => {
@@ -2638,10 +2893,17 @@ async function registerRoutes(app2, server) {
     try {
       const userId = req.params.userId;
       const { strategyType = "positive_kimchi" } = req.body;
-      console.log(`[\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791] \uC0AC\uC6A9\uC790: ${userId}, \uC804\uB7B5: ${strategyType}`);
+      const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
+      console.log(
+        `[TRACE ${traceId}] [\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791] \uC0AC\uC6A9\uC790: ${userId}, \uC804\uB7B5: ${strategyType}`
+      );
+      console.log(`[TRACE ${traceId}] \uC694\uCCAD \uD5E4\uB354`, req.headers);
+      console.log(`[TRACE ${traceId}] \uC694\uCCAD \uBC14\uB514`, req.body);
       const settings = await storage.getTradingSettingsByUserId(userId);
+      console.log(`[TRACE ${traceId}] \uD604\uC7AC \uC800\uC7A5\uB41C \uC124\uC815`, settings);
       if (!settings) {
-        return res.status(400).json({ error: "\uAC70\uB798 \uC124\uC815\uC744 \uBA3C\uC800 \uAD6C\uC131\uD574\uC8FC\uC138\uC694" });
+        console.log(`[TRACE ${traceId}] \uC124\uC815\uC774 \uC5C6\uC2B5\uB2C8\uB2E4 \u2192 400 \uBC18\uD658`);
+        return res.status(400).json({ error: "\uAC70\uB798 \uC124\uC815\uC744 \uBA3C\uC800 \uAD6C\uC131\uD574\uC8FC\uC138\uC694", traceId });
       }
       const result = {
         success: true,
@@ -2650,19 +2912,22 @@ async function registerRoutes(app2, server) {
       };
       if (result.success) {
         console.log(
-          `[\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC131\uACF5] \uC0AC\uC6A9\uC790: ${userId}, \uD65C\uC131 \uC804\uB7B5: ${result.activeStrategies}`
+          `[TRACE ${traceId}] [\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC131\uACF5] \uC0AC\uC6A9\uC790: ${userId}, \uD65C\uC131 \uC804\uB7B5: ${result.activeStrategies}`
         );
         res.json({
           message: "\uC790\uB3D9\uB9E4\uB9E4\uAC00 \uC2DC\uC791\uB418\uC5C8\uC2B5\uB2C8\uB2E4",
           activeStrategies: result.activeStrategies,
-          settings
+          settings,
+          traceId
         });
       } else {
-        res.status(400).json({ error: "\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC2E4\uD328" });
+        console.log(`[TRACE ${traceId}] \uC2DC\uC791 \uC2E4\uD328 \u2192 400 \uBC18\uD658`);
+        res.status(400).json({ error: "\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC2E4\uD328", traceId });
       }
     } catch (error) {
-      console.error("\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC624\uB958:", error);
-      res.status(500).json({ error: "\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4" });
+      const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
+      console.error(`[TRACE ${traceId}] \uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC624\uB958:`, error);
+      res.status(500).json({ error: "\uC790\uB3D9\uB9E4\uB9E4 \uC2DC\uC791 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4", traceId });
     }
   });
   app2.post("/api/trading/stop/:userId", async (req, res) => {
@@ -2990,11 +3255,18 @@ async function registerRoutes(app2, server) {
                 8
               )}...`
             );
+            const decryptedExchange = await storage.getDecryptedExchange(userId, "upbit");
+            if (!decryptedExchange) {
+              throw new Error("\uBCF5\uD638\uD654\uB41C API \uD0A4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4");
+            }
+            console.log(`[${(/* @__PURE__ */ new Date()).toISOString()}] \uBCF5\uD638\uD654\uB41C API \uD0A4 \uAE38\uC774: ${decryptedExchange.apiKey.length}, Secret \uAE38\uC774: ${decryptedExchange.apiSecret.length}`);
             const upbitService = new UpbitService(
-              exchange.apiKey,
-              exchange.apiSecret
+              decryptedExchange.apiKey,
+              decryptedExchange.apiSecret
             );
+            console.log(`[${(/* @__PURE__ */ new Date()).toISOString()}] UpbitService \uC0DD\uC131 \uC644\uB8CC, getAccounts \uD638\uCD9C \uC2DC\uC791...`);
             const accounts = await upbitService.getAccounts();
+            console.log(`[${(/* @__PURE__ */ new Date()).toISOString()}] getAccounts \uC131\uACF5, \uACC4\uC815 \uC218: ${accounts.length}`);
             const krwAccount = accounts.find(
               (account) => account.currency === "KRW"
             );
@@ -3155,23 +3427,63 @@ async function registerRoutes(app2, server) {
     }
   );
   const wss = new WebSocketServer({ server, path: "/ws" });
-  wss.on("connection", (ws2) => {
+  const wsUserMap = /* @__PURE__ */ new Map();
+  wss.on("connection", (ws, req) => {
     console.log("WebSocket client connected");
-    ws2.on("message", (message) => {
-      console.log("WebSocket message received:", message.toString());
+    const url2 = new URL(req.url || "", `http://${req.headers.host}`);
+    const token = url2.searchParams.get("token");
+    if (token) {
+      const userId = getUserIdFromToken(`Bearer ${token}`);
+      if (userId) {
+        wsUserMap.set(ws, userId);
+        console.log(`WebSocket \uC0AC\uC6A9\uC790 \uC5F0\uACB0: User ID ${userId}`);
+      }
+    }
+    ws.on("message", (message) => {
+      const messageStr = message.toString();
+      console.log("WebSocket message received:", messageStr);
+      try {
+        const msg = JSON.parse(messageStr);
+        if (msg.type === "auth" && msg.token) {
+          const userId = getUserIdFromToken(`Bearer ${msg.token}`);
+          if (userId) {
+            wsUserMap.set(ws, userId);
+            console.log(`WebSocket \uC0AC\uC6A9\uC790 \uC778\uC99D: User ID ${userId}`);
+          }
+        }
+      } catch (error) {
+      }
     });
-    ws2.on("close", () => {
-      console.log("WebSocket client disconnected");
+    ws.on("close", () => {
+      const userId = wsUserMap.get(ws);
+      if (userId) {
+        console.log(`WebSocket \uC0AC\uC6A9\uC790 \uC5F0\uACB0 \uD574\uC81C: User ID ${userId}`);
+        wsUserMap.delete(ws);
+      } else {
+        console.log("WebSocket client disconnected");
+      }
     });
   });
   const sendKimchiData = async () => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const kimchiData = await simpleKimchiService.calculateSimpleKimchi(
-        symbols
+      const activeUserId = await findActiveUserWithApiKeys();
+      const simpleKimchiData = await simpleKimchiService.calculateSimpleKimchi(
+        symbols,
+        activeUserId
       );
+      const kimchiData = simpleKimchiData.map((data) => ({
+        symbol: data.symbol,
+        upbitPrice: data.upbitPrice,
+        binancePrice: data.binancePriceKRW,
+        binancePriceUSD: data.binanceFuturesPrice,
+        premiumRate: data.premiumRate,
+        timestamp: new Date(data.timestamp),
+        exchangeRate: data.usdKrwRate,
+        exchangeRateSource: "Google Finance (\uC2E4\uC2DC\uAC04 \uD658\uC728)"
+      }));
       const message = JSON.stringify({
-        type: "kimchi-data",
+        type: "kimchi-premium",
         data: kimchiData,
         timestamp: (/* @__PURE__ */ new Date()).toISOString()
       });
@@ -3185,6 +3497,56 @@ async function registerRoutes(app2, server) {
     }
   };
   setInterval(sendKimchiData, 1e4);
+  app2.post("/api/test-exchange-connection", async (req, res) => {
+    try {
+      const { exchange, userId } = req.body;
+      if (!exchange || !userId) {
+        return res.status(400).json({
+          error: "\uD544\uC218 \uC815\uBCF4\uAC00 \uB204\uB77D\uB418\uC5C8\uC2B5\uB2C8\uB2E4",
+          details: "\uAC70\uB798\uC18C\uC640 \uC0AC\uC6A9\uC790 ID\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694"
+        });
+      }
+      console.log(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAC70\uB798\uC18C \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC2DC\uC791:`, {
+        exchange,
+        userId,
+        userIdType: typeof userId
+      });
+      const decryptedExchange = await storage.getDecryptedExchange(userId.toString(), exchange);
+      if (!decryptedExchange) {
+        console.log(`\u274C [${(/* @__PURE__ */ new Date()).toISOString()}] API \uD0A4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC74C:`, {
+          userId,
+          exchange
+        });
+        return res.status(400).json({
+          error: "API \uD0A4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4",
+          details: `${exchange} \uAC70\uB798\uC18C\uC758 API \uD0A4\uAC00 \uB4F1\uB85D\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4`
+        });
+      }
+      const { apiKey, apiSecret } = decryptedExchange;
+      console.log(`\u{1F511} [${(/* @__PURE__ */ new Date()).toISOString()}] API \uD0A4 \uC870\uD68C \uC131\uACF5:`, {
+        exchange,
+        apiKeyLength: apiKey.length,
+        apiSecretLength: apiSecret.length
+      });
+      const testResult = await exchangeTestService.testExchangeConnection(
+        exchange,
+        apiKey,
+        apiSecret
+      );
+      console.log(`\u2705 [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC644\uB8CC:`, {
+        exchange,
+        success: testResult.success,
+        message: testResult.message
+      });
+      res.json(testResult);
+    } catch (error) {
+      console.error(`\u{1F4A5} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC911 \uC5D0\uB7EC:`, error);
+      res.status(500).json({
+        error: "\uC5F0\uB3D9 \uD14C\uC2A4\uD2B8 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4",
+        details: error.message
+      });
+    }
+  });
   app2.post("/api/test-log", async (req, res) => {
     try {
       const { message, timestamp: timestamp2, userId } = req.body;
@@ -3316,7 +3678,10 @@ function serveStatic(app2) {
     );
   }
   app2.use(express.static(distPath));
-  app2.use("*", (_req, res) => {
+  app2.use("*", (req, res, next) => {
+    if (req.originalUrl.startsWith("/api/") || req.originalUrl.startsWith("/ws") || req.originalUrl.startsWith("/healthz")) {
+      return next();
+    }
     res.sendFile(path2.resolve(distPath, "index.html"));
   });
 }
@@ -3426,8 +3791,24 @@ app.get("/healthz", (_req, res) => {
     serveStatic(app);
     logInfo(`\u2705 \uC815\uC801 \uD30C\uC77C \uC11C\uBE59 \uC124\uC815 \uC644\uB8CC`);
   }
-  const port = parseInt(process.env.PORT || "5000", 10);
-  logInfo(`\u{1F680} \uC11C\uBC84 \uC2DC\uC791 \uC911... \uD3EC\uD2B8: ${port}`);
+  const getPort = async () => {
+    const isLocal = process.env.NODE_ENV === "development" && (process.env.IS_LOCAL === "true" || !process.env.IS_SERVER);
+    const isServer = process.env.NODE_ENV === "production" || process.env.IS_SERVER === "true";
+    if (isLocal) {
+      const port2 = parseInt(process.env.PORT || "5001", 10);
+      logInfo(`\u{1F4BB} \uB85C\uCEEC \uAC1C\uBC1C \uD658\uACBD \uAC10\uC9C0: \uD3EC\uD2B8 ${port2} \uC0AC\uC6A9`);
+      return port2;
+    } else if (isServer) {
+      logInfo(`\u{1F310} \uC11C\uBC84 \uD658\uACBD \uAC10\uC9C0: \uD3EC\uD2B8 5000\uC73C\uB85C \uACE0\uC815`);
+      return 5e3;
+    } else {
+      const defaultPort = parseInt(process.env.PORT || "5000", 10);
+      logInfo(`\u2699\uFE0F \uAE30\uBCF8 \uD658\uACBD: \uD3EC\uD2B8 ${defaultPort} \uC0AC\uC6A9`);
+      return defaultPort;
+    }
+  };
+  const port = await getPort();
+  logInfo(`\u{1F680} \uC11C\uBC84 \uC2DC\uC791 \uC911... \uD3EC\uD2B8: ${port} (\uD658\uACBD: ${process.env.NODE_ENV})`);
   server.listen(port, () => {
     console.log(
       `\u{1F389} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC11C\uBC84\uAC00 \uC131\uACF5\uC801\uC73C\uB85C \uC2DC\uC791\uB418\uC5C8\uC2B5\uB2C8\uB2E4!`

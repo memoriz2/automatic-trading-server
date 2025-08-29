@@ -20,8 +20,8 @@ export class BinanceService {
   private secretKey: string;
 
   constructor(apiKey?: string, secretKey?: string) {
-    this.apiKey = apiKey || process.env.BINANCE_API_KEY || '';
-    this.secretKey = secretKey || process.env.BINANCE_SECRET_KEY || '';
+    this.apiKey = apiKey || '';
+    this.secretKey = secretKey || '';
   }
 
   private generateSignature(queryString: string): string {
@@ -193,12 +193,9 @@ export class BinanceService {
 
   async getUSDTBalance(): Promise<number> {
     try {
-      // 환경변수에서 API 키 직접 사용 (선물거래소용)
-      const apiKey = process.env.BINANCE_API_KEY;
-      const secretKey = process.env.BINANCE_SECRET_KEY;
-      
-      if (!apiKey || !secretKey) {
-        console.log('환경변수 바이낸스 API 키 없음, 스팟 계정 시도');
+      // API 키가 설정되지 않은 경우 스팟 계정 시도
+      if (!this.apiKey || !this.secretKey) {
+        console.log('바이낸스 API 키 없음, 스팟 계정 시도');
         const account = await this.getAccount();
         const usdtBalance = account.balances.find((balance: any) => balance.asset === 'USDT');
         return usdtBalance ? parseFloat(usdtBalance.free) : 0;
@@ -207,13 +204,13 @@ export class BinanceService {
       // 바이낸스 선물 계정 잔고 조회
       const timestamp = Date.now();
       const queryString = `timestamp=${timestamp}`;
-      const signature = crypto.createHmac('sha256', secretKey)
+      const signature = crypto.createHmac('sha256', this.secretKey)
         .update(queryString)
         .digest('hex');
 
       const response = await fetch(`https://fapi.binance.com/fapi/v2/account?${queryString}&signature=${signature}`, {
         headers: {
-          'X-MBX-APIKEY': apiKey,
+          'X-MBX-APIKEY': this.apiKey,
         },
       });
 
@@ -490,6 +487,53 @@ export class BinanceService {
     } catch (error) {
       console.error('Binance getFuturesPositions error:', error);
       return [];
+    }
+  }
+
+  /**
+   * 세션 ID로 DB에서 복호화된 바이낸스 API 키를 사용하여 잔고 조회
+   */
+  async getUSDTBalanceWithSession(sessionId: string): Promise<number> {
+    try {
+      // storage에서 복호화된 거래소 정보 가져오기
+      const { storage } = await import('../storage.js');
+      const decryptedExchange = await storage.getDecryptedExchange(sessionId, 'binance');
+      
+      if (!decryptedExchange || !decryptedExchange.apiKey || !decryptedExchange.apiSecret) {
+        console.log('세션에서 바이낸스 API 키를 찾을 수 없음');
+        return 0;
+      }
+
+      console.log(`🔑 세션 ${sessionId}의 복호화된 바이낸스 API 키 사용`);
+
+      // 바이낸스 선물 계정 잔고 조회
+      const timestamp = Date.now();
+      const queryString = `timestamp=${timestamp}`;
+      const signature = crypto.createHmac('sha256', decryptedExchange.apiSecret)
+        .update(queryString)
+        .digest('hex');
+
+      const response = await fetch(`https://fapi.binance.com/fapi/v2/account?${queryString}&signature=${signature}`, {
+        headers: {
+          'X-MBX-APIKEY': decryptedExchange.apiKey,
+        },
+      });
+
+      if (!response.ok) {
+        console.log(`📊 선물 계정 조회 실패 (${response.status}): 지역 제한으로 추정`);
+        console.log(`📊 바이낸스 선물 USDT 잔고: 지역 제한으로 조회 불가 (실제 잔고는 바이낸스에서 확인)`);
+        return 0;
+      }
+
+      const futuresAccount = await response.json();
+      const usdtAsset = futuresAccount.assets?.find((asset: any) => asset.asset === 'USDT');
+      const futuresBalance = usdtAsset ? parseFloat(usdtAsset.walletBalance) : 0;
+      
+      console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
+      return futuresBalance;
+    } catch (error) {
+      console.error('Binance getUSDTBalanceWithSession error:', error);
+      return 0;
     }
   }
 }
