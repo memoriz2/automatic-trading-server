@@ -20,8 +20,7 @@ const navigation = [
   { name: "자동매매", href: "/auto-trading", icon: Activity },
   { name: "실시간 거래", href: "/trading", icon: ArrowLeftRight },
   { name: "거래 내역", href: "/history", icon: History },
-  { name: "백테스팅", href: "/backtest", icon: TrendingUp },
-  { name: "리스크 관리", href: "/risk", icon: Shield },
+  { name: "백테스트", href: "/backtest", icon: TrendingUp },
   { name: "설정", href: "/settings", icon: Settings },
 ];
 

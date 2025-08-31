@@ -13,6 +13,7 @@ import Settings from "@/pages/settings";
 import LoginPage from "@/pages/login";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
+import BacktestPage from "@/pages/backtest";
 import { useAuth } from "@/hooks/useAuth";
 
 function Router() {
@@ -51,6 +52,7 @@ function Router() {
         <Route path="/history" component={History} />
         <Route path="/settings" component={Settings} />
         <Route path="/admin" component={AdminPage} />
+        <Route path="/backtest" component={BacktestPage} />
         <Route component={NotFound} />
       </Switch>
     </div>

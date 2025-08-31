@@ -13,6 +13,7 @@ import { UpbitService } from "./services/upbit.js";
 import { BinanceService } from "./services/binance.js";
 import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
 import { exchangeTestService } from "./services/exchange-test.js";
+import { BacktestService } from "./services/backtest.js";
 import {
   insertTradingSettingsSchema,
   insertExchangeSchema,
@@ -109,6 +110,7 @@ export async function registerRoutes(
   const kimchiService = new KimchiService();
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
+  const backtestService = new BacktestService();
   console.log('🚀 WebSocket 서비스 초기화 시작...');
   const upbitWebSocket = new UpbitWebSocketService();
   console.log('✅ 업비트 WebSocket 서비스 생성 완료');
@@ -179,6 +181,19 @@ export async function registerRoutes(
   app.post("/api/kimpga/force-exit", async (_req, res) => {
     const result = kimpgaSvc.forceExit();
     res.json(result);
+  });
+
+  // 백테스트 실행 API
+  app.post("/api/backtest", async (req, res) => {
+    try {
+      console.log("Backtest request received:", req.body);
+      const params = req.body;
+      const result = await backtestService.runBacktest(params);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Backtest API error:", error);
+      res.status(500).json({ error: "Failed to run backtest", details: error.message });
+    }
   });
 
   // 🔐 Authentication Routes
@@ -869,7 +884,7 @@ export async function registerRoutes(
       const resolvedSecret = apiSecret ?? secretKey;
 
       console.log(
-        `💾 [${new Date().toISOString()}] API 키 저장 요청 수신 - 사용자: ${userId}, 거래소: ${exchange}`
+        `💾 [${new Date().toISOString()}] API 키 저장 요청 - 사용자: ${userId}, 거래소: ${exchange}`
       );
       console.log(
         `🔑 [${new Date().toISOString()}] API 키 시작 부분: ${
