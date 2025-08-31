@@ -49,6 +49,7 @@ type KimpgaMetrics = {
 
 export default function AutoTrading() {
   const [newKimchiActive, setNewKimchiActive] = useState(false);
+  const [isTouched, setIsTouched] = useState(false); // 사용자 입력 추적 상태
   const { isConnected } = useWebSocket();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -199,16 +200,17 @@ export default function AutoTrading() {
   });
 
   useEffect(() => {
-    if (!serverSettings) return;
-    setConfig((prev) => ({
-      entryRate: Number(serverSettings.kimchiEntryRate ?? prev.entryRate) || 0,
-      exitRate: Number(serverSettings.kimchiExitRate ?? prev.exitRate) || 0,
-      tolerance:
-        Number(serverSettings.kimchiToleranceRate ?? prev.tolerance) || 0,
-      leverage: Number(serverSettings.binanceLeverage ?? prev.leverage) || 1,
-      amount: Number(serverSettings.upbitEntryAmount ?? prev.amount) || 100000,
-    }));
-  }, [serverSettings]);
+    // 사용자가 아직 값을 변경하지 않았고, 서버 설정값이 있을 때만 초기화
+    if (serverSettings && !isTouched) {
+      setConfig({
+        entryRate: Number(serverSettings.kimchiEntryRate) || 0,
+        exitRate: Number(serverSettings.kimchiExitRate) || 0,
+        tolerance: Number(serverSettings.kimchiToleranceRate) || 0,
+        leverage: Number(serverSettings.binanceLeverage) || 1,
+        amount: Number(serverSettings.upbitEntryAmount) || 100000,
+      });
+    }
+  }, [serverSettings, isTouched]);
 
   // Update trading status
   useEffect(() => {
@@ -419,12 +421,12 @@ export default function AutoTrading() {
                   type="number"
                   step="0.1"
                   value={config.entryRate}
-                  onChange={(e) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      entryRate: parseFloat(e.target.value) || 0,
-                    }))
-                  }
+                  onChange={(e) => {
+                    if (!isTouched) setIsTouched(true);
+                    const value = e.target.value;
+                    setConfig(prev => ({ ...prev, entryRate: value === '' ? 0 : Number(value) }));
+                  }}
+                  onFocus={(e) => e.target.select()}
                   className="mt-1"
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -444,12 +446,12 @@ export default function AutoTrading() {
                   type="number"
                   step="0.1"
                   value={config.exitRate}
-                  onChange={(e) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      exitRate: parseFloat(e.target.value) || 0,
-                    }))
-                  }
+                  onChange={(e) => {
+                    if (!isTouched) setIsTouched(true);
+                    const value = e.target.value;
+                    setConfig(prev => ({ ...prev, exitRate: value === '' ? 0 : Number(value) }));
+                  }}
+                  onFocus={(e) => e.target.select()}
                   className="mt-1"
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -469,12 +471,12 @@ export default function AutoTrading() {
                   type="number"
                   step="100000"
                   value={config.amount}
-                  onChange={(e) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      amount: parseInt(e.target.value) || 0,
-                    }))
-                  }
+                  onChange={(e) => {
+                    if (!isTouched) setIsTouched(true);
+                    const value = e.target.value;
+                    setConfig(prev => ({ ...prev, amount: value === '' ? 0 : Number(value) }));
+                  }}
+                  onFocus={(e) => e.target.select()}
                   className="mt-1"
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -495,12 +497,12 @@ export default function AutoTrading() {
                   min="1"
                   max="10"
                   value={config.leverage}
-                  onChange={(e) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      leverage: parseInt(e.target.value) || 1,
-                    }))
-                  }
+                  onChange={(e) => {
+                    if (!isTouched) setIsTouched(true);
+                    const value = e.target.value;
+                    setConfig(prev => ({ ...prev, leverage: value === '' ? 1 : Number(value) }));
+                  }}
+                  onFocus={(e) => e.target.select()}
                   className="mt-1"
                 />
                 <p className="text-xs text-slate-500 mt-1">
@@ -520,12 +522,12 @@ export default function AutoTrading() {
                   type="number"
                   step="0.01"
                   value={config.tolerance}
-                  onChange={(e) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      tolerance: parseFloat(e.target.value) || 0,
-                    }))
-                  }
+                  onChange={(e) => {
+                    if (!isTouched) setIsTouched(true);
+                    const value = e.target.value;
+                    setConfig(prev => ({ ...prev, tolerance: value === '' ? 0 : Number(value) }));
+                  }}
+                  onFocus={(e) => e.target.select()}
                   className="mt-1"
                 />
                 <p className="text-xs text-slate-500 mt-1">
