@@ -17,6 +17,9 @@ export interface PriceUpdateCallback {
 export class PriceCacheService {
   private upbitPrices: Map<string, CachedPrice> = new Map();
   private binancePrices: Map<string, CachedPrice> = new Map();
+  private priceHistory: { [key: string]: number[] } = {}; // ex: 'UPBIT_BTC', 'BINANCE_BTC'
+  private readonly SMA_WINDOW = 5; // 5개 데이터의 이동평균
+
   private readonly CACHE_EXPIRE_MS = 10000; // 10초 후 만료
   private emaRate: number | null = null; // USDT/KRW EMA
   private readonly EMA_ALPHA = 2 / (5 + 1); // 5초 EMA 가중치 (대략 5틱 가정)
@@ -31,6 +34,14 @@ export class PriceCacheService {
       timestamp: Date.now(),
       source
     });
+    
+    // 이동평균을 위한 히스토리 업데이트
+    const key = `UPBIT_${symbol}`;
+    if (!this.priceHistory[key]) this.priceHistory[key] = [];
+    this.priceHistory[key].push(price);
+    if (this.priceHistory[key].length > this.SMA_WINDOW) {
+      this.priceHistory[key].shift();
+    }
     
     if (source === 'websocket') {
       console.log(`📊 업비트 ${symbol}: ₩${price.toLocaleString()} (웹소켓)`);
@@ -66,6 +77,14 @@ export class PriceCacheService {
       source
     });
     
+    // 이동평균을 위한 히스토리 업데이트
+    const key = `BINANCE_${symbol}`;
+    if (!this.priceHistory[key]) this.priceHistory[key] = [];
+    this.priceHistory[key].push(price);
+    if (this.priceHistory[key].length > this.SMA_WINDOW) {
+      this.priceHistory[key].shift();
+    }
+
     if (source === 'websocket') {
       console.log(`📊 바이낸스 ${symbol}: $${price.toLocaleString()} (웹소켓)`);
       
@@ -146,6 +165,32 @@ export class PriceCacheService {
       return null;
     }
     return cached;
+  }
+
+  /**
+   * 업비트 SMA 가격 조회
+   */
+  getUpbitSma(symbol: string): number | null {
+    const key = `UPBIT_${symbol}`;
+    const history = this.priceHistory[key];
+    if (!history || history.length < this.SMA_WINDOW) {
+      return this.getUpbitPrice(symbol); // 데이터가 부족하면 현재가 반환
+    }
+    const sum = history.reduce((a, b) => a + b, 0);
+    return sum / history.length;
+  }
+
+  /**
+   * 바이낸스 SMA 가격 조회
+   */
+  getBinanceSma(symbol: string): number | null {
+    const key = `BINANCE_${symbol}`;
+    const history = this.priceHistory[key];
+    if (!history || history.length < this.SMA_WINDOW) {
+      return this.getBinancePrice(symbol); // 데이터가 부족하면 현재가 반환
+    }
+    const sum = history.reduce((a, b) => a + b, 0);
+    return sum / history.length;
   }
 
   /**

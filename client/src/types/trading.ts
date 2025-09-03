@@ -1,13 +1,13 @@
 export interface KimchiPremium {
   symbol: string;
   upbitPrice: number;
-  binancePrice?: number; // 기존 호환성
-  binanceFuturesPrice: number; // 바이낸스 선물 USD 가격
-  binancePriceKRW: number; // KRW로 환산된 가격
+  binancePrice?: number;
+  binanceFuturesPrice?: number;
   premiumRate: number;
-  timestamp: string;
-  usdKrwRate: number; // 실시간 USD/KRW 환율
-  exchangeRate?: number; // 기존 호환성
+  timestamp: string; // 혹은 Date
+  exchangeRate?: number;
+  usdKrwRate?: number;
+  binancePriceKRW?: number;
 }
 
 export interface Position {

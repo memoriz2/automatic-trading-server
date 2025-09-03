@@ -1,18 +1,18 @@
 import WebSocket from 'ws';
 import { priceCache } from './price-cache.js';
+import { naverExchange } from './naver-exchange.js';
 
-// ✅ 바이낸스 선물 bookTicker (bid/ask 중간가)
-export interface BinanceBookTicker {
+// ✅ 바이낸스 선물 aggTrade (최종 체결가)
+export interface BinanceAggTrade {
   s: string; // symbol
-  b: string; // best bid
-  a: string; // best ask
+  p: string; // price
 }
 
 export class BinanceWebSocketService {
   private ws: WebSocket | null = null;
   private isConnected = false;
   private reconnectInterval = 1000; // 1초
-  private callbacks: { [id: string]: (data: BinanceBookTicker) => void } = {};
+  private callbacks: { [id: string]: (data: BinanceAggTrade) => void } = {};
 
   constructor() {
     this.connect();
@@ -20,19 +20,19 @@ export class BinanceWebSocketService {
 
   private connect() {
     try {
-      // ✅ 선물 bookTicker 스트림 (호가 중간가 기반, 빠른 반응)
+      // ✅ 선물 aggTrade 스트림 (최종 체결가 기반)
       const symbols = ['btcusdt', 'ethusdt', 'xrpusdt', 'adausdt', 'dotusdt']
-        .map(s => `${s}@bookTicker`)
+        .map(s => `${s}@aggTrade`) // bookTicker -> aggTrade 로 변경
         .join('/');
       const url = `wss://fstream.binance.com/stream?streams=${symbols}`;
 
-      console.log('🔌 바이낸스 [선물 bookTicker] WebSocket 연결 시도...');
+      console.log('🔌 바이낸스 [선물 aggTrade] WebSocket 연결 시도...');
       console.log('🔗 연결 URL:', url);
 
       this.ws = new WebSocket(url);
 
       this.ws.on('open', () => {
-        console.log('✅ 바이낸스 [선물 bookTicker] WebSocket 연결 성공');
+        console.log('✅ 바이낸스 [선물 aggTrade] WebSocket 연결 성공');
         this.isConnected = true;
       });
 
@@ -41,19 +41,23 @@ export class BinanceWebSocketService {
           const message = JSON.parse(data.toString());
           
           if (message.stream && message.data) {
-            const bt = message.data as BinanceBookTicker;
-            if (bt && bt.s && bt.b && bt.a) {
-              const symbol = bt.s.replace('USDT', '');
-              const price = (parseFloat(bt.b) + parseFloat(bt.a)) / 2;
+            const trade = message.data as BinanceAggTrade;
+            if (trade && trade.s && trade.p) {
+              const symbol = trade.s.replace('USDT', '');
+              const price = parseFloat(trade.p);
               priceCache.setBinancePrice(symbol, price, 'websocket');
 
-              console.log(`📊 바이낸스선물 ${symbol}: $${price} (웹소켓-bookTicker)`);
+              // 환율을 적용하여 원화 가격 계산
+              const usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate();
+              const priceInKrw = price * usdKrwRate;
 
-              // 콜백 호출 유지
-              Object.values(this.callbacks).forEach(cb => cb(bt));
+              console.log(`📊 바이낸스선물 ${symbol}: ₩${priceInKrw.toLocaleString('ko-KR', { maximumFractionDigits: 0 })} (웹소켓-aggTrade)`);
+
+              // 콜백 호출 유지 (타입은 내부적으로만 사용되므로 외부 영향 적음)
+              Object.values(this.callbacks).forEach(cb => cb(trade as any));
             }
           } else {
-            console.log('ℹ️ 바이낸스 WebSocket 비-티커 메시지 수신:', message);
+            console.log('ℹ️ 바이낸스 WebSocket 비-거래 메시지 수신:', message);
           }
         } catch (error) {
           console.error('바이낸스 WebSocket 메시지 처리 오류:', error, '원본 데이터:', data.toString());
@@ -95,7 +99,7 @@ export class BinanceWebSocketService {
   }
 
   // 데이터 수신 콜백 등록
-  onData(id: string, callback: (data: BinanceBookTicker) => void) {
+  onData(id: string, callback: (data: BinanceAggTrade) => void) {
     this.callbacks[id] = callback;
   }
 

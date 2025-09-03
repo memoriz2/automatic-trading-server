@@ -27,26 +27,16 @@ export class RealtimeKimchiService {
    */
   private calculateKimchiPremium(): SimpleKimchiData[] {
     const results: SimpleKimchiData[] = [];
-    // 환율 전략 개선: Upbit USDT 우선 (신선도 ≤2초), 없으면 공식 환율
-    const upbitUsdt = priceCache.getUpbitPriceWithTs('USDT');
-    const emaRate = priceCache.getUsdtKrwEma();
-    const officialRate = naverExchange.getCurrentRate();
-
-    // Upbit USDT가 신선하면(≤2초) 우선 사용, 아니면 공식 환율
-    const now = Date.now();
-    const usdKrwRate = (upbitUsdt && (now - upbitUsdt.timestamp) <= 2000) ? upbitUsdt.price : officialRate;
-    const rateSource = (upbitUsdt && (now - upbitUsdt.timestamp) <= 2000) ? 'upbit_usdt' : 'official';
+    const usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate(); // 환율은 변동성이 적어 EMA 유지
 
     for (const symbol of this.symbols) {
       try {
-        const up = priceCache.getUpbitPriceWithTs(symbol);
-        const bi = priceCache.getBinancePriceWithTs(symbol);
+        // 실시간 가격으로 다시 변경
+        const upbitPrice = priceCache.getUpbitPrice(symbol);
+        const binancePrice = priceCache.getBinancePrice(symbol);
 
-        // 둘 다 캐시에 있고, 시점이 충분히 최신일 때만 계산 (≤ SYNC_THRESHOLD_MS)
-        const now = Date.now();
-        if (up && bi && (now - up.timestamp) <= this.SYNC_THRESHOLD_MS && (now - bi.timestamp) <= this.SYNC_THRESHOLD_MS) {
-          const upbitPrice = up.price;
-          const binancePrice = bi.price; // 선물 bookTicker 중간가 (bid+ask)/2
+        // 실시간 가격이 모두 유효할 때만 계산 진행
+        if (upbitPrice && binancePrice) {
           // 김프율 계산: (업비트KRW - 바이낸스USD×환율) ÷ (바이낸스USD×환율) × 100
           const binancePriceKRW = binancePrice * usdKrwRate; // 바이낸스 USD를 KRW로 변환
           const premiumRate = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;
@@ -56,19 +46,24 @@ export class RealtimeKimchiService {
             upbitPrice,
             binanceFuturesPrice: binancePrice,
             usdKrwRate,
-            binancePriceKRW: binancePriceKRW, // 바이낸스 가격을 KRW로 변환한 값
+            binancePriceKRW,
             premiumRate,
             timestamp: new Date().toISOString()
           });
 
-          // 상세 로깅으로 계산 검증 지원
-          const upbitUsdtStr = upbitUsdt ? `, UpbitUSDT: ${upbitUsdt.price.toFixed(2)}(${now - upbitUsdt.timestamp}ms ago)` : '';
-          const emaStr = emaRate ? `, EMA: ${emaRate.toFixed(2)}` : '';
-          const officialStr = `, Official: ${officialRate.toFixed(2)}`;
-          console.log(`⚡ ${symbol} 김프: ${premiumRate.toFixed(3)}% | 업비트: ₩${upbitPrice.toLocaleString()} | 선물: $${binancePrice.toFixed(2)} | KRW환산: ₩${binancePriceKRW.toLocaleString()} | 환율(${rateSource}): ${usdKrwRate.toFixed(2)}${upbitUsdtStr}${emaStr}${officialStr} | Δt: up ${now - up.timestamp}ms / bi ${now - bi.timestamp}ms`);
+          console.log(
+            `⚡ REALTIME ${symbol} 김프: ${premiumRate.toFixed(
+              3
+            )}% | 업비트: ₩${upbitPrice.toLocaleString()} | 선물: $${binancePrice.toFixed(
+              2
+            )} | 환율: ${usdKrwRate.toFixed(2)}`
+          );
         }
       } catch (error) {
-        console.error(`${symbol} 실시간 김프 계산 오류:`, error);
+        console.error(
+          `${symbol} 실시간 김프 계산 오류:`,
+          error
+        );
       }
     }
 
