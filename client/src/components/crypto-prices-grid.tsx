@@ -4,14 +4,19 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import type { KimchiPremium } from "@/types/trading";
 
-// 숫자만 갱신하는 컴포넌트
+// 숫자만 갱신하는 컴포넌트 (안전한 처리 추가)
 const NumberDisplay = React.memo<{ 
-  value: number; 
+  value: number | undefined; 
   formatter?: (v: number) => string;
   prefix?: string;
   suffix?: string;
 }>(({ value, formatter, prefix = '', suffix = '' }) => {
   const displayValue = React.useMemo(() => {
+    // 값이 없거나 유효하지 않으면 기본값 반환
+    if (value === undefined || value === null || isNaN(value)) {
+      return '0';
+    }
+    
     if (formatter) {
       return formatter(value);
     }
@@ -37,13 +42,15 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
   // 새로운 소켓 데이터가 오면 이전 값을 업데이트
   useEffect(() => {
     if (kimchiData && kimchiData.length > 0) {
-      const newPrevious = {...previousValues};
-      kimchiData.forEach(crypto => {
-        newPrevious[crypto.symbol] = crypto;
+      setPreviousValues(prev => {
+        const newPrevious = {...prev};
+        kimchiData.forEach(crypto => {
+          newPrevious[crypto.symbol] = crypto;
+        });
+        return newPrevious;
       });
-      setPreviousValues(newPrevious);
     }
-  }, [kimchiData, previousValues]);
+  }, [kimchiData]); // previousValues 의존성 제거
   
   // 모든 심볼 목록 (고정 5개 + 추가된 것들)
   const allSymbols = React.useMemo(() => {
@@ -139,8 +146,8 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     <span className="text-slate-400">바이낸스</span>
                     <span className="font-mono text-yellow-400">
                       $<NumberDisplay 
-                        value={data.binancePrice}
-                        formatter={(v) => v.toLocaleString()}
+                        value={data.binanceFuturesPrice || data.binancePrice}
+                        formatter={(v) => v?.toLocaleString()}
                       />
                     </span>
                   </div>
@@ -148,8 +155,8 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     <span className="text-slate-500">환율 적용</span>
                     <span className="font-mono text-slate-300">
                       ₩<NumberDisplay 
-                        value={data.binancePrice * (data.exchangeRate || 1391)}
-                        formatter={(v) => v.toLocaleString()}
+                        value={data.binancePriceKRW || ((data.binanceFuturesPrice || data.binancePrice || 0) * (data.usdKrwRate || data.exchangeRate || 1391))}
+                        formatter={(v) => v?.toLocaleString()}
                       />
                     </span>
                   </div>

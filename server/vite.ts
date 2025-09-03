@@ -45,12 +45,9 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
+      // 경로를 프로젝트 루트 기준으로 수정
+      const projectRoot = path.resolve(import.meta.dirname, '..');
+      const clientTemplate = path.resolve(projectRoot, "client", "index.html");
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");

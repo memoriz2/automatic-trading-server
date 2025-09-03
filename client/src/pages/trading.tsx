@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,23 +21,75 @@ import type { KimchiPremium } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function Trading() {
-  const [kimchiData, setKimchiData] = useState<KimchiPremium[]>([]);
+  // 심볼별 스테이트(그리드 고정 + 값만 갱신)
+  const [dataBySymbol, setDataBySymbol] = useState<Record<string, KimchiPremium>>({});
+  const incomingRef = useRef<Record<string, KimchiPremium>>({});
+  const rafRef = useRef<number | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('BTC');
   const [orderAmount, setOrderAmount] = useState<string>('100000');
   const [isOrderPending, setIsOrderPending] = useState(false);
   const { toast } = useToast();
+  const symbolsOrder = ['BTC', 'ETH', 'XRP', 'ADA', 'DOT']; // 고정 그리드 순서
+  
+  // 안전 가드/표시 헬퍼
+  const toKRW = (v: number | null | undefined) =>
+    typeof v === 'number' && isFinite(v) ? Math.round(v).toLocaleString() : '-';
+  const toFixed2 = (v: number | null | undefined) =>
+    typeof v === 'number' && isFinite(v) ? v.toFixed(2) : '-';
+  const calcBinanceKRW = (c: any): number | undefined => {
+    if (typeof c?.binancePriceKRW === 'number' && isFinite(c.binancePriceKRW)) return c.binancePriceKRW;
+    if (typeof c?.binanceFuturesPrice === 'number' && typeof c?.usdKrwRate === 'number') {
+      return c.binanceFuturesPrice * c.usdKrwRate;
+    }
+    return undefined;
+  };
   
   // WebSocket으로 실시간 김프 데이터 수신
   const { isConnected, lastMessage } = useWebSocket();
 
+  // 수신 데이터는 레퍼런스에 저장 → 주기적 배치 업데이트로 깜빡임 최소화
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'kimchi-premium') {
-      setKimchiData(lastMessage.data || []);
+      const arr = (lastMessage as any).data as KimchiPremium[] | undefined;
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (item && item.symbol) {
+            incomingRef.current[item.symbol] = item;
+          }
+        }
+      }
     }
   }, [lastMessage]);
 
-  // 선택된 심볼의 김프 데이터
-  const selectedCrypto = kimchiData.find(item => item.symbol === selectedSymbol);
+  // 100ms 간격으로 데이터 반영(불필요 렌더 방지)
+  useEffect(() => {
+    let mounted = true;
+    const tick = () => {
+      if (!mounted) return;
+      // 변경 감지: 심볼별로 값이 변했을 때만 병합
+      setDataBySymbol((prev) => {
+        const next: Record<string, KimchiPremium> = { ...prev };
+        let changed = false;
+        for (const [sym, val] of Object.entries(incomingRef.current)) {
+          const prevVal = prev[sym];
+          if (!prevVal || prevVal.timestamp !== val.timestamp || prevVal.premiumRate !== val.premiumRate || prevVal.upbitPrice !== val.upbitPrice) {
+            next[sym] = val;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+      rafRef.current = window.setTimeout(tick, 100) as unknown as number;
+    };
+    rafRef.current = window.setTimeout(tick, 100) as unknown as number;
+    return () => {
+      mounted = false;
+      if (rafRef.current) window.clearTimeout(rafRef.current);
+    };
+  }, []);
+
+  // 선택된 심볼의 김프 데이터(없으면 이전 값 유지 대신 안전 출력)
+  const selectedCrypto = dataBySymbol[selectedSymbol];
 
   // 즉시 주문 실행
   const executeQuickOrder = async (type: 'buy' | 'sell') => {
@@ -94,41 +146,40 @@ export default function Trading() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {kimchiData.map((crypto) => (
-                    <div 
-                      key={crypto.symbol}
-                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                        selectedSymbol === crypto.symbol 
-                          ? 'border-blue-500 bg-blue-500/10' 
-                          : 'border-slate-600 bg-slate-800 hover:border-slate-500'
-                      }`}
-                      onClick={() => setSelectedSymbol(crypto.symbol)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-white font-semibold">{crypto.symbol}</h3>
-                        <Badge 
-                          variant={crypto.premiumRate >= 0 ? "default" : "destructive"}
-                          className={crypto.premiumRate >= 0 ? "bg-green-600" : "bg-red-600"}
-                        >
-                          {crypto.premiumRate >= 0 ? '+' : ''}{crypto.premiumRate.toFixed(2)}%
-                        </Badge>
+                  {symbolsOrder.map((sym) => {
+                    const crypto = dataBySymbol[sym];
+                    const premium = typeof crypto?.premiumRate === 'number' ? crypto.premiumRate : undefined;
+                    const isSelected = selectedSymbol === sym;
+                    return (
+                      <div
+                        key={sym}
+                        className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                          isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                        }`}
+                        onClick={() => setSelectedSymbol(sym)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-white font-semibold">{sym}</h3>
+                          <Badge
+                            variant={premium != null && premium >= 0 ? 'default' : 'destructive'}
+                            className={(premium ?? 0) >= 0 ? 'bg-green-600' : 'bg-red-600'}
+                          >
+                            {premium != null ? `${premium >= 0 ? '+' : ''}${premium.toFixed(2)}%` : '-'}
+                          </Badge>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-slate-400">업비트: {toKRW((crypto as any)?.upbitPrice)}원</p>
+                          <p className="text-sm text-slate-400">바이낸스: {toKRW(calcBinanceKRW(crypto))}원</p>
+                          {premium != null && premium >= 1.0 && (
+                            <div className="flex items-center text-yellow-400 text-xs">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              김프 기회
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-slate-400">
-                          업비트: {crypto.upbitPrice.toLocaleString()}원
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          바이낸스: {crypto.binancePrice.toLocaleString()}원
-                        </p>
-                        {crypto.premiumRate >= 1.0 && (
-                          <div className="flex items-center text-yellow-400 text-xs">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            김프 기회
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -156,19 +207,19 @@ export default function Trading() {
                     <div className="text-center p-4 bg-slate-800 rounded-lg">
                       <p className="text-slate-400 text-sm">업비트 가격</p>
                       <p className="text-xl font-bold text-white">
-                        {selectedCrypto.upbitPrice.toLocaleString()}원
+                        {toKRW((selectedCrypto as any)?.upbitPrice)}원
                       </p>
                     </div>
                     <div className="text-center p-4 bg-slate-800 rounded-lg">
                       <p className="text-slate-400 text-sm">바이낸스 가격</p>
                       <p className="text-xl font-bold text-white">
-                        {selectedCrypto.binancePrice.toLocaleString()}원
+                        {toKRW(calcBinanceKRW(selectedCrypto))}원
                       </p>
                     </div>
                     <div className="text-center p-4 bg-slate-800 rounded-lg">
                       <p className="text-slate-400 text-sm">환율</p>
                       <p className="text-xl font-bold text-white">
-                        {selectedCrypto.exchangeRate?.toFixed(2) || '0'}원
+                        {toFixed2((selectedCrypto as any)?.exchangeRate ?? (selectedCrypto as any)?.usdKrwRate)}원
                       </p>
                     </div>
                   </div>
@@ -180,7 +231,13 @@ export default function Trading() {
                       <div className="flex justify-between">
                         <span className="text-slate-400">절대 가격 차이</span>
                         <span className="text-white font-mono">
-                          {Math.abs(selectedCrypto.upbitPrice - selectedCrypto.binancePrice).toLocaleString()}원
+                          {(() => {
+                            const up = (selectedCrypto as any)?.upbitPrice as number | undefined;
+                            const bi = calcBinanceKRW(selectedCrypto);
+                            return typeof up === 'number' && typeof bi === 'number'
+                              ? Math.abs(up - bi).toLocaleString()
+                              : '-';
+                          })()}원
                         </span>
                       </div>
                       <div className="flex justify-between">

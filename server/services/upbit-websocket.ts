@@ -1,8 +1,10 @@
 import WebSocket from 'ws';
+import { priceCache } from './price-cache.js';
 
-interface UpbitTickerData {
-  type: string;
-  code: string;
+// 업비트 웹소켓에서 수신하는 Ticker 데이터 타입 정의
+export interface UpbitTickerData {
+  ty: 'ticker';         // 타입
+  cd: string;           // 마켓 코드 (e.g., "KRW-BTC")
   trade_price: number;
   timestamp: number;
 }
@@ -29,8 +31,9 @@ export class UpbitWebSocketService {
         console.log('✅ 업비트 WebSocket 연결 성공');
         this.isConnected = true;
         
-        // 실시간 티커 구독 (BTC, ETH, XRP, ADA, DOT)
-        this.subscribe(['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-ADA', 'KRW-DOT']);
+        // 💥 자동 구독 로직 제거
+        // const initialCodes = ['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-ADA', 'KRW-DOT', 'KRW-USDT'];
+        // this.subscribe(initialCodes);
       });
 
       this.ws.on('message', (data) => {
@@ -38,7 +41,10 @@ export class UpbitWebSocketService {
           const message = JSON.parse(data.toString());
           
           if (message.type === 'ticker') {
-            console.log(`📊 ${message.code}: ₩${message.trade_price.toLocaleString()}`);
+            // 가격 캐시에 저장 (KRW- 제거하여 심볼 정규화)
+            const symbol = message.code.replace('KRW-', '');
+            const price = message.trade_price;
+            priceCache.setUpbitPrice(symbol, price, 'websocket');
             
             // 등록된 콜백들에 데이터 전송
             this.callbacks.forEach(callback => {
@@ -68,9 +74,15 @@ export class UpbitWebSocketService {
     }
   }
 
-  // 실시간 티커 구독
-  private subscribe(codes: string[]) {
-    if (!this.ws || !this.isConnected) return;
+  // 실시간 티커 구독 (외부에서 호출할 수 있도록 public으로 변경)
+  public subscribe(codes: string[]) {
+    if (!this.ws || !this.isConnected) {
+      // 연결이 아직 안되었으면, 연결된 직후에 구독하도록 예약
+      this.ws?.on('open', () => {
+        this.subscribe(codes);
+      });
+      return;
+    }
 
     const subscribeMessage = [
       { ticket: 'test' },

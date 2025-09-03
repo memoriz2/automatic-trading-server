@@ -34,7 +34,7 @@ interface RealTimePricesProps {
 export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, currentExchangeRate, onEmergencyStop }) => {
   // 이전 값을 유지하는 상태 (부드러운 전환을 위해)
   const [previousBtcData, setPreviousBtcData] = useState<KimchiPremium | null>(null);
-  const [previousExchangeRate, setPreviousExchangeRate] = useState<number>(1391.79);
+  const [previousExchangeRate, setPreviousExchangeRate] = useState<number | null>(null);
   
   // 새로운 BTC 데이터가 오면 이전 값 업데이트
   useEffect(() => {
@@ -46,14 +46,15 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
   
   // 새로운 환율 데이터가 오면 이전 값 업데이트
   useEffect(() => {
-    if (currentExchangeRate) {
+    if (currentExchangeRate && currentExchangeRate !== previousExchangeRate) {
+      console.log('🔄 RealTimePrices 환율 업데이트:', previousExchangeRate, '→', currentExchangeRate);
       setPreviousExchangeRate(currentExchangeRate);
     }
-  }, [currentExchangeRate]);
+  }, [currentExchangeRate, previousExchangeRate]);
   
   // 현재 값 또는 이전 값 사용 (부드러운 전환)
   const stableBtcData = kimchiData.find(data => data.symbol === 'BTC') || previousBtcData;
-  const stableExchangeRate = currentExchangeRate || previousExchangeRate;
+  const stableExchangeRate = currentExchangeRate || previousExchangeRate || 1394.0;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {/* 실시간 환율 */}
@@ -73,6 +74,9 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
               />
             </div>
             <div className="text-sm text-slate-400 mt-1">USD/KRW</div>
+            <div className="text-xs text-slate-500 mt-1">
+              현재: {currentExchangeRate?.toFixed(2) || 'null'} | 이전: {previousExchangeRate?.toFixed(2) || 'null'}
+            </div>
             <Badge variant="outline" className="mt-2 text-xs">
               Google Finance (3초마다 업데이트)
             </Badge>

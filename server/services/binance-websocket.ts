@@ -1,186 +1,118 @@
 import WebSocket from 'ws';
+import { priceCache } from './price-cache.js';
 
-interface BinanceTickerData {
-  e: string; // Event type
-  E: number; // Event time
-  s: string; // Symbol
-  c: string; // Close price
-  P: string; // Price change percent
+// ✅ 바이낸스 선물 bookTicker (bid/ask 중간가)
+export interface BinanceBookTicker {
+  s: string; // symbol
+  b: string; // best bid
+  a: string; // best ask
 }
 
 export class BinanceWebSocketService {
   private ws: WebSocket | null = null;
   private isConnected = false;
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private callbacks: Map<string, (data: BinanceTickerData) => void> = new Map();
+  private reconnectInterval = 1000; // 1초
+  private callbacks: { [id: string]: (data: BinanceBookTicker) => void } = {};
 
   constructor() {
     this.connect();
   }
 
-  // WebSocket 연결
   private connect() {
     try {
-      const symbols = 'btcusdt@ticker/ethusdt@ticker/xrpusdt@ticker/adausdt@ticker/dotusdt@ticker';
-      const url = `wss://stream.binance.com/ws/${symbols}`;
-      
-      console.log('🔌 바이낸스 WebSocket 연결 시도...');
+      // ✅ 선물 bookTicker 스트림 (호가 중간가 기반, 빠른 반응)
+      const symbols = ['btcusdt', 'ethusdt', 'xrpusdt', 'adausdt', 'dotusdt']
+        .map(s => `${s}@bookTicker`)
+        .join('/');
+      const url = `wss://fstream.binance.com/stream?streams=${symbols}`;
+
+      console.log('🔌 바이낸스 [선물 bookTicker] WebSocket 연결 시도...');
       console.log('🔗 연결 URL:', url);
-      console.log('🌐 환경:', {
-        NODE_ENV: process.env.NODE_ENV,
-        platform: process.platform,
-        nodeVersion: process.version
-      });
-      
+
       this.ws = new WebSocket(url);
-      
+
       this.ws.on('open', () => {
-        console.log('✅ 바이낸스 WebSocket 연결 성공');
+        console.log('✅ 바이낸스 [선물 bookTicker] WebSocket 연결 성공');
         this.isConnected = true;
       });
 
       this.ws.on('message', (data) => {
         try {
-          const ticker = JSON.parse(data.toString()) as BinanceTickerData;
+          const message = JSON.parse(data.toString());
           
-          // 우리가 관심있는 심볼들만 필터링
-          const targetSymbols = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'ADAUSDT', 'DOTUSDT'];
-          
-          if (ticker && ticker.s && targetSymbols.includes(ticker.s)) {
-            const symbol = ticker.s.replace('USDT', '');
-            const price = parseFloat(ticker.c);
-            
-            console.log(`📊 바이낸스 실시간 가격: ${symbol} = $${price.toLocaleString()}`);
-            
-            // 등록된 콜백들에 데이터 전송
-            this.callbacks.forEach(callback => {
-              callback(ticker);
-            });
+          if (message.stream && message.data) {
+            const bt = message.data as BinanceBookTicker;
+            if (bt && bt.s && bt.b && bt.a) {
+              const symbol = bt.s.replace('USDT', '');
+              const price = (parseFloat(bt.b) + parseFloat(bt.a)) / 2;
+              priceCache.setBinancePrice(symbol, price, 'websocket');
+
+              console.log(`📊 바이낸스선물 ${symbol}: $${price} (웹소켓-bookTicker)`);
+
+              // 콜백 호출 유지
+              Object.values(this.callbacks).forEach(cb => cb(bt));
+            }
+          } else {
+            console.log('ℹ️ 바이낸스 WebSocket 비-티커 메시지 수신:', message);
           }
         } catch (error) {
-          console.error('바이낸스 WebSocket 메시지 파싱 오류:', error);
-          console.log('Raw message:', data.toString());
+          console.error('바이낸스 WebSocket 메시지 처리 오류:', error, '원본 데이터:', data.toString());
         }
       });
 
-      this.ws.on('close', () => {
-        console.log('🔌 바이낸스 WebSocket 연결 종료');
-        this.isConnected = false;
-        this.scheduleReconnect();
-      });
-
       this.ws.on('error', (error) => {
-        console.error('❌ 바이낸스 WebSocket 오류:', error);
-        console.error('❌ 오류 세부사항:', {
-          message: error.message,
-          code: (error as any).code,
-          type: (error as any).type,
-          target: (error as any).target?.url || 'unknown'
-        });
-        this.isConnected = false;
+        console.error('바이낸스 WebSocket 오류:', error.message);
         this.scheduleReconnect();
       });
 
+      this.ws.on('close', (code, reason) => {
+        console.log(`🔌 바이낸스 WebSocket 연결 종료: 코드=${code}, 이유=${reason.toString()}`);
+        this.isConnected = false;
+        this.scheduleReconnect();
+      });
     } catch (error) {
-      console.error('바이낸스 WebSocket 연결 실패:', error);
-      console.log('🔄 대안 연결 시도 중... (포트 없이)');
-      this.tryAlternativeConnection();
-    }
-  }
-
-  // 대안 연결 방법
-  private tryAlternativeConnection() {
-    try {
-      const symbols = 'btcusdt@ticker/ethusdt@ticker/xrpusdt@ticker/adausdt@ticker/dotusdt@ticker';
-      const alternativeUrl = `wss://stream.binance.com/ws/${symbols}`;
-      
-      console.log('🔗 대안 URL:', alternativeUrl);
-      
-      this.ws = new WebSocket(alternativeUrl);
-      
-      this.ws.on('open', () => {
-        console.log('✅ 바이낸스 WebSocket 대안 연결 성공');
-        this.isConnected = true;
-      });
-
-      this.ws.on('message', (data) => {
-        try {
-          const ticker = JSON.parse(data.toString()) as BinanceTickerData;
-          
-          // 우리가 관심있는 심볼들만 필터링
-          const targetSymbols = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'ADAUSDT', 'DOTUSDT'];
-          
-          if (ticker && ticker.s && targetSymbols.includes(ticker.s)) {
-            const symbol = ticker.s.replace('USDT', '');
-            const price = parseFloat(ticker.c);
-            
-            console.log(`📊 바이낸스 실시간 가격: ${symbol} = $${price.toLocaleString()}`);
-            
-            // 등록된 콜백들에 데이터 전송
-            this.callbacks.forEach(callback => {
-              callback(ticker);
-            });
-          }
-        } catch (error) {
-          console.error('바이낸스 WebSocket 메시지 파싱 오류:', error);
-          console.log('Raw message:', data.toString());
-        }
-      });
-
-      this.ws.on('close', () => {
-        console.log('🔌 바이낸스 WebSocket 대안 연결 종료');
-        this.isConnected = false;
-        this.scheduleReconnect();
-      });
-
-      this.ws.on('error', (error) => {
-        console.error('❌ 바이낸스 WebSocket 대안 연결 오류:', error);
-        this.isConnected = false;
-        this.scheduleReconnect();
-      });
-
-    } catch (error) {
-      console.error('대안 연결도 실패:', error);
+      console.error('바이낸스 WebSocket 연결 설정 오류:', error);
       this.scheduleReconnect();
     }
   }
+  
+  // 💥 잘못된 가정에 기반한 subscribe 함수는 완전히 제거
 
   // 자동 재연결
   private scheduleReconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-
-    this.reconnectTimer = setTimeout(() => {
-      console.log('🔄 바이낸스 WebSocket 재연결 시도...');
-      this.connect();
-    }, 5000);
-  }
-
-  // 데이터 수신 콜백 등록
-  onData(id: string, callback: (data: BinanceTickerData) => void) {
-    this.callbacks.set(id, callback);
-  }
-
-  // 콜백 제거
-  removeCallback(id: string) {
-    this.callbacks.delete(id);
-  }
-
-  // 연결 해제
-  disconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-
     if (this.ws) {
-      this.ws.close();
+      this.ws.removeAllListeners(); // 기존 리스너들 제거
+      this.ws.close(); // 연결 종료
       this.ws = null;
     }
 
     this.isConnected = false;
-    this.callbacks.clear();
+    console.log('🔄 바이낸스 WebSocket 재연결 시도...');
+    setTimeout(() => {
+      console.log('🔄 바이낸스 WebSocket 재연결 시도...');
+      this.connect();
+    }, this.reconnectInterval);
+  }
+
+  // 데이터 수신 콜백 등록
+  onData(id: string, callback: (data: BinanceBookTicker) => void) {
+    this.callbacks[id] = callback;
+  }
+
+  // 콜백 제거
+  removeCallback(id: string) {
+    delete this.callbacks[id];
+  }
+
+  // 연결 해제
+  disconnect() {
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      this.ws.close();
+      this.ws = null;
+    }
+    this.isConnected = false;
+    this.callbacks = {};
     console.log('🔌 바이낸스 WebSocket 연결 해제');
   }
 
@@ -188,7 +120,7 @@ export class BinanceWebSocketService {
   getConnectionStatus() {
     return {
       isConnected: this.isConnected,
-      callbackCount: this.callbacks.size
+      callbackCount: Object.keys(this.callbacks).length
     };
   }
 }

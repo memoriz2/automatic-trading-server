@@ -7,6 +7,8 @@ import { CoinAPIService } from "./services/coinapi.js";
 import { SimpleKimchiService } from "./services/simple-kimchi.js";
 import { UpbitWebSocketService } from "./services/upbit-websocket.js";
 import { BinanceWebSocketService } from "./services/binance-websocket.js";
+import { realtimeKimchiService } from "./services/realtime-kimchi.js";
+import { priceCache } from "./services/price-cache.js";
 import { TradingService } from "./services/trading.js";
 import { multiStrategyTradingService } from "./services/new-kimchi-trading.js";
 import { UpbitService } from "./services/upbit.js";
@@ -111,11 +113,29 @@ export async function registerRoutes(
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
   const backtestService = new BacktestService();
-  console.log('🚀 WebSocket 서비스 초기화 시작...');
-  const upbitWebSocket = new UpbitWebSocketService();
-  console.log('✅ 업비트 WebSocket 서비스 생성 완료');
-  const binanceWebSocket = new BinanceWebSocketService();
-  console.log('✅ 바이낸스 WebSocket 서비스 생성 완료');
+  
+  // 🚀 웹소켓 서비스 인스턴스 생성 및 자동 구독 시작
+  const upbitWebSocketService = new UpbitWebSocketService();
+  const binanceWebSocketService = new BinanceWebSocketService();
+  
+  // 🚀 실시간 김치 프리미엄 계산 시스템 연결
+  priceCache.onPriceUpdate((source, symbol, price) => {
+    realtimeKimchiService.onPriceUpdate(source, symbol);
+  });
+
+  // 주요 코인들 자동 구독
+  setTimeout(() => {
+    console.log('🔔 웹소켓 자동 구독 시작...');
+    upbitWebSocketService.subscribe(['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-ADA', 'KRW-DOT', 'KRW-USDT']);
+    console.log('✅ 업비트 웹소켓 구독 완료 (USDT 포함)');
+    console.log('✅ 바이낸스 웹소켓 자동 연결 완료');
+    console.log('🚀 실시간 김치 프리미엄 계산 시스템 활성화');
+  }, 2000); // 2초 후 구독 시작
+  
+  // 💥💥💥 문제의 원인이었던 직접 생성 코드 제거 💥💥💥
+  // const upbitWebSocket = new UpbitWebSocketService();
+  // const binanceWebSocket = new BinanceWebSocketService();
+
   const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
   const tradingService = new TradingService();
   // kimpga API (완전 통합)
@@ -394,11 +414,11 @@ export async function registerRoutes(
     }
   });
 
-  // 최신 김프율 조회 (대시보드용)
+  // 최신 김프율 조회 (대시보드용) - SimpleKimchiService 사용
   app.get("/api/kimchi-premium", async (req, res) => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const kimchiData = await kimchiService.calculateKimchiPremium(symbols);
+      const kimchiData = await simpleKimchiService.calculateSimpleKimchi(symbols);
       res.json(kimchiData);
     } catch (error) {
       console.error("Error calculating kimchi premium:", error);
@@ -410,7 +430,7 @@ export async function registerRoutes(
   app.get("/api/kimchi-premium/coinapi", async (req, res) => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const results = [];
+      const results: any[] = [];
 
       for (const symbol of symbols) {
         try {
@@ -495,7 +515,7 @@ export async function registerRoutes(
     }
   });
 
-  // 최신 김프율 조회 (저장된 데이터)
+  // 최신 김프율 조회 (저장된 데이터) -> KimchiService의 지연 초기화 트리거
   app.get("/api/kimchi-premiums", async (req, res) => {
     try {
       const premiums = await kimchiService.getLatestKimchiPremiums();
@@ -689,53 +709,30 @@ export async function registerRoutes(
   app.post("/api/trading/start/:userId", async (req, res) => {
     try {
       const userId = req.params.userId; // string으로 처리
-      const { strategyType = "positive_kimchi" } = req.body;
       const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
-      console.log(
-        `[TRACE ${traceId}] [자동매매 시작] 사용자: ${userId}, 전략: ${strategyType}`
-      );
-      console.log(`[TRACE ${traceId}] 요청 헤더`, req.headers);
-      console.log(`[TRACE ${traceId}] 요청 바디`, req.body);
+      console.log(`[TRACE ${traceId}] [자동매매 시작] 사용자: ${userId}`);
 
       // 사용자별 거래 설정 확인
       const settings = await storage.getTradingSettingsByUserId(userId);
-      console.log(`[TRACE ${traceId}] 현재 저장된 설정`, settings);
       if (!settings) {
-        console.log(`[TRACE ${traceId}] 설정이 없습니다 → 400 반환`);
-        return res
-          .status(400)
-          .json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+        return res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
       }
 
-      // 다중 전략 자동매매 시작
-      // 임시로 주석 처리 - 구현 필요
-      // const result = await multiStrategyTradingService.startTrading(userId, strategyType);
-      const result = {
-        success: true,
-        message: "자동매매 시작 (구현중)",
-        activeStrategies: 1,
-      };
+      await multiStrategyTradingService.startMultiStrategyTrading(userId);
 
-      if (result.success) {
-        console.log(
-          `[TRACE ${traceId}] [자동매매 시작 성공] 사용자: ${userId}, 활성 전략: ${result.activeStrategies}`
-        );
-        res.json({
-          message: "자동매매가 시작되었습니다",
-          activeStrategies: result.activeStrategies,
-          settings: settings,
-          traceId,
-        });
-      } else {
-        console.log(`[TRACE ${traceId}] 시작 실패 → 400 반환`);
-        res.status(400).json({ error: "자동매매 시작 실패", traceId });
-      }
+      const strategies = await storage.getTradingStrategiesByUserId(userId);
+      const activeCount = strategies.filter((s) => s.isActive).length;
+
+      res.json({
+        message: "자동매매가 시작되었습니다",
+        activeStrategies: activeCount,
+        settings,
+        traceId,
+      });
     } catch (error) {
       const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
       console.error(`[TRACE ${traceId}] 자동매매 시작 오류:`, error);
-      res
-        .status(500)
-        .json({ error: "자동매매 시작 중 오류가 발생했습니다", traceId });
+      res.status(500).json({ error: "자동매매 시작 중 오류가 발생했습니다", traceId });
     }
   });
 
@@ -743,23 +740,9 @@ export async function registerRoutes(
   app.post("/api/trading/stop/:userId", async (req, res) => {
     try {
       const userId = req.params.userId; // string으로 처리
-
       console.log(`[자동매매 중지] 사용자: ${userId}`);
-
-      // 다중 전략 자동매매 중지
-      // 임시로 주석 처리 - 구현 필요
-      // const result = await multiStrategyTradingService.stopTrading(userId);
-      const result = { success: true, message: "자동매매 중지 완료" };
-
-      if (result.success) {
-        console.log(`[자동매매 중지 완료] 사용자: ${userId}`);
-        res.json({
-          message: "자동매매가 중지되었습니다",
-          stoppedStrategies: 0,
-        });
-      } else {
-        res.status(400).json({ error: "자동매매 중지 실패" });
-      }
+      await multiStrategyTradingService.stopMultiStrategyTrading();
+      res.json({ message: "자동매매가 중지되었습니다" });
     } catch (error) {
       console.error("자동매매 중지 오류:", error);
       res.status(500).json({ error: "자동매매 중지 중 오류가 발생했습니다" });
@@ -770,24 +753,34 @@ export async function registerRoutes(
   app.get("/api/trading/status/:userId", async (req, res) => {
     try {
       const userId = req.params.userId; // string으로 처리
-
-      // 임시로 주석 처리 - 구현 필요
-      // const isRunning = multiStrategyTradingService.isTrading(userId);
-      const isRunning = false;
+      const isRunning = multiStrategyTradingService.getIsTrading();
       const strategies = await storage.getTradingStrategiesByUserId(userId);
-
       res.json({
         isRunning,
         strategies,
-        activeStrategies: isRunning
-          ? strategies.filter((s) => s.isActive).length
-          : 0,
+        activeStrategies: strategies.filter((s) => s.isActive).length,
       });
     } catch (error) {
       console.error("자동매매 상태 조회 오류:", error);
-      res
-        .status(500)
-        .json({ error: "자동매매 상태 조회 중 오류가 발생했습니다" });
+      res.status(500).json({ error: "자동매매 상태 조회 중 오류가 발생했습니다" });
+    }
+  });
+
+  // 자동매매 긴급 정지
+  app.post("/api/trading/emergency-stop/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId; // string으로 처리
+      console.log(`[긴급 정지] 사용자: ${userId}`);
+      await multiStrategyTradingService.stopMultiStrategyTrading();
+      await storage.createSystemAlert({
+        type: "warning",
+        title: "자동매매 긴급 정지",
+        message: `사용자 ${userId}의 자동매매가 긴급 정지되었습니다` ,
+      });
+      res.json({ message: "긴급 정지 완료" });
+    } catch (error) {
+      console.error("긴급 정지 오류:", error);
+      res.status(500).json({ error: "긴급 정지 중 오류가 발생했습니다" });
     }
   });
 
@@ -1359,50 +1352,33 @@ export async function registerRoutes(
     }
   );
 
-  // WebSocket server setup - 기존 HTTP 서버에 부착
+  // WebSocket server setup
   const wss = new WebSocketServer({ server, path: "/ws" });
 
-  // 연결된 클라이언트와 사용자 ID 매핑
-  const wsUserMap = new Map<WebSocket, string>();
-  
-  // 실시간 가격 데이터 저장소
-  const upbitPrices = new Map<string, { price: number; timestamp: number; }>();
-  const binancePrices = new Map<string, { price: number; timestamp: number; }>();
+  // 🚀 실시간 김치 프리미엄 데이터를 모든 클라이언트에게 전송
+  realtimeKimchiService.onUpdate('websocket-broadcast', (kimchiData) => {
+    if (kimchiData.length > 0) {
+      const message = JSON.stringify({
+        type: "kimchi-premium",
+        data: kimchiData,
+        timestamp: new Date().toISOString(),
+      });
 
-  // 업비트 WebSocket에서 실시간 가격 데이터 수신
-  console.log('🔔 업비트 WebSocket 콜백 등록 중...');
-  upbitWebSocket.onData('main', (data) => {
-    // KRW-BTC → BTC로 변환
-    const symbol = data.code.replace('KRW-', '');
-    
-    upbitPrices.set(symbol, {
-      price: data.trade_price,
-      timestamp: data.timestamp
-    });
-    
-    console.log(`📊 업비트 실시간 가격: ${symbol} = ₩${data.trade_price.toLocaleString()}`);
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+      // 실시간 데이터 전송 로그 (필요시 활성화)
+      // console.log(`📤 WebSocket 김프율 데이터 전송: ${kimchiData.length}개 심볼`);
+    }
   });
-  console.log('✅ 업비트 WebSocket 콜백 등록 완료');
 
-  // 바이낸스 WebSocket에서 실시간 가격 데이터 수신
-  console.log('🔔 바이낸스 WebSocket 콜백 등록 중...');
-  binanceWebSocket.onData('main', (data) => {
-    // BTCUSDT → BTC로 변환
-    const symbol = data.s.replace('USDT', '');
-    const price = parseFloat(data.c);
-    
-    binancePrices.set(symbol, {
-      price: price,
-      timestamp: data.E
-    });
-    
-    console.log(`📊 바이낸스 실시간 가격: ${symbol} = $${price.toLocaleString()}`);
-  });
-  console.log('✅ 바이낸스 WebSocket 콜백 등록 완료');
-
-  // WebSocket connection handling
   wss.on("connection", (ws, req) => {
     console.log("WebSocket client connected");
+    
+    // 첫 클라이언트 연결 시 KimchiService의 지연 초기화를 트리거
+    kimchiService.getLatestKimchiPremiums();
 
     // URL 쿼리에서 토큰 추출 시도
     const url = new URL(req.url || '', `http://${req.headers.host}`);
@@ -1411,7 +1387,7 @@ export async function registerRoutes(
     if (token) {
       const userId = getUserIdFromToken(`Bearer ${token}`);
       if (userId) {
-        wsUserMap.set(ws, userId);
+        // wsUserMap.set(ws, userId); // 이 부분은 더 이상 필요 없으므로 제거
         console.log(`WebSocket 사용자 연결: User ID ${userId}`);
       }
     }
@@ -1426,7 +1402,7 @@ export async function registerRoutes(
         if (msg.type === 'auth' && msg.token) {
           const userId = getUserIdFromToken(`Bearer ${msg.token}`);
           if (userId) {
-            wsUserMap.set(ws, userId);
+            // wsUserMap.set(ws, userId); // 이 부분은 더 이상 필요 없으므로 제거
             console.log(`WebSocket 사용자 인증: User ID ${userId}`);
           }
         }
@@ -1436,75 +1412,76 @@ export async function registerRoutes(
     });
 
     ws.on("close", () => {
-      const userId = wsUserMap.get(ws);
-      if (userId) {
-        console.log(`WebSocket 사용자 연결 해제: User ID ${userId}`);
-        wsUserMap.delete(ws);
-      } else {
+      // const userId = wsUserMap.get(ws); // 이 부분은 더 이상 필요 없으므로 제거
+      // if (userId) {
+      //   console.log(`WebSocket 사용자 연결 해제: User ID ${userId}`);
+      //   wsUserMap.delete(ws);
+      // } else {
         console.log("WebSocket client disconnected");
-      }
+      // }
     });
   });
 
+  // 💥💥💥 아래의 중복되고 오래된 실시간 데이터 처리 로직은 모두 제거합니다. 💥💥💥
   // 실시간 김프율 데이터 전송 (WebSocket 기반)
-  const sendKimchiData = async () => {
-    try {
-      const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const kimchiData = [];
+  // const sendKimchiData = async () => {
+  //   try {
+  //     const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
+  //     const kimchiData = [];
       
-      // 데이터 상태 확인
-      console.log(`🔍 데이터 상태 확인 - 업비트: ${upbitPrices.size}개, 바이낸스: ${binancePrices.size}개`);
+  //     // 데이터 상태 확인
+  //     console.log(`🔍 데이터 상태 확인 - 업비트: ${upbitPrices.size}개, 바이낸스: ${binancePrices.size}개`);
       
-      // 활성 사용자 찾기 (바이낸스 API 키용)
-      const activeUserId = await findActiveUserWithApiKeys();
+  //     // 활성 사용자 찾기 (바이낸스 API 키용)
+  //     const activeUserId = await findActiveUserWithApiKeys();
       
-      // 완전한 WebSocket 기반 (API 호출 없음)
-      for (const symbol of symbols) {
-        const upbitPrice = upbitPrices.get(symbol);
-        const binancePrice = binancePrices.get(symbol);
+  //     // 완전한 WebSocket 기반 (API 호출 없음)
+  //     for (const symbol of symbols) {
+  //       const upbitPrice = upbitPrices.get(symbol);
+  //       const binancePrice = binancePrices.get(symbol);
         
-        if (upbitPrice && binancePrice) {
-          const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
-          const premiumRate = ((upbitPrice.price - (binancePrice.price * exchangeRate)) / (binancePrice.price * exchangeRate)) * 100;
+  //       if (upbitPrice && binancePrice) {
+  //         const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
+  //         const premiumRate = ((upbitPrice.price - (binancePrice.price * exchangeRate)) / (binancePrice.price * exchangeRate)) * 100;
           
-          kimchiData.push({
-            symbol,
-            upbitPrice: upbitPrice.price,
-            binancePrice: binancePrice.price * exchangeRate,
-            binancePriceUSD: binancePrice.price,
-            premiumRate: premiumRate,
-            timestamp: new Date(),
-            exchangeRate: exchangeRate,
-            exchangeRateSource: "Google Finance (실시간 환율)",
-          });
+  //         kimchiData.push({
+  //           symbol,
+  //           upbitPrice: upbitPrice.price,
+  //           binancePrice: binancePrice.price * exchangeRate,
+  //           binancePriceUSD: binancePrice.price,
+  //           premiumRate: premiumRate,
+  //           timestamp: new Date(),
+  //           exchangeRate: exchangeRate,
+  //           exchangeRateSource: "Google Finance (실시간 환율)",
+  //         });
           
-          console.log(`📊 ${symbol}: 업비트 ₩${upbitPrice.price.toLocaleString()}, 바이낸스 $${binancePrice.price.toLocaleString()}, 김프 ${premiumRate.toFixed(3)}%`);
-        }
-      }
+  //         console.log(`📊 ${symbol}: 업비트 ₩${upbitPrice.price.toLocaleString()}, 바이낸스 $${binancePrice.price.toLocaleString()}, 김프 ${premiumRate.toFixed(3)}%`);
+  //       }
+  //     }
 
-      // 데이터가 있을 때만 전송
-      if (kimchiData.length > 0) {
-        const message = JSON.stringify({
-          type: "kimchi-premium",
-          data: kimchiData,
-          timestamp: new Date().toISOString(),
-        });
+  //     // 데이터가 있을 때만 전송
+  //     if (kimchiData.length > 0) {
+  //       const message = JSON.stringify({
+  //         type: "kimchi-premium",
+  //         data: kimchiData,
+  //         timestamp: new Date().toISOString(),
+  //       });
 
-        // 연결된 모든 WebSocket 클라이언트에 데이터 전송
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(message);
-          }
-        });
+  //       // 연결된 모든 WebSocket 클라이언트에 데이터 전송
+  //       wss.clients.forEach((client) => {
+  //         if (client.readyState === WebSocket.OPEN) {
+  //           client.send(message);
+  //         }
+  //       });
         
-        console.log(`📤 WebSocket 김프율 데이터 전송: ${kimchiData.length}개 심볼`);
-      }
-    } catch (error) {
-      console.error("김프율 데이터 전송 오류:", error);
-    }
-  };
+  //       console.log(`📤 WebSocket 김프율 데이터 전송: ${kimchiData.length}개 심볼`);
+  //     }
+  //   } catch (error) {
+  //     console.error("김프율 데이터 전송 오류:", error);
+  //   }
+  // };
 
-  setInterval(sendKimchiData, 100);
+  // setInterval(sendKimchiData, 100); // 이 부분은 더 이상 필요 없으므로 제거
 
   // 거래소 연동 테스트 API (중요: 이 라우트는 /api/exchanges/:userId 보다 먼저 선언되어야 함)
   app.post("/api/test-exchange-connection", async (req, res) => {

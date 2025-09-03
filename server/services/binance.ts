@@ -87,6 +87,49 @@ export class BinanceService {
     }
   }
 
+  async getFuturesTicker(symbols: string[]): Promise<BinanceTicker[]> {
+    try {
+      const results: BinanceTicker[] = [];
+      const symbolsParams = symbols.map(s => `${s}USDT`);
+      
+      // fapi.binance.com은 symbols 파라미터를 지원하지 않으므로 개별 요청
+      for (const symbol of symbolsParams) {
+        try {
+          // 시장 평균가(Mark Price)를 사용하도록 엔드포인트 변경
+          const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/premiumIndex?symbol=${symbol}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            // 응답에서 markPrice를 사용하도록 수정
+            results.push({
+              symbol: data.symbol,
+              price: data.markPrice
+            });
+          } else {
+            console.warn(`Failed to get futures mark price for ${symbol}: ${response.status}, falling back to last price.`);
+            // 실패 시 최종 체결가로 대체 시도
+            const lastPrice = await this.getSymbolPrice(symbol);
+            results.push({
+              symbol: symbol,
+              price: lastPrice.toString()
+            });
+          }
+        } catch (error) {
+           console.warn(`Error getting futures mark price for ${symbol}, falling back to spot price.`, error);
+           const spotPrice = await this.getSymbolPrice(symbol);
+           results.push({
+             symbol: symbol,
+             price: spotPrice.toString()
+           });
+        }
+      }
+      return results;
+    } catch (error) {
+      console.error('Binance getFuturesTicker error:', error);
+      throw error;
+    }
+  }
+
   // 단일 심볼 가격 조회
   async getSymbolPrice(symbol: string): Promise<number> {
     try {

@@ -15,6 +15,7 @@ import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import BacktestPage from "@/pages/backtest";
 import { useAuth } from "@/hooks/useAuth";
+import LegacyAutoTradingPage from "@/pages/legacy-auto-trading";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -44,17 +45,22 @@ function Router() {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
       <Sidebar />
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/auto-trading" component={AutoTrading} />
-        <Route path="/ultra-trading" component={UltraTrading} />
-        <Route path="/trading" component={Trading} />
-        <Route path="/history" component={History} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/admin" component={AdminPage} />
-        <Route path="/backtest" component={BacktestPage} />
-        <Route component={NotFound} />
-      </Switch>
+      <main className="flex-1 overflow-auto lg:ml-0">
+        <div className="lg:hidden h-16"></div> {/* 모바일에서 햄버거 버튼 공간 확보 */}
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/legacy-auto-trading" component={LegacyAutoTradingPage} />
+          <Route path="/auto-trading" component={AutoTrading} />
+          <Route path="/ultra-trading" component={UltraTrading} />
+          <Route path="/trading" component={Trading} />
+          <Route path="/history" component={History} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/admin" component={AdminPage} />
+          <Route path="/backtest" component={BacktestPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
     </div>
   );
 }

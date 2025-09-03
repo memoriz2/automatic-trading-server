@@ -1,4 +1,5 @@
 import type { SimpleKimchiService } from "./simple-kimchi.js";
+import { realtimeKimchiService } from "./realtime-kimchi.js";
 
 type StrategyStatus = {
   running: boolean;
@@ -15,7 +16,6 @@ type StrategyStatus = {
 };
 
 export class KimpgaStrategyService {
-  private loopTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private logs: string[] = [];
   private tradeCount = 0;
@@ -35,33 +35,31 @@ export class KimpgaStrategyService {
   start() {
     if (this.running) return;
     this.running = true;
-    this.pushLog("전략 시작");
-    this.loopTimer = setInterval(async () => {
+    this.pushLog("🚀 실시간 전략 시작 (웹소켓 기반)");
+    
+    // 🚀 실시간 김치 프리미엄 업데이트 구독
+    realtimeKimchiService.onUpdate('kimpga-strategy', (kimchiData) => {
       try {
-        const data = await this.simpleKimchiService.calculateSimpleKimchi([
-          "BTC",
-        ]);
-        const d = data.find((x) => x.symbol === "BTC");
-        if (d) {
+        const btcData = kimchiData.find((x) => x.symbol === "BTC");
+        if (btcData) {
           this.pushLog(
-            `김프=${d.premiumRate}% 업비트=${d.upbitPrice} 바이낸스=${d.binanceFuturesPrice} FX=${d.usdKrwRate}`
+            `⚡ 김프=${btcData.premiumRate.toFixed(3)}% 업비트=₩${btcData.upbitPrice.toLocaleString()} 바이낸스=$${btcData.binanceFuturesPrice.toLocaleString()} FX=${btcData.usdKrwRate}`
           );
+          this.loops += 1;
         }
-        this.loops += 1;
       } catch (e: any) {
         this.pushLog(`오류: ${e?.message ?? String(e)}`);
         this.apiErrors += 1;
       }
-    }, 600);
+    });
   }
 
   stop() {
-    if (this.loopTimer) {
-      clearInterval(this.loopTimer);
-      this.loopTimer = null;
-    }
-    if (this.running) this.pushLog("전략 중지");
+    if (this.running) this.pushLog("🛑 실시간 전략 중지");
     this.running = false;
+    
+    // 실시간 김치 프리미엄 구독 해제
+    realtimeKimchiService.removeCallback('kimpga-strategy');
   }
 
   forceExit() {

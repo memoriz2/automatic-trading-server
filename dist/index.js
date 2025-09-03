@@ -1,20 +1,18 @@
 var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
-
-// server/index.ts
-import express2 from "express";
-
-// server/routes.ts
-import { WebSocketServer, WebSocket } from "ws";
 
 // shared/schema.ts
 var schema_exports = {};
@@ -52,309 +50,310 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  role: text("role").default("user").notNull(),
-  // 'user' 또는 'admin'
-  isActive: boolean("is_active").default(true).notNull(),
-  lastLoginAt: timestamp("last_login_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
-});
-var exchanges = pgTable(
-  "exchanges",
-  {
-    id: serial("id").primaryKey(),
-    exchange: text("exchange").notNull(),
-    apiKey: text("api_key").notNull(),
-    apiSecret: text("api_secret").notNull(),
-    // secretKey → apiSecret
-    isActive: boolean("is_active").default(true),
-    userId: integer("user_id").notNull().references(() => users.id),
-    passphrase: text("passphrase"),
-    createdAt: timestamp("created_at").defaultNow(),
-    updatedAt: timestamp("updated_at").defaultNow()
-  },
-  (table) => ({
-    userExchangeUnique: uniqueIndex("exchanges_user_id_exchange_key").on(
-      table.userId,
-      table.exchange
-    )
-  })
-);
-var cryptocurrencies = pgTable(
-  "cryptocurrencies",
-  {
-    id: serial("id").primaryKey(),
-    symbol: text("symbol").notNull(),
-    // 예: 'BTC'
-    name: text("name").notNull(),
-    // 예: 'Bitcoin'
-    isActive: boolean("is_active").default(true),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow()
-  },
-  (table) => ({
-    // Drizzle 수준에서 UNIQUE 인덱스 선언 (migrations 시 반영)
-    symbolUnique: uniqueIndex("cryptocurrencies_symbol_key").on(table.symbol)
-  })
-);
-var kimchiPremiums = pgTable("kimchi_premiums", {
-  id: serial("id").primaryKey(),
-  symbol: text("symbol").notNull(),
-  upbitPrice: decimal("upbit_price", { precision: 20, scale: 8 }).notNull(),
-  binancePrice: decimal("binance_price", { precision: 20, scale: 8 }).notNull(),
-  premiumRate: decimal("premium_rate", { precision: 10, scale: 4 }).notNull(),
-  timestamp: timestamp("timestamp").defaultNow()
-});
-var tradingSettings = pgTable("trading_settings", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  entryPremiumRate: decimal("entry_premium_rate", {
-    precision: 10,
-    scale: 4
-  }).notNull(),
-  exitPremiumRate: decimal("exit_premium_rate", {
-    precision: 10,
-    scale: 4
-  }).notNull(),
-  stopLossRate: decimal("stop_loss_rate", {
-    precision: 10,
-    scale: 4
-  }).notNull(),
-  maxPositions: integer("max_positions").default(5),
-  isAutoTrading: boolean("is_auto_trading").default(false),
-  maxInvestmentAmount: decimal("max_investment_amount", {
-    precision: 20,
-    scale: 2
-  }),
-  // 새로운 김프 진입 전략 설정값들
-  kimchiEntryRate: decimal("kimchi_entry_rate", {
-    precision: 10,
-    scale: 4
-  }).default("1.0"),
-  // 진입 김프율
-  kimchiExitRate: decimal("kimchi_exit_rate", {
-    precision: 10,
-    scale: 4
-  }).default("0.5"),
-  // 청산 김프율
-  kimchiToleranceRate: decimal("kimchi_tolerance_rate", {
-    precision: 10,
-    scale: 4
-  }).default("0.1"),
-  // 허용 오차 진입 김프율
-  binanceLeverage: integer("binance_leverage").default(1),
-  // 바이낸스 레버리지
-  upbitEntryAmount: decimal("upbit_entry_amount", {
-    precision: 20,
-    scale: 2
-  }).default("10000")
-  // 업비트 기준 진입 금액(KRW)
-});
-var positions = pgTable("positions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  strategyId: integer("strategy_id").references(() => tradingStrategies.id),
-  // 어떤 전략으로 진입했는지
-  symbol: text("symbol").notNull(),
-  type: text("type").notNull().default("kimchi_arbitrage"),
-  entryPrice: decimal("entry_price", { precision: 20, scale: 8 }).notNull(),
-  currentPrice: decimal("current_price", { precision: 20, scale: 8 }),
-  quantity: decimal("quantity", { precision: 20, scale: 8 }).notNull(),
-  entryPremiumRate: decimal("entry_premium_rate", {
-    precision: 10,
-    scale: 4
-  }).notNull(),
-  currentPremiumRate: decimal("current_premium_rate", {
-    precision: 10,
-    scale: 4
-  }),
-  status: text("status").notNull().default("open"),
-  entryTime: timestamp("entry_time").defaultNow(),
-  exitTime: timestamp("exit_time"),
-  upbitOrderId: text("upbit_order_id"),
-  binanceOrderId: text("binance_order_id"),
-  // Prisma 모델과 정합: 추가 필드들
-  side: text("side").notNull(),
-  exitPrice: decimal("exit_price", { precision: 20, scale: 8 }),
-  exitPremiumRate: decimal("exit_premium_rate", { precision: 10, scale: 4 }),
-  unrealizedPnl: decimal("unrealized_pnl", { precision: 20, scale: 2 }).default(
-    "0"
-  ),
-  realizedPnl: decimal("realized_pnl", { precision: 20, scale: 2 }).default(
-    "0"
-  ),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var trades = pgTable("trades", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  positionId: integer("position_id").references(() => positions.id),
-  symbol: text("symbol").notNull(),
-  side: text("side").notNull(),
-  // 'buy', 'sell'
-  exchange: text("exchange").notNull(),
-  // 'upbit', 'binance'
-  quantity: decimal("quantity", { precision: 20, scale: 8 }).notNull(),
-  price: decimal("price", { precision: 20, scale: 8 }).notNull(),
-  fee: decimal("fee", { precision: 20, scale: 8 }).default("0"),
-  orderType: text("order_type").default("market"),
-  exchangeOrderId: text("exchange_order_id"),
-  exchangeTradeId: text("exchange_trade_id"),
-  executedAt: timestamp("executed_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var systemAlerts = pgTable("system_alerts", {
-  id: serial("id").primaryKey(),
-  type: text("type").notNull(),
-  // 'success', 'warning', 'error', 'info'
-  title: text("title").notNull(),
-  message: text("message").notNull(),
-  isRead: boolean("is_read").default(false),
-  userId: integer("user_id"),
-  data: jsonb("data"),
-  priority: text("priority").default("normal"),
-  createdAt: timestamp("created_at").defaultNow()
-});
-var tradingStrategies = pgTable("trading_strategies", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  name: text("name").notNull(),
-  // '구간 1', '구간 2', etc.
-  strategyType: text("strategy_type").notNull().default("positive_kimchi"),
-  // 'positive_kimchi', 'negative_kimchi'
-  entryRate: decimal("entry_rate", { precision: 10, scale: 4 }).notNull(),
-  // 진입 김프율
-  exitRate: decimal("exit_rate", { precision: 10, scale: 4 }).notNull(),
-  // 청산 김프율
-  toleranceRate: decimal("tolerance_rate", {
-    precision: 10,
-    scale: 4
-  }).notNull(),
-  // 허용범위
-  leverage: integer("leverage").default(3),
-  // 레버리지
-  investmentAmount: decimal("investment_amount", {
-    precision: 20,
-    scale: 2
-  }).notNull(),
-  // 투자금액
-  isActive: boolean("is_active").default(true),
-  // 활성화 여부
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
-var insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  role: true
-}).extend({
-  username: z.string().min(3, "\uC0AC\uC6A9\uC790\uBA85\uC740 \uCD5C\uC18C 3\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4").max(20, "\uC0AC\uC6A9\uC790\uBA85\uC740 20\uC790\uB97C \uCD08\uACFC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4").regex(
-    /^[a-zA-Z0-9_]+$/,
-    "\uC0AC\uC6A9\uC790\uBA85\uC740 \uC601\uBB38, \uC22B\uC790, \uC5B8\uB354\uC2A4\uCF54\uC5B4\uB9CC \uC0AC\uC6A9 \uAC00\uB2A5\uD569\uB2C8\uB2E4"
-  ),
-  password: z.string().min(6, "\uBE44\uBC00\uBC88\uD638\uB294 \uCD5C\uC18C 6\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4").max(50, "\uBE44\uBC00\uBC88\uD638\uB294 50\uC790\uB97C \uCD08\uACFC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4"),
-  role: z.string().default("user")
-});
-var loginUserSchema = z.object({
-  username: z.string().min(1, "\uC0AC\uC6A9\uC790\uBA85\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694"),
-  password: z.string().min(1, "\uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694")
-});
-var insertExchangeSchema = createInsertSchema(exchanges).pick({
-  exchange: true,
-  apiKey: true,
-  apiSecret: true,
-  userId: true
-});
-var insertCryptocurrencySchema = createInsertSchema(
-  cryptocurrencies
-).pick({
-  symbol: true,
-  name: true
-});
-var insertKimchiPremiumSchema = createInsertSchema(
-  kimchiPremiums
-).pick({
-  symbol: true,
-  upbitPrice: true,
-  binancePrice: true,
-  premiumRate: true
-});
-var insertTradingSettingsSchema = createInsertSchema(
-  tradingSettings
-).pick({
-  userId: true,
-  entryPremiumRate: true,
-  exitPremiumRate: true,
-  stopLossRate: true,
-  maxPositions: true,
-  isAutoTrading: true,
-  maxInvestmentAmount: true,
-  kimchiEntryRate: true,
-  kimchiExitRate: true,
-  kimchiToleranceRate: true,
-  binanceLeverage: true,
-  upbitEntryAmount: true
-});
-var insertTradingStrategySchema = createInsertSchema(
-  tradingStrategies
-).pick({
-  userId: true,
-  name: true,
-  strategyType: true,
-  entryRate: true,
-  exitRate: true,
-  toleranceRate: true,
-  leverage: true,
-  investmentAmount: true,
-  isActive: true
-});
-var insertPositionSchema = createInsertSchema(positions).pick({
-  userId: true,
-  strategyId: true,
-  symbol: true,
-  type: true,
-  side: true,
-  status: true,
-  entryPrice: true,
-  quantity: true,
-  entryPremiumRate: true,
-  upbitOrderId: true,
-  binanceOrderId: true
-});
-var insertTradeSchema = createInsertSchema(trades).pick({
-  userId: true,
-  positionId: true,
-  symbol: true,
-  side: true,
-  exchange: true,
-  quantity: true,
-  price: true,
-  fee: true,
-  orderType: true,
-  exchangeOrderId: true,
-  exchangeTradeId: true
-});
-var insertSystemAlertSchema = createInsertSchema(systemAlerts).pick({
-  type: true,
-  title: true,
-  message: true,
-  userId: true,
-  data: true,
-  priority: true
+var users, exchanges, cryptocurrencies, kimchiPremiums, tradingSettings, positions, trades, systemAlerts, tradingStrategies, insertUserSchema, loginUserSchema, insertExchangeSchema, insertCryptocurrencySchema, insertKimchiPremiumSchema, insertTradingSettingsSchema, insertTradingStrategySchema, insertPositionSchema, insertTradeSchema, insertSystemAlertSchema;
+var init_schema = __esm({
+  "shared/schema.ts"() {
+    "use strict";
+    users = pgTable("users", {
+      id: serial("id").primaryKey(),
+      username: text("username").notNull().unique(),
+      password: text("password").notNull(),
+      role: text("role").default("user").notNull(),
+      // 'user' 또는 'admin'
+      isActive: boolean("is_active").default(true).notNull(),
+      lastLoginAt: timestamp("last_login_at"),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull()
+    });
+    exchanges = pgTable(
+      "exchanges",
+      {
+        id: serial("id").primaryKey(),
+        exchange: text("exchange").notNull(),
+        apiKey: text("api_key").notNull(),
+        apiSecret: text("api_secret").notNull(),
+        // secretKey → apiSecret
+        isActive: boolean("is_active").default(true),
+        userId: integer("user_id").notNull().references(() => users.id),
+        passphrase: text("passphrase"),
+        createdAt: timestamp("created_at").defaultNow(),
+        updatedAt: timestamp("updated_at").defaultNow()
+      },
+      (table) => ({
+        userExchangeUnique: uniqueIndex("exchanges_user_id_exchange_key").on(
+          table.userId,
+          table.exchange
+        )
+      })
+    );
+    cryptocurrencies = pgTable(
+      "cryptocurrencies",
+      {
+        id: serial("id").primaryKey(),
+        symbol: text("symbol").notNull(),
+        // 예: 'BTC'
+        name: text("name").notNull(),
+        // 예: 'Bitcoin'
+        isActive: boolean("is_active").default(true),
+        createdAt: timestamp("created_at", { withTimezone: true }).defaultNow()
+      },
+      (table) => ({
+        // Drizzle 수준에서 UNIQUE 인덱스 선언 (migrations 시 반영)
+        symbolUnique: uniqueIndex("cryptocurrencies_symbol_key").on(table.symbol)
+      })
+    );
+    kimchiPremiums = pgTable("kimchi_premiums", {
+      id: serial("id").primaryKey(),
+      symbol: text("symbol").notNull(),
+      upbitPrice: decimal("upbit_price", { precision: 20, scale: 8 }).notNull(),
+      binancePrice: decimal("binance_price", { precision: 20, scale: 8 }).notNull(),
+      premiumRate: decimal("premium_rate", { precision: 10, scale: 4 }).notNull(),
+      timestamp: timestamp("timestamp").defaultNow()
+    });
+    tradingSettings = pgTable("trading_settings", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id),
+      entryPremiumRate: decimal("entry_premium_rate", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
+      exitPremiumRate: decimal("exit_premium_rate", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
+      stopLossRate: decimal("stop_loss_rate", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
+      maxPositions: integer("max_positions").default(5),
+      isAutoTrading: boolean("is_auto_trading").default(false),
+      maxInvestmentAmount: decimal("max_investment_amount", {
+        precision: 20,
+        scale: 2
+      }),
+      // 새로운 김프 진입 전략 설정값들
+      kimchiEntryRate: decimal("kimchi_entry_rate", {
+        precision: 10,
+        scale: 4
+      }).default("1.0"),
+      // 진입 김프율
+      kimchiExitRate: decimal("kimchi_exit_rate", {
+        precision: 10,
+        scale: 4
+      }).default("0.5"),
+      // 청산 김프율
+      kimchiToleranceRate: decimal("kimchi_tolerance_rate", {
+        precision: 10,
+        scale: 4
+      }).default("0.1"),
+      // 허용 오차 진입 김프율
+      binanceLeverage: integer("binance_leverage").default(1),
+      // 바이낸스 레버리지
+      upbitEntryAmount: decimal("upbit_entry_amount", {
+        precision: 20,
+        scale: 2
+      }).default("10000")
+      // 업비트 기준 진입 금액(KRW)
+    });
+    positions = pgTable("positions", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id),
+      strategyId: integer("strategy_id").references(() => tradingStrategies.id),
+      // 어떤 전략으로 진입했는지
+      symbol: text("symbol").notNull(),
+      type: text("type").notNull().default("kimchi_arbitrage"),
+      entryPrice: decimal("entry_price", { precision: 20, scale: 8 }).notNull(),
+      currentPrice: decimal("current_price", { precision: 20, scale: 8 }),
+      quantity: decimal("quantity", { precision: 20, scale: 8 }).notNull(),
+      entryPremiumRate: decimal("entry_premium_rate", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
+      currentPremiumRate: decimal("current_premium_rate", {
+        precision: 10,
+        scale: 4
+      }),
+      status: text("status").notNull().default("open"),
+      entryTime: timestamp("entry_time").defaultNow(),
+      exitTime: timestamp("exit_time"),
+      upbitOrderId: text("upbit_order_id"),
+      binanceOrderId: text("binance_order_id"),
+      // Prisma 모델과 정합: 추가 필드들
+      side: text("side").notNull(),
+      exitPrice: decimal("exit_price", { precision: 20, scale: 8 }),
+      exitPremiumRate: decimal("exit_premium_rate", { precision: 10, scale: 4 }),
+      unrealizedPnl: decimal("unrealized_pnl", { precision: 20, scale: 2 }).default(
+        "0"
+      ),
+      realizedPnl: decimal("realized_pnl", { precision: 20, scale: 2 }).default(
+        "0"
+      ),
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    trades = pgTable("trades", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id),
+      positionId: integer("position_id").references(() => positions.id),
+      symbol: text("symbol").notNull(),
+      side: text("side").notNull(),
+      // 'buy', 'sell'
+      exchange: text("exchange").notNull(),
+      // 'upbit', 'binance'
+      quantity: decimal("quantity", { precision: 20, scale: 8 }).notNull(),
+      price: decimal("price", { precision: 20, scale: 8 }).notNull(),
+      fee: decimal("fee", { precision: 20, scale: 8 }).default("0"),
+      orderType: text("order_type").default("market"),
+      exchangeOrderId: text("exchange_order_id"),
+      exchangeTradeId: text("exchange_trade_id"),
+      executedAt: timestamp("executed_at").defaultNow(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    systemAlerts = pgTable("system_alerts", {
+      id: serial("id").primaryKey(),
+      type: text("type").notNull(),
+      // 'success', 'warning', 'error', 'info'
+      title: text("title").notNull(),
+      message: text("message").notNull(),
+      isRead: boolean("is_read").default(false),
+      userId: integer("user_id"),
+      data: jsonb("data"),
+      priority: text("priority").default("normal"),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    tradingStrategies = pgTable("trading_strategies", {
+      id: serial("id").primaryKey(),
+      userId: integer("user_id").references(() => users.id),
+      name: text("name").notNull(),
+      // '구간 1', '구간 2', etc.
+      strategyType: text("strategy_type").notNull().default("positive_kimchi"),
+      // 'positive_kimchi', 'negative_kimchi'
+      entryRate: decimal("entry_rate", { precision: 10, scale: 4 }).notNull(),
+      // 진입 김프율
+      exitRate: decimal("exit_rate", { precision: 10, scale: 4 }).notNull(),
+      // 청산 김프율
+      toleranceRate: decimal("tolerance_rate", {
+        precision: 10,
+        scale: 4
+      }).notNull(),
+      // 허용범위
+      leverage: integer("leverage").default(3),
+      // 레버리지
+      investmentAmount: decimal("investment_amount", {
+        precision: 20,
+        scale: 2
+      }).notNull(),
+      // 투자금액
+      isActive: boolean("is_active").default(true),
+      // 활성화 여부
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    insertUserSchema = createInsertSchema(users).pick({
+      username: true,
+      password: true,
+      role: true
+    }).extend({
+      username: z.string().min(3, "\uC0AC\uC6A9\uC790\uBA85\uC740 \uCD5C\uC18C 3\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4").max(20, "\uC0AC\uC6A9\uC790\uBA85\uC740 20\uC790\uB97C \uCD08\uACFC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4").regex(
+        /^[a-zA-Z0-9_]+$/,
+        "\uC0AC\uC6A9\uC790\uBA85\uC740 \uC601\uBB38, \uC22B\uC790, \uC5B8\uB354\uC2A4\uCF54\uC5B4\uB9CC \uC0AC\uC6A9 \uAC00\uB2A5\uD569\uB2C8\uB2E4"
+      ),
+      password: z.string().min(6, "\uBE44\uBC00\uBC88\uD638\uB294 \uCD5C\uC18C 6\uC790 \uC774\uC0C1\uC774\uC5B4\uC57C \uD569\uB2C8\uB2E4").max(50, "\uBE44\uBC00\uBC88\uD638\uB294 50\uC790\uB97C \uCD08\uACFC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4"),
+      role: z.string().default("user")
+    });
+    loginUserSchema = z.object({
+      username: z.string().min(1, "\uC0AC\uC6A9\uC790\uBA85\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694"),
+      password: z.string().min(1, "\uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694")
+    });
+    insertExchangeSchema = createInsertSchema(exchanges).pick({
+      exchange: true,
+      apiKey: true,
+      apiSecret: true,
+      userId: true
+    });
+    insertCryptocurrencySchema = createInsertSchema(
+      cryptocurrencies
+    ).pick({
+      symbol: true,
+      name: true
+    });
+    insertKimchiPremiumSchema = createInsertSchema(
+      kimchiPremiums
+    ).pick({
+      symbol: true,
+      upbitPrice: true,
+      binancePrice: true,
+      premiumRate: true
+    });
+    insertTradingSettingsSchema = createInsertSchema(
+      tradingSettings
+    ).pick({
+      userId: true,
+      entryPremiumRate: true,
+      exitPremiumRate: true,
+      stopLossRate: true,
+      maxPositions: true,
+      isAutoTrading: true,
+      maxInvestmentAmount: true,
+      kimchiEntryRate: true,
+      kimchiExitRate: true,
+      kimchiToleranceRate: true,
+      binanceLeverage: true,
+      upbitEntryAmount: true
+    });
+    insertTradingStrategySchema = createInsertSchema(
+      tradingStrategies
+    ).pick({
+      userId: true,
+      name: true,
+      strategyType: true,
+      entryRate: true,
+      exitRate: true,
+      toleranceRate: true,
+      leverage: true,
+      investmentAmount: true,
+      isActive: true
+    });
+    insertPositionSchema = createInsertSchema(positions).pick({
+      userId: true,
+      strategyId: true,
+      symbol: true,
+      type: true,
+      side: true,
+      status: true,
+      entryPrice: true,
+      quantity: true,
+      entryPremiumRate: true,
+      upbitOrderId: true,
+      binanceOrderId: true
+    });
+    insertTradeSchema = createInsertSchema(trades).pick({
+      userId: true,
+      positionId: true,
+      symbol: true,
+      side: true,
+      exchange: true,
+      quantity: true,
+      price: true,
+      fee: true,
+      orderType: true,
+      exchangeOrderId: true,
+      exchangeTradeId: true
+    });
+    insertSystemAlertSchema = createInsertSchema(systemAlerts).pick({
+      type: true,
+      title: true,
+      message: true,
+      userId: true,
+      data: true,
+      priority: true
+    });
+  }
 });
 
 // server/db.ts
 import "dotenv/config";
 import { eq } from "drizzle-orm";
-var url = process.env.DATABASE_URL;
-if (!url) throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
-var isNeon = url.includes("neon.tech") || process.env.NODE_ENV === "production";
-var db;
-var pool;
 async function initializeDatabase() {
   if (isNeon) {
     const { Pool, neonConfig } = await import("@neondatabase/serverless");
@@ -383,7 +382,6 @@ async function initializeDatabase() {
     console.log("\u{1F418} Using local PostgreSQL database");
   }
 }
-initializeDatabase().catch(console.error);
 async function initializeTestData() {
   try {
     await pool.query("select 1");
@@ -402,17 +400,23 @@ async function initializeTestData() {
     console.warn("\u26A0\uFE0F DB init warning:", err?.message ?? err);
   }
 }
-initializeTestData().catch(() => {
+var url, isNeon, db, pool;
+var init_db = __esm({
+  "server/db.ts"() {
+    "use strict";
+    init_schema();
+    url = process.env.DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
+    isNeon = url.includes("neon.tech") || process.env.NODE_ENV === "production";
+    initializeDatabase().catch(console.error);
+    initializeTestData().catch(() => {
+    });
+  }
 });
-
-// server/storage.ts
-import { eq as eq2, desc, and, sql } from "drizzle-orm";
 
 // server/utils/auth.ts
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-var JWT_SECRET = process.env.JWT_SECRET || "kimchi-premium-jwt-secret-2025";
-var SALT_ROUNDS = 12;
 async function hashPassword(password) {
   try {
     return await bcrypt.hash(password, SALT_ROUNDS);
@@ -451,10 +455,17 @@ function authenticateToken(req, res, next) {
   req.user = decoded;
   next();
 }
+var JWT_SECRET, SALT_ROUNDS;
+var init_auth = __esm({
+  "server/utils/auth.ts"() {
+    "use strict";
+    JWT_SECRET = process.env.JWT_SECRET || "kimchi-premium-jwt-secret-2025";
+    SALT_ROUNDS = 12;
+  }
+});
 
 // server/utils/encryption.ts
 import CryptoJS from "crypto-js";
-var MASTER_KEY = process.env.ENCRYPTION_KEY || "kimchi-premium-master-key-2025";
 function encryptApiKey(plaintext) {
   if (!plaintext) return "";
   try {
@@ -478,407 +489,437 @@ function decryptApiKey(encryptedText) {
     throw new Error("API \uD0A4 \uBCF5\uD638\uD654\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4");
   }
 }
+var MASTER_KEY;
+var init_encryption = __esm({
+  "server/utils/encryption.ts"() {
+    "use strict";
+    MASTER_KEY = process.env.ENCRYPTION_KEY || "kimchi-premium-master-key-2025";
+  }
+});
 
 // server/storage.ts
-var DatabaseStorage = class {
-  // Users
-  async getUser(id) {
-    const [user] = await db.select().from(users).where(eq2(users.id, parseInt(id)));
-    return user || void 0;
-  }
-  async getUserByUsername(username) {
-    const [user] = await db.select().from(users).where(eq2(users.username, username));
-    return user || void 0;
-  }
-  async createUser(insertUser) {
-    const hashedPassword = await hashPassword(insertUser.password);
-    const [user] = await db.insert(users).values({
-      ...insertUser,
-      password: hashedPassword,
-      updatedAt: /* @__PURE__ */ new Date()
-      // updatedAt 필드 명시적 설정
-    }).returning();
-    return user;
-  }
-  async authenticateUser(username, password) {
-    const user = await this.getUserByUsername(username);
-    if (!user) return null;
-    const isValidPassword = await verifyPassword(password, user.password);
-    if (!isValidPassword) return null;
-    return user;
-  }
-  // Exchanges
-  async getExchangesByUserId(userId) {
-    return await db.select().from(exchanges).where(eq2(exchanges.userId, parseInt(userId)));
-  }
-  async createExchange(insertExchange) {
-    try {
-      console.log(
-        `\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] DB \uC800\uC7A5 \uC2DC\uC791 - \uC0AC\uC6A9\uC790: ${insertExchange.userId}, \uAC70\uB798\uC18C: ${insertExchange.exchange}`
-      );
-      console.log(`\u{1F511} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC785\uB825 \uB370\uC774\uD130:`, {
-        userId: insertExchange.userId,
-        exchange: insertExchange.exchange,
-        apiKeyLength: insertExchange.apiKey?.length || 0,
-        apiSecretLength: insertExchange.apiSecret?.length || 0
-      });
-      const encryptedApiKey = encryptApiKey(insertExchange.apiKey);
-      const encryptedSecretKey = encryptApiKey(insertExchange.apiSecret);
-      console.log(`\u{1F510} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC554\uD638\uD654 \uC644\uB8CC:`, {
-        encryptedApiKeyLength: encryptedApiKey.length,
-        encryptedSecretKeyLength: encryptedSecretKey.length
-      });
-      console.log(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAE30\uC874 \uAC70\uB798\uC18C \uD655\uC778 \uC911...`);
-      const [existingExchange] = await db.select().from(exchanges).where(
-        and(
-          eq2(exchanges.userId, insertExchange.userId),
-          eq2(exchanges.exchange, insertExchange.exchange)
-        )
-      );
-      console.log(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAE30\uC874 \uAC70\uB798\uC18C \uC870\uD68C \uACB0\uACFC:`, {
-        found: !!existingExchange,
-        existingId: existingExchange?.id,
-        existingUserId: existingExchange?.userId,
-        existingExchange: existingExchange?.exchange
-      });
-      if (existingExchange) {
-        console.log(
-          `\u{1F504} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAE30\uC874 \uAC70\uB798\uC18C \uC5C5\uB370\uC774\uD2B8 \uC911... ID: ${existingExchange.id}`
-        );
-        const [updatedExchange] = await db.update(exchanges).set({
-          apiKey: encryptedApiKey,
-          apiSecret: encryptedSecretKey,
-          isActive: true
-        }).where(eq2(exchanges.id, existingExchange.id)).returning();
-        console.log(`\u2705 [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5C5\uB370\uC774\uD2B8 \uC644\uB8CC:`, {
-          id: updatedExchange.id,
-          userId: updatedExchange.userId,
-          exchange: updatedExchange.exchange,
-          isActive: updatedExchange.isActive,
-          updatedAt: updatedExchange.updatedAt
-        });
-        const verifyUpdated = await db.select().from(exchanges).where(
-          and(
-            eq2(exchanges.userId, insertExchange.userId),
-            eq2(exchanges.exchange, insertExchange.exchange)
-          )
-        );
-        console.log(
-          `\u{1F50E} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5C5\uB370\uC774\uD2B8 \uC9C1\uD6C4 \uC7AC\uC870\uD68C \uACB0\uACFC:`,
-          verifyUpdated
-        );
-        const totalAfterUpdateRes = await db.execute(
-          sql`select count(*)::int as count from "exchanges" where "user_id" = ${insertExchange.userId}`
-        );
-        console.log(
-          `\u{1F4CA} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0AC\uC6A9\uC790\uBCC4 exchanges \uCD1D\uAC74\uC218(\uC5C5\uB370\uC774\uD2B8 \uD6C4):`,
-          totalAfterUpdateRes
-        );
-        const connInfoRes = await db.execute(
-          sql`select current_database() as db, current_user as usr`
-        );
-        console.log(`\u{1F5C4}\uFE0F [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5F0\uACB0 \uC815\uBCF4:`, connInfoRes);
-        return updatedExchange;
-      } else {
-        console.log(
-          `\u{1F195} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0C8\uB85C\uC6B4 \uAC70\uB798\uC18C \uC0BD\uC785 \uC911...`
-        );
-        const insertData = {
-          userId: insertExchange.userId,
-          exchange: insertExchange.exchange,
-          apiKey: encryptedApiKey,
-          apiSecret: encryptedSecretKey,
-          isActive: true
-        };
-        console.log(`\u{1F4DD} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0BD\uC785\uD560 \uB370\uC774\uD130:`, {
-          userId: insertData.userId,
-          exchange: insertData.exchange,
-          apiKeyLength: insertData.apiKey.length,
-          apiSecretLength: insertData.apiSecret.length,
-          isActive: insertData.isActive
-        });
-        const [newExchange] = await db.insert(exchanges).values(insertData).returning();
-        console.log(`\u2705 [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0BD\uC785 \uC644\uB8CC:`, {
-          id: newExchange.id,
-          userId: newExchange.userId,
-          exchange: newExchange.exchange,
-          isActive: newExchange.isActive,
-          createdAt: newExchange.createdAt
-        });
-        const verifyInserted = await db.select().from(exchanges).where(
-          and(
-            eq2(exchanges.userId, insertExchange.userId),
-            eq2(exchanges.exchange, insertExchange.exchange)
-          )
-        );
-        console.log(
-          `\u{1F50E} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0BD\uC785 \uC9C1\uD6C4 \uC7AC\uC870\uD68C \uACB0\uACFC:`,
-          verifyInserted
-        );
-        const totalAfterInsertRes = await db.execute(
-          sql`select count(*)::int as count from "exchanges" where "user_id" = ${insertExchange.userId}`
-        );
-        console.log(
-          `\u{1F4CA} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0AC\uC6A9\uC790\uBCC4 exchanges \uCD1D\uAC74\uC218(\uC0BD\uC785 \uD6C4):`,
-          totalAfterInsertRes
-        );
-        const connInfoRes2 = await db.execute(
-          sql`select current_database() as db, current_user as usr`
-        );
-        console.log(
-          `\u{1F5C4}\uFE0F [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5F0\uACB0 \uC815\uBCF4:`,
-          connInfoRes2
-        );
-        return newExchange;
+var storage_exports = {};
+__export(storage_exports, {
+  DatabaseStorage: () => DatabaseStorage,
+  storage: () => storage
+});
+import { eq as eq2, desc, and, sql } from "drizzle-orm";
+var DatabaseStorage, storage;
+var init_storage = __esm({
+  "server/storage.ts"() {
+    "use strict";
+    init_schema();
+    init_db();
+    init_auth();
+    init_encryption();
+    DatabaseStorage = class {
+      // Users
+      async getUser(id) {
+        const [user] = await db.select().from(users).where(eq2(users.id, parseInt(id)));
+        return user || void 0;
       }
-    } catch (error) {
-      console.error(
-        `\u{1F4A5} [${(/* @__PURE__ */ new Date()).toISOString()}] DB \uC800\uC7A5 \uC911 \uC5D0\uB7EC \uBC1C\uC0DD:`,
-        error
-      );
-      console.error(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5D0\uB7EC \uC0C1\uC138 \uC815\uBCF4:`, {
-        message: error.message,
-        stack: error.stack,
-        code: error.code,
-        detail: error.detail,
-        hint: error.hint,
-        inputData: {
-          userId: insertExchange.userId,
-          exchange: insertExchange.exchange,
-          apiKeyLength: insertExchange.apiKey?.length || 0,
-          apiSecretLength: insertExchange.apiSecret?.length || 0
-        }
-      });
-      throw error;
-    }
-  }
-  // 암호화된 API 키 복호화 메서드
-  async getDecryptedExchange(userId, exchangeName) {
-    const [exchange] = await db.select().from(exchanges).where(
-      and(
-        eq2(exchanges.userId, parseInt(userId)),
-        eq2(exchanges.exchange, exchangeName),
-        eq2(exchanges.isActive, true)
-      )
-    );
-    if (!exchange) return null;
-    try {
-      return {
-        apiKey: decryptApiKey(exchange.apiKey),
-        apiSecret: decryptApiKey(exchange.apiSecret)
-      };
-    } catch (error) {
-      console.error("API \uD0A4 \uBCF5\uD638\uD654 \uC2E4\uD328:", error);
-      return null;
-    }
-  }
-  async updateExchange(id, updateData) {
-    const [exchange] = await db.update(exchanges).set(updateData).where(eq2(exchanges.id, id)).returning();
-    return exchange || void 0;
-  }
-  // Cryptocurrencies
-  async getAllCryptocurrencies() {
-    return await db.select().from(cryptocurrencies);
-  }
-  async createCryptocurrency(insertCrypto) {
-    const [crypto4] = await db.insert(cryptocurrencies).values(insertCrypto).returning();
-    return crypto4;
-  }
-  // Kimchi Premiums
-  async getLatestKimchiPremiums() {
-    return await db.select().from(kimchiPremiums).orderBy(desc(kimchiPremiums.timestamp)).limit(100);
-  }
-  async getKimchiPremiumBySymbol(symbol) {
-    const [premium] = await db.select().from(kimchiPremiums).where(eq2(kimchiPremiums.symbol, symbol)).orderBy(desc(kimchiPremiums.timestamp)).limit(1);
-    return premium || void 0;
-  }
-  async createKimchiPremium(insertPremium) {
-    const [premium] = await db.insert(kimchiPremiums).values(insertPremium).returning();
-    return premium;
-  }
-  async getKimchiPremiumHistory(symbol, limit = 100) {
-    return await db.select().from(kimchiPremiums).where(eq2(kimchiPremiums.symbol, symbol)).orderBy(desc(kimchiPremiums.timestamp)).limit(limit);
-  }
-  // Trading Settings
-  async getTradingSettings(userId) {
-    const [settings] = await db.select().from(tradingSettings).where(eq2(tradingSettings.userId, parseInt(userId)));
-    return settings || void 0;
-  }
-  async saveTradingSettings(insertSettings) {
-    const existingSettings = await this.getTradingSettings(
-      insertSettings.userId.toString()
-    );
-    if (existingSettings) {
-      const [settings] = await db.update(tradingSettings).set(insertSettings).where(eq2(tradingSettings.userId, insertSettings.userId)).returning();
-      return settings;
-    } else {
-      const [settings] = await db.insert(tradingSettings).values(insertSettings).returning();
-      return settings;
-    }
-  }
-  async getTradingSettingsByUserId(userId) {
-    const [settings] = await db.select().from(tradingSettings).where(eq2(tradingSettings.userId, parseInt(userId)));
-    return settings || void 0;
-  }
-  async createTradingSettings(insertSettings) {
-    const [settings] = await db.insert(tradingSettings).values(insertSettings).onConflictDoUpdate({
-      target: tradingSettings.userId,
-      set: insertSettings
-    }).returning();
-    return settings;
-  }
-  async updateTradingSettings(userId, updateData) {
-    const [settings] = await db.update(tradingSettings).set(updateData).where(eq2(tradingSettings.userId, parseInt(userId))).returning();
-    return settings || void 0;
-  }
-  // Positions
-  async getActivePositions(userId) {
-    return await db.select().from(positions).where(
-      and(
-        eq2(positions.userId, parseInt(userId)),
-        eq2(positions.status, "open")
-      )
-    ).orderBy(desc(positions.entryTime));
-  }
-  async getPositionById(id) {
-    const [position] = await db.select().from(positions).where(eq2(positions.id, id));
-    return position || void 0;
-  }
-  async createPosition(insertPosition) {
-    const [position] = await db.insert(positions).values(insertPosition).returning();
-    return position;
-  }
-  async updatePosition(id, updateData) {
-    const [position] = await db.update(positions).set(updateData).where(eq2(positions.id, id)).returning();
-    return position || void 0;
-  }
-  async closePosition(id) {
-    const [position] = await db.update(positions).set({ status: "closed", exitTime: /* @__PURE__ */ new Date() }).where(eq2(positions.id, id)).returning();
-    return position || void 0;
-  }
-  // Trades
-  async getTradesByUserId(userId, limit = 50) {
-    return await db.select().from(trades).where(eq2(trades.userId, parseInt(userId))).orderBy(desc(trades.executedAt)).limit(limit);
-  }
-  async getTradesByPositionId(positionId) {
-    return await db.select().from(trades).where(eq2(trades.positionId, positionId)).orderBy(desc(trades.executedAt));
-  }
-  async createTrade(insertTrade) {
-    const [trade] = await db.insert(trades).values(insertTrade).returning();
-    return trade;
-  }
-  // Trading Strategies
-  async getTradingStrategies(userId) {
-    return await db.select().from(tradingStrategies).where(eq2(tradingStrategies.userId, parseInt(userId))).orderBy(desc(tradingStrategies.createdAt));
-  }
-  async getTradingStrategiesByUserId(userId) {
-    return await db.select().from(tradingStrategies).where(eq2(tradingStrategies.userId, parseInt(userId))).orderBy(desc(tradingStrategies.createdAt));
-  }
-  async createOrUpdateTradingStrategy(strategy) {
-    const existingStrategy = await db.select().from(tradingStrategies).where(
-      and(
-        eq2(tradingStrategies.userId, strategy.userId),
-        eq2(tradingStrategies.name, strategy.name)
-      )
-    );
-    if (existingStrategy.length > 0) {
-      const [updatedStrategy] = await db.update(tradingStrategies).set({ ...strategy, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(tradingStrategies.id, existingStrategy[0].id)).returning();
-      return updatedStrategy;
-    } else {
-      const [newStrategy] = await db.insert(tradingStrategies).values(strategy).returning();
-      return newStrategy;
-    }
-  }
-  async createOrUpdateExchange(exchange) {
-    return this.createExchange(exchange);
-  }
-  async getTradingStrategy(id) {
-    const [strategy] = await db.select().from(tradingStrategies).where(eq2(tradingStrategies.id, id));
-    return strategy || void 0;
-  }
-  async createTradingStrategy(insertStrategy) {
-    const [strategy] = await db.insert(tradingStrategies).values(insertStrategy).returning();
-    return strategy;
-  }
-  async updateTradingStrategy(id, updateData) {
-    const [strategy] = await db.update(tradingStrategies).set({ ...updateData, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(tradingStrategies.id, id)).returning();
-    return strategy || void 0;
-  }
-  async deleteTradingStrategy(id) {
-    const [deletedStrategy] = await db.delete(tradingStrategies).where(eq2(tradingStrategies.id, id)).returning();
-    return deletedStrategy || void 0;
-  }
-  // System Alerts
-  async getSystemAlerts(limit = 50) {
-    return await db.select().from(systemAlerts).orderBy(desc(systemAlerts.createdAt)).limit(limit);
-  }
-  async createSystemAlert(insertAlert) {
-    const [alert] = await db.insert(systemAlerts).values(insertAlert).returning();
-    return alert;
-  }
-  async markAlertAsRead(id) {
-    const [alert] = await db.update(systemAlerts).set({ isRead: true }).where(eq2(systemAlerts.id, id)).returning();
-    return alert || void 0;
-  }
-  // Admin methods
-  async updateUser(id, updates) {
-    if (updates.password) {
-      updates.password = await hashPassword(updates.password);
-    }
-    const [user] = await db.update(users).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, parseInt(id))).returning();
-    return user;
-  }
-  async updateUserRole(id, role) {
-    const [user] = await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, parseInt(id))).returning();
-    return user;
-  }
-  async getAllUsers() {
-    return await db.select().from(users);
-  }
-  async deleteUser(id) {
-    await db.delete(exchanges).where(eq2(exchanges.userId, parseInt(id)));
-    await db.delete(tradingSettings).where(eq2(tradingSettings.userId, parseInt(id)));
-    await db.delete(positions).where(eq2(positions.userId, parseInt(id)));
-    await db.delete(trades).where(eq2(trades.userId, parseInt(id)));
-    const result = await db.delete(users).where(eq2(users.id, parseInt(id)));
-    return (result.rowCount || 0) > 0;
-  }
-  async getAllUsersWithStats() {
-    const allUsers = await db.select().from(users);
-    const usersWithStats = await Promise.all(
-      allUsers.map(async (user) => {
-        const tradesCount = await db.select().from(trades).where(eq2(trades.userId, user.id));
-        const positionsCount = await db.select().from(positions).where(eq2(positions.userId, user.id));
-        const exchangesCount = await db.select().from(exchanges).where(eq2(exchanges.userId, user.id));
-        const { password, ...userWithoutPassword } = user;
-        return {
-          ...userWithoutPassword,
-          _count: {
-            trades: tradesCount.length,
-            positions: positionsCount.length,
-            exchanges: exchangesCount.length
+      async getUserByUsername(username) {
+        const [user] = await db.select().from(users).where(eq2(users.username, username));
+        return user || void 0;
+      }
+      async createUser(insertUser) {
+        const hashedPassword = await hashPassword(insertUser.password);
+        const [user] = await db.insert(users).values({
+          ...insertUser,
+          password: hashedPassword,
+          updatedAt: /* @__PURE__ */ new Date()
+          // updatedAt 필드 명시적 설정
+        }).returning();
+        return user;
+      }
+      async authenticateUser(username, password) {
+        const user = await this.getUserByUsername(username);
+        if (!user) return null;
+        const isValidPassword = await verifyPassword(password, user.password);
+        if (!isValidPassword) return null;
+        return user;
+      }
+      // Exchanges
+      async getExchangesByUserId(userId) {
+        return await db.select().from(exchanges).where(eq2(exchanges.userId, parseInt(userId)));
+      }
+      async createExchange(insertExchange) {
+        try {
+          console.log(
+            `\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] DB \uC800\uC7A5 \uC2DC\uC791 - \uC0AC\uC6A9\uC790: ${insertExchange.userId}, \uAC70\uB798\uC18C: ${insertExchange.exchange}`
+          );
+          console.log(`\u{1F511} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC785\uB825 \uB370\uC774\uD130:`, {
+            userId: insertExchange.userId,
+            exchange: insertExchange.exchange,
+            apiKeyLength: insertExchange.apiKey?.length || 0,
+            apiSecretLength: insertExchange.apiSecret?.length || 0
+          });
+          const encryptedApiKey = encryptApiKey(insertExchange.apiKey);
+          const encryptedSecretKey = encryptApiKey(insertExchange.apiSecret);
+          console.log(`\u{1F510} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC554\uD638\uD654 \uC644\uB8CC:`, {
+            encryptedApiKeyLength: encryptedApiKey.length,
+            encryptedSecretKeyLength: encryptedSecretKey.length
+          });
+          console.log(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAE30\uC874 \uAC70\uB798\uC18C \uD655\uC778 \uC911...`);
+          const [existingExchange] = await db.select().from(exchanges).where(
+            and(
+              eq2(exchanges.userId, insertExchange.userId),
+              eq2(exchanges.exchange, insertExchange.exchange)
+            )
+          );
+          console.log(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAE30\uC874 \uAC70\uB798\uC18C \uC870\uD68C \uACB0\uACFC:`, {
+            found: !!existingExchange,
+            existingId: existingExchange?.id,
+            existingUserId: existingExchange?.userId,
+            existingExchange: existingExchange?.exchange
+          });
+          if (existingExchange) {
+            console.log(
+              `\u{1F504} [${(/* @__PURE__ */ new Date()).toISOString()}] \uAE30\uC874 \uAC70\uB798\uC18C \uC5C5\uB370\uC774\uD2B8 \uC911... ID: ${existingExchange.id}`
+            );
+            const [updatedExchange] = await db.update(exchanges).set({
+              apiKey: encryptedApiKey,
+              apiSecret: encryptedSecretKey,
+              isActive: true
+            }).where(eq2(exchanges.id, existingExchange.id)).returning();
+            console.log(`\u2705 [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5C5\uB370\uC774\uD2B8 \uC644\uB8CC:`, {
+              id: updatedExchange.id,
+              userId: updatedExchange.userId,
+              exchange: updatedExchange.exchange,
+              isActive: updatedExchange.isActive,
+              updatedAt: updatedExchange.updatedAt
+            });
+            const verifyUpdated = await db.select().from(exchanges).where(
+              and(
+                eq2(exchanges.userId, insertExchange.userId),
+                eq2(exchanges.exchange, insertExchange.exchange)
+              )
+            );
+            console.log(
+              `\u{1F50E} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5C5\uB370\uC774\uD2B8 \uC9C1\uD6C4 \uC7AC\uC870\uD68C \uACB0\uACFC:`,
+              verifyUpdated
+            );
+            const totalAfterUpdateRes = await db.execute(
+              sql`select count(*)::int as count from "exchanges" where "user_id" = ${insertExchange.userId}`
+            );
+            console.log(
+              `\u{1F4CA} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0AC\uC6A9\uC790\uBCC4 exchanges \uCD1D\uAC74\uC218(\uC5C5\uB370\uC774\uD2B8 \uD6C4):`,
+              totalAfterUpdateRes
+            );
+            const connInfoRes = await db.execute(
+              sql`select current_database() as db, current_user as usr`
+            );
+            console.log(`\u{1F5C4}\uFE0F [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5F0\uACB0 \uC815\uBCF4:`, connInfoRes);
+            return updatedExchange;
+          } else {
+            console.log(
+              `\u{1F195} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0C8\uB85C\uC6B4 \uAC70\uB798\uC18C \uC0BD\uC785 \uC911...`
+            );
+            const insertData = {
+              userId: insertExchange.userId,
+              exchange: insertExchange.exchange,
+              apiKey: encryptedApiKey,
+              apiSecret: encryptedSecretKey,
+              isActive: true
+            };
+            console.log(`\u{1F4DD} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0BD\uC785\uD560 \uB370\uC774\uD130:`, {
+              userId: insertData.userId,
+              exchange: insertData.exchange,
+              apiKeyLength: insertData.apiKey.length,
+              apiSecretLength: insertData.apiSecret.length,
+              isActive: insertData.isActive
+            });
+            const [newExchange] = await db.insert(exchanges).values(insertData).returning();
+            console.log(`\u2705 [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0BD\uC785 \uC644\uB8CC:`, {
+              id: newExchange.id,
+              userId: newExchange.userId,
+              exchange: newExchange.exchange,
+              isActive: newExchange.isActive,
+              createdAt: newExchange.createdAt
+            });
+            const verifyInserted = await db.select().from(exchanges).where(
+              and(
+                eq2(exchanges.userId, insertExchange.userId),
+                eq2(exchanges.exchange, insertExchange.exchange)
+              )
+            );
+            console.log(
+              `\u{1F50E} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0BD\uC785 \uC9C1\uD6C4 \uC7AC\uC870\uD68C \uACB0\uACFC:`,
+              verifyInserted
+            );
+            const totalAfterInsertRes = await db.execute(
+              sql`select count(*)::int as count from "exchanges" where "user_id" = ${insertExchange.userId}`
+            );
+            console.log(
+              `\u{1F4CA} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC0AC\uC6A9\uC790\uBCC4 exchanges \uCD1D\uAC74\uC218(\uC0BD\uC785 \uD6C4):`,
+              totalAfterInsertRes
+            );
+            const connInfoRes2 = await db.execute(
+              sql`select current_database() as db, current_user as usr`
+            );
+            console.log(
+              `\u{1F5C4}\uFE0F [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5F0\uACB0 \uC815\uBCF4:`,
+              connInfoRes2
+            );
+            return newExchange;
           }
+        } catch (error) {
+          console.error(
+            `\u{1F4A5} [${(/* @__PURE__ */ new Date()).toISOString()}] DB \uC800\uC7A5 \uC911 \uC5D0\uB7EC \uBC1C\uC0DD:`,
+            error
+          );
+          console.error(`\u{1F50D} [${(/* @__PURE__ */ new Date()).toISOString()}] \uC5D0\uB7EC \uC0C1\uC138 \uC815\uBCF4:`, {
+            message: error.message,
+            stack: error.stack,
+            code: error.code,
+            detail: error.detail,
+            hint: error.hint,
+            inputData: {
+              userId: insertExchange.userId,
+              exchange: insertExchange.exchange,
+              apiKeyLength: insertExchange.apiKey?.length || 0,
+              apiSecretLength: insertExchange.apiSecret?.length || 0
+            }
+          });
+          throw error;
+        }
+      }
+      // 암호화된 API 키 복호화 메서드
+      async getDecryptedExchange(userId, exchangeName) {
+        const [exchange] = await db.select().from(exchanges).where(
+          and(
+            eq2(exchanges.userId, parseInt(userId)),
+            eq2(exchanges.exchange, exchangeName),
+            eq2(exchanges.isActive, true)
+          )
+        );
+        if (!exchange) return null;
+        try {
+          return {
+            apiKey: decryptApiKey(exchange.apiKey),
+            apiSecret: decryptApiKey(exchange.apiSecret)
+          };
+        } catch (error) {
+          console.error("API \uD0A4 \uBCF5\uD638\uD654 \uC2E4\uD328:", error);
+          return null;
+        }
+      }
+      async updateExchange(id, updateData) {
+        const [exchange] = await db.update(exchanges).set(updateData).where(eq2(exchanges.id, id)).returning();
+        return exchange || void 0;
+      }
+      // Cryptocurrencies
+      async getAllCryptocurrencies() {
+        return await db.select().from(cryptocurrencies);
+      }
+      async createCryptocurrency(insertCrypto) {
+        const [crypto4] = await db.insert(cryptocurrencies).values(insertCrypto).returning();
+        return crypto4;
+      }
+      // Kimchi Premiums
+      async getLatestKimchiPremiums() {
+        return await db.select().from(kimchiPremiums).orderBy(desc(kimchiPremiums.timestamp)).limit(100);
+      }
+      async getKimchiPremiumBySymbol(symbol) {
+        const [premium] = await db.select().from(kimchiPremiums).where(eq2(kimchiPremiums.symbol, symbol)).orderBy(desc(kimchiPremiums.timestamp)).limit(1);
+        return premium || void 0;
+      }
+      async createKimchiPremium(insertPremium) {
+        const [premium] = await db.insert(kimchiPremiums).values(insertPremium).returning();
+        return premium;
+      }
+      async getKimchiPremiumHistory(symbol, limit = 100) {
+        return await db.select().from(kimchiPremiums).where(eq2(kimchiPremiums.symbol, symbol)).orderBy(desc(kimchiPremiums.timestamp)).limit(limit);
+      }
+      // Trading Settings
+      async getTradingSettings(userId) {
+        const [settings] = await db.select().from(tradingSettings).where(eq2(tradingSettings.userId, parseInt(userId)));
+        return settings || void 0;
+      }
+      async saveTradingSettings(insertSettings) {
+        const existingSettings = await this.getTradingSettings(
+          insertSettings.userId.toString()
+        );
+        if (existingSettings) {
+          const [settings] = await db.update(tradingSettings).set(insertSettings).where(eq2(tradingSettings.userId, insertSettings.userId)).returning();
+          return settings;
+        } else {
+          const [settings] = await db.insert(tradingSettings).values(insertSettings).returning();
+          return settings;
+        }
+      }
+      async getTradingSettingsByUserId(userId) {
+        const [settings] = await db.select().from(tradingSettings).where(eq2(tradingSettings.userId, parseInt(userId)));
+        return settings || void 0;
+      }
+      async createTradingSettings(insertSettings) {
+        const [settings] = await db.insert(tradingSettings).values(insertSettings).onConflictDoUpdate({
+          target: tradingSettings.userId,
+          set: insertSettings
+        }).returning();
+        return settings;
+      }
+      async updateTradingSettings(userId, updateData) {
+        const [settings] = await db.update(tradingSettings).set(updateData).where(eq2(tradingSettings.userId, parseInt(userId))).returning();
+        return settings || void 0;
+      }
+      // Positions
+      async getActivePositions(userId) {
+        return await db.select().from(positions).where(
+          and(
+            eq2(positions.userId, parseInt(userId)),
+            eq2(positions.status, "open")
+          )
+        ).orderBy(desc(positions.entryTime));
+      }
+      async getPositionById(id) {
+        const [position] = await db.select().from(positions).where(eq2(positions.id, id));
+        return position || void 0;
+      }
+      async createPosition(insertPosition) {
+        const [position] = await db.insert(positions).values(insertPosition).returning();
+        return position;
+      }
+      async updatePosition(id, updateData) {
+        const [position] = await db.update(positions).set(updateData).where(eq2(positions.id, id)).returning();
+        return position || void 0;
+      }
+      async closePosition(id) {
+        const [position] = await db.update(positions).set({ status: "closed", exitTime: /* @__PURE__ */ new Date() }).where(eq2(positions.id, id)).returning();
+        return position || void 0;
+      }
+      // Trades
+      async getTradesByUserId(userId, limit = 50) {
+        return await db.select().from(trades).where(eq2(trades.userId, parseInt(userId))).orderBy(desc(trades.executedAt)).limit(limit);
+      }
+      async getTradesByPositionId(positionId) {
+        return await db.select().from(trades).where(eq2(trades.positionId, positionId)).orderBy(desc(trades.executedAt));
+      }
+      async createTrade(insertTrade) {
+        const [trade] = await db.insert(trades).values(insertTrade).returning();
+        return trade;
+      }
+      // Trading Strategies
+      async getTradingStrategies(userId) {
+        return await db.select().from(tradingStrategies).where(eq2(tradingStrategies.userId, parseInt(userId))).orderBy(desc(tradingStrategies.createdAt));
+      }
+      async getTradingStrategiesByUserId(userId) {
+        return await db.select().from(tradingStrategies).where(eq2(tradingStrategies.userId, parseInt(userId))).orderBy(desc(tradingStrategies.createdAt));
+      }
+      async createOrUpdateTradingStrategy(strategy) {
+        const existingStrategy = await db.select().from(tradingStrategies).where(
+          and(
+            eq2(tradingStrategies.userId, strategy.userId),
+            eq2(tradingStrategies.name, strategy.name)
+          )
+        );
+        if (existingStrategy.length > 0) {
+          const [updatedStrategy] = await db.update(tradingStrategies).set({ ...strategy, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(tradingStrategies.id, existingStrategy[0].id)).returning();
+          return updatedStrategy;
+        } else {
+          const [newStrategy] = await db.insert(tradingStrategies).values(strategy).returning();
+          return newStrategy;
+        }
+      }
+      async createOrUpdateExchange(exchange) {
+        return this.createExchange(exchange);
+      }
+      async getTradingStrategy(id) {
+        const [strategy] = await db.select().from(tradingStrategies).where(eq2(tradingStrategies.id, id));
+        return strategy || void 0;
+      }
+      async createTradingStrategy(insertStrategy) {
+        const [strategy] = await db.insert(tradingStrategies).values(insertStrategy).returning();
+        return strategy;
+      }
+      async updateTradingStrategy(id, updateData) {
+        const [strategy] = await db.update(tradingStrategies).set({ ...updateData, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(tradingStrategies.id, id)).returning();
+        return strategy || void 0;
+      }
+      async deleteTradingStrategy(id) {
+        const [deletedStrategy] = await db.delete(tradingStrategies).where(eq2(tradingStrategies.id, id)).returning();
+        return deletedStrategy || void 0;
+      }
+      // System Alerts
+      async getSystemAlerts(limit = 50) {
+        return await db.select().from(systemAlerts).orderBy(desc(systemAlerts.createdAt)).limit(limit);
+      }
+      async createSystemAlert(insertAlert) {
+        const [alert] = await db.insert(systemAlerts).values(insertAlert).returning();
+        return alert;
+      }
+      async markAlertAsRead(id) {
+        const [alert] = await db.update(systemAlerts).set({ isRead: true }).where(eq2(systemAlerts.id, id)).returning();
+        return alert || void 0;
+      }
+      // Admin methods
+      async updateUser(id, updates) {
+        if (updates.password) {
+          updates.password = await hashPassword(updates.password);
+        }
+        const [user] = await db.update(users).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, parseInt(id))).returning();
+        return user;
+      }
+      async updateUserRole(id, role) {
+        const [user] = await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, parseInt(id))).returning();
+        return user;
+      }
+      async getAllUsers() {
+        return await db.select().from(users);
+      }
+      async deleteUser(id) {
+        await db.delete(exchanges).where(eq2(exchanges.userId, parseInt(id)));
+        await db.delete(tradingSettings).where(eq2(tradingSettings.userId, parseInt(id)));
+        await db.delete(positions).where(eq2(positions.userId, parseInt(id)));
+        await db.delete(trades).where(eq2(trades.userId, parseInt(id)));
+        const result = await db.delete(users).where(eq2(users.id, parseInt(id)));
+        return (result.rowCount || 0) > 0;
+      }
+      async getAllUsersWithStats() {
+        const allUsers = await db.select().from(users);
+        const usersWithStats = await Promise.all(
+          allUsers.map(async (user) => {
+            const tradesCount = await db.select().from(trades).where(eq2(trades.userId, user.id));
+            const positionsCount = await db.select().from(positions).where(eq2(positions.userId, user.id));
+            const exchangesCount = await db.select().from(exchanges).where(eq2(exchanges.userId, user.id));
+            const { password, ...userWithoutPassword } = user;
+            return {
+              ...userWithoutPassword,
+              _count: {
+                trades: tradesCount.length,
+                positions: positionsCount.length,
+                exchanges: exchangesCount.length
+              }
+            };
+          })
+        );
+        return usersWithStats;
+      }
+      async getAdminStats() {
+        const allUsers = await db.select().from(users);
+        const activeUsers = await db.select().from(users).where(eq2(users.isActive, true));
+        const allTrades = await db.select().from(trades);
+        const activePositions = await db.select().from(positions).where(eq2(positions.status, "active"));
+        return {
+          totalUsers: allUsers.length,
+          activeUsers: activeUsers.length,
+          totalTrades: allTrades.length,
+          activePositions: activePositions.length,
+          totalVolume: 0
+          // 실제 거래량 계산은 복잡하므로 일단 0으로
         };
-      })
-    );
-    return usersWithStats;
-  }
-  async getAdminStats() {
-    const allUsers = await db.select().from(users);
-    const activeUsers = await db.select().from(users).where(eq2(users.isActive, true));
-    const allTrades = await db.select().from(trades);
-    const activePositions = await db.select().from(positions).where(eq2(positions.status, "active"));
-    return {
-      totalUsers: allUsers.length,
-      activeUsers: activeUsers.length,
-      totalTrades: allTrades.length,
-      activePositions: activePositions.length,
-      totalVolume: 0
-      // 실제 거래량 계산은 복잡하므로 일단 0으로
+      }
     };
+    storage = new DatabaseStorage();
   }
-};
-var storage = new DatabaseStorage();
+});
+
+// server/index.ts
+import express2 from "express";
+
+// server/routes.ts
+init_storage();
+import { WebSocketServer, WebSocket as WebSocket3 } from "ws";
 
 // server/services/upbit.ts
 import crypto from "crypto";
@@ -1107,8 +1148,8 @@ var BinanceService = class {
   apiKey;
   secretKey;
   constructor(apiKey, secretKey) {
-    this.apiKey = apiKey || process.env.BINANCE_API_KEY || "";
-    this.secretKey = secretKey || process.env.BINANCE_SECRET_KEY || "";
+    this.apiKey = apiKey || "";
+    this.secretKey = secretKey || "";
   }
   generateSignature(queryString) {
     if (!this.secretKey) {
@@ -1161,6 +1202,52 @@ var BinanceService = class {
     } catch (error) {
       console.error("Binance getTicker error:", error);
       throw error;
+    }
+  }
+  async getFuturesTicker(symbols) {
+    try {
+      const results = [];
+      const symbolsParams = symbols.map((s) => `${s}USDT`);
+      for (const symbol of symbolsParams) {
+        try {
+          const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/premiumIndex?symbol=${symbol}`);
+          if (response.ok) {
+            const data = await response.json();
+            results.push({
+              symbol: data.symbol,
+              price: data.markPrice
+            });
+          } else {
+            console.warn(`Failed to get futures mark price for ${symbol}: ${response.status}, falling back to last price.`);
+            const lastPrice = await this.getSymbolPrice(symbol);
+            results.push({
+              symbol,
+              price: lastPrice.toString()
+            });
+          }
+        } catch (error) {
+          console.warn(`Error getting futures mark price for ${symbol}, falling back to spot price.`, error);
+          const spotPrice = await this.getSymbolPrice(symbol);
+          results.push({
+            symbol,
+            price: spotPrice.toString()
+          });
+        }
+      }
+      return results;
+    } catch (error) {
+      console.error("Binance getFuturesTicker error:", error);
+      throw error;
+    }
+  }
+  // 단일 심볼 가격 조회
+  async getSymbolPrice(symbol) {
+    try {
+      const tickers = await this.getTicker([symbol.replace("USDT", "")]);
+      return tickers.length > 0 ? parseFloat(tickers[0].price) : 0;
+    } catch (error) {
+      console.warn(`\uBC14\uC774\uB0B8\uC2A4 ${symbol} \uAC00\uACA9 \uC870\uD68C \uC2E4\uD328:`, error);
+      return await this.getFallbackPrice(symbol.replace("USDT", ""));
     }
   }
   // 다중 소스를 통한 정확한 대체 가격 조회
@@ -1258,20 +1345,18 @@ var BinanceService = class {
   }
   async getUSDTBalance() {
     try {
-      const apiKey = process.env.BINANCE_API_KEY;
-      const secretKey = process.env.BINANCE_SECRET_KEY;
-      if (!apiKey || !secretKey) {
-        console.log("\uD658\uACBD\uBCC0\uC218 \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC5C6\uC74C, \uC2A4\uD31F \uACC4\uC815 \uC2DC\uB3C4");
+      if (!this.apiKey || !this.secretKey) {
+        console.log("\uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC5C6\uC74C, \uC2A4\uD31F \uACC4\uC815 \uC2DC\uB3C4");
         const account = await this.getAccount();
         const usdtBalance = account.balances.find((balance) => balance.asset === "USDT");
         return usdtBalance ? parseFloat(usdtBalance.free) : 0;
       }
       const timestamp2 = Date.now();
       const queryString = `timestamp=${timestamp2}`;
-      const signature = crypto2.createHmac("sha256", secretKey).update(queryString).digest("hex");
+      const signature = crypto2.createHmac("sha256", this.secretKey).update(queryString).digest("hex");
       const response = await fetch(`https://fapi.binance.com/fapi/v2/account?${queryString}&signature=${signature}`, {
         headers: {
-          "X-MBX-APIKEY": apiKey
+          "X-MBX-APIKEY": this.apiKey
         }
       });
       if (!response.ok) {
@@ -1501,216 +1586,351 @@ var BinanceService = class {
       return [];
     }
   }
-};
-
-// server/services/google-finance-exchange.ts
-import fetch2 from "node-fetch";
-var GoogleFinanceExchangeService = class {
-  currentRate = 1382.67;
-  // 최신 알려진 환율
-  isUpdating = false;
-  updateInterval = null;
-  constructor() {
-    this.updateRate();
-    this.startAutoUpdate();
-  }
-  startAutoUpdate() {
-    this.updateInterval = setInterval(() => {
-      this.updateRate();
-    }, 3e3);
-  }
-  stopAutoUpdate() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
-  }
-  async updateRate() {
-    if (this.isUpdating) return;
-    this.isUpdating = true;
+  /**
+   * 세션 ID로 DB에서 복호화된 바이낸스 API 키를 사용하여 잔고 조회
+   */
+  async getUSDTBalanceWithSession(sessionId) {
     try {
-      const response = await fetch2("https://www.google.com/finance/quote/USD-KRW", {
+      const { storage: storage2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
+      const decryptedExchange = await storage2.getDecryptedExchange(sessionId, "binance");
+      if (!decryptedExchange || !decryptedExchange.apiKey || !decryptedExchange.apiSecret) {
+        console.log("\uC138\uC158\uC5D0\uC11C \uBC14\uC774\uB0B8\uC2A4 API \uD0A4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC74C");
+        return 0;
+      }
+      console.log(`\u{1F511} \uC138\uC158 ${sessionId}\uC758 \uBCF5\uD638\uD654\uB41C \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC0AC\uC6A9`);
+      const timestamp2 = Date.now();
+      const queryString = `timestamp=${timestamp2}`;
+      const signature = crypto2.createHmac("sha256", decryptedExchange.apiSecret).update(queryString).digest("hex");
+      const response = await fetch(`https://fapi.binance.com/fapi/v2/account?${queryString}&signature=${signature}`, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        },
-        timeout: 1e4
-        // 10초 타임아웃
+          "X-MBX-APIKEY": decryptedExchange.apiKey
+        }
       });
       if (!response.ok) {
-        throw new Error(`Google Finance HTTP ${response.status}`);
+        console.log(`\u{1F4CA} \uC120\uBB3C \uACC4\uC815 \uC870\uD68C \uC2E4\uD328 (${response.status}): \uC9C0\uC5ED \uC81C\uD55C\uC73C\uB85C \uCD94\uC815`);
+        console.log(`\u{1F4CA} \uBC14\uC774\uB0B8\uC2A4 \uC120\uBB3C USDT \uC794\uACE0: \uC9C0\uC5ED \uC81C\uD55C\uC73C\uB85C \uC870\uD68C \uBD88\uAC00 (\uC2E4\uC81C \uC794\uACE0\uB294 \uBC14\uC774\uB0B8\uC2A4\uC5D0\uC11C \uD655\uC778)`);
+        return 0;
       }
-      const html = await response.text();
-      const rateMatch = html.match(/data-last-price="([0-9,]+\.?[0-9]*)"/) || html.match(/([0-9,]+\.[0-9]+)/);
-      if (rateMatch) {
-        const rateString = rateMatch[1] || rateMatch[0];
-        const rate = parseFloat(rateString.replace(/,/g, ""));
-        if (rate && rate > 1e3 && rate < 2e3) {
-          const oldRate = this.currentRate;
-          this.currentRate = rate;
-          if (Math.abs(oldRate - rate) > 0.1) {
-            console.log(`\u{1F310} \uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 USD/KRW \uD658\uC728 \uC5C5\uB370\uC774\uD2B8: ${oldRate}\uC6D0 \u2192 ${rate}\uC6D0`);
-          } else {
-            console.log(`\u{1F310} \uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 \uD658\uC728 \uD655\uC778: ${rate}\uC6D0`);
-          }
-        } else {
-          throw new Error(`Invalid rate value: ${rate}`);
-        }
-      } else {
-        throw new Error("Rate not found in response");
-      }
+      const futuresAccount = await response.json();
+      const usdtAsset = futuresAccount.assets?.find((asset) => asset.asset === "USDT");
+      const futuresBalance = usdtAsset ? parseFloat(usdtAsset.walletBalance) : 0;
+      console.log(`\u{1F4CA} \uBC14\uC774\uB0B8\uC2A4 \uC120\uBB3C USDT \uC794\uACE0: $${futuresBalance}`);
+      return futuresBalance;
     } catch (error) {
-      console.error("\uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 \uD658\uC728 \uC870\uD68C \uC2E4\uD328:", error);
-      console.log(`\u26A0\uFE0F \uAE30\uC874 \uD658\uC728 \uC720\uC9C0: ${this.currentRate}\uC6D0`);
-    } finally {
-      this.isUpdating = false;
+      console.error("Binance getUSDTBalanceWithSession error:", error);
+      return 0;
     }
-  }
-  getCurrentRate() {
-    return this.currentRate;
-  }
-  async getRate() {
-    if (!this.isUpdating) {
-      this.updateRate();
-    }
-    return this.currentRate;
   }
 };
-var googleFinanceExchange = new GoogleFinanceExchangeService();
+
+// server/services/kimchi.ts
+init_storage();
+
+// server/services/upbit-websocket.ts
+import WebSocket from "ws";
+var UpbitWebSocketService = class {
+  ws = null;
+  isConnected = false;
+  reconnectTimer = null;
+  callbacks = /* @__PURE__ */ new Map();
+  constructor() {
+    this.connect();
+  }
+  // WebSocket 연결
+  connect() {
+    try {
+      console.log("\u{1F50C} \uC5C5\uBE44\uD2B8 WebSocket \uC5F0\uACB0 \uC2DC\uB3C4...");
+      this.ws = new WebSocket("wss://api.upbit.com/websocket/v1");
+      this.ws.on("open", () => {
+        console.log("\u2705 \uC5C5\uBE44\uD2B8 WebSocket \uC5F0\uACB0 \uC131\uACF5");
+        this.isConnected = true;
+      });
+      this.ws.on("message", (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.type === "ticker") {
+            console.log(`\u{1F4CA} ${message.code}: \u20A9${message.trade_price}`);
+            this.callbacks.forEach((callback) => {
+              callback(message);
+            });
+          }
+        } catch (error) {
+          console.error("\uC5C5\uBE44\uD2B8 WebSocket \uBA54\uC2DC\uC9C0 \uD30C\uC2F1 \uC624\uB958:", error);
+        }
+      });
+      this.ws.on("close", () => {
+        console.log("\u{1F50C} \uC5C5\uBE44\uD2B8 WebSocket \uC5F0\uACB0 \uC885\uB8CC");
+        this.isConnected = false;
+        this.scheduleReconnect();
+      });
+      this.ws.on("error", (error) => {
+        console.error("\u274C \uC5C5\uBE44\uD2B8 WebSocket \uC624\uB958:", error);
+        this.isConnected = false;
+        this.scheduleReconnect();
+      });
+    } catch (error) {
+      console.error("\uC5C5\uBE44\uD2B8 WebSocket \uC5F0\uACB0 \uC2E4\uD328:", error);
+      this.scheduleReconnect();
+    }
+  }
+  // 실시간 티커 구독 (외부에서 호출할 수 있도록 public으로 변경)
+  subscribe(codes) {
+    if (!this.ws || !this.isConnected) {
+      this.ws?.on("open", () => {
+        this.subscribe(codes);
+      });
+      return;
+    }
+    const subscribeMessage = [
+      { ticket: "test" },
+      {
+        type: "ticker",
+        codes,
+        isOnlyRealtime: true
+        // 실시간 데이터만
+      }
+    ];
+    this.ws.send(JSON.stringify(subscribeMessage));
+    console.log("\u{1F514} \uC5C5\uBE44\uD2B8 \uC2E4\uC2DC\uAC04 \uD2F0\uCEE4 \uAD6C\uB3C5:", codes);
+  }
+  // 자동 재연결
+  scheduleReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+    this.reconnectTimer = setTimeout(() => {
+      console.log("\u{1F504} \uC5C5\uBE44\uD2B8 WebSocket \uC7AC\uC5F0\uACB0 \uC2DC\uB3C4...");
+      this.connect();
+    }, 5e3);
+  }
+  // 데이터 수신 콜백 등록
+  onData(id, callback) {
+    this.callbacks.set(id, callback);
+  }
+  // 콜백 제거
+  removeCallback(id) {
+    this.callbacks.delete(id);
+  }
+  // 연결 해제
+  disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.isConnected = false;
+    this.callbacks.clear();
+    console.log("\u{1F50C} \uC5C5\uBE44\uD2B8 WebSocket \uC5F0\uACB0 \uD574\uC81C");
+  }
+  // 연결 상태 확인
+  getConnectionStatus() {
+    return {
+      isConnected: this.isConnected,
+      callbackCount: this.callbacks.size
+    };
+  }
+};
+
+// server/services/binance-websocket.ts
+import WebSocket2 from "ws";
+var BinanceWebSocketService = class {
+  ws = null;
+  isConnected = false;
+  reconnectTimer = null;
+  // 콜백 타입도 새로운 인터페이스로 변경
+  callbacks = /* @__PURE__ */ new Map();
+  constructor() {
+    this.connect();
+  }
+  // WebSocket 연결
+  connect() {
+    try {
+      const url2 = `wss://fstream.binance.com/ws`;
+      console.log("\u{1F50C} \uBC14\uC774\uB0B8\uC2A4 [\uC2DC\uC7A5 \uD3C9\uADE0\uAC00] WebSocket \uC5F0\uACB0 \uC2DC\uB3C4...");
+      console.log("\u{1F517} \uC5F0\uACB0 URL:", url2);
+      this.ws = new WebSocket2(url2);
+      this.ws.on("open", () => {
+        console.log("\u2705 \uBC14\uC774\uB0B8\uC2A4 [\uC2DC\uC7A5 \uD3C9\uADE0\uAC00] WebSocket \uC5F0\uACB0 \uC131\uACF5");
+        this.isConnected = true;
+      });
+      this.ws.on("message", (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.id && "result" in message) {
+            if (message.result === null) {
+              console.log(`\u2705 \uBC14\uC774\uB0B8\uC2A4 \uC2A4\uD2B8\uB9BC \uAD6C\uB3C5 \uC131\uACF5 (ID: ${message.id})`);
+            } else {
+              console.error("\u274C \uBC14\uC774\uB0B8\uC2A4 \uC2A4\uD2B8\uB9BC \uAD6C\uB3C5 \uC2E4\uD328:", message);
+            }
+            return;
+          }
+          const ticker = message;
+          if (ticker && ticker.s && ticker.p) {
+            Object.values(this.callbacks).forEach((cb) => cb(ticker));
+            return;
+          }
+          console.log("\u2139\uFE0F \uBC14\uC774\uB0B8\uC2A4 WebSocket \uBE44-\uD2F0\uCEE4 \uBA54\uC2DC\uC9C0 \uC218\uC2E0:", message);
+        } catch (error) {
+          console.error("\uBC14\uC774\uB0B8\uC2A4 WebSocket \uBA54\uC2DC\uC9C0 \uCC98\uB9AC \uC624\uB958:", error, "\uC6D0\uBCF8 \uB370\uC774\uD130:", data.toString());
+        }
+      });
+      this.ws.on("close", () => {
+        console.log("\u{1F50C} \uBC14\uC774\uB0B8\uC2A4 WebSocket \uC5F0\uACB0 \uC885\uB8CC");
+        this.isConnected = false;
+        this.scheduleReconnect();
+      });
+      this.ws.on("error", (error) => {
+        console.error("\u274C \uBC14\uC774\uB0B8\uC2A4 WebSocket \uC624\uB958:", error);
+        console.error("\u274C \uC624\uB958 \uC138\uBD80\uC0AC\uD56D:", {
+          message: error.message,
+          code: error.code,
+          type: error.type,
+          target: error.target?.url || "unknown"
+        });
+        this.isConnected = false;
+        this.scheduleReconnect();
+      });
+    } catch (error) {
+      console.error("\uBC14\uC774\uB0B8\uC2A4 WebSocket \uC5F0\uACB0 \uC2E4\uD328:", error);
+      this.scheduleReconnect();
+    }
+  }
+  // 외부에서 구독을 시작할 수 있도록 public 메소드 추가
+  subscribe(symbols) {
+    if (!this.ws || !this.isConnected) {
+      this.ws?.once("open", () => this.subscribe(symbols));
+      return;
+    }
+    const streams = symbols.map((s) => `${s.toLowerCase()}usdt@markPrice@1s`);
+    const subscribeMessage = {
+      method: "SUBSCRIBE",
+      params: streams,
+      id: 1
+    };
+    this.ws.send(JSON.stringify(subscribeMessage));
+    console.log("\u{1F514} \uBC14\uC774\uB0B8\uC2A4 \uC2E4\uC2DC\uAC04 \uD2F0\uCEE4 \uAD6C\uB3C5:", streams);
+  }
+  // 대안 연결 방법 (제거 - fstream은 단일 엔드포인트 사용)
+  // 자동 재연결
+  scheduleReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+    this.reconnectTimer = setTimeout(() => {
+      console.log("\u{1F504} \uBC14\uC774\uB0B8\uC2A4 WebSocket \uC7AC\uC5F0\uACB0 \uC2DC\uB3C4...");
+      this.connect();
+    }, 5e3);
+  }
+  // 데이터 수신 콜백 등록
+  onData(id, callback) {
+    this.callbacks.set(id, callback);
+  }
+  // 콜백 제거
+  removeCallback(id) {
+    this.callbacks.delete(id);
+  }
+  // 연결 해제
+  disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.isConnected = false;
+    this.callbacks.clear();
+    console.log("\u{1F50C} \uBC14\uC774\uB0B8\uC2A4 WebSocket \uC5F0\uACB0 \uD574\uC81C");
+  }
+  // 연결 상태 확인
+  getConnectionStatus() {
+    return {
+      isConnected: this.isConnected,
+      callbackCount: this.callbacks.size
+    };
+  }
+};
 
 // server/services/kimchi.ts
 var KimchiService = class {
   upbitService;
   binanceService;
+  upbitWebSocketService;
+  binanceWebSocketService;
   usdtKrwRate = 1300;
+  // 실시간 USDT 환율
+  realtimePrices = { upbit: {}, binance: {} };
+  latestKimchiPremiums = [];
+  symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
+  isInitialized = false;
+  onUpdateCallback = null;
   constructor() {
     this.upbitService = new UpbitService();
     this.binanceService = new BinanceService();
-    this.updateUSDTKRWRate();
-    setInterval(() => this.updateUSDTKRWRate(), 6e4);
   }
-  async updateUSDTKRWRate() {
-    try {
-      const rate = await googleFinanceExchange.getRate();
-      this.usdtKrwRate = rate;
-      console.log(`\u{1F310} \uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 USD/KRW \uD658\uC728 \uC5C5\uB370\uC774\uD2B8: ${this.usdtKrwRate}\uC6D0`);
-    } catch (error) {
-      console.error("\uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 \uD658\uC728 \uC870\uD68C \uC2E4\uD328:", error);
-      this.usdtKrwRate = googleFinanceExchange.getCurrentRate();
-      console.log(`\u26A0\uFE0F \uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 \uBC31\uC5C5 \uD658\uC728 \uC0AC\uC6A9: ${this.usdtKrwRate}\uC6D0`);
-    }
-  }
-  async calculateKimchiPremium(symbols) {
-    try {
-      await this.updateUSDTKRWRate();
-      const upbitMarkets = symbols.map((symbol) => `KRW-${symbol}`);
-      const upbitTickers = await this.upbitService.getTicker(upbitMarkets);
-      const binanceTickers = await this.getBinanceFuturesPrices(symbols);
-      const kimchiData = [];
-      for (const symbol of symbols) {
-        const upbitTicker = upbitTickers.find((t) => t.market === `KRW-${symbol}`);
-        const binanceTicker = binanceTickers.find((t) => t.symbol === `${symbol}USDT`);
-        if (upbitTicker && binanceTicker) {
-          const upbitPrice = upbitTicker.trade_price;
-          const binancePriceKRW = parseFloat(binanceTicker.price) * this.usdtKrwRate;
-          const premiumRate = (upbitPrice - binancePriceKRW) / binancePriceKRW * 100;
-          console.log(`
-${symbol} \uAE40\uD504\uC728 \uACC4\uC0B0 (\uAE40\uD504\uAC00 \uAE30\uC900):`, {
-            \uC5C5\uBE44\uD2B8\uAC00\uACA9: `${upbitPrice.toLocaleString()}\uC6D0`,
-            \uBC14\uC774\uB0B8\uC2A4\uC120\uBB3C\uAC00\uACA9USD: `$${parseFloat(binanceTicker.price).toLocaleString()}`,
-            \uD658\uC728USDTKRW: `${this.usdtKrwRate}\uC6D0`,
-            \uBC14\uC774\uB0B8\uC2A4\uC120\uBB3C\uAC00\uACA9KRW: `${binancePriceKRW.toLocaleString()}\uC6D0`,
-            \uAE40\uD504\uC728: `${premiumRate.toFixed(3)}%`
-          });
-          const data = {
-            symbol,
-            upbitPrice,
-            binancePrice: binancePriceKRW,
-            premiumRate,
-            timestamp: /* @__PURE__ */ new Date()
-          };
-          kimchiData.push(data);
-          await storage.createKimchiPremium({
-            symbol,
-            upbitPrice: upbitPrice.toString(),
-            binancePrice: binancePriceKRW.toString(),
-            premiumRate: premiumRate.toString()
-          });
-        }
+  initialize() {
+    if (this.isInitialized) return;
+    console.log("\u{1F680} \uC2E4\uC2DC\uAC04 \uAE40\uD504 \uC11C\uBE44\uC2A4 \uCD08\uAE30\uD654 (\uC790\uCCB4 \uB370\uC774\uD130 \uAE30\uC900)");
+    this.upbitWebSocketService = new UpbitWebSocketService();
+    this.binanceWebSocketService = new BinanceWebSocketService();
+    this.upbitWebSocketService.onData("kimchi-service", (data) => {
+      if (data.code === "KRW-USDT") {
+        this.usdtKrwRate = data.trade_price;
+      } else {
+        const symbol = data.code.replace("KRW-", "");
+        this.realtimePrices.upbit[symbol] = data.trade_price;
       }
-      return kimchiData;
-    } catch (error) {
-      console.error("Error calculating kimchi premium:", error);
-      throw error;
-    }
+      this.recalculateAndStorePremiums();
+    });
+    this.binanceWebSocketService.onData("kimchi-service", (data) => {
+      const symbol = data.s.replace("USDT", "");
+      this.realtimePrices.binance[symbol] = parseFloat(data.p);
+      this.recalculateAndStorePremiums();
+    });
+    this.upbitWebSocketService.subscribe(["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-ADA", "KRW-DOT", "KRW-USDT"]);
+    this.binanceWebSocketService.subscribe(["BTC", "ETH", "XRP", "ADA", "DOT"]);
+    this.isInitialized = true;
+    console.log("\u2705 \uC2E4\uC2DC\uAC04 \uAE40\uD504 \uC11C\uBE44\uC2A4 \uCD08\uAE30\uD654 \uC644\uB8CC.");
   }
-  // 바이낸스 선물 가격 조회 (실제 김프 거래 기준)
-  async getBinanceFuturesPrices(symbols) {
-    const results = [];
-    const futuresPrices = {
-      "BTC": 118359,
-      // 실제 바이낸스 선물 가격 (김프 거래용)
-      "ETH": 3628,
-      // 선물 추정 가격
-      "XRP": 3.15,
-      // 선물 추정 가격
-      "ADA": 0.807,
-      // 선물 추정 가격
-      "DOT": 3.98
-      // 선물 추정 가격
-    };
-    for (const symbol of symbols) {
-      const price = futuresPrices[symbol];
-      if (price) {
-        results.push({
-          symbol: `${symbol}USDT`,
-          price: price.toString()
+  recalculateAndStorePremiums() {
+    const newPremiums = [];
+    for (const symbol of this.symbols) {
+      const upbitPrice = this.realtimePrices.upbit[symbol];
+      const binanceUsdPrice = this.realtimePrices.binance[symbol];
+      if (upbitPrice && binanceUsdPrice && this.usdtKrwRate > 0) {
+        const binanceKrwPrice = binanceUsdPrice * this.usdtKrwRate;
+        const premiumRate = (upbitPrice / binanceKrwPrice - 1) * 100;
+        newPremiums.push({
+          symbol,
+          upbitPrice,
+          binancePrice: binanceKrwPrice,
+          premiumRate,
+          timestamp: /* @__PURE__ */ new Date()
         });
-        console.log(`${symbol} \uBC14\uC774\uB0B8\uC2A4 \uC120\uBB3C\uAC00\uACA9 (\uAE40\uD504 \uAC70\uB798 \uAE30\uC900): $${price.toLocaleString()}`);
       }
     }
-    return results;
+    if (newPremiums.length > 0) {
+      this.latestKimchiPremiums = newPremiums;
+      if (this.onUpdateCallback) {
+        this.onUpdateCallback(this.latestKimchiPremiums);
+      }
+    }
   }
-  async getBinanceSpotPrices(symbols) {
-    const results = [];
-    try {
-      const binanceService = new BinanceService();
-      const binancePrices = await binanceService.getTicker(symbols);
-      for (const ticker of binancePrices) {
-        const symbol = ticker.symbol.replace("USDT", "");
-        const price = parseFloat(ticker.price);
-        results.push({
-          symbol: ticker.symbol,
-          price: ticker.price
-        });
-        console.log(`${symbol} \uBC14\uC774\uB0B8\uC2A4 \uD604\uBB3C\uAC00\uACA9 (\uC2E4\uC2DC\uAC04 API): $${price.toLocaleString()}`);
-      }
-      return results;
-    } catch (error) {
-      console.error("\uBC14\uC774\uB0B8\uC2A4 API \uD638\uCD9C \uC2E4\uD328, \uB300\uCCB4 \uAC00\uACA9 \uC0AC\uC6A9:", error);
-      const fallbackPrices = {
-        "BTC": 118450,
-        // $118,450 (김프가 기준)
-        "ETH": 3615,
-        // $3,615 (현물 기준)
-        "XRP": 2.36,
-        // $2.36 (현물 기준)  
-        "ADA": 1.06,
-        // $1.06 (현물 기준)
-        "DOT": 8.55
-        // $8.55 (현물 기준)
-      };
-      for (const symbol of symbols) {
-        const price = fallbackPrices[symbol];
-        if (price) {
-          results.push({
-            symbol: `${symbol}USDT`,
-            price: price.toString()
-          });
-          console.log(`${symbol} \uBC14\uC774\uB0B8\uC2A4 \uD604\uBB3C\uAC00\uACA9 (\uB300\uCCB4\uAC12): $${price.toLocaleString()}`);
-        }
-      }
-      return results;
+  onUpdate(callback) {
+    this.onUpdateCallback = callback;
+  }
+  async getLatestKimchiPremiums() {
+    if (!this.isInitialized) {
+      this.initialize();
     }
+    return this.latestKimchiPremiums;
+  }
+  getUSDTKRWRate() {
+    return this.usdtKrwRate;
   }
   async getKimchiPremiumHistory(symbol, limit = 100) {
     try {
@@ -1727,28 +1947,10 @@ ${symbol} \uAE40\uD504\uC728 \uACC4\uC0B0 (\uAE40\uD504\uAC00 \uAE30\uC900):`, {
       throw error;
     }
   }
-  async getLatestKimchiPremiums() {
-    try {
-      const premiums = await storage.getLatestKimchiPremiums();
-      return premiums.map((p) => ({
-        symbol: p.symbol,
-        upbitPrice: parseFloat(p.upbitPrice),
-        binancePrice: parseFloat(p.binancePrice),
-        premiumRate: parseFloat(p.premiumRate),
-        timestamp: p.timestamp || /* @__PURE__ */ new Date()
-      }));
-    } catch (error) {
-      console.error("Error getting latest kimchi premiums:", error);
-      throw error;
-    }
-  }
-  getUSDTKRWRate() {
-    return this.usdtKrwRate;
-  }
 };
 
 // server/services/coinapi.ts
-import fetch3 from "node-fetch";
+import fetch2 from "node-fetch";
 var CoinAPIService = class {
   apiKey;
   baseUrl = "https://rest.coinapi.io/v1";
@@ -1762,7 +1964,7 @@ var CoinAPIService = class {
         "X-CoinAPI-Key": this.apiKey,
         "Accept": "application/json"
       };
-      const response = await fetch3(`${this.baseUrl}/exchangerate/USDT/KRW`, { headers });
+      const response = await fetch2(`${this.baseUrl}/exchangerate/USDT/KRW`, { headers });
       if (response.ok) {
         const data = await response.json();
         const rate = data.rate;
@@ -1798,7 +2000,7 @@ var CoinAPIService = class {
       if (!symbolId) {
         throw new Error(`\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uC2EC\uBCFC: ${symbol}`);
       }
-      const response = await fetch3(`${this.baseUrl}/quotes/current?filter_symbol_id=${symbolId}`, { headers });
+      const response = await fetch2(`${this.baseUrl}/quotes/current?filter_symbol_id=${symbolId}`, { headers });
       if (response.ok) {
         const data = await response.json();
         if (data && data.length > 0) {
@@ -1840,7 +2042,7 @@ var CoinAPIService = class {
       if (!symbolId) {
         throw new Error(`\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uC2EC\uBCFC: ${symbol}`);
       }
-      const response = await fetch3(`${this.baseUrl}/quotes/current?filter_symbol_id=${symbolId}`, { headers });
+      const response = await fetch2(`${this.baseUrl}/quotes/current?filter_symbol_id=${symbolId}`, { headers });
       if (response.ok) {
         const data = await response.json();
         if (data && data.length > 0) {
@@ -1859,7 +2061,7 @@ var CoinAPIService = class {
   async getUpbitPriceDirect(symbol) {
     try {
       const market = `KRW-${symbol}`;
-      const response = await fetch3(`https://api.upbit.com/v1/ticker?markets=${market}`);
+      const response = await fetch2(`https://api.upbit.com/v1/ticker?markets=${market}`);
       if (response.ok) {
         const data = await response.json();
         if (data && data.length > 0) {
@@ -1911,7 +2113,7 @@ ${symbol} \uAE40\uD504\uC728 \uACC4\uC0B0 (CoinAPI \uAE30\uC900):`, {
         "X-CoinAPI-Key": this.apiKey,
         "Accept": "application/json"
       };
-      const response = await fetch3(`${this.baseUrl}/metadata`, { headers });
+      const response = await fetch2(`${this.baseUrl}/metadata`, { headers });
       if (response.ok) {
         const remainingRequests = parseInt(response.headers.get("x-ratelimit-remaining") || "0");
         const resetTime = response.headers.get("x-ratelimit-reset") || "unknown";
@@ -1928,6 +2130,83 @@ ${symbol} \uAE40\uD504\uC728 \uACC4\uC0B0 (CoinAPI \uAE30\uC900):`, {
 
 // server/services/simple-kimchi.ts
 import fetch4 from "node-fetch";
+
+// server/services/google-finance-exchange.ts
+import fetch3 from "node-fetch";
+var GoogleFinanceExchangeService = class {
+  currentRate = 1382.67;
+  // 최신 알려진 환율
+  isUpdating = false;
+  updateInterval = null;
+  constructor() {
+    this.updateRate();
+    this.startAutoUpdate();
+  }
+  startAutoUpdate() {
+    this.updateInterval = setInterval(() => {
+      this.updateRate();
+    }, 3e3);
+  }
+  stopAutoUpdate() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+    }
+  }
+  async updateRate() {
+    if (this.isUpdating) return;
+    this.isUpdating = true;
+    try {
+      const response = await fetch3("https://www.google.com/finance/quote/USD-KRW", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        },
+        timeout: 1e4
+        // 10초 타임아웃
+      });
+      if (!response.ok) {
+        throw new Error(`Google Finance HTTP ${response.status}`);
+      }
+      const html = await response.text();
+      const rateMatch = html.match(/data-last-price="([0-9,]+\.?[0-9]*)"/) || html.match(/([0-9,]+\.[0-9]+)/);
+      if (rateMatch) {
+        const rateString = rateMatch[1] || rateMatch[0];
+        const rate = parseFloat(rateString.replace(/,/g, ""));
+        if (rate && rate > 1e3 && rate < 2e3) {
+          const oldRate = this.currentRate;
+          this.currentRate = rate;
+          if (Math.abs(oldRate - rate) > 0.1) {
+            console.log(`\u{1F310} \uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 USD/KRW \uD658\uC728 \uC5C5\uB370\uC774\uD2B8: ${oldRate}\uC6D0 \u2192 ${rate}\uC6D0`);
+          } else {
+            console.log(`\u{1F310} \uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 \uD658\uC728 \uD655\uC778: ${rate}\uC6D0`);
+          }
+        } else {
+          throw new Error(`Invalid rate value: ${rate}`);
+        }
+      } else {
+        throw new Error("Rate not found in response");
+      }
+    } catch (error) {
+      console.error("\uAD6C\uAE00 \uD30C\uC774\uB0B8\uC2A4 \uD658\uC728 \uC870\uD68C \uC2E4\uD328:", error);
+      console.log(`\u26A0\uFE0F \uAE30\uC874 \uD658\uC728 \uC720\uC9C0: ${this.currentRate}\uC6D0`);
+    } finally {
+      this.isUpdating = false;
+    }
+  }
+  getCurrentRate() {
+    return this.currentRate;
+  }
+  async getRate() {
+    if (!this.isUpdating) {
+      this.updateRate();
+    }
+    return this.currentRate;
+  }
+};
+var googleFinanceExchange = new GoogleFinanceExchangeService();
+
+// server/services/simple-kimchi.ts
+init_storage();
 import { createHmac } from "crypto";
 var SimpleKimchiService = class {
   upbitService;
@@ -2031,22 +2310,27 @@ var SimpleKimchiService = class {
   }
   // 기존 환율 조회 함수 제거됨 - googleExchangeReal 서비스 사용
   /**
-   * 바이낸스 선물 가격 조회 (사용자별 API 키 또는 환경변수 사용)
+   * 바이낸스 선물 가격 조회 (세션 ID로 DB 조회하여 복호화된 API 키 사용)
    */
-  async getBinanceFuturesPrice(symbol, userId) {
+  async getBinanceFuturesPrice(symbol, sessionId) {
     try {
-      let apiKey = process.env.BINANCE_API_KEY;
-      let secretKey = process.env.BINANCE_SECRET_KEY;
-      if (userId) {
-        const userKeys = await this.getUserExchangeKeys(userId, "binance");
-        if (userKeys.apiKey && userKeys.secretKey) {
-          apiKey = userKeys.apiKey;
-          secretKey = userKeys.secretKey;
-          console.log(`\u{1F511} \uC0AC\uC6A9\uC790 ${userId}\uC758 \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC0AC\uC6A9`);
+      let apiKey;
+      let secretKey;
+      if (sessionId) {
+        try {
+          const { storage: storage2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
+          const decryptedExchange = await storage2.getDecryptedExchange(sessionId, "binance");
+          if (decryptedExchange && decryptedExchange.apiKey && decryptedExchange.apiSecret) {
+            apiKey = decryptedExchange.apiKey;
+            secretKey = decryptedExchange.apiSecret;
+            console.log(`\u{1F511} \uC138\uC158 ${sessionId}\uC758 \uBCF5\uD638\uD654\uB41C \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC0AC\uC6A9`);
+          }
+        } catch (dbError) {
+          console.warn(`DB\uC5D0\uC11C \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uC870\uD68C \uC2E4\uD328:`, dbError);
         }
       }
       if (!apiKey || !secretKey) {
-        throw new Error("\uBC14\uC774\uB0B8\uC2A4 API \uD0A4\uAC00 \uD658\uACBD\uBCC0\uC218\uC5D0 \uC124\uC815\uB418\uC9C0 \uC54A\uC74C");
+        throw new Error("\uBC14\uC774\uB0B8\uC2A4 API \uD0A4\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC74C");
       }
       const timestamp2 = Date.now();
       const queryString = `symbol=${symbol}USDT&timestamp=${timestamp2}`;
@@ -2209,7 +2493,7 @@ var KimpgaStrategyService = class {
         this.pushLog(`\uC624\uB958: ${e?.message ?? String(e)}`);
         this.apiErrors += 1;
       }
-    }, 1500);
+    }, 600);
   }
   stop() {
     if (this.loopTimer) {
@@ -2374,6 +2658,60 @@ var ExchangeTestService = class {
 };
 var exchangeTestService = new ExchangeTestService();
 
+// server/services/backtest.ts
+var BacktestService = class {
+  simpleKimchiService;
+  constructor() {
+    this.simpleKimchiService = new SimpleKimchiService();
+  }
+  async runBacktest(params) {
+    console.log("Running backtest with params:", params);
+    const mockTrades = [
+      {
+        entryTime: "2023-10-01T10:00:00Z",
+        entryPrice: 5e7,
+        entryKimchiPremium: params.entryRate,
+        exitTime: "2023-10-01T12:30:00Z",
+        exitPrice: 501e5,
+        exitKimchiPremium: params.exitRate,
+        profit: 1e5
+      },
+      {
+        entryTime: "2023-10-02T15:00:00Z",
+        entryPrice: 502e5,
+        entryKimchiPremium: params.entryRate,
+        exitTime: "2023-10-02T16:00:00Z",
+        exitPrice: 5015e4,
+        exitKimchiPremium: params.exitRate,
+        profit: -5e4
+      },
+      {
+        entryTime: "2023-10-03T09:00:00Z",
+        entryPrice: 503e5,
+        entryKimchiPremium: params.entryRate,
+        exitTime: "2023-10-03T11:00:00Z",
+        exitPrice: 505e5,
+        exitKimchiPremium: params.exitRate,
+        profit: 2e5
+      }
+    ];
+    const totalProfit = mockTrades.reduce((sum, trade) => sum + trade.profit, 0);
+    const winningTrades = mockTrades.filter((t) => t.profit > 0).length;
+    const result = {
+      totalProfit,
+      winRate: winningTrades / mockTrades.length * 100,
+      totalTrades: mockTrades.length,
+      averageProfitPerTrade: mockTrades.length > 0 ? totalProfit / mockTrades.length : 0,
+      trades: mockTrades,
+      params
+    };
+    return result;
+  }
+};
+
+// server/routes.ts
+init_schema();
+
 // server/utils/ip.ts
 async function getCurrentServerIP() {
   try {
@@ -2390,6 +2728,7 @@ function isReplit() {
 }
 
 // server/routes.ts
+init_auth();
 import bcrypt2 from "bcrypt";
 import jwt4 from "jsonwebtoken";
 var JWT_SECRET2 = process.env.JWT_SECRET || "your-secret-key";
@@ -2410,41 +2749,11 @@ function getUserIdFromRequest(req) {
   const userId = getUserIdFromToken(req.headers.authorization);
   return userId || "1";
 }
-async function findActiveUserWithApiKeys() {
-  try {
-    const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
-    for (const userId of knownUserIds) {
-      try {
-        const exchanges2 = await storage.getExchangesByUserId(userId);
-        const binanceExchange = exchanges2.find(
-          (ex) => ex.exchange === "binance" && ex.isActive && ex.apiKey && ex.apiSecret
-        );
-        if (binanceExchange) {
-          console.log(`\u{1F50D} \uD65C\uC131 \uC0AC\uC6A9\uC790 \uBC1C\uACAC: User ID ${userId} (\uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uBCF4\uC720)`);
-          return userId;
-        }
-        const upbitExchange = exchanges2.find(
-          (ex) => ex.exchange === "upbit" && ex.isActive && ex.apiKey && ex.apiSecret
-        );
-        if (upbitExchange) {
-          console.log(`\u{1F50D} \uD65C\uC131 \uC0AC\uC6A9\uC790 \uBC1C\uACAC: User ID ${userId} (\uC5C5\uBE44\uD2B8 API \uD0A4 \uBCF4\uC720)`);
-          return userId;
-        }
-      } catch (error) {
-        continue;
-      }
-    }
-    console.log(`\u26A0\uFE0F API \uD0A4\uAC00 \uC788\uB294 \uD65C\uC131 \uC0AC\uC6A9\uC790\uB97C \uCC3E\uC9C0 \uBABB\uD568, \uAE30\uBCF8 \uC0AC\uC6A9\uC790 1 \uC0AC\uC6A9`);
-    return "1";
-  } catch (error) {
-    console.error("\uD65C\uC131 \uC0AC\uC6A9\uC790 \uCC3E\uAE30 \uC2E4\uD328:", error);
-    return "1";
-  }
-}
 async function registerRoutes(app2, server) {
   const kimchiService = new KimchiService();
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
+  const backtestService = new BacktestService();
   const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
   const tradingService = new TradingService();
   app2.get("/api/kimpga/current", async (req, res) => {
@@ -2502,6 +2811,17 @@ async function registerRoutes(app2, server) {
   app2.post("/api/kimpga/force-exit", async (_req, res) => {
     const result = kimpgaSvc.forceExit();
     res.json(result);
+  });
+  app2.post("/api/backtest", async (req, res) => {
+    try {
+      console.log("Backtest request received:", req.body);
+      const params = req.body;
+      const result = await backtestService.runBacktest(params);
+      res.json(result);
+    } catch (error) {
+      console.error("Backtest API error:", error);
+      res.status(500).json({ error: "Failed to run backtest", details: error.message });
+    }
   });
   app2.post("/api/auth/register", async (req, res) => {
     try {
@@ -3040,7 +3360,7 @@ async function registerRoutes(app2, server) {
       const { exchange, apiKey, apiSecret, secretKey } = req.body;
       const resolvedSecret = apiSecret ?? secretKey;
       console.log(
-        `\u{1F4BE} [${(/* @__PURE__ */ new Date()).toISOString()}] API \uD0A4 \uC800\uC7A5 \uC694\uCCAD \uC218\uC2E0 - \uC0AC\uC6A9\uC790: ${userId}, \uAC70\uB798\uC18C: ${exchange}`
+        `\u{1F4BE} [${(/* @__PURE__ */ new Date()).toISOString()}] API \uD0A4 \uC800\uC7A5 \uC694\uCCAD - \uC0AC\uC6A9\uC790: ${userId}, \uAC70\uB798\uC18C: ${exchange}`
       );
       console.log(
         `\u{1F511} [${(/* @__PURE__ */ new Date()).toISOString()}] API \uD0A4 \uC2DC\uC791 \uBD80\uBD84: ${apiKey ? apiKey.substring(0, 8) + "..." : "\uC5C6\uC74C"}`
@@ -3276,14 +3596,16 @@ async function registerRoutes(app2, server) {
             };
           } else if (exchange.exchange === "binance") {
             console.log(
-              `[${(/* @__PURE__ */ new Date()).toISOString()}] Trying to connect to Binance with API key: ${exchange.apiKey.substring(
-                0,
-                8
-              )}...`
+              `[${(/* @__PURE__ */ new Date()).toISOString()}] Trying to connect to Binance with session ID: ${userId}...`
             );
+            const decryptedExchange = await storage.getDecryptedExchange(userId, "binance");
+            if (!decryptedExchange) {
+              throw new Error("\uBCF5\uD638\uD654\uB41C \uBC14\uC774\uB0B8\uC2A4 API \uD0A4\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4");
+            }
+            console.log(`[${(/* @__PURE__ */ new Date()).toISOString()}] \uBCF5\uD638\uD654\uB41C \uBC14\uC774\uB0B8\uC2A4 API \uD0A4 \uAE38\uC774: ${decryptedExchange.apiKey.length}, Secret \uAE38\uC774: ${decryptedExchange.apiSecret.length}`);
             const binanceService = new BinanceService(
-              exchange.apiKey,
-              exchange.apiSecret
+              decryptedExchange.apiKey,
+              decryptedExchange.apiSecret
             );
             const usdtBalance = await binanceService.getUSDTBalance();
             console.log(
@@ -3427,15 +3749,28 @@ async function registerRoutes(app2, server) {
     }
   );
   const wss = new WebSocketServer({ server, path: "/ws" });
-  const wsUserMap = /* @__PURE__ */ new Map();
+  kimchiService.onUpdate((kimchiData) => {
+    if (kimchiData.length > 0) {
+      const message = JSON.stringify({
+        type: "kimchi-premium",
+        data: kimchiData,
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket3.OPEN) {
+          client.send(message);
+        }
+      });
+    }
+  });
   wss.on("connection", (ws, req) => {
     console.log("WebSocket client connected");
+    kimchiService.getLatestKimchiPremiums();
     const url2 = new URL(req.url || "", `http://${req.headers.host}`);
     const token = url2.searchParams.get("token");
     if (token) {
       const userId = getUserIdFromToken(`Bearer ${token}`);
       if (userId) {
-        wsUserMap.set(ws, userId);
         console.log(`WebSocket \uC0AC\uC6A9\uC790 \uC5F0\uACB0: User ID ${userId}`);
       }
     }
@@ -3447,7 +3782,6 @@ async function registerRoutes(app2, server) {
         if (msg.type === "auth" && msg.token) {
           const userId = getUserIdFromToken(`Bearer ${msg.token}`);
           if (userId) {
-            wsUserMap.set(ws, userId);
             console.log(`WebSocket \uC0AC\uC6A9\uC790 \uC778\uC99D: User ID ${userId}`);
           }
         }
@@ -3455,48 +3789,9 @@ async function registerRoutes(app2, server) {
       }
     });
     ws.on("close", () => {
-      const userId = wsUserMap.get(ws);
-      if (userId) {
-        console.log(`WebSocket \uC0AC\uC6A9\uC790 \uC5F0\uACB0 \uD574\uC81C: User ID ${userId}`);
-        wsUserMap.delete(ws);
-      } else {
-        console.log("WebSocket client disconnected");
-      }
+      console.log("WebSocket client disconnected");
     });
   });
-  const sendKimchiData = async () => {
-    try {
-      const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
-      const activeUserId = await findActiveUserWithApiKeys();
-      const simpleKimchiData = await simpleKimchiService.calculateSimpleKimchi(
-        symbols,
-        activeUserId
-      );
-      const kimchiData = simpleKimchiData.map((data) => ({
-        symbol: data.symbol,
-        upbitPrice: data.upbitPrice,
-        binancePrice: data.binancePriceKRW,
-        binancePriceUSD: data.binanceFuturesPrice,
-        premiumRate: data.premiumRate,
-        timestamp: new Date(data.timestamp),
-        exchangeRate: data.usdKrwRate,
-        exchangeRateSource: "Google Finance (\uC2E4\uC2DC\uAC04 \uD658\uC728)"
-      }));
-      const message = JSON.stringify({
-        type: "kimchi-premium",
-        data: kimchiData,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      });
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    } catch (error) {
-      console.error("\uAE40\uD504\uC728 \uB370\uC774\uD130 \uC804\uC1A1 \uC624\uB958:", error);
-    }
-  };
-  setInterval(sendKimchiData, 1e4);
   app2.post("/api/test-exchange-connection", async (req, res) => {
     try {
       const { exchange, userId } = req.body;
@@ -3671,7 +3966,7 @@ async function setupVite(app2, server) {
   });
 }
 function serveStatic(app2) {
-  const distPath = path2.resolve(import.meta.dirname, "public");
+  const distPath = path2.resolve(import.meta.dirname, "..", "dist", "public");
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`

@@ -1,18 +1,19 @@
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
 import { UpbitWebSocketService } from './upbit-websocket.js';
+import { priceCache } from './price-cache.js';
 import fetch from 'node-fetch';
-import { googleFinanceExchange } from './google-finance-exchange.js';
+import { naverExchange } from './naver-exchange.js';
 import { createHmac } from 'crypto';
 import { storage } from '../storage.js';
 
 export interface SimpleKimchiData {
   symbol: string;
   upbitPrice: number;     // 업비트 KRW 가격
-  binanceFuturesPrice: number;  // 바이낸스 선물 USD 가격
-  usdKrwRate: number;     // 구글 USD→KRW 환율
-  binancePriceKRW: number; // 바이낸스 선물 가격을 KRW로 환산
-  premiumRate: number;    // 김프율 (%)
+  binanceFuturesPrice: number;  // 바이낸스 현물 USD 가격
+  usdKrwRate: number;     // 구글 파이낸스 USD→KRW 환율
+  binancePriceKRW: number; // 바이낸스 가격을 KRW로 변환한 값 (바이낸스USD × 환율)
+  premiumRate: number;    // 김프율 (%) - kimpga 방식: (업비트KRW - 바이낸스KRW) / 바이낸스KRW × 100
   timestamp: string;
 }
 
@@ -53,51 +54,58 @@ export class SimpleKimchiService {
   }
 
   /**
-   * 실시간 USD→KRW 환율 조회 (구글 파이낸스 사용)
+   * 실시간 USD→KRW 환율 조회 (네이버 금융 사용)
    */
   private async getRealTimeExchangeRate(): Promise<number> {
     try {
-      const rate = await googleFinanceExchange.getRate();
-      console.log(`🌐 구글 파이낸스 실시간 USD/KRW 환율: ${rate}원`);
+      const rate = await naverExchange.getRate();
+      console.log(`🌐 네이버 금융 실시간 USD/KRW 환율: ${rate}원`);
       return rate;
       
     } catch (error) {
-      console.error('구글 파이낸스 환율 조회 실패:', error);
-      // 백업: 구글 파이낸스 현재값 사용
-      const fallbackRate = googleFinanceExchange.getCurrentRate();
-      console.log(`⚠️ 구글 파이낸스 백업 환율 사용: ${fallbackRate}원`);
+      console.error('네이버 금융 환율 조회 실패:', error);
+      // 백업: 네이버 금융 현재값 사용
+      const fallbackRate = naverExchange.getCurrentRate();
+      console.log(`⚠️ 네이버 금융 백업 환율 사용: ${fallbackRate}원`);
       return fallbackRate;
     }
   }
 
   /**
-   * 단순 김프율 계산 - 업비트 KRW + 바이낸스 선물 + 실시간 환율
+   * 단순 김프율 계산 - 웹소켓 캐시 우선 사용으로 실시간 계산
    */
   async calculateSimpleKimchi(symbols: string[], userId?: string): Promise<SimpleKimchiData[]> {
     const results: SimpleKimchiData[] = [];
 
-    // 실시간 USD→KRW 환율 조회 (ExchangeRate-API 사용)
-    const usdKrwRate = await this.getRealTimeExchangeRate();
+    // 실시간 USD→KRW 환율 조회 (캐시된 값 사용)
+    const usdKrwRate = naverExchange.getCurrentRate();
 
     for (const symbol of symbols) {
       try {
-        // 병렬로 가격 조회 (사용자별 API 키 사용)
-        const [upbitPrice, binanceFuturesPrice] = await Promise.all([
-          this.getUpbitPrice(symbol, userId),
-          this.getBinanceFuturesPrice(symbol, userId)
-        ]);
+        // 🚀 웹소켓 캐시에서 가격 조회 (즉시 반환)
+        let upbitPrice = priceCache.getUpbitPrice(symbol);
+        let binanceFuturesPrice = priceCache.getBinancePrice(symbol);
 
-        // 바이낸스 선물 가격을 KRW로 환산
-        const binancePriceKRW = binanceFuturesPrice * usdKrwRate;
+        // 캐시에 없으면 API 호출 (백업)
+        if (upbitPrice === null) {
+          console.warn(`⚠️ ${symbol} 업비트 캐시 없음, API 호출`);
+          upbitPrice = await this.getUpbitPrice(symbol, userId);
+        }
 
-        // 김프율 계산: (업비트가격 - 바이낸스가격KRW) / 바이낸스가격KRW * 100
+        if (binanceFuturesPrice === null) {
+          console.warn(`⚠️ ${symbol} 바이낸스 캐시 없음, API 호출`);
+          binanceFuturesPrice = await this.getBinanceFuturesPrice(symbol, userId);
+        }
+
+        // 김프율 계산: kimpga 방식 - (업비트KRW - 바이낸스USD×환율) ÷ (바이낸스USD×환율) × 100
+        const binancePriceKRW = binanceFuturesPrice * usdKrwRate; // 바이낸스 USD를 KRW로 변환
         const premiumRate = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;
 
-        console.log(`${symbol} 김프율 계산 (구글 파이낸스 환율):`, {
+        console.log(`${symbol} 김프율 계산 (kimpga 방식-현물):`, {
           업비트가격: `${upbitPrice.toLocaleString()}원`,
-          바이낸스선물가격USD: `$${binanceFuturesPrice.toLocaleString()}`,
-          구글파이낸스환율: `${usdKrwRate}원`,
-          바이낸스선물가격KRW: `${binancePriceKRW.toLocaleString()}원`,
+          바이낸스현물가격: `${binanceFuturesPrice.toLocaleString()} USD`,
+          바이낸스가격KRW: `${binancePriceKRW.toLocaleString()}원`,
+          환율: `${usdKrwRate.toFixed(2)}원/USD`,
           김프율: `${premiumRate.toFixed(3)}%`
         });
 
@@ -106,7 +114,7 @@ export class SimpleKimchiService {
           upbitPrice,
           binanceFuturesPrice,
           usdKrwRate,
-          binancePriceKRW,
+          binancePriceKRW: binancePriceKRW, // 바이낸스 가격을 KRW로 변환한 값
           premiumRate,
           timestamp: new Date().toISOString()
         });
@@ -283,6 +291,6 @@ export class SimpleKimchiService {
    * 현재 저장된 환율 조회 (캐시된 값)
    */
   getCurrentExchangeRate(): number {
-    return googleFinanceExchange.getCurrentRate();
+    return naverExchange.getCurrentRate();
   }
 }

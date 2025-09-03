@@ -10,7 +10,7 @@ import { CryptoPricesGrid } from "@/components/crypto-prices-grid";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { StopCircle, Wifi, WifiOff, Download } from "lucide-react";
+import { StopCircle, Wifi, WifiOff } from "lucide-react";
 import type { KimchiPremium, Position, Trade, TradingSettings, SystemAlert } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -96,7 +96,7 @@ export default function Dashboard() {
         throw error;
       }
     },
-    refetchInterval: 100,
+    refetchInterval: 3000, // 3초마다 환율 업데이트 (구글 파이낸스 업데이트 주기와 동일)
     refetchIntervalInBackground: true,
     retry: 3,
   });
@@ -154,12 +154,21 @@ export default function Dashboard() {
 
   // 환율 데이터 업데이트
   useEffect(() => {
-    if (exchangeRateData?.data?.rate) {
-      setPreviousExchangeRate(currentExchangeRate);
-      setCurrentExchangeRate(exchangeRateData.data.rate);
-      console.log('환율 업데이트:', exchangeRateData.data.rate);
+    console.log('🔍 환율 데이터 체크:', exchangeRateData);
+    if (typeof exchangeRateData?.rate === 'number') {
+      const newRate = exchangeRateData.rate;
+      console.log('📊 새로운 환율 데이터:', newRate, '현재 환율:', currentExchangeRate);
+      if (newRate !== currentExchangeRate) {
+        setPreviousExchangeRate(currentExchangeRate);
+        setCurrentExchangeRate(newRate);
+        console.log('💰 대시보드 환율 업데이트:', currentExchangeRate, '→', newRate);
+      } else {
+        console.log('⚪ 환율 변경 없음:', newRate);
+      }
+    } else {
+      console.log('❌ 환율 데이터 없음 또는 형식 오류');
     }
-  }, [exchangeRateData, currentExchangeRate]);
+  }, [exchangeRateData]);
 
   // 환율 에러 처리
   useEffect(() => {
@@ -223,10 +232,10 @@ export default function Dashboard() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-slate-900 border-b border-slate-700 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h2 className="text-2xl font-bold text-white">실시간 김프 모니터링</h2>
+      <header className="bg-slate-900 border-b border-slate-700 px-4 md:px-6 py-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <h2 className="text-xl md:text-2xl font-bold text-white">실시간 김프 모니터링</h2>
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success animate-pulse' : 'bg-danger'}`}></div>
               <span className={`text-sm ${isConnected ? 'text-success' : 'text-danger'}`}>
@@ -235,18 +244,7 @@ export default function Dashboard() {
               {isConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-            {/* Download Button */}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="text-slate-400 hover:text-white border-slate-600 hover:border-slate-400"
-              onClick={() => window.open('/download-this-file.tar.gz', '_blank')}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              소스코드 다운로드
-            </Button>
-            
+          <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
             {/* Notification Bell */}
             <Button variant="ghost" size="sm" className="relative text-slate-400 hover:text-white">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,7 +259,7 @@ export default function Dashboard() {
       </header>
 
       {/* Dashboard Content */}
-      <main className="flex-1 overflow-auto p-6 space-y-6">
+      <main className="flex-1 overflow-auto p-4 md:p-6 space-y-4 md:space-y-6">
         {/* 실시간 가격 및 환율 정보 */}
         <RealTimePrices 
           kimchiData={kimchiData}

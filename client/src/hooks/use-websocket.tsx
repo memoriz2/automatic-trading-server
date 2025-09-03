@@ -44,7 +44,8 @@ export function useWebSocket() {
 
         // 환경별 WebSocket URL 결정
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        let host = window.location.host;
+        const baseHostname = window.location.hostname.replace(/^www\./, '');
+        let host = `${baseHostname}${window.location.port ? `:${window.location.port}` : ''}`;
         
         // 로컬 개발 환경에서만 동적 포트 사용
         if (window.location.hostname === 'localhost') {
