@@ -141,9 +141,9 @@ export async function registerRoutes(
   // kimpga API (완전 통합)
   app.get("/api/kimpga/current", async (req, res) => {
     try {
-      const userId = getUserIdFromRequest(req);
-      const data = await simpleKimchiService.calculateSimpleKimchi(["BTC"], userId);
-      const d = data.find((x) => x.symbol === "BTC");
+      // 대시보드와 완전히 동일한 소스 사용: 실시간 계산 값을 그대로 반환
+      const realtime = realtimeKimchiService.getCurrentKimchiPremium();
+      const d = realtime.find((x) => x.symbol === "BTC");
       res.json({
         kimp: d?.premiumRate ?? null,
         upbit_price: d?.upbitPrice ?? null,
@@ -173,17 +173,91 @@ export async function registerRoutes(
     res.json(m);
   });
 
-  app.get("/api/kimpga/balance", async (_req, res) => {
+  app.get("/api/kimpga/balance", async (req, res) => {
     try {
-      const userId = "1";
+      // 헤더에서 사용자 ID 가져오기 (우선순위: X-User-ID > 세션 > 기본값)
+      const headerUserId = req.headers['x-user-id'] as string;
+      const sessionUserId = getUserIdFromRequest(req);
+      const userId = headerUserId || sessionUserId;
+      console.log(`🔍 [잔고 조회] 요청 사용자 ID: ${userId} (헤더: ${headerUserId}, 세션: ${sessionUserId})`);
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const ex = await storage.getExchangesByUserId(userId);
       const up = ex.find((e: any) => e.exchange === "upbit" && e.isActive);
       const bi = ex.find((e: any) => e.exchange === "binance" && e.isActive);
+      
+      let krw = 0;
+      let btc_upbit = 0;
+      let usdt = 0;
+
+      // 업비트 잔고 조회
+      console.log(`🔍 [잔고 조회] 업비트 설정:`, up ? {
+        hasApiKey: !!up.apiKey,
+        hasApiSecret: !!up.apiSecret,
+        apiKeyLength: up.apiKey?.length || 0
+      } : '없음');
+      
+      if (up && up.apiKey && up.apiSecret) {
+        try {
+          console.log(`💰 [잔고 조회] 업비트 API 호출 시작`);
+          const { UpbitService } = await import('./services/upbit');
+          // 복호화된 API 키 사용
+          const decryptedUpbit = await storage.getDecryptedExchange(userId, 'upbit').catch(() => null);
+          const upApiKey = decryptedUpbit?.apiKey || up.apiKey;
+          const upApiSecret = decryptedUpbit?.apiSecret || up.apiSecret;
+          const upbitService = new UpbitService(upApiKey, upApiSecret);
+          const accounts = await upbitService.getAccounts();
+          console.log(`💰 [잔고 조회] 업비트 계좌 개수: ${accounts.length}`);
+          
+          const krwAccount = accounts.find((account: any) => account.currency === 'KRW');
+          const btcAccount = accounts.find((account: any) => account.currency === 'BTC');
+          
+          krw = krwAccount ? parseFloat(krwAccount.balance) : 0;
+          btc_upbit = btcAccount ? parseFloat(btcAccount.balance) : 0;
+          
+          console.log(`💰 [잔고 조회] 업비트 KRW: ${krw}, BTC: ${btc_upbit}`);
+        } catch (error) {
+          console.error('❌ [잔고 조회] 업비트 잔고 조회 오류:', error);
+        }
+      } else {
+        console.log(`⚠️ [잔고 조회] 업비트 API 키 없음`);
+      }
+
+      // 바이낸스 잔고 조회
+      console.log(`🔍 [잔고 조회] 바이낸스 설정:`, bi ? {
+        hasApiKey: !!bi.apiKey,
+        hasApiSecret: !!bi.apiSecret,
+        apiKeyLength: bi.apiKey?.length || 0
+      } : '없음');
+      
+      if (bi && bi.apiKey && bi.apiSecret) {
+        try {
+          console.log(`💰 [잔고 조회] 바이낸스 API 호출 시작`);
+          const { BinanceService } = await import('./services/binance');
+          // 복호화된 API 키 사용
+          const decryptedBinance = await storage.getDecryptedExchange(userId, 'binance').catch(() => null);
+          const biApiKey = decryptedBinance?.apiKey || bi.apiKey;
+          const biApiSecret = decryptedBinance?.apiSecret || bi.apiSecret;
+          const binanceService = new BinanceService(biApiKey, biApiSecret);
+          usdt = await binanceService.getUSDTBalance();
+          console.log(`💰 [잔고 조회] 바이낸스 USDT: ${usdt}`);
+        } catch (error) {
+          console.error('❌ [잔고 조회] 바이낸스 잔고 조회 오류:', error);
+        }
+      } else {
+        console.log(`⚠️ [잔고 조회] 바이낸스 API 키 없음`);
+      }
+
+      console.log(`✅ [잔고 조회] 최종 결과: KRW=${krw}, BTC=${btc_upbit}, USDT=${usdt}`);
+
       res.json({
-        real: { krw: 0, btc_upbit: 0, usdt: 0 },
+        real: { krw, btc_upbit, usdt },
         connected: { upbit: !!up, binance: !!bi },
       });
     } catch (e) {
+      console.error('❌ [잔고 조회] 전체 오류:', e);
       res.json({ real: { krw: 0, btc_upbit: 0, usdt: 0 } });
     }
   });
@@ -1234,6 +1308,23 @@ export async function registerRoutes(
     } catch (error) {
       console.error("거래 전략 조회 오류:", error);
       res.status(500).json({ error: "거래 전략 조회 중 오류가 발생했습니다" });
+    }
+  });
+
+  // 임시 디버깅: 테이블 구조 확인
+  app.get("/api/debug/table-structure", async (req, res) => {
+    try {
+      const { pool } = await import('./db');
+      const result = await pool.query(`
+        SELECT column_name, data_type, is_nullable, column_default 
+        FROM information_schema.columns 
+        WHERE table_name = 'trading_strategies' 
+        ORDER BY ordinal_position;
+      `);
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("테이블 구조 조회 오류:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 

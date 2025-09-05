@@ -289,7 +289,9 @@ exports.Prisma.TradingStrategyScalarFieldEnum = {
   isAutoTrading: 'isAutoTrading',
   totalTrades: 'totalTrades',
   successfulTrades: 'successfulTrades',
-  totalProfit: 'totalProfit'
+  totalProfit: 'totalProfit',
+  strategyType: 'strategyType',
+  toleranceRate: 'toleranceRate'
 };
 
 exports.Prisma.SortOrder = {

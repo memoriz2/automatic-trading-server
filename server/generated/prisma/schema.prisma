@@ -25,7 +25,7 @@ model User {
   lastLoginAt     DateTime? @map("last_login_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
-  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  passwordHash    String?   @map("password_hash") @db.VarChar(255)
   email           String?   @unique @db.VarChar(100)
   firstName       String?   @map("first_name") @db.VarChar(50)
   lastName        String?   @map("last_name") @db.VarChar(50)
@@ -242,6 +242,8 @@ model TradingStrategy {
   totalTrades      Int      @default(0) @map("total_trades")
   successfulTrades Int      @default(0) @map("successful_trades")
   totalProfit      Decimal  @default("0") @map("total_profit") @db.Decimal(20, 2)
+  strategyType     String   @default("positive_kimchi") @map("strategy_type") @db.VarChar(100)
+  toleranceRate    Decimal  @default("0.1") @map("tolerance_rate") @db.Decimal(10, 4)
 
   // 외래 키 관계 (users 테이블이 정의된 후 활성화)
   // user User @relation(fields: [userId], references: [id])

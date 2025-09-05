@@ -77,7 +77,7 @@ export class MultiStrategyTradingService {
         // BTC 김프율만 확인 (단일 포지션)
         const symbols = ["BTC"];
         const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi(
-          symbols
+          symbols, userId
         );
 
         // 활성 포지션 조회
@@ -357,7 +357,7 @@ export class MultiStrategyTradingService {
         console.log(`⚠️ API 키 미설정, 대체 모드 시작`);
         // API 키가 없는 경우도 대체 모드로 처리
         const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi(
-          [symbol]
+          [symbol], userId
         );
         currentPrice =
           kimchiData.find((d) => d.symbol === symbol)?.upbitPrice || 158000000;
@@ -443,7 +443,7 @@ export class MultiStrategyTradingService {
 
           // 실제 API 실패 시에만 대체 가격 사용
           const kimchiData =
-            await this.simpleKimchiService.calculateSimpleKimchi([symbol]);
+            await this.simpleKimchiService.calculateSimpleKimchi([symbol], userId);
           currentPrice =
             kimchiData.find((d) => d.symbol === symbol)?.upbitPrice ||
             158000000;

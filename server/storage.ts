@@ -556,9 +556,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPosition(insertPosition: InsertPosition): Promise<Position> {
+    const now = new Date();
     const [position] = await db
       .insert(positions)
-      .values(insertPosition)
+      .values({
+        ...insertPosition,
+        createdAt: now,
+        updatedAt: now,
+      })
       .returning();
     return position;
   }
@@ -569,16 +574,24 @@ export class DatabaseStorage implements IStorage {
   ): Promise<Position | undefined> {
     const [position] = await db
       .update(positions)
-      .set(updateData)
+      .set({
+        ...updateData,
+        updatedAt: new Date(),
+      })
       .where(eq(positions.id, id))
       .returning();
     return position || undefined;
   }
 
   async closePosition(id: number): Promise<Position | undefined> {
+    const now = new Date();
     const [position] = await db
       .update(positions)
-      .set({ status: "closed", exitTime: new Date() })
+      .set({ 
+        status: "closed", 
+        exitTime: now,
+        updatedAt: now,
+      })
       .where(eq(positions.id, id))
       .returning();
     return position || undefined;
@@ -632,13 +645,16 @@ export class DatabaseStorage implements IStorage {
   async createOrUpdateTradingStrategy(
     strategy: InsertTradingStrategy
   ): Promise<TradingStrategy> {
+    const userId = typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId!;
+    const strategyName = strategy.name || "김치 프리미엄 전략";
+    
     const existingStrategy = await db
       .select()
       .from(tradingStrategies)
       .where(
         and(
-          eq(tradingStrategies.userId, strategy.userId!),
-          eq(tradingStrategies.name, strategy.name)
+          eq(tradingStrategies.userId, userId),
+          eq(tradingStrategies.name, strategyName)
         )
       );
 
@@ -650,9 +666,32 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updatedStrategy;
     } else {
+      // 기본값을 명시적으로 설정 (모든 필드 포함)
+      const strategyWithDefaults = {
+        userId: typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId!,
+        name: strategy.name || "김치 프리미엄 전략",
+        strategyType: strategy.strategyType || "positive_kimchi",
+        entryRate: strategy.entryRate || "0.5",
+        exitRate: strategy.exitRate || "0.1",
+        toleranceRate: strategy.toleranceRate || "0.1",
+        leverage: strategy.leverage || 3,
+        investmentAmount: strategy.investmentAmount || "100000",
+        isActive: strategy.isActive !== undefined ? strategy.isActive : true,
+        symbol: "BTC", // 기본 심볼
+        tolerance: "0.1", // 허용 오차
+        isAutoTrading: false, // 자동매매 여부
+        totalTrades: 0, // 총 거래 수
+        successfulTrades: 0, // 성공한 거래 수
+        totalProfit: "0", // 총 수익
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      console.log("거래 전략 생성 데이터:", strategyWithDefaults);
+
       const [newStrategy] = await db
         .insert(tradingStrategies)
-        .values(strategy)
+        .values(strategyWithDefaults)
         .returning();
       return newStrategy;
     }

@@ -179,22 +179,28 @@ export const systemAlerts = pgTable("system_alerts", {
 export const tradingStrategies = pgTable("trading_strategies", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
-  name: text("name").notNull(), // '구간 1', '구간 2', etc.
+  name: text("name").notNull().default("김치 프리미엄 전략"), // '구간 1', '구간 2', etc.
   strategyType: text("strategy_type").notNull().default("positive_kimchi"), // 'positive_kimchi', 'negative_kimchi'
-  entryRate: decimal("entry_rate", { precision: 10, scale: 4 }).notNull(), // 진입 김프율
-  exitRate: decimal("exit_rate", { precision: 10, scale: 4 }).notNull(), // 청산 김프율
+  entryRate: decimal("entry_rate", { precision: 10, scale: 4 }).notNull().default("0.5"), // 진입 김프율
+  exitRate: decimal("exit_rate", { precision: 10, scale: 4 }).notNull().default("0.1"), // 청산 김프율
   toleranceRate: decimal("tolerance_rate", {
     precision: 10,
     scale: 4,
-  }).notNull(), // 허용범위
+  }).notNull().default("0.1"), // 허용범위
   leverage: integer("leverage").default(3), // 레버리지
   investmentAmount: decimal("investment_amount", {
     precision: 20,
     scale: 2,
-  }).notNull(), // 투자금액
+  }).notNull().default("100000"), // 투자금액
   isActive: boolean("is_active").default(true), // 활성화 여부
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()),
+  symbol: text("symbol").notNull().default("BTC"), // 거래 심볼
+  tolerance: decimal("tolerance", { precision: 10, scale: 4 }).default("0.1"), // 허용 오차
+  isAutoTrading: boolean("is_auto_trading").default(false), // 자동매매 여부
+  totalTrades: integer("total_trades").default(0), // 총 거래 수
+  successfulTrades: integer("successful_trades").default(0), // 성공한 거래 수
+  totalProfit: decimal("total_profit", { precision: 20, scale: 2 }).default("0"), // 총 수익
 });
 
 // Insert schemas
@@ -269,6 +275,15 @@ export const insertTradingStrategySchema = createInsertSchema(
   tradingStrategies
 ).pick({
   userId: true,
+  name: true,
+  strategyType: true,
+  entryRate: true,
+  exitRate: true,
+  toleranceRate: true,
+  leverage: true,
+  investmentAmount: true,
+  isActive: true,
+}).partial({
   name: true,
   strategyType: true,
   entryRate: true,

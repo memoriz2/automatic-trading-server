@@ -3128,7 +3128,7 @@ export namespace Prisma {
     lastLoginAt: Date | null
     createdAt: Date
     updatedAt: Date
-    passwordHash: string
+    passwordHash: string | null
     email: string | null
     firstName: string | null
     lastName: string | null
@@ -3232,7 +3232,7 @@ export namespace Prisma {
       lastLoginAt: Date | null
       createdAt: Date
       updatedAt: Date
-      passwordHash: string
+      passwordHash: string | null
       email: string | null
       firstName: string | null
       lastName: string | null
@@ -14190,6 +14190,7 @@ export namespace Prisma {
     totalTrades: number | null
     successfulTrades: number | null
     totalProfit: Decimal | null
+    toleranceRate: Decimal | null
   }
 
   export type TradingStrategySumAggregateOutputType = {
@@ -14203,6 +14204,7 @@ export namespace Prisma {
     totalTrades: number | null
     successfulTrades: number | null
     totalProfit: Decimal | null
+    toleranceRate: Decimal | null
   }
 
   export type TradingStrategyMinAggregateOutputType = {
@@ -14222,6 +14224,8 @@ export namespace Prisma {
     totalTrades: number | null
     successfulTrades: number | null
     totalProfit: Decimal | null
+    strategyType: string | null
+    toleranceRate: Decimal | null
   }
 
   export type TradingStrategyMaxAggregateOutputType = {
@@ -14241,6 +14245,8 @@ export namespace Prisma {
     totalTrades: number | null
     successfulTrades: number | null
     totalProfit: Decimal | null
+    strategyType: string | null
+    toleranceRate: Decimal | null
   }
 
   export type TradingStrategyCountAggregateOutputType = {
@@ -14260,6 +14266,8 @@ export namespace Prisma {
     totalTrades: number
     successfulTrades: number
     totalProfit: number
+    strategyType: number
+    toleranceRate: number
     _all: number
   }
 
@@ -14275,6 +14283,7 @@ export namespace Prisma {
     totalTrades?: true
     successfulTrades?: true
     totalProfit?: true
+    toleranceRate?: true
   }
 
   export type TradingStrategySumAggregateInputType = {
@@ -14288,6 +14297,7 @@ export namespace Prisma {
     totalTrades?: true
     successfulTrades?: true
     totalProfit?: true
+    toleranceRate?: true
   }
 
   export type TradingStrategyMinAggregateInputType = {
@@ -14307,6 +14317,8 @@ export namespace Prisma {
     totalTrades?: true
     successfulTrades?: true
     totalProfit?: true
+    strategyType?: true
+    toleranceRate?: true
   }
 
   export type TradingStrategyMaxAggregateInputType = {
@@ -14326,6 +14338,8 @@ export namespace Prisma {
     totalTrades?: true
     successfulTrades?: true
     totalProfit?: true
+    strategyType?: true
+    toleranceRate?: true
   }
 
   export type TradingStrategyCountAggregateInputType = {
@@ -14345,6 +14359,8 @@ export namespace Prisma {
     totalTrades?: true
     successfulTrades?: true
     totalProfit?: true
+    strategyType?: true
+    toleranceRate?: true
     _all?: true
   }
 
@@ -14451,6 +14467,8 @@ export namespace Prisma {
     totalTrades: number
     successfulTrades: number
     totalProfit: Decimal
+    strategyType: string
+    toleranceRate: Decimal
     _count: TradingStrategyCountAggregateOutputType | null
     _avg: TradingStrategyAvgAggregateOutputType | null
     _sum: TradingStrategySumAggregateOutputType | null
@@ -14489,6 +14507,8 @@ export namespace Prisma {
     totalTrades?: boolean
     successfulTrades?: boolean
     totalProfit?: boolean
+    strategyType?: boolean
+    toleranceRate?: boolean
   }, ExtArgs["result"]["tradingStrategy"]>
 
   export type TradingStrategySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -14508,6 +14528,8 @@ export namespace Prisma {
     totalTrades?: boolean
     successfulTrades?: boolean
     totalProfit?: boolean
+    strategyType?: boolean
+    toleranceRate?: boolean
   }, ExtArgs["result"]["tradingStrategy"]>
 
   export type TradingStrategySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -14527,6 +14549,8 @@ export namespace Prisma {
     totalTrades?: boolean
     successfulTrades?: boolean
     totalProfit?: boolean
+    strategyType?: boolean
+    toleranceRate?: boolean
   }, ExtArgs["result"]["tradingStrategy"]>
 
   export type TradingStrategySelectScalar = {
@@ -14546,9 +14570,11 @@ export namespace Prisma {
     totalTrades?: boolean
     successfulTrades?: boolean
     totalProfit?: boolean
+    strategyType?: boolean
+    toleranceRate?: boolean
   }
 
-  export type TradingStrategyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "entryRate" | "exitRate" | "leverage" | "investmentAmount" | "isActive" | "createdAt" | "updatedAt" | "symbol" | "tolerance" | "isAutoTrading" | "totalTrades" | "successfulTrades" | "totalProfit", ExtArgs["result"]["tradingStrategy"]>
+  export type TradingStrategyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "entryRate" | "exitRate" | "leverage" | "investmentAmount" | "isActive" | "createdAt" | "updatedAt" | "symbol" | "tolerance" | "isAutoTrading" | "totalTrades" | "successfulTrades" | "totalProfit" | "strategyType" | "toleranceRate", ExtArgs["result"]["tradingStrategy"]>
 
   export type $TradingStrategyPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "TradingStrategy"
@@ -14570,6 +14596,8 @@ export namespace Prisma {
       totalTrades: number
       successfulTrades: number
       totalProfit: Prisma.Decimal
+      strategyType: string
+      toleranceRate: Prisma.Decimal
     }, ExtArgs["result"]["tradingStrategy"]>
     composites: {}
   }
@@ -15009,6 +15037,8 @@ export namespace Prisma {
     readonly totalTrades: FieldRef<"TradingStrategy", 'Int'>
     readonly successfulTrades: FieldRef<"TradingStrategy", 'Int'>
     readonly totalProfit: FieldRef<"TradingStrategy", 'Decimal'>
+    readonly strategyType: FieldRef<"TradingStrategy", 'String'>
+    readonly toleranceRate: FieldRef<"TradingStrategy", 'Decimal'>
   }
     
 
@@ -15591,7 +15621,9 @@ export namespace Prisma {
     isAutoTrading: 'isAutoTrading',
     totalTrades: 'totalTrades',
     successfulTrades: 'successfulTrades',
-    totalProfit: 'totalProfit'
+    totalProfit: 'totalProfit',
+    strategyType: 'strategyType',
+    toleranceRate: 'toleranceRate'
   };
 
   export type TradingStrategyScalarFieldEnum = (typeof TradingStrategyScalarFieldEnum)[keyof typeof TradingStrategyScalarFieldEnum]
@@ -15814,7 +15846,7 @@ export namespace Prisma {
     lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
-    passwordHash?: StringFilter<"User"> | string
+    passwordHash?: StringNullableFilter<"User"> | string | null
     email?: StringNullableFilter<"User"> | string | null
     firstName?: StringNullableFilter<"User"> | string | null
     lastName?: StringNullableFilter<"User"> | string | null
@@ -15830,7 +15862,7 @@ export namespace Prisma {
     lastLoginAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    passwordHash?: SortOrder
+    passwordHash?: SortOrderInput | SortOrder
     email?: SortOrderInput | SortOrder
     firstName?: SortOrderInput | SortOrder
     lastName?: SortOrderInput | SortOrder
@@ -15850,7 +15882,7 @@ export namespace Prisma {
     lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
-    passwordHash?: StringFilter<"User"> | string
+    passwordHash?: StringNullableFilter<"User"> | string | null
     firstName?: StringNullableFilter<"User"> | string | null
     lastName?: StringNullableFilter<"User"> | string | null
     profileImageUrl?: StringNullableFilter<"User"> | string | null
@@ -15865,7 +15897,7 @@ export namespace Prisma {
     lastLoginAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    passwordHash?: SortOrder
+    passwordHash?: SortOrderInput | SortOrder
     email?: SortOrderInput | SortOrder
     firstName?: SortOrderInput | SortOrder
     lastName?: SortOrderInput | SortOrder
@@ -15889,7 +15921,7 @@ export namespace Prisma {
     lastLoginAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
-    passwordHash?: StringWithAggregatesFilter<"User"> | string
+    passwordHash?: StringNullableWithAggregatesFilter<"User"> | string | null
     email?: StringNullableWithAggregatesFilter<"User"> | string | null
     firstName?: StringNullableWithAggregatesFilter<"User"> | string | null
     lastName?: StringNullableWithAggregatesFilter<"User"> | string | null
@@ -16681,6 +16713,8 @@ export namespace Prisma {
     totalTrades?: IntFilter<"TradingStrategy"> | number
     successfulTrades?: IntFilter<"TradingStrategy"> | number
     totalProfit?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFilter<"TradingStrategy"> | string
+    toleranceRate?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyOrderByWithRelationInput = {
@@ -16700,6 +16734,8 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    strategyType?: SortOrder
+    toleranceRate?: SortOrder
   }
 
   export type TradingStrategyWhereUniqueInput = Prisma.AtLeast<{
@@ -16722,6 +16758,8 @@ export namespace Prisma {
     totalTrades?: IntFilter<"TradingStrategy"> | number
     successfulTrades?: IntFilter<"TradingStrategy"> | number
     totalProfit?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFilter<"TradingStrategy"> | string
+    toleranceRate?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
   }, "id">
 
   export type TradingStrategyOrderByWithAggregationInput = {
@@ -16741,6 +16779,8 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    strategyType?: SortOrder
+    toleranceRate?: SortOrder
     _count?: TradingStrategyCountOrderByAggregateInput
     _avg?: TradingStrategyAvgOrderByAggregateInput
     _max?: TradingStrategyMaxOrderByAggregateInput
@@ -16768,6 +16808,8 @@ export namespace Prisma {
     totalTrades?: IntWithAggregatesFilter<"TradingStrategy"> | number
     successfulTrades?: IntWithAggregatesFilter<"TradingStrategy"> | number
     totalProfit?: DecimalWithAggregatesFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
+    strategyType?: StringWithAggregatesFilter<"TradingStrategy"> | string
+    toleranceRate?: DecimalWithAggregatesFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
   }
 
   export type TradeLogCreateInput = {
@@ -16837,7 +16879,7 @@ export namespace Prisma {
     lastLoginAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    passwordHash: string
+    passwordHash?: string | null
     email?: string | null
     firstName?: string | null
     lastName?: string | null
@@ -16853,7 +16895,7 @@ export namespace Prisma {
     lastLoginAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    passwordHash: string
+    passwordHash?: string | null
     email?: string | null
     firstName?: string | null
     lastName?: string | null
@@ -16868,7 +16910,7 @@ export namespace Prisma {
     lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    passwordHash?: StringFieldUpdateOperationsInput | string
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     firstName?: NullableStringFieldUpdateOperationsInput | string | null
     lastName?: NullableStringFieldUpdateOperationsInput | string | null
@@ -16884,7 +16926,7 @@ export namespace Prisma {
     lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    passwordHash?: StringFieldUpdateOperationsInput | string
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     firstName?: NullableStringFieldUpdateOperationsInput | string | null
     lastName?: NullableStringFieldUpdateOperationsInput | string | null
@@ -16900,7 +16942,7 @@ export namespace Prisma {
     lastLoginAt?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    passwordHash: string
+    passwordHash?: string | null
     email?: string | null
     firstName?: string | null
     lastName?: string | null
@@ -16915,7 +16957,7 @@ export namespace Prisma {
     lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    passwordHash?: StringFieldUpdateOperationsInput | string
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     firstName?: NullableStringFieldUpdateOperationsInput | string | null
     lastName?: NullableStringFieldUpdateOperationsInput | string | null
@@ -16931,7 +16973,7 @@ export namespace Prisma {
     lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    passwordHash?: StringFieldUpdateOperationsInput | string
+    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     firstName?: NullableStringFieldUpdateOperationsInput | string | null
     lastName?: NullableStringFieldUpdateOperationsInput | string | null
@@ -17827,6 +17869,8 @@ export namespace Prisma {
     totalTrades?: number
     successfulTrades?: number
     totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyUncheckedCreateInput = {
@@ -17846,6 +17890,8 @@ export namespace Prisma {
     totalTrades?: number
     successfulTrades?: number
     totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyUpdateInput = {
@@ -17864,6 +17910,8 @@ export namespace Prisma {
     totalTrades?: IntFieldUpdateOperationsInput | number
     successfulTrades?: IntFieldUpdateOperationsInput | number
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyUncheckedUpdateInput = {
@@ -17883,6 +17931,8 @@ export namespace Prisma {
     totalTrades?: IntFieldUpdateOperationsInput | number
     successfulTrades?: IntFieldUpdateOperationsInput | number
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyCreateManyInput = {
@@ -17902,6 +17952,8 @@ export namespace Prisma {
     totalTrades?: number
     successfulTrades?: number
     totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyUpdateManyMutationInput = {
@@ -17920,6 +17972,8 @@ export namespace Prisma {
     totalTrades?: IntFieldUpdateOperationsInput | number
     successfulTrades?: IntFieldUpdateOperationsInput | number
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
   export type TradingStrategyUncheckedUpdateManyInput = {
@@ -17939,6 +17993,8 @@ export namespace Prisma {
     totalTrades?: IntFieldUpdateOperationsInput | number
     successfulTrades?: IntFieldUpdateOperationsInput | number
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -18954,6 +19010,8 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    strategyType?: SortOrder
+    toleranceRate?: SortOrder
   }
 
   export type TradingStrategyAvgOrderByAggregateInput = {
@@ -18967,6 +19025,7 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    toleranceRate?: SortOrder
   }
 
   export type TradingStrategyMaxOrderByAggregateInput = {
@@ -18986,6 +19045,8 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    strategyType?: SortOrder
+    toleranceRate?: SortOrder
   }
 
   export type TradingStrategyMinOrderByAggregateInput = {
@@ -19005,6 +19066,8 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    strategyType?: SortOrder
+    toleranceRate?: SortOrder
   }
 
   export type TradingStrategySumOrderByAggregateInput = {
@@ -19018,6 +19081,7 @@ export namespace Prisma {
     totalTrades?: SortOrder
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
+    toleranceRate?: SortOrder
   }
 
   export type DateTimeFieldUpdateOperationsInput = {

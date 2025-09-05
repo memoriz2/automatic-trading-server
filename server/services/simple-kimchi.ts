@@ -6,6 +6,7 @@ import fetch from 'node-fetch';
 import { naverExchange } from './naver-exchange.js';
 import { createHmac } from 'crypto';
 import { storage } from '../storage.js';
+import { googleFinanceExchange } from './google-finance-exchange.js';
 
 export interface SimpleKimchiData {
   symbol: string;
@@ -77,8 +78,11 @@ export class SimpleKimchiService {
   async calculateSimpleKimchi(symbols: string[], userId?: string): Promise<SimpleKimchiData[]> {
     const results: SimpleKimchiData[] = [];
 
-    // 실시간 USD→KRW 환율 조회 (캐시된 값 사용)
-    const usdKrwRate = naverExchange.getCurrentRate();
+    // USD→KRW 환율: 구글 파이낸스 우선 → EMA → 네이버 현재값
+    const gf = googleFinanceExchange.getCurrentRate();
+    const ema = priceCache.getUsdtKrwEma();
+    const fallback = naverExchange.getCurrentRate();
+    const usdKrwRate = (gf && gf > 1000 && gf < 2000) ? gf : (ema ?? fallback);
 
     for (const symbol of symbols) {
       try {

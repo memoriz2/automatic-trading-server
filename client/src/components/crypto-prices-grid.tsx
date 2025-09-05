@@ -143,7 +143,7 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">바이낸스(KRW)</span>
+                    <span className="text-slate-400">바이낸스 선물(KRW)</span>
                     <span className="font-mono text-yellow-400">
                       ₩<NumberDisplay 
                         value={data.binancePriceKRW || ((data.binanceFuturesPrice || data.binancePrice || 0) * (data.usdKrwRate || data.exchangeRate || 1391))}
@@ -152,7 +152,7 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     </span>
                   </div>
                   <div className="flex justify-between text-xs border-t border-slate-600 pt-2">
-                    <span className="text-slate-500">바이낸스(USD)</span>
+                    <span className="text-slate-500">바이낸스 선물(USD)</span>
                     <span className="font-mono text-slate-300">
                       $<NumberDisplay 
                         value={data.binanceFuturesPrice || data.binancePrice}

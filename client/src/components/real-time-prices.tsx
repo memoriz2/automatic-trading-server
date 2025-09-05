@@ -108,7 +108,7 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
               <span className="text-sm text-slate-400">바이낸스 선물</span>
               <span className="font-mono text-yellow-400">
                 $<NumberDisplay 
-                  value={stableBtcData?.binancePrice || 152861189}
+                  value={stableBtcData?.binanceFuturesPrice || 110756.90}
                   formatter={(v) => v.toLocaleString()}
                 />
               </span>
