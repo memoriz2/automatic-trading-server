@@ -150,9 +150,16 @@ model Session {
   sid     String   @id
   sess    Json     @db.JsonB
   expire  DateTime
+  userId  Int?
+  ip      String?  @db.VarChar(64)
+  userAgent String?
+  createdAt DateTime? @default(now())
+  lastAccessAt DateTime?
   
   @@map("sessions")
   @@index([expire], name: "IDX_session_expire")
+  @@index([userId], name: "idx_sessions_user")
+  @@index([lastAccessAt], name: "idx_sessions_last_access")
 }
 
 model SystemAlert {

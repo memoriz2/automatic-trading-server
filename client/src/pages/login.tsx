@@ -33,7 +33,8 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify(loginForm),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -43,21 +44,16 @@ export default function LoginPage() {
         throw new Error(data.message || '로그인에 실패했습니다');
       }
 
-      if (data.token) {
-        console.log('토큰 받음, 인증 상태 업데이트 중...');
-        // 즉시 인증 상태 업데이트
-        login(data.user, data.token);
-        
+      // 쿠키 기반 인증: 서버가 HttpOnly 쿠키를 설정하므로 토큰 없이 사용자만 갱신
+      if (data.user) {
+        login(data.user, undefined as any);
         toast({
           title: "로그인 성공",
           description: `${data.user.username}님, 환영합니다!`,
         });
-
-        console.log('대시보드로 이동 중...');
-        // 약간의 지연 후 이동
         setTimeout(() => {
           setLocation('/');
-          window.location.reload(); // 강제 새로고침으로 확실히 상태 업데이트
+          window.location.reload();
         }, 100);
       }
     } catch (error: any) {
@@ -80,7 +76,8 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(registerForm),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
       });
 
       const data = await response.json();
@@ -89,16 +86,12 @@ export default function LoginPage() {
         throw new Error(data.message || '회원가입에 실패했습니다');
       }
 
-      if (data.token) {
-        // 즉시 인증 상태 업데이트
-        login(data.user, data.token);
-        
+      if (data.user) {
+        login(data.user, undefined as any);
         toast({
           title: "회원가입 성공",
           description: `${data.user.username}님, 환영합니다! 계정이 생성되었습니다.`,
         });
-
-        // 대시보드로 이동
         setLocation('/');
       }
     } catch (error: any) {

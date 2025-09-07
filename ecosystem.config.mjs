@@ -1,18 +1,19 @@
+// 로컬 개발용 설정 (PORT 5001 고정)
 export default {
   apps: [{
-    name: 'trading-server',
-    script: './dist/server/index.js',
+    name: 'trading-server-dev',
+    script: './server/index.ts',
+    interpreter: 'tsx',
     instances: 1,
     exec_mode: 'fork',
     env: {
-      NODE_ENV: 'production',
+      NODE_ENV: 'development',
       PORT: 5001
     },
-    log_file: './logs/combined.log',
-    out_file: './logs/out.log',
-    error_file: './logs/error.log',
-    max_memory_restart: '1G',
-    max_restarts: 10,
-    min_uptime: '10s'
+    watch: ['server', 'client'],
+    ignore_watch: ['node_modules', 'dist', 'logs'],
+    log_file: './logs/dev.log',
+    out_file: './logs/dev-out.log',
+    error_file: './logs/dev-error.log'
   }]
 };

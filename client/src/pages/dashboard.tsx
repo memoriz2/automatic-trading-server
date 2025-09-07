@@ -26,8 +26,7 @@ export default function Dashboard() {
   // 세션에서 로그인한 사용자 ID 사용 (로그인 필수)
   const userId = user?.id;
   
-  // 디버깅: 사용자 정보 확인
-  console.log('👤 대시보드 사용자 정보:', { user, userId });
+  // 디버깅 로그 제거
 
   // 서버 포트 동적 감지
   const getServerPort = async (): Promise<number> => {
@@ -48,7 +47,6 @@ export default function Dashboard() {
           const response = await fetch(`http://localhost:${port}/api/server-info`);
           if (response.ok) {
             const serverInfo = await response.json();
-            console.log(`✅ 서버 발견: 포트 ${port}`, serverInfo);
             return port;
           }
         } catch (e) {
@@ -58,7 +56,6 @@ export default function Dashboard() {
       
       return 5000; // 기본값
     } catch (error) {
-      console.error('서버 포트 감지 실패:', error);
       return 5000;
     }
   };
@@ -67,7 +64,6 @@ export default function Dashboard() {
   const { data: exchangeRateData, error: exchangeRateError } = useQuery({
     queryKey: ['/api/exchange-rate'],
     queryFn: async () => {
-      console.log('환율 API 호출 시작');
       
       // 서버 포트 동적 감지
       const serverPort = await getServerPort();
@@ -77,22 +73,16 @@ export default function Dashboard() {
       
       // 로컬 개발 환경에서만 동적 포트 사용
       if (window.location.hostname === 'localhost' && window.location.port !== serverPort.toString()) {
-        console.log(`로컬 개발 환경 감지: localhost:${serverPort} 사용`);
         apiUrl = `http://localhost:${serverPort}/api/exchange-rate`;
       } else {
-        console.log('서버 환경 또는 같은 포트: 상대 경로 사용');
+        
       }
-      
-      console.log('최종 API URL:', apiUrl);
       
       try {
         const response = await apiRequest('GET', apiUrl);
-        console.log('API 응답 상태:', response.status, response.statusText);
         const data = await response.json();
-        console.log('환율 API 응답:', data);
         return data;
       } catch (error) {
-        console.error('환율 API 호출 중 오류 발생:', error);
         throw error;
       }
     },
@@ -105,24 +95,15 @@ export default function Dashboard() {
   const { data: positions = [], refetch: refetchPositions, isLoading: isLoadingPositions, error: positionsError } = useQuery<Position[]>({
     queryKey: ['/api/positions', userId], // 올바른 queryKey 형식
     queryFn: async () => {
-      console.log(`[CLIENT] Fetching positions for userId: ${userId}`);
-      if (!token) {
-        console.error('[CLIENT] No token available for fetching positions.');
-        throw new Error('Authentication token is missing.');
-      }
-      const response = await fetch(`/api/positions`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await fetch(`/api/positions`, { credentials: 'include' });
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[CLIENT] Failed to fetch positions: ${response.status} ${errorText}`);
         throw new Error(`Failed to fetch positions: ${errorText}`);
       }
       const data = await response.json();
-      console.log(`[CLIENT] Fetched positions data:`, data);
       return data;
     },
-    enabled: !!userId && !!token,
+    enabled: !!userId,
   });
 
   const { data: trades = [] } = useQuery<Trade[]>({
@@ -207,26 +188,22 @@ export default function Dashboard() {
 
   // 환율 데이터 업데이트
   useEffect(() => {
-    console.log('🔍 환율 데이터 체크:', exchangeRateData);
     if (typeof exchangeRateData?.rate === 'number') {
       const newRate = exchangeRateData.rate;
-      console.log('📊 새로운 환율 데이터:', newRate, '현재 환율:', currentExchangeRate);
       if (newRate !== currentExchangeRate) {
         setPreviousExchangeRate(currentExchangeRate);
         setCurrentExchangeRate(newRate);
-        console.log('💰 대시보드 환율 업데이트:', currentExchangeRate, '→', newRate);
       } else {
-        console.log('⚪ 환율 변경 없음:', newRate);
+        
       }
     } else {
-      console.log('❌ 환율 데이터 없음 또는 형식 오류');
+      
     }
   }, [exchangeRateData]);
 
   // 환율 에러 처리
   useEffect(() => {
     if (exchangeRateError) {
-      console.error('환율 API 에러:', exchangeRateError);
       toast({
         title: "환율 정보 오류",
         description: "실시간 환율을 가져올 수 없습니다.",
@@ -236,11 +213,7 @@ export default function Dashboard() {
   }, [exchangeRateError, toast]);
 
   useEffect(() => {
-    if (isLoadingPositions) {
-      console.log('[CLIENT] Positions are loading...');
-    }
     if (positionsError) {
-      console.error('[CLIENT] Error fetching positions:', positionsError);
       toast({
         title: "포지션 로딩 실패",
         description: positionsError.message,
@@ -269,37 +242,19 @@ export default function Dashboard() {
   };
 
   const handleClosePosition = async (positionId: number) => {
-    console.log(`[클라이언트] 포지션 청산 함수 호출됨. ID: ${positionId}`);
     try {
-      console.log(`[클라이언트] 인증 토큰 확인 중... 토큰 존재 여부: ${token ? '있음' : '없음'}`);
-      if (!token) {
-        toast({
-          title: "인증 오류",
-          description: "인증 토큰을 찾을 수 없습니다. 다시 로그인해주세요.",
-          variant: "destructive",
-        });
-        throw new Error("Auth token not found");
-      }
-      
-      console.log(`[클라이언트] 서버에 청산 요청 전송: POST /api/positions/${positionId}/close`);
       const res = await fetch(`/api/positions/${positionId}/close`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        credentials: 'include',
       });
-
-      console.log(`[클라이언트] 서버 응답 수신. 상태 코드: ${res.status}`);
 
       if (!res.ok) {
         const errorData = await res.json();
         const errorMessage = errorData.error || errorData.message || '알 수 없는 서버 오류';
-        console.error('[클라이언트] 서버가 오류를 반환했습니다:', errorMessage);
         throw new Error(errorMessage);
       }
 
       const result = await res.json();
-      console.log('[클라이언트] 포지션 청산 성공. 서버 응답:', result);
 
       toast({
         title: "성공",
@@ -307,7 +262,6 @@ export default function Dashboard() {
       });
       refetchPositions();
     } catch (error) {
-      console.error("[클라이언트] 포지션 청산 요청 실패:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "오류",

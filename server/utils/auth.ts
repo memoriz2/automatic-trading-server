@@ -1,8 +1,15 @@
+// @ts-ignore
 import bcrypt from 'bcrypt';
+// @ts-ignore
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'kimchi-premium-jwt-secret-2025';
+const JWT_SECRET: string = (() => {
+  const value = process.env.JWT_SECRET;
+  if (value) return value;
+  if (process.env.NODE_ENV !== 'production') return 'dev-only-secret';
+  throw new Error('JWT_SECRET 환경변수가 설정되지 않았습니다');
+})();
 const SALT_ROUNDS = 12;
 
 /**
@@ -59,8 +66,9 @@ export function verifyToken(token: string): { userId: number; username: string }
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
   console.log(`[서버 인증] 미들웨어 실행: ${req.method} ${req.originalUrl}`);
   const authHeader = req.headers['authorization'];
+  const cookieToken = (req as any).cookies?.access_token as string | undefined;
   console.log(`[서버 인증] Authorization 헤더 수신: ${authHeader}`);
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = (authHeader && authHeader.split(' ')[1]) || cookieToken; // Bearer TOKEN or Cookie
 
   if (!token) {
     console.log('[서버 인증] 실패: 요청에 토큰이 없습니다. (401 반환)');

@@ -51,11 +51,10 @@ import {
   generateToken,
   validatePasswordStrength,
   validateUsername,
+  verifyToken,
 } from "./utils/auth.js";
+// @ts-ignore
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 /**
  * JWT 토큰에서 사용자 ID 추출
@@ -67,8 +66,8 @@ function getUserIdFromToken(authHeader?: string): string | null {
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    return decoded.userId || null;
+    const decoded = verifyToken(token);
+    return decoded?.userId ? String(decoded.userId) : null;
   } catch (error) {
     console.error('JWT 토큰 검증 실패:', error);
     return null;
@@ -359,11 +358,7 @@ export async function registerRoutes(
       console.log("사용자 생성 완료:", user.id, user.username);
 
       // JWT 토큰 생성
-      const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        JWT_SECRET,
-        { expiresIn: "24h" }
-      );
+      const token = generateToken(user.id, user.username);
 
       res.status(201).json({
         message: "회원가입이 완료되었습니다",
@@ -383,8 +378,16 @@ export async function registerRoutes(
     }
   });
 
+  // 세션 인증 미들웨어
+  function authenticateSession(req: any, res: any, next: any) {
+    const u = req.session?.user;
+    if (!u) return res.status(401).json({ message: '로그인이 필요합니다' });
+    req.user = u;
+    next();
+  }
+
   // 로그인
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", async (req: any, res) => {
     try {
       // CORS 헤더 추가
       res.header("Access-Control-Allow-Origin", "*");
@@ -422,12 +425,21 @@ export async function registerRoutes(
       console.log("로그인 성공:", user.username);
 
       // JWT 토큰 생성
-      const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        JWT_SECRET,
-        { expiresIn: "24h" }
-      );
+      const token = generateToken(user.id, user.username);
 
+      // 서버 세션 저장 (쿠키 connect.sid)
+      req.session.user = { id: user.id, username: user.username, role: user.role };
+      // 세션 행에 감사 정보 기록 (스키마에 컬럼 추가 시 반영)
+      try {
+        const { prisma } = await import('./db.js');
+        await prisma.$executeRawUnsafe(
+          `UPDATE sessions SET user_id=$1, ip=$2, user_agent=$3, created_at=COALESCE(created_at, now()), last_access_at=now() WHERE sid=$4`,
+          user.id,
+          req.ip || null,
+          req.headers['user-agent'] || null,
+          req.sessionID
+        );
+      } catch {}
       res.json({
         message: "로그인 성공",
         user: {
@@ -435,7 +447,6 @@ export async function registerRoutes(
           username: user.username,
           role: user.role,
         },
-        token,
       });
     } catch (error: any) {
       console.error("로그인 오류:", error);
@@ -447,9 +458,9 @@ export async function registerRoutes(
   });
 
   // 현재 사용자 정보 조회
-  app.get("/api/auth/me", authenticateToken, async (req, res) => {
+  app.get("/api/auth/me", authenticateSession, async (req: any, res) => {
     try {
-      const userId = (req as any).user.userId;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
 
       if (!user) {
@@ -467,6 +478,15 @@ export async function registerRoutes(
         .status(500)
         .json({ message: "사용자 정보 조회 중 오류가 발생했습니다" });
     }
+  });
+
+  // 로그아웃: 세션 파기
+  app.post('/api/auth/logout', async (req: any, res) => {
+    const sid = req.sessionID;
+    req.session.destroy(() => {
+      res.clearCookie('connect.sid', { path: '/' });
+      res.json({ message: '로그아웃 되었습니다', sid });
+    });
   });
 
   // Download endpoint
@@ -640,10 +660,10 @@ export async function registerRoutes(
   // 거래 설정 조회
   app.get(
     "/api/trading-settings/:userId",
-    authenticateToken,
-    async (req, res) => {
+    authenticateSession,
+    async (req: any, res) => {
       try {
-        const userId = (req as any).user.userId; // 인증된 사용자 ID 사용
+        const userId = req.user.id; // 인증된 사용자 ID 사용
         console.log(`거래 설정 조회 요청: userId=${userId}`);
 
         const settings = await storage.getTradingSettingsByUserId(String(userId));
@@ -679,9 +699,9 @@ export async function registerRoutes(
   // 거래 설정 업데이트 (디버깅 로그 강화)
   app.put(
     "/api/trading-settings/:userId",
-    authenticateToken,
-    async (req, res) => {
-      const authenticatedUserId = (req as any).user.userId; // 인증된 사용자 ID
+    authenticateSession,
+    async (req: any, res) => {
+      const authenticatedUserId = req.user.id; // 인증된 사용자 ID
       try {
         console.log(
           `[${new Date().toISOString()}] PUT /api/trading-settings/${authenticatedUserId} body:`,
@@ -758,10 +778,10 @@ export async function registerRoutes(
     }
   );
 
-  // 활성 포지션 조회 (인증 기반, 권장)
-  app.get("/api/positions", authenticateToken, async (req, res) => {
+  // 활성 포지션 조회 (세션 인증)
+  app.get("/api/positions", authenticateSession, async (req: any, res) => {
     try {
-      const userId = String((req as any).user.userId);
+      const userId = String(req.user.id);
       const positions = await storage.getActivePositions(userId);
       res.json(positions);
     } catch (error) {

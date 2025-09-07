@@ -2,8 +2,8 @@ import { UpbitService } from "./upbit.js";
 import { BinanceService } from "./binance.js";
 import { SimpleKimchiService } from "./simple-kimchi.js";
 import { storage } from "../storage.js";
-import { Prisma } from "../generated/prisma";
-import type { TradingSetting as TradingSettings, Position, TradingStrategy } from "../generated/prisma";
+import { Prisma } from "../../generated/prisma";
+import type { TradingSetting as TradingSettings, Position, TradingStrategy } from "../../generated/prisma";
 
 export interface StrategySignal {
   symbol: string;

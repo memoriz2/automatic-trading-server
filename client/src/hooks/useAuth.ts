@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiFetch } from '@/lib/queryClient';
 
 interface User {
   id: number;
@@ -22,50 +22,64 @@ export function useAuth() {
     token: null
   });
 
-  // 토큰 확인 및 사용자 정보 로드
+  // 초기 로드: 서버 세션(쿠키)로 현재 사용자 조회 → 실패 시 세션스토리지 폴백
   useEffect(() => {
-    try {
-      const storedToken = sessionStorage.getItem('authToken');
-      const storedUser = sessionStorage.getItem('user');
-
-      if (storedToken && storedUser) {
-        setAuthState({
-          user: JSON.parse(storedUser),
-          isAuthenticated: true,
-          isLoading: false,
-          token: storedToken,
-        });
-      } else {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch('/api/auth/me');
+        const user = await res.json();
+        if (!cancelled) {
+          sessionStorage.setItem('user', JSON.stringify(user));
+          setAuthState({ user, isAuthenticated: true, isLoading: false, token: null });
+          return;
+        }
+      } catch {
+        // 쿠키 세션이 없거나 만료됨 → 세션스토리지 폴백 시도
+        try {
+          const storedUser = sessionStorage.getItem('user');
+          const storedToken = sessionStorage.getItem('authToken');
+          if (storedUser) {
+            setAuthState({
+              user: JSON.parse(storedUser),
+              isAuthenticated: true,
+              isLoading: false,
+              token: storedToken,
+            });
+          } else {
+            setAuthState(prev => ({ ...prev, isLoading: false }));
+          }
+        } catch {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+        }
       }
-    } catch (error) {
-      console.error("Failed to parse auth data from sessionStorage", error);
-      setAuthState(prev => ({ ...prev, isLoading: false }));
-    }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
-  const login = (user: User, token: string) => {
-    sessionStorage.setItem('authToken', token);
+  const login = (user: User, token?: string) => {
+    // 쿠키 기반 인증이 기본: 토큰이 있으면 저장, 없으면 쿠키만 사용
+    if (token) {
+      sessionStorage.setItem('authToken', token);
+    } else {
+      sessionStorage.removeItem('authToken');
+    }
     sessionStorage.setItem('user', JSON.stringify(user));
     setAuthState({
-      user: { ...user, token },
+      user: token ? { ...user, token } : { ...user },
       isAuthenticated: true,
       isLoading: false,
-      token
+      token: token ?? null,
     });
   };
 
-  const logout = () => {
-    console.log('useAuth logout 함수 실행');
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('user');
-    setAuthState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-      token: null
-    });
-    console.log('인증 상태 업데이트 완료:', { isAuthenticated: false });
+    setAuthState({ user: null, isAuthenticated: false, isLoading: false, token: null });
   };
 
   return {
@@ -77,18 +91,15 @@ export function useAuth() {
 
 // 인증이 필요한 API 요청을 위한 헬퍼 함수
 export async function authenticatedApiRequest(url: string, options: RequestInit = {}) {
+  // 기본: 쿠키 기반. 필요 시 세션 토큰이 있으면 Authorization 헤더 추가
   const token = sessionStorage.getItem('authToken');
-  
-  if (!token) {
-    throw new Error('인증 토큰이 없습니다');
-  }
-
   const response = await fetch(url, {
+    credentials: 'include',
     ...options,
     headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     }
   });
 

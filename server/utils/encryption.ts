@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+// @ts-ignore
 import CryptoJS from 'crypto-js';
 
 // 환경변수에서 마스터 키 가져오기 (없으면 기본값 생성)

@@ -1,5 +1,5 @@
 import { prisma } from "./db.js";
-import { Prisma } from "./generated/prisma";
+import { Prisma } from "../generated/prisma";
 import type {
   User,
   Exchange,
@@ -10,7 +10,7 @@ import type {
   Position,
   Trade,
   SystemAlert,
-} from "./generated/prisma";
+} from "../generated/prisma";
 import { hashPassword, verifyPassword } from "./utils/auth.js";
 import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
 

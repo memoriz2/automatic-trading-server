@@ -3,7 +3,7 @@
 
 // server/db.ts
 import 'dotenv/config';
-import { PrismaClient } from './generated/prisma';
+import { PrismaClient } from '../generated/prisma';
 
 // Prisma 클라이언트 (싱글톤)
 export const prisma = new PrismaClient();

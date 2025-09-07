@@ -29,6 +29,12 @@ export async function apiRequest(
   return res;
 }
 
+export async function apiFetch(url: string, init: RequestInit = {}) {
+  const res = await fetch(url, { credentials: 'include', ...init });
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  return res;
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;

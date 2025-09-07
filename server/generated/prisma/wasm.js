@@ -221,7 +221,12 @@ exports.Prisma.PositionScalarFieldEnum = {
 exports.Prisma.SessionScalarFieldEnum = {
   sid: 'sid',
   sess: 'sess',
-  expire: 'expire'
+  expire: 'expire',
+  userId: 'userId',
+  ip: 'ip',
+  userAgent: 'userAgent',
+  createdAt: 'createdAt',
+  lastAccessAt: 'lastAccessAt'
 };
 
 exports.Prisma.SystemAlertScalarFieldEnum = {

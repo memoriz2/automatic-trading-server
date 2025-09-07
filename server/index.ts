@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
 import { createServer } from "http"; // ✅ 추가
+import path from 'path';
+import fs from 'fs';
 
 // ✅ 환경변수 로깅 추가
 console.log(`🚀 [${new Date().toISOString()}] 서버 시작 중...`);
@@ -52,8 +54,53 @@ const logError = (message: string, error?: any) => {
 };
 
 const app = express();
+// 리버스 프록시(HTTPS) 뒤에서 secure 쿠키 신뢰
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+// 쿠키 파싱 (JWT 쿠키 사용)
+import cookieParser from 'cookie-parser';
+// @ts-ignore
+import session from 'express-session';
+// @ts-ignore
+import connectPgSimple from 'connect-pg-simple';
+import { prisma } from './db.js';
+app.use(cookieParser());
+
+// 서버 세션(쿠키 기반) 설정
+const PgSession = connectPgSimple(session);
+app.use(
+  session({
+    store: new PgSession({
+      conString: process.env.DATABASE_URL as string,
+      tableName: 'sessions',
+      createTableIfMissing: false,
+    }),
+    secret: (process.env.SESSION_SECRET as string) || 'dev-session-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
+    },
+  })
+);
+
+// 요청마다 마지막 활동 시각을 가볍게 갱신 (실패 무시)
+app.use((req, _res, next) => {
+  const user = (req as any).session?.user;
+  if (user && (req as any).sessionID) {
+    prisma.$executeRawUnsafe(
+      `UPDATE sessions SET last_access_at=now(), user_id=COALESCE(user_id, $1) WHERE sid=$2`,
+      user.id,
+      (req as any).sessionID
+    ).catch(() => {});
+  }
+  next();
+});
 
 // ✅ 정적 파일 접근 로그 미들웨어 추가
 app.use((req, res, next) => {
@@ -156,11 +203,23 @@ app.get("/healthz", (_req: Request, res: Response) => {
   logInfo(`🌐 환경 설정 중... NODE_ENV: ${app.get("env")}`);
   if (app.get("env") === "development") {
     logInfo(`⚡ Vite 개발 서버 설정 중...`);
-    await setupVite(app, server); // ✅ 3) 같은 server를 Vite에도 넘김
+    const { setupVite } = await import('./vite');
+    await setupVite(app, server);
     logInfo(`✅ Vite 개발 서버 설정 완료`);
   } else {
     logInfo(`📁 정적 파일 서빙 설정 중...`);
-    serveStatic(app);
+    const distPath = path.resolve(process.cwd(), 'dist', 'public');
+    if (!fs.existsSync(distPath)) {
+      console.warn(`정적 빌드 디렉토리가 없습니다: ${distPath}. 클라이언트 빌드를 먼저 수행하세요.`);
+    } else {
+      app.use(express.static(distPath));
+      app.use("*", (req, res, next) => {
+        if (req.originalUrl.startsWith('/api/') || req.originalUrl.startsWith('/ws') || req.originalUrl.startsWith('/healthz')) {
+          return next();
+        }
+        res.sendFile(path.resolve(distPath, 'index.html'));
+      });
+    }
     logInfo(`✅ 정적 파일 서빙 설정 완료`);
   }
 
@@ -196,7 +255,7 @@ app.get("/healthz", (_req: Request, res: Response) => {
     );
     logInfo(`🌐 서버 주소: http://localhost:${port}`);
     logInfo(`🔗 API 엔드포인트: http://localhost:${port}/api`);
-    log(`serving on port ${port}`);
+    logInfo(`serving on port ${port}`);
   });
 
   // ✅ 서버 에러 핸들링 추가
