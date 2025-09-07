@@ -13,6 +13,7 @@ export interface SimpleKimchiData {
   upbitPrice: number;     // 업비트 KRW 가격
   binanceFuturesPrice: number;  // 바이낸스 현물 USD 가격
   usdKrwRate: number;     // 구글 파이낸스 USD→KRW 환율
+  usdKrwSource?: string; // 환율 출처 (e.g., 'GOOGLE', 'NAVER', 'EMA')
   binancePriceKRW: number; // 바이낸스 가격을 KRW로 변환한 값 (바이낸스USD × 환율)
   premiumRate: number;    // 김프율 (%) - kimpga 방식: (업비트KRW - 바이낸스KRW) / 바이낸스KRW × 100
   timestamp: string;
@@ -105,13 +106,13 @@ export class SimpleKimchiService {
         const binancePriceKRW = binanceFuturesPrice * usdKrwRate; // 바이낸스 USD를 KRW로 변환
         const premiumRate = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;
 
-        console.log(`${symbol} 김프율 계산 (kimpga 방식-현물):`, {
-          업비트가격: `${upbitPrice.toLocaleString()}원`,
-          바이낸스현물가격: `${binanceFuturesPrice.toLocaleString()} USD`,
-          바이낸스가격KRW: `${binancePriceKRW.toLocaleString()}원`,
-          환율: `${usdKrwRate.toFixed(2)}원/USD`,
-          김프율: `${premiumRate.toFixed(3)}%`
-        });
+        // console.log(`${symbol} 김프율 계산 (kimpga 방식-선물Last):`, {
+        //   업비트가격: `${upbitPrice.toLocaleString()}원`,
+        //   바이낸스선물가격: `${binanceFuturesPrice.toLocaleString()} USD`,
+        //   바이낸스가격KRW: `${binancePriceKRW.toLocaleString()}원`,
+        //   환율: `${usdKrwRate.toFixed(2)}원/USD`,
+        //   김프율: `${premiumRate.toFixed(3)}%`
+        // });
 
         results.push({
           symbol,

@@ -6,12 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth"; // useAuth 훅 가져오기
 import { Play, Square, Settings, TrendingUp, AlertTriangle, Zap, DollarSign, Activity, Rocket } from "lucide-react";
 import type { TradingSettings } from "@/types/trading";
 
 export default function UltraTrading() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth(); // 사용자 정보 가져오기
+  const userId = user?.id || 1; // 사용자 ID 사용, 없으면 기본값 1
 
   // 설정 상태 (음수 김프 전략)
   const [config, setConfig] = useState({
@@ -36,7 +39,7 @@ export default function UltraTrading() {
       console.log('🚀 울트라 자동매매 시작!', config);
       
       // Step 1: 설정 저장
-      const settingsRes = await fetch('/api/trading-settings/1', {
+      const settingsRes = await fetch(`/api/trading-settings/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -56,7 +59,7 @@ export default function UltraTrading() {
       console.log('✅ 설정 저장 완료');
 
       // Step 2: 자동매매 시작
-      const startRes = await fetch('/api/new-kimchi-trading/start/1', {
+      const startRes = await fetch(`/api/new-kimchi-trading/start/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -123,46 +123,28 @@ export default function Settings() {
     setConnectionTestResult(null);
 
     try {
-      // userId를 숫자로 변환하여 전송
-      const numericUserId = userId ? (parseInt(userId.toString()) || userId) : userId;
-      console.log('📤 서버로 전송할 데이터:', {
-        exchange: exchangeName,
-        userId: numericUserId,
-        userIdType: typeof numericUserId
-      });
-
-      const response = await fetch('/api/test-exchange-connection', {
+      const response = await authenticatedApiRequest('/api/test-exchange-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           exchange: exchangeName,
-          userId: numericUserId
         })
       });
-
-      console.log('🌐 서버 응답 상태:', response.status, response.statusText);
       
-      let result;
-      try {
-        result = await response.json();
-        console.log('📥 서버 응답 데이터:', result);
-      } catch (jsonError) {
-        console.error('JSON 파싱 오류:', jsonError);
-        result = { success: false, error: 'JSON 파싱 실패', details: await response.text() };
-      }
+      console.log('📥 서버 응답 데이터:', response);
       
-      setConnectionTestResult(result);
+      setConnectionTestResult(response);
 
-      if (result.success) {
+      if (response.success) {
         toast({
           title: "연동 테스트 성공! 🎉",
-          description: result.message,
+          description: response.message,
           variant: "default"
         });
       } else {
         toast({
           title: "연동 테스트 실패 ❌",
-          description: `${result.message}: ${result.error}`,
+          description: `${response.message}: ${response.error}`,
           variant: "destructive"
         });
       }

@@ -1,36 +1,136 @@
-import {
-  users,
-  exchanges,
-  cryptocurrencies,
-  kimchiPremiums,
-  tradingSettings,
-  tradingStrategies,
-  positions,
-  trades,
-  systemAlerts,
-  type User,
-  type InsertUser,
-  type Exchange,
-  type InsertExchange,
-  type Cryptocurrency,
-  type InsertCryptocurrency,
-  type KimchiPremium,
-  type InsertKimchiPremium,
-  type TradingSettings,
-  type InsertTradingSettings,
-  type TradingStrategy,
-  type InsertTradingStrategy,
-  type Position,
-  type InsertPosition,
-  type Trade,
-  type InsertTrade,
-  type SystemAlert,
-  type InsertSystemAlert,
-} from "@shared/schema";
-import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
-import { hashPassword, verifyPassword } from "./utils/auth";
-import { encryptApiKey, decryptApiKey } from "./utils/encryption";
+import { prisma } from "./db.js";
+import { Prisma } from "./generated/prisma";
+import type {
+  User,
+  Exchange,
+  Cryptocurrency,
+  KimchiPremium,
+  TradingSetting as TradingSettings,
+  TradingStrategy,
+  Position,
+  Trade,
+  SystemAlert,
+} from "./generated/prisma";
+import { hashPassword, verifyPassword } from "./utils/auth.js";
+import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
+
+// Insert DTO 타입 (Prisma 전환용 최소 정의)
+export type InsertUser = {
+  username: string;
+  password: string;
+  role?: string;
+  email?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  profileImageUrl?: string | null;
+};
+
+export type InsertExchange = {
+  userId: number;
+  exchange: string;
+  apiKey: string;
+  apiSecret: string;
+  passphrase?: string | null;
+  isActive?: boolean;
+};
+
+export type InsertCryptocurrency = {
+  symbol: string;
+  name: string;
+  isActive?: boolean;
+  upbitMarket?: string | null;
+  binanceSymbol?: string | null;
+  priority?: number;
+};
+
+export type InsertKimchiPremium = {
+  symbol: string;
+  upbitPrice: string | number;
+  binancePrice: string | number;
+  premiumRate: string | number;
+  exchangeRate: string | number;
+  premiumAmount: string | number;
+  timestamp?: Date;
+};
+
+export type InsertTradingSettings = {
+  userId: number;
+  entryPremiumRate?: string | number;
+  exitPremiumRate?: string | number;
+  stopLossRate?: string | number;
+  maxPositions?: number;
+  isAutoTrading?: boolean;
+  maxInvestmentAmount?: string | number;
+  kimchiEntryRate?: string | number;
+  kimchiExitRate?: string | number;
+  kimchiToleranceRate?: string | number;
+  binanceLeverage?: number;
+  upbitEntryAmount?: string | number;
+  dailyLossLimit?: string | number;
+  maxPositionSize?: string | number;
+};
+
+export type InsertTradingStrategy = {
+  userId: number;
+  name?: string;
+  entryRate?: string | number;
+  exitRate?: string | number;
+  leverage?: number;
+  investmentAmount?: string | number;
+  isActive?: boolean;
+  symbol?: string;
+  tolerance?: string | number;
+  isAutoTrading?: boolean;
+  totalTrades?: number;
+  successfulTrades?: number;
+  totalProfit?: string | number;
+  strategyType?: string;
+  toleranceRate?: string | number;
+};
+
+export type InsertPosition = {
+  userId: number;
+  strategyId?: number | null;
+  symbol: string;
+  type?: string;
+  entryPrice: string | number;
+  currentPrice?: string | number | null;
+  quantity: string | number;
+  entryPremiumRate: string | number;
+  currentPremiumRate?: string | number | null;
+  status?: string;
+  entryTime?: Date;
+  exitTime?: Date | null;
+  upbitOrderId?: string | null;
+  binanceOrderId?: string | null;
+  side: string;
+  exitPrice?: string | number | null;
+};
+
+export type InsertTrade = {
+  userId: number;
+  positionId?: number | null;
+  symbol: string;
+  side: string;
+  exchange: string;
+  quantity: string | number;
+  price: string | number;
+  fee?: string | number;
+  orderType?: string;
+  exchangeOrderId?: string | null;
+  exchangeTradeId?: string | null;
+  executedAt?: Date;
+};
+
+export type InsertSystemAlert = {
+  type: string;
+  title: string;
+  message: string;
+  isRead?: boolean;
+  userId?: number | null;
+  data?: any;
+  priority?: string;
+};
 
 export interface IStorage {
   // Users
@@ -123,34 +223,33 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Users
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, parseInt(id)));
-    return user || undefined;
+    const user = await prisma.user.findUnique({ where: { id: parseInt(id) } });
+    return user ?? undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username));
-    return user || undefined;
+    const user = await prisma.user.findUnique({ where: { username } });
+    return user ?? undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser & { password?: string }): Promise<User> {
     // 비밀번호 해시화
+    if (!insertUser.password) {
+      throw new Error("비밀번호가 필요합니다.");
+    }
     const hashedPassword = await hashPassword(insertUser.password);
-
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...insertUser,
+    const user = await prisma.user.create({
+      data: {
+        username: insertUser.username,
         password: hashedPassword,
-        updatedAt: new Date(), // updatedAt 필드 명시적 설정
-      })
-      .returning();
-    return user;
+        role: insertUser.role ?? "user",
+        email: insertUser.email ?? null,
+        firstName: insertUser.firstName ?? null,
+        lastName: insertUser.lastName ?? null,
+        profileImageUrl: insertUser.profileImageUrl ?? null,
+      },
+    });
+    return user as User;
   }
 
   async authenticateUser(
@@ -168,10 +267,7 @@ export class DatabaseStorage implements IStorage {
 
   // Exchanges
   async getExchangesByUserId(userId: string): Promise<Exchange[]> {
-    return await db
-      .select()
-      .from(exchanges)
-      .where(eq(exchanges.userId, parseInt(userId)));
+    return prisma.exchange.findMany({ where: { userId: parseInt(userId) } });
   }
 
   async createExchange(insertExchange: InsertExchange): Promise<Exchange> {
@@ -199,15 +295,12 @@ export class DatabaseStorage implements IStorage {
 
       // 기존 거래소 설정이 있는지 확인
       console.log(`🔍 [${new Date().toISOString()}] 기존 거래소 확인 중...`);
-      const [existingExchange] = await db
-        .select()
-        .from(exchanges)
-        .where(
-          and(
-            eq(exchanges.userId, insertExchange.userId!),
-            eq(exchanges.exchange, insertExchange.exchange)
-          )
-        );
+      const existingExchange = await prisma.exchange.findFirst({
+        where: {
+          userId: insertExchange.userId!,
+          exchange: insertExchange.exchange,
+        },
+      });
 
       console.log(`🔍 [${new Date().toISOString()}] 기존 거래소 조회 결과:`, {
         found: !!existingExchange,
@@ -224,15 +317,14 @@ export class DatabaseStorage implements IStorage {
           }`
         );
 
-        const [updatedExchange] = await db
-          .update(exchanges)
-          .set({
+        const updatedExchange = await prisma.exchange.update({
+          where: { id: existingExchange.id },
+          data: {
             apiKey: encryptedApiKey,
             apiSecret: encryptedSecretKey,
             isActive: true,
-          })
-          .where(eq(exchanges.id, existingExchange.id))
-          .returning();
+          },
+        });
 
         console.log(`✅ [${new Date().toISOString()}] 업데이트 완료:`, {
           id: updatedExchange.id,
@@ -243,34 +335,26 @@ export class DatabaseStorage implements IStorage {
         });
 
         // 업데이트 직후 검증
-        const verifyUpdated = await db
-          .select()
-          .from(exchanges)
-          .where(
-            and(
-              eq(exchanges.userId, insertExchange.userId!),
-              eq(exchanges.exchange, insertExchange.exchange)
-            )
-          );
+        const verifyUpdated = await prisma.exchange.findMany({
+          where: {
+            userId: insertExchange.userId!,
+            exchange: insertExchange.exchange,
+          },
+        });
         console.log(
           `🔎 [${new Date().toISOString()}] 업데이트 직후 재조회 결과:`,
           verifyUpdated
         );
 
-        const totalAfterUpdateRes = await db.execute(
-          sql`select count(*)::int as count from "exchanges" where "user_id" = ${insertExchange.userId}`
-        );
+        const totalAfterUpdateRes = await prisma.exchange.count({
+          where: { userId: insertExchange.userId! },
+        });
         console.log(
           `📊 [${new Date().toISOString()}] 사용자별 exchanges 총건수(업데이트 후):`,
           totalAfterUpdateRes
         );
 
-        const connInfoRes = await db.execute(
-          sql`select current_database() as db, current_user as usr`
-        );
-        console.log(`🗄️ [${new Date().toISOString()}] 연결 정보:`, connInfoRes);
-
-        return updatedExchange;
+        return updatedExchange as unknown as Exchange;
       } else {
         // 새로운 데이터 삽입
         console.log(
@@ -293,10 +377,7 @@ export class DatabaseStorage implements IStorage {
           isActive: insertData.isActive,
         });
 
-        const [newExchange] = await db
-          .insert(exchanges)
-          .values(insertData)
-          .returning();
+        const newExchange = await prisma.exchange.create({ data: insertData });
 
         console.log(`✅ [${new Date().toISOString()}] 삽입 완료:`, {
           id: newExchange.id,
@@ -307,37 +388,26 @@ export class DatabaseStorage implements IStorage {
         });
 
         // 삽입 직후 검증
-        const verifyInserted = await db
-          .select()
-          .from(exchanges)
-          .where(
-            and(
-              eq(exchanges.userId, insertExchange.userId!),
-              eq(exchanges.exchange, insertExchange.exchange)
-            )
-          );
+        const verifyInserted = await prisma.exchange.findMany({
+          where: {
+            userId: insertExchange.userId!,
+            exchange: insertExchange.exchange,
+          },
+        });
         console.log(
           `🔎 [${new Date().toISOString()}] 삽입 직후 재조회 결과:`,
           verifyInserted
         );
 
-        const totalAfterInsertRes = await db.execute(
-          sql`select count(*)::int as count from "exchanges" where "user_id" = ${insertExchange.userId}`
-        );
+        const totalAfterInsertRes = await prisma.exchange.count({
+          where: { userId: insertExchange.userId! },
+        });
         console.log(
           `📊 [${new Date().toISOString()}] 사용자별 exchanges 총건수(삽입 후):`,
           totalAfterInsertRes
         );
 
-        const connInfoRes2 = await db.execute(
-          sql`select current_database() as db, current_user as usr`
-        );
-        console.log(
-          `🗄️ [${new Date().toISOString()}] 연결 정보:`,
-          connInfoRes2
-        );
-
-        return newExchange;
+        return newExchange as unknown as Exchange;
       }
     } catch (error) {
       console.error(
@@ -361,21 +431,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async createOrUpdateExchange(exchange: InsertExchange): Promise<Exchange> {
+    return this.createExchange(exchange);
+  }
+
   // 암호화된 API 키 복호화 메서드
   async getDecryptedExchange(
     userId: string,
     exchangeName: string
   ): Promise<{ apiKey: string; apiSecret: string } | null> {
-    const [exchange] = await db
-      .select()
-      .from(exchanges)
-      .where(
-        and(
-          eq(exchanges.userId, parseInt(userId)),
-          eq(exchanges.exchange, exchangeName),
-          eq(exchanges.isActive, true)
-        )
-      );
+    const exchange = await prisma.exchange.findFirst({
+      where: {
+        userId: parseInt(userId),
+        exchange: exchangeName,
+        isActive: true,
+      },
+    });
 
     if (!exchange) return null;
 
@@ -394,130 +465,142 @@ export class DatabaseStorage implements IStorage {
     id: number,
     updateData: Partial<Exchange>
   ): Promise<Exchange | undefined> {
-    const [exchange] = await db
-      .update(exchanges)
-      .set(updateData)
-      .where(eq(exchanges.id, id))
-      .returning();
-    return exchange || undefined;
+    const exchange = await prisma.exchange.update({
+      where: { id },
+      data: updateData as Prisma.ExchangeUpdateInput,
+    });
+    return exchange ?? undefined;
   }
 
   // Cryptocurrencies
   async getAllCryptocurrencies(): Promise<Cryptocurrency[]> {
-    return await db.select().from(cryptocurrencies);
+    return prisma.cryptocurrency.findMany();
   }
 
   async createCryptocurrency(
     insertCrypto: InsertCryptocurrency
   ): Promise<Cryptocurrency> {
-    const [crypto] = await db
-      .insert(cryptocurrencies)
-      .values(insertCrypto)
-      .returning();
-    return crypto;
+    const crypto = await prisma.cryptocurrency.create({ data: insertCrypto });
+    return crypto as Cryptocurrency;
   }
 
   // Kimchi Premiums
   async getLatestKimchiPremiums(): Promise<KimchiPremium[]> {
-    return await db
-      .select()
-      .from(kimchiPremiums)
-      .orderBy(desc(kimchiPremiums.timestamp))
-      .limit(100);
+    return prisma.kimchiPremium.findMany({
+      orderBy: { timestamp: "desc" },
+      take: 100,
+    });
   }
 
   async getKimchiPremiumBySymbol(
     symbol: string
   ): Promise<KimchiPremium | undefined> {
-    const [premium] = await db
-      .select()
-      .from(kimchiPremiums)
-      .where(eq(kimchiPremiums.symbol, symbol))
-      .orderBy(desc(kimchiPremiums.timestamp))
-      .limit(1);
-    return premium || undefined;
+    const premium = await prisma.kimchiPremium.findFirst({
+      where: { symbol },
+      orderBy: { timestamp: "desc" },
+    });
+    return premium ?? undefined;
   }
 
   async createKimchiPremium(
     insertPremium: InsertKimchiPremium
   ): Promise<KimchiPremium> {
-    const [premium] = await db
-      .insert(kimchiPremiums)
-      .values(insertPremium)
-      .returning();
-    return premium;
+    const premium = await prisma.kimchiPremium.create({
+      data: {
+        symbol: insertPremium.symbol,
+        upbitPrice: new Prisma.Decimal(insertPremium.upbitPrice as any),
+        binancePrice: new Prisma.Decimal(insertPremium.binancePrice as any),
+        premiumRate: new Prisma.Decimal(insertPremium.premiumRate as any),
+        exchangeRate: new Prisma.Decimal(insertPremium.exchangeRate as any),
+        premiumAmount: new Prisma.Decimal(insertPremium.premiumAmount as any),
+        timestamp: insertPremium.timestamp ?? new Date(),
+      },
+    });
+    return premium as KimchiPremium;
   }
 
   async getKimchiPremiumHistory(
     symbol: string,
     limit: number = 100
   ): Promise<KimchiPremium[]> {
-    return await db
-      .select()
-      .from(kimchiPremiums)
-      .where(eq(kimchiPremiums.symbol, symbol))
-      .orderBy(desc(kimchiPremiums.timestamp))
-      .limit(limit);
+    return prisma.kimchiPremium.findMany({
+      where: { symbol },
+      orderBy: { timestamp: "desc" },
+      take: limit,
+    });
   }
 
   // Trading Settings
   async getTradingSettings(
     userId: string
   ): Promise<TradingSettings | undefined> {
-    const [settings] = await db
-      .select()
-      .from(tradingSettings)
-      .where(eq(tradingSettings.userId, parseInt(userId)));
-    return settings || undefined;
+    const settings = await prisma.tradingSetting.findUnique({
+      where: { userId: parseInt(userId) },
+    });
+    return (settings as unknown as TradingSettings) ?? undefined;
   }
 
   async saveTradingSettings(
     insertSettings: InsertTradingSettings
   ): Promise<TradingSettings> {
-    // 먼저 기존 설정이 있는지 확인
-    const existingSettings = await this.getTradingSettings(
-      insertSettings.userId!.toString()
-    );
+    const data: Prisma.TradingSettingUpsertArgs["create"] = {
+      userId: insertSettings.userId,
+      entryPremiumRate: new Prisma.Decimal(
+        (insertSettings.entryPremiumRate ?? "2.5") as any
+      ),
+      exitPremiumRate: new Prisma.Decimal(
+        (insertSettings.exitPremiumRate ?? "1.0") as any
+      ),
+      stopLossRate: new Prisma.Decimal(
+        (insertSettings.stopLossRate ?? "-1.5") as any
+      ),
+      maxPositions: insertSettings.maxPositions ?? 5,
+      isAutoTrading: insertSettings.isAutoTrading ?? false,
+      maxInvestmentAmount: new Prisma.Decimal(
+        (insertSettings.maxInvestmentAmount ?? "10000000") as any
+      ),
+      kimchiEntryRate: new Prisma.Decimal(
+        (insertSettings.kimchiEntryRate ?? "1.1") as any
+      ),
+      kimchiExitRate: new Prisma.Decimal(
+        (insertSettings.kimchiExitRate ?? "1.5") as any
+      ),
+      kimchiToleranceRate: new Prisma.Decimal(
+        (insertSettings.kimchiToleranceRate ?? "0.1") as any
+      ),
+      binanceLeverage: insertSettings.binanceLeverage ?? 3,
+      upbitEntryAmount: new Prisma.Decimal(
+        (insertSettings.upbitEntryAmount ?? "10000000") as any
+      ),
+      dailyLossLimit: new Prisma.Decimal(
+        (insertSettings.dailyLossLimit ?? "500000") as any
+      ),
+      maxPositionSize: new Prisma.Decimal(
+        (insertSettings.maxPositionSize ?? "2000000") as any
+      ),
+    };
 
-    if (existingSettings) {
-      // 기존 설정이 있으면 업데이트
-      const [settings] = await db
-        .update(tradingSettings)
-        .set(insertSettings)
-        .where(eq(tradingSettings.userId, insertSettings.userId!))
-        .returning();
-      return settings;
-    } else {
-      // 기존 설정이 없으면 새로 생성
-      const [settings] = await db
-        .insert(tradingSettings)
-        .values(insertSettings)
-        .returning();
-      return settings;
-    }
+    const settings = await prisma.tradingSetting.upsert({
+      where: { userId: insertSettings.userId },
+      create: data,
+      update: data,
+    });
+    return settings as unknown as TradingSettings;
   }
 
   async getTradingSettingsByUserId(
     userId: string
   ): Promise<TradingSettings | undefined> {
-    const [settings] = await db
-      .select()
-      .from(tradingSettings)
-      .where(eq(tradingSettings.userId, parseInt(userId)));
-    return settings || undefined;
+    const settings = await prisma.tradingSetting.findUnique({
+      where: { userId: parseInt(userId) },
+    });
+    return (settings as unknown as TradingSettings) ?? undefined;
   }
 
   async createTradingSettings(
     insertSettings: InsertTradingSettings
   ): Promise<TradingSettings> {
-    const [settings] = await db
-      .insert(tradingSettings)
-      .values(insertSettings)
-      .onConflictDoUpdate({
-        target: tradingSettings.userId,
-        set: insertSettings,
-      })
-      .returning();
+    const settings = await this.saveTradingSettings(insertSettings);
     return settings;
   }
 
@@ -525,76 +608,68 @@ export class DatabaseStorage implements IStorage {
     userId: string,
     updateData: Partial<TradingSettings>
   ): Promise<TradingSettings | undefined> {
-    const [settings] = await db
-      .update(tradingSettings)
-      .set(updateData)
-      .where(eq(tradingSettings.userId, parseInt(userId)))
-      .returning();
-    return settings || undefined;
+    const settings = await prisma.tradingSetting.update({
+      where: { userId: parseInt(userId) },
+      data: updateData as Prisma.TradingSettingUpdateInput,
+    });
+    return (settings as unknown as TradingSettings) ?? undefined;
   }
 
   // Positions
   async getActivePositions(userId: string): Promise<Position[]> {
-    return await db
-      .select()
-      .from(positions)
-      .where(
-        and(
-          eq(positions.userId, parseInt(userId)),
-          eq(positions.status, "open")
-        )
-      )
-      .orderBy(desc(positions.entryTime));
+    return prisma.position.findMany({
+      where: { userId: parseInt(userId), status: "open" },
+      orderBy: { entryTime: "desc" },
+    });
   }
 
   async getPositionById(id: number): Promise<Position | undefined> {
-    const [position] = await db
-      .select()
-      .from(positions)
-      .where(eq(positions.id, id));
-    return position || undefined;
+    const position = await prisma.position.findUnique({ where: { id } });
+    return position ?? undefined;
   }
 
   async createPosition(insertPosition: InsertPosition): Promise<Position> {
-    const now = new Date();
-    const [position] = await db
-      .insert(positions)
-      .values({
-        ...insertPosition,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-    return position;
+    const position = await prisma.position.create({
+      data: {
+        userId: insertPosition.userId,
+        strategyId: insertPosition.strategyId ?? null,
+        symbol: insertPosition.symbol,
+        type: insertPosition.type ?? "kimchi_arbitrage",
+        entryPrice: new Prisma.Decimal(insertPosition.entryPrice as any),
+        currentPrice: insertPosition.currentPrice != null ? new Prisma.Decimal(insertPosition.currentPrice as any) : null,
+        quantity: new Prisma.Decimal(insertPosition.quantity as any),
+        entryPremiumRate: new Prisma.Decimal(insertPosition.entryPremiumRate as any),
+        currentPremiumRate: insertPosition.currentPremiumRate != null ? new Prisma.Decimal(insertPosition.currentPremiumRate as any) : null,
+        status: insertPosition.status ?? "open",
+        entryTime: insertPosition.entryTime ?? new Date(),
+        exitTime: insertPosition.exitTime ?? null,
+        upbitOrderId: insertPosition.upbitOrderId ?? null,
+        binanceOrderId: insertPosition.binanceOrderId ?? null,
+        side: insertPosition.side,
+        exitPrice: insertPosition.exitPrice != null ? new Prisma.Decimal(insertPosition.exitPrice as any) : null,
+      },
+    });
+    return position as Position;
   }
 
   async updatePosition(
     id: number,
     updateData: Partial<Position>
   ): Promise<Position | undefined> {
-    const [position] = await db
-      .update(positions)
-      .set({
-        ...updateData,
-        updatedAt: new Date(),
-      })
-      .where(eq(positions.id, id))
-      .returning();
-    return position || undefined;
+    const position = await prisma.position.update({
+      where: { id },
+      data: { ...(updateData as Prisma.PositionUpdateInput), updatedAt: new Date() },
+    });
+    return position ?? undefined;
   }
 
   async closePosition(id: number): Promise<Position | undefined> {
     const now = new Date();
-    const [position] = await db
-      .update(positions)
-      .set({ 
-        status: "closed", 
-        exitTime: now,
-        updatedAt: now,
-      })
-      .where(eq(positions.id, id))
-      .returning();
-    return position || undefined;
+    const position = await prisma.position.update({
+      where: { id },
+      data: { status: "closed", exitTime: now, updatedAt: now },
+    });
+    return position ?? undefined;
   }
 
   // Trades
@@ -602,171 +677,186 @@ export class DatabaseStorage implements IStorage {
     userId: string,
     limit: number = 50
   ): Promise<Trade[]> {
-    return await db
-      .select()
-      .from(trades)
-      .where(eq(trades.userId, parseInt(userId)))
-      .orderBy(desc(trades.executedAt))
-      .limit(limit);
+    return prisma.trade.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { executedAt: "desc" },
+      take: limit,
+    });
   }
 
   async getTradesByPositionId(positionId: number): Promise<Trade[]> {
-    return await db
-      .select()
-      .from(trades)
-      .where(eq(trades.positionId, positionId))
-      .orderBy(desc(trades.executedAt));
+    return prisma.trade.findMany({
+      where: { positionId },
+      orderBy: { executedAt: "desc" },
+    });
   }
 
   async createTrade(insertTrade: InsertTrade): Promise<Trade> {
-    const [trade] = await db.insert(trades).values(insertTrade).returning();
-    return trade;
+    const trade = await prisma.trade.create({
+      data: {
+        userId: insertTrade.userId,
+        positionId: insertTrade.positionId ?? null,
+        symbol: insertTrade.symbol,
+        side: insertTrade.side,
+        exchange: insertTrade.exchange,
+        quantity: new Prisma.Decimal(insertTrade.quantity as any),
+        price: new Prisma.Decimal(insertTrade.price as any),
+        fee: new Prisma.Decimal((insertTrade.fee ?? "0") as any),
+        orderType: insertTrade.orderType ?? "market",
+        exchangeOrderId: insertTrade.exchangeOrderId ?? null,
+        exchangeTradeId: insertTrade.exchangeTradeId ?? null,
+        executedAt: insertTrade.executedAt ?? new Date(),
+      },
+    });
+    return trade as Trade;
   }
 
   // Trading Strategies
   async getTradingStrategies(userId: string): Promise<TradingStrategy[]> {
-    return await db
-      .select()
-      .from(tradingStrategies)
-      .where(eq(tradingStrategies.userId, parseInt(userId)))
-      .orderBy(desc(tradingStrategies.createdAt));
+    return prisma.tradingStrategy.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   async getTradingStrategiesByUserId(
     userId: string
   ): Promise<TradingStrategy[]> {
-    return await db
-      .select()
-      .from(tradingStrategies)
-      .where(eq(tradingStrategies.userId, parseInt(userId)))
-      .orderBy(desc(tradingStrategies.createdAt));
+    return prisma.tradingStrategy.findMany({
+      where: { userId: parseInt(userId) },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   async createOrUpdateTradingStrategy(
     strategy: InsertTradingStrategy
   ): Promise<TradingStrategy> {
-    const userId = typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId!;
-    const strategyName = strategy.name || "김치 프리미엄 전략";
-    
-    const existingStrategy = await db
-      .select()
-      .from(tradingStrategies)
-      .where(
-        and(
-          eq(tradingStrategies.userId, userId),
-          eq(tradingStrategies.name, strategyName)
-        )
-      );
+    const userId = strategy.userId;
+    const strategyName = (strategy as any).name || "김치 프리미엄 전략";
 
-    if (existingStrategy.length > 0) {
-      const [updatedStrategy] = await db
-        .update(tradingStrategies)
-        .set({ ...strategy, updatedAt: new Date() })
-        .where(eq(tradingStrategies.id, existingStrategy[0].id))
-        .returning();
-      return updatedStrategy;
-    } else {
-      // 기본값을 명시적으로 설정 (모든 필드 포함)
-      const strategyWithDefaults = {
-        userId: typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId!,
-        name: strategy.name || "김치 프리미엄 전략",
-        strategyType: strategy.strategyType || "positive_kimchi",
-        entryRate: strategy.entryRate || "0.5",
-        exitRate: strategy.exitRate || "0.1",
-        toleranceRate: strategy.toleranceRate || "0.1",
-        leverage: strategy.leverage || 3,
-        investmentAmount: strategy.investmentAmount || "100000",
-        isActive: strategy.isActive !== undefined ? strategy.isActive : true,
-        symbol: "BTC", // 기본 심볼
-        tolerance: "0.1", // 허용 오차
-        isAutoTrading: false, // 자동매매 여부
-        totalTrades: 0, // 총 거래 수
-        successfulTrades: 0, // 성공한 거래 수
-        totalProfit: "0", // 총 수익
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+    const existing = await prisma.tradingStrategy.findFirst({
+      where: { userId, name: strategyName },
+    });
 
-      console.log("거래 전략 생성 데이터:", strategyWithDefaults);
+    const defaults = {
+      strategyType: (strategy as any).strategyType || "positive_kimchi",
+      entryRate: new Prisma.Decimal(((strategy as any).entryRate ?? "0.5") as any),
+      exitRate: new Prisma.Decimal(((strategy as any).exitRate ?? "0.1") as any),
+      toleranceRate: new Prisma.Decimal(((strategy as any).toleranceRate ?? "0.1") as any),
+      leverage: (strategy as any).leverage ?? 3,
+      investmentAmount: new Prisma.Decimal(((strategy as any).investmentAmount ?? "100000") as any),
+      isActive: (strategy as any).isActive ?? true,
+      symbol: (strategy as any).symbol ?? "BTC",
+      tolerance: new Prisma.Decimal(((strategy as any).tolerance ?? "0.1") as any),
+      isAutoTrading: (strategy as any).isAutoTrading ?? false,
+      totalTrades: (strategy as any).totalTrades ?? 0,
+      successfulTrades: (strategy as any).successfulTrades ?? 0,
+      totalProfit: new Prisma.Decimal(((strategy as any).totalProfit ?? "0") as any),
+      updatedAt: new Date(),
+    };
 
-      const [newStrategy] = await db
-        .insert(tradingStrategies)
-        .values(strategyWithDefaults)
-        .returning();
-      return newStrategy;
+    if (existing) {
+      const updated = await prisma.tradingStrategy.update({
+        where: { id: existing.id },
+        data: { ...defaults, name: strategyName },
+      });
+      return updated as TradingStrategy;
     }
-  }
 
-  async createOrUpdateExchange(exchange: InsertExchange): Promise<Exchange> {
-    return this.createExchange(exchange);
+    const created = await prisma.tradingStrategy.create({
+      data: {
+        userId,
+        name: strategyName,
+        ...defaults,
+        createdAt: new Date(),
+      },
+    });
+    return created as TradingStrategy;
   }
 
   async getTradingStrategy(id: number): Promise<TradingStrategy | undefined> {
-    const [strategy] = await db
-      .select()
-      .from(tradingStrategies)
-      .where(eq(tradingStrategies.id, id));
-    return strategy || undefined;
+    const strategy = await prisma.tradingStrategy.findUnique({ where: { id } });
+    return strategy ?? undefined;
   }
 
   async createTradingStrategy(
     insertStrategy: InsertTradingStrategy
   ): Promise<TradingStrategy> {
-    const [strategy] = await db
-      .insert(tradingStrategies)
-      .values(insertStrategy)
-      .returning();
-    return strategy;
+    const strategy = await prisma.tradingStrategy.create({
+      data: {
+        userId: insertStrategy.userId,
+        name: (insertStrategy as any).name ?? "김치 프리미엄 전략",
+        entryRate: new Prisma.Decimal(((insertStrategy as any).entryRate ?? "0.5") as any),
+        exitRate: new Prisma.Decimal(((insertStrategy as any).exitRate ?? "0.1") as any),
+        leverage: (insertStrategy as any).leverage ?? 1,
+        investmentAmount: new Prisma.Decimal(((insertStrategy as any).investmentAmount ?? "100000") as any),
+        isActive: (insertStrategy as any).isActive ?? true,
+        symbol: (insertStrategy as any).symbol ?? "BTC",
+        tolerance: new Prisma.Decimal(((insertStrategy as any).tolerance ?? "0.1") as any),
+        isAutoTrading: (insertStrategy as any).isAutoTrading ?? false,
+        totalTrades: (insertStrategy as any).totalTrades ?? 0,
+        successfulTrades: (insertStrategy as any).successfulTrades ?? 0,
+        totalProfit: new Prisma.Decimal(((insertStrategy as any).totalProfit ?? "0") as any),
+        strategyType: (insertStrategy as any).strategyType ?? "positive_kimchi",
+        toleranceRate: new Prisma.Decimal(((insertStrategy as any).toleranceRate ?? "0.1") as any),
+      },
+    });
+    return strategy as TradingStrategy;
   }
 
   async updateTradingStrategy(
     id: number,
     updateData: Partial<TradingStrategy>
   ): Promise<TradingStrategy | undefined> {
-    const [strategy] = await db
-      .update(tradingStrategies)
-      .set({ ...updateData, updatedAt: new Date() })
-      .where(eq(tradingStrategies.id, id))
-      .returning();
-    return strategy || undefined;
+    const strategy = await prisma.tradingStrategy.update({
+      where: { id },
+      data: { ...(updateData as Prisma.TradingStrategyUpdateInput), updatedAt: new Date() },
+    });
+    return strategy ?? undefined;
   }
 
   async deleteTradingStrategy(
     id: number
   ): Promise<TradingStrategy | undefined> {
-    const [deletedStrategy] = await db
-      .delete(tradingStrategies)
-      .where(eq(tradingStrategies.id, id))
-      .returning();
-    return deletedStrategy || undefined;
+    try {
+      const deleted = await prisma.tradingStrategy.delete({ where: { id } });
+      return deleted as TradingStrategy;
+    } catch {
+      return undefined;
+    }
   }
 
   // System Alerts
   async getSystemAlerts(limit: number = 50): Promise<SystemAlert[]> {
-    return await db
-      .select()
-      .from(systemAlerts)
-      .orderBy(desc(systemAlerts.createdAt))
-      .limit(limit);
+    return prisma.systemAlert.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
   }
 
   async createSystemAlert(
     insertAlert: InsertSystemAlert
   ): Promise<SystemAlert> {
-    const [alert] = await db
-      .insert(systemAlerts)
-      .values(insertAlert)
-      .returning();
-    return alert;
+    const alert = await prisma.systemAlert.create({
+      data: {
+        type: insertAlert.type,
+        title: insertAlert.title,
+        message: insertAlert.message,
+        isRead: insertAlert.isRead ?? false,
+        userId: insertAlert.userId ?? null,
+        data: insertAlert.data ?? null,
+        priority: insertAlert.priority ?? "normal",
+      },
+    });
+    return alert as SystemAlert;
   }
 
   async markAlertAsRead(id: number): Promise<SystemAlert | undefined> {
-    const [alert] = await db
-      .update(systemAlerts)
-      .set({ isRead: true })
-      .where(eq(systemAlerts.id, id))
-      .returning();
-    return alert || undefined;
+    const alert = await prisma.systemAlert.update({
+      where: { id },
+      data: { isRead: true },
+    });
+    return alert ?? undefined;
   }
   // Admin methods
   async updateUser(
@@ -776,68 +866,56 @@ export class DatabaseStorage implements IStorage {
     if (updates.password) {
       updates.password = await hashPassword(updates.password);
     }
-
-    const [user] = await db
-      .update(users)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(id)))
-      .returning();
-
-    return user;
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { ...(updates as Prisma.UserUpdateInput), updatedAt: new Date() },
+    });
+    return user ?? undefined;
   }
 
   async updateUserRole(id: string, role: string): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set({ role, updatedAt: new Date() })
-      .where(eq(users.id, parseInt(id)))
-      .returning();
-
-    return user;
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { role, updatedAt: new Date() },
+    });
+    return user ?? undefined;
   }
 
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users);
+    return prisma.user.findMany();
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    // 사용자와 관련된 모든 데이터 삭제
-    await db.delete(exchanges).where(eq(exchanges.userId, parseInt(id)));
-    await db
-      .delete(tradingSettings)
-      .where(eq(tradingSettings.userId, parseInt(id)));
-    await db.delete(positions).where(eq(positions.userId, parseInt(id)));
-    await db.delete(trades).where(eq(trades.userId, parseInt(id)));
-
-    const result = await db.delete(users).where(eq(users.id, parseInt(id)));
-    return (result.rowCount || 0) > 0;
+    const userId = parseInt(id);
+    // 연관 데이터 정리
+    await prisma.exchange.deleteMany({ where: { userId } });
+    await prisma.tradingSetting.deleteMany({ where: { userId } });
+    await prisma.position.deleteMany({ where: { userId } });
+    await prisma.trade.deleteMany({ where: { userId } });
+    try {
+      await prisma.user.delete({ where: { id: userId } });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async getAllUsersWithStats(): Promise<any[]> {
-    const allUsers = await db.select().from(users);
+    const allUsers = await prisma.user.findMany();
 
     const usersWithStats = await Promise.all(
       allUsers.map(async (user: User) => {
-        const tradesCount = await db
-          .select()
-          .from(trades)
-          .where(eq(trades.userId, user.id));
-        const positionsCount = await db
-          .select()
-          .from(positions)
-          .where(eq(positions.userId, user.id));
-        const exchangesCount = await db
-          .select()
-          .from(exchanges)
-          .where(eq(exchanges.userId, user.id));
+        const tradesCount = await prisma.trade.count({ where: { userId: user.id } });
+        const positionsCount = await prisma.position.count({ where: { userId: user.id } });
+        const exchangesCount = await prisma.exchange.count({ where: { userId: user.id } });
 
-        const { password, ...userWithoutPassword } = user;
+        const { password, ...userWithoutPassword } = user as any;
         return {
           ...userWithoutPassword,
           _count: {
-            trades: tradesCount.length,
-            positions: positionsCount.length,
-            exchanges: exchangesCount.length,
+            trades: tradesCount,
+            positions: positionsCount,
+            exchanges: exchangesCount,
           },
         };
       })
@@ -847,23 +925,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAdminStats(): Promise<any> {
-    const allUsers = await db.select().from(users);
-    const activeUsers = await db
-      .select()
-      .from(users)
-      .where(eq(users.isActive, true));
-    const allTrades = await db.select().from(trades);
-    const activePositions = await db
-      .select()
-      .from(positions)
-      .where(eq(positions.status, "active"));
+    const [totalUsers, activeUsers, totalTrades, activePositions] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { isActive: true } }),
+      prisma.trade.count(),
+      prisma.position.count({ where: { status: "open" } }),
+    ]);
 
     return {
-      totalUsers: allUsers.length,
-      activeUsers: activeUsers.length,
-      totalTrades: allTrades.length,
-      activePositions: activePositions.length,
-      totalVolume: 0, // 실제 거래량 계산은 복잡하므로 일단 0으로
+      totalUsers,
+      activeUsers,
+      totalTrades,
+      activePositions,
+      totalVolume: 0,
     };
   }
 }

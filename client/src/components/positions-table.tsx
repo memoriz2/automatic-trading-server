@@ -160,9 +160,9 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="destructive"
                           size="sm"
-                          className="text-danger hover:text-red-400 hover:bg-danger/10"
+                          className="font-bold border-2 border-yellow-300"
                           onClick={() => onClosePosition(position.id)}
                           title="포지션 청산 (즉시 종료)"
                         >

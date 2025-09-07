@@ -95,27 +95,22 @@ export class BinanceService {
       // fapi.binance.com은 symbols 파라미터를 지원하지 않으므로 개별 요청
       for (const symbol of symbolsParams) {
         try {
-          // 시장 평균가(Mark Price)를 사용하도록 엔드포인트 변경
-          const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/premiumIndex?symbol=${symbol}`);
-          
+          // 선물 최종 체결가(Last) 강제 사용
+          const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/ticker/price?symbol=${symbol}`);
+
           if (response.ok) {
             const data = await response.json();
-            // 응답에서 markPrice를 사용하도록 수정
             results.push({
               symbol: data.symbol,
-              price: data.markPrice
+              price: data.price
             });
           } else {
-            console.warn(`Failed to get futures mark price for ${symbol}: ${response.status}, falling back to last price.`);
-            // 실패 시 최종 체결가로 대체 시도
+            console.warn(`Failed to get futures last price for ${symbol}: ${response.status}, falling back to spot last price.`);
             const lastPrice = await this.getSymbolPrice(symbol);
-            results.push({
-              symbol: symbol,
-              price: lastPrice.toString()
-            });
+            results.push({ symbol, price: lastPrice.toString() });
           }
         } catch (error) {
-           console.warn(`Error getting futures mark price for ${symbol}, falling back to spot price.`, error);
+           console.warn(`Error getting futures last price for ${symbol}, falling back to spot price.`, error);
            const spotPrice = await this.getSymbolPrice(symbol);
            results.push({
              symbol: symbol,

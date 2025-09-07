@@ -16,12 +16,35 @@ import { BinanceService } from "./services/binance.js";
 import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
 import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
-import {
-  insertTradingSettingsSchema,
-  insertExchangeSchema,
-  insertUserSchema,
-  loginUserSchema,
-} from "@shared/schema";
+import { z } from "zod";
+const insertTradingSettingsSchema = z.object({
+  entryPremiumRate: z.string().optional(),
+  exitPremiumRate: z.string().optional(),
+  stopLossRate: z.string().optional(),
+  maxPositions: z.number().int().optional(),
+  isAutoTrading: z.boolean().optional(),
+  maxInvestmentAmount: z.string().optional(),
+  kimchiEntryRate: z.string().optional(),
+  kimchiExitRate: z.string().optional(),
+  kimchiToleranceRate: z.string().optional(),
+  binanceLeverage: z.number().int().optional(),
+  upbitEntryAmount: z.string().optional(),
+});
+const insertExchangeSchema = z.object({
+  userId: z.number(),
+  exchange: z.string(),
+  apiKey: z.string(),
+  apiSecret: z.string(),
+  passphrase: z.string().optional(),
+});
+const insertUserSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+});
+const loginUserSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+});
 import { getCurrentServerIP, isReplit } from "./utils/ip.js";
 import {
   authenticateToken,
@@ -136,7 +159,7 @@ export async function registerRoutes(
   // const upbitWebSocket = new UpbitWebSocketService();
   // const binanceWebSocket = new BinanceWebSocketService();
 
-  const kimpgaSvc = new KimpgaStrategyService(simpleKimchiService);
+  const kimpgaSvc = new KimpgaStrategyService();
   const tradingService = new TradingService();
   // kimpga API (완전 통합)
   app.get("/api/kimpga/current", async (req, res) => {
@@ -202,7 +225,7 @@ export async function registerRoutes(
       if (up && up.apiKey && up.apiSecret) {
         try {
           console.log(`💰 [잔고 조회] 업비트 API 호출 시작`);
-          const { UpbitService } = await import('./services/upbit');
+          const { UpbitService } = await import('./services/upbit.js');
           // 복호화된 API 키 사용
           const decryptedUpbit = await storage.getDecryptedExchange(userId, 'upbit').catch(() => null);
           const upApiKey = decryptedUpbit?.apiKey || up.apiKey;
@@ -235,7 +258,7 @@ export async function registerRoutes(
       if (bi && bi.apiKey && bi.apiSecret) {
         try {
           console.log(`💰 [잔고 조회] 바이낸스 API 호출 시작`);
-          const { BinanceService } = await import('./services/binance');
+          const { BinanceService } = await import('./services/binance.js');
           // 복호화된 API 키 사용
           const decryptedBinance = await storage.getDecryptedExchange(userId, 'binance').catch(() => null);
           const biApiKey = decryptedBinance?.apiKey || bi.apiKey;
@@ -615,98 +638,135 @@ export async function registerRoutes(
   });
 
   // 거래 설정 조회
-  app.get("/api/trading-settings/:userId", async (req, res) => {
-    try {
-      const userId = req.params.userId; // string으로 처리
-      console.log(`거래 설정 조회 요청: userId=${userId}`);
+  app.get(
+    "/api/trading-settings/:userId",
+    authenticateToken,
+    async (req, res) => {
+      try {
+        const userId = (req as any).user.userId; // 인증된 사용자 ID 사용
+        console.log(`거래 설정 조회 요청: userId=${userId}`);
 
-      const settings = await storage.getTradingSettingsByUserId(userId);
-      console.log(`조회된 설정:`, settings);
+        const settings = await storage.getTradingSettingsByUserId(String(userId));
+        console.log(`조회된 설정:`, settings);
 
-      if (!settings) {
-        // 기본 설정 생성
-        console.log("기본 설정 생성 중...");
-        const defaultSettings = await storage.createTradingSettings({
-          userId: parseInt(userId),
-          entryPremiumRate: "2.5",
-          exitPremiumRate: "1.0",
-          stopLossRate: "-1.5",
-          maxPositions: 5,
-          isAutoTrading: false,
-          maxInvestmentAmount: "1000000",
+        if (!settings) {
+          // 기본 설정 생성
+          console.log("기본 설정 생성 중...");
+          const defaultSettings = await storage.createTradingSettings({
+            userId: parseInt(userId),
+            entryPremiumRate: "2.5",
+            exitPremiumRate: "1.0",
+            stopLossRate: "-1.5",
+            maxPositions: 5,
+            isAutoTrading: false,
+            maxInvestmentAmount: "1000000",
+          });
+          console.log("기본 설정 생성 완료:", defaultSettings);
+          res.json(defaultSettings);
+        } else {
+          res.json(settings);
+        }
+      } catch (error: any) {
+        console.error("거래 설정 조회 오류:", error);
+        res.status(500).json({
+          error: "Failed to fetch trading settings",
+          debug: error.message,
         });
-        console.log("기본 설정 생성 완료:", defaultSettings);
-        res.json(defaultSettings);
-      } else {
-        res.json(settings);
       }
-    } catch (error: any) {
-      console.error("거래 설정 조회 오류:", error);
-      res.status(500).json({
-        error: "Failed to fetch trading settings",
-        debug: error.message,
-      });
     }
-  });
+  );
 
   // 거래 설정 업데이트 (디버깅 로그 강화)
-  app.put("/api/trading-settings/:userId", async (req, res) => {
-    const userId = req.params.userId; // string으로 처리
-    try {
-      console.log(
-        `[${new Date().toISOString()}] PUT /api/trading-settings/${userId} body:`,
-        req.body
-      );
-
-      // 유저 현 설정 스냅샷 로그
+  app.put(
+    "/api/trading-settings/:userId",
+    authenticateToken,
+    async (req, res) => {
+      const authenticatedUserId = (req as any).user.userId; // 인증된 사용자 ID
       try {
-        const current = await storage.getTradingSettingsByUserId(userId);
         console.log(
-          `[${new Date().toISOString()}] current settings for user ${userId}:`,
-          current
+          `[${new Date().toISOString()}] PUT /api/trading-settings/${authenticatedUserId} body:`,
+          req.body
         );
-      } catch (snapErr) {
-        console.warn(
-          `[${new Date().toISOString()}] failed to fetch current settings for user ${userId}:`,
-          snapErr
-        );
-      }
 
-      const settingsData = insertTradingSettingsSchema.parse(req.body);
-      console.log(
-        `[${new Date().toISOString()}] parsed settingsData:`,
-        settingsData
-      );
-
-      const settings = await storage.updateTradingSettings(
-        userId,
-        settingsData
-      );
-      console.log(
-        `[${new Date().toISOString()}] updated settings for user ${userId}:`,
-        settings
-      );
-      res.json(settings);
-    } catch (error: any) {
-      const zodIssues =
-        error?.issues || error?.errors
-          ? error.issues || error.errors
-          : undefined;
-      console.error(
-        `[${new Date().toISOString()}] trading-settings update error for user ${userId}:`,
-        {
-          message: error?.message,
-          name: error?.name,
-          code: error?.code,
-          issues: zodIssues,
-          body: req.body,
+        // 유저 현 설정 스냅샷 로그
+        try {
+          const current = await storage.getTradingSettingsByUserId(
+            String(authenticatedUserId)
+          );
+          console.log(
+            `[${new Date().toISOString()}] current settings for user ${authenticatedUserId}:`,
+            current
+          );
+        } catch (snapErr) {
+          console.warn(
+            `[${new Date().toISOString()}] failed to fetch current settings for user ${authenticatedUserId}:`,
+            snapErr
+          );
         }
-      );
-      res.status(400).json({
-        error: "Invalid trading settings data",
-        message: error?.message,
-        issues: zodIssues,
-      });
+
+        const settingsData = insertTradingSettingsSchema.parse(req.body);
+        console.log(
+          `[${new Date().toISOString()}] parsed settingsData:`,
+          settingsData
+        );
+
+        // Prisma Decimal 정합 처리
+        const normalized: any = {
+          ...settingsData,
+          entryPremiumRate: settingsData.entryPremiumRate,
+          exitPremiumRate: settingsData.exitPremiumRate,
+          stopLossRate: settingsData.stopLossRate,
+          maxInvestmentAmount: settingsData.maxInvestmentAmount,
+          kimchiEntryRate: settingsData.kimchiEntryRate,
+          kimchiExitRate: settingsData.kimchiExitRate,
+          kimchiToleranceRate: settingsData.kimchiToleranceRate,
+          upbitEntryAmount: settingsData.upbitEntryAmount,
+          dailyLossLimit: (settingsData as any).dailyLossLimit,
+          maxPositionSize: (settingsData as any).maxPositionSize,
+        };
+
+        const settings = await storage.updateTradingSettings(
+          String(authenticatedUserId),
+          normalized
+        );
+        console.log(
+          `[${new Date().toISOString()}] updated settings for user ${authenticatedUserId}:`,
+          settings
+        );
+        res.json(settings);
+      } catch (error: any) {
+        const zodIssues =
+          error?.issues || error?.errors
+            ? error.issues || error.errors
+            : undefined;
+        console.error(
+          `[${new Date().toISOString()}] trading-settings update error for user ${authenticatedUserId}:`,
+          {
+            message: error?.message,
+            name: error?.name,
+            code: error?.code,
+            issues: zodIssues,
+            body: req.body,
+          }
+        );
+        res.status(400).json({
+          error: "Invalid trading settings data",
+          message: error?.message,
+          issues: zodIssues,
+        });
+      }
+    }
+  );
+
+  // 활성 포지션 조회 (인증 기반, 권장)
+  app.get("/api/positions", authenticateToken, async (req, res) => {
+    try {
+      const userId = String((req as any).user.userId);
+      const positions = await storage.getActivePositions(userId);
+      res.json(positions);
+    } catch (error) {
+      console.error("포지션 조회 오류:", error);
+      res.status(500).json({ error: "Failed to fetch positions" });
     }
   });
 
@@ -1149,14 +1209,14 @@ export async function registerRoutes(
   });
 
   // 잔고 조회
-  app.get("/api/balances/:userId", async (req, res) => {
+  app.get("/api/balances/:userId", authenticateToken, async (req, res) => {
     try {
-      const userId = req.params.userId; // string으로 처리
+      const userId = (req as any).user.userId; // 인증된 사용자 ID 사용
       console.log(
         `[${new Date().toISOString()}] Fetching balances for user ${userId}`
       );
 
-      const exchanges = await storage.getExchangesByUserId(userId);
+      const exchanges = await storage.getExchangesByUserId(String(userId));
       console.log(
         `[${new Date().toISOString()}] Retrieved ${
           exchanges.length
@@ -1207,7 +1267,7 @@ export async function registerRoutes(
             );
             
             // 암호화된 API 키 복호화
-            const decryptedExchange = await storage.getDecryptedExchange(userId, 'upbit');
+            const decryptedExchange = await storage.getDecryptedExchange(String(userId), 'upbit');
             if (!decryptedExchange) {
               throw new Error('복호화된 API 키를 찾을 수 없습니다');
             }
@@ -1236,7 +1296,7 @@ export async function registerRoutes(
             );
             
             // 암호화된 API 키 복호화
-            const decryptedExchange = await storage.getDecryptedExchange(userId, 'binance');
+            const decryptedExchange = await storage.getDecryptedExchange(String(userId), 'binance');
             if (!decryptedExchange) {
               throw new Error('복호화된 바이낸스 API 키를 찾을 수 없습니다');
             }
@@ -1312,21 +1372,7 @@ export async function registerRoutes(
   });
 
   // 임시 디버깅: 테이블 구조 확인
-  app.get("/api/debug/table-structure", async (req, res) => {
-    try {
-      const { pool } = await import('./db');
-      const result = await pool.query(`
-        SELECT column_name, data_type, is_nullable, column_default 
-        FROM information_schema.columns 
-        WHERE table_name = 'trading_strategies' 
-        ORDER BY ordinal_position;
-      `);
-      res.json(result.rows);
-    } catch (error: any) {
-      console.error("테이블 구조 조회 오류:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // 제거됨: Prisma 전환으로 pool 의존성 삭제
 
   // 거래 전략 생성/수정
   app.post("/api/trading-strategies/:userId", async (req, res) => {

@@ -24,7 +24,7 @@ export class KimpgaStrategyService {
   private loops = 0;
   private apiErrors = 0;
 
-  constructor(private readonly simpleKimchiService: SimpleKimchiService) {}
+  constructor() {}
 
   private pushLog(msg: string) {
     const line = `[${new Date().toISOString()}] ${msg}`;

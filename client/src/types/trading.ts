@@ -30,15 +30,13 @@ export interface Trade {
   id: number;
   symbol: string;
   side: 'buy' | 'sell';
-  type: 'buy' | 'sell';
   exchange: 'upbit' | 'binance';
-  quantity: number;
-  amount: number;
-  price: number;
-  fee?: number;
-  profit?: number;
-  timestamp: Date;
-  createdAt: Date;
+  quantity: string;
+  amount?: string;
+  price: string;
+  executedAt: string;
+  createdAt: string;
+  // timestamp?: string; // optional legacy compatibility
 }
 
 export interface TradingSettings {

@@ -1,3 +1,4 @@
+/// <reference types="ws" />
 import WebSocket from 'ws';
 import { priceCache } from './price-cache.js';
 
@@ -22,13 +23,13 @@ export class UpbitWebSocketService {
   // WebSocket 연결
   private connect() {
     try {
-      console.log('🔌 업비트 WebSocket 연결 시도...');
+      // console.log('🔌 업비트 WebSocket 연결 시도...');
       
       // 정확한 업비트 WebSocket 주소
       this.ws = new WebSocket('wss://api.upbit.com/websocket/v1');
       
       this.ws.on('open', () => {
-        console.log('✅ 업비트 WebSocket 연결 성공');
+        // console.log('✅ 업비트 WebSocket 연결 성공');
         this.isConnected = true;
         
         // 💥 자동 구독 로직 제거
@@ -36,7 +37,7 @@ export class UpbitWebSocketService {
         // this.subscribe(initialCodes);
       });
 
-      this.ws.on('message', (data) => {
+      this.ws.on('message', (data: WebSocket.Data) => {
         try {
           const message = JSON.parse(data.toString());
           
@@ -52,24 +53,24 @@ export class UpbitWebSocketService {
             });
           }
         } catch (error) {
-          console.error('업비트 WebSocket 메시지 파싱 오류:', error);
+          // console.error('업비트 WebSocket 메시지 파싱 오류:', error);
         }
       });
 
-      this.ws.on('close', () => {
-        console.log('🔌 업비트 WebSocket 연결 종료');
+      this.ws.on('close', (code: number, reason: string) => {
+        // console.log('🔌 업비트 WebSocket 연결 종료');
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
-      this.ws.on('error', (error) => {
-        console.error('❌ 업비트 WebSocket 오류:', error);
+      this.ws.on('error', (error: Error) => {
+        // console.error('❌ 업비트 WebSocket 오류:', error);
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
     } catch (error) {
-      console.error('업비트 WebSocket 연결 실패:', error);
+      // console.error('업비트 WebSocket 연결 실패:', error);
       this.scheduleReconnect();
     }
   }
@@ -94,7 +95,7 @@ export class UpbitWebSocketService {
     ];
 
     this.ws.send(JSON.stringify(subscribeMessage));
-    console.log('🔔 업비트 실시간 티커 구독:', codes);
+    // console.log('🔔 업비트 실시간 티커 구독:', codes);
   }
 
   // 자동 재연결
@@ -104,7 +105,7 @@ export class UpbitWebSocketService {
     }
 
     this.reconnectTimer = setTimeout(() => {
-      console.log('🔄 업비트 WebSocket 재연결 시도...');
+      // console.log('🔄 업비트 WebSocket 재연결 시도...');
       this.connect();
     }, 5000);
   }
@@ -133,7 +134,7 @@ export class UpbitWebSocketService {
 
     this.isConnected = false;
     this.callbacks.clear();
-    console.log('🔌 업비트 WebSocket 연결 해제');
+    // console.log('🔌 업비트 WebSocket 연결 해제');
   }
 
   // 연결 상태 확인

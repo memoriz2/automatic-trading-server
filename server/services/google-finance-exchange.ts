@@ -35,7 +35,7 @@ export class GoogleFinanceExchangeService {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         },
-        timeout: 10000 // 10초 타임아웃
+        signal: AbortSignal.timeout(10000), // 10초 타임아웃
       });
 
       if (!response.ok) {
@@ -58,9 +58,9 @@ export class GoogleFinanceExchangeService {
           this.currentRate = rate;
           
           if (Math.abs(oldRate - rate) > 0.1) {
-            console.log(`🌐 구글 파이낸스 USD/KRW 환율 업데이트: ${oldRate}원 → ${rate}원`);
+            // console.log(`🌐 구글 파이낸스 USD/KRW 환율 업데이트: ${oldRate}원 → ${rate}원`);
           } else {
-            console.log(`🌐 구글 파이낸스 환율 확인: ${rate}원`);
+            // console.log(`🌐 구글 파이낸스 환율 확인: ${rate}원`);
           }
         } else {
           throw new Error(`Invalid rate value: ${rate}`);
@@ -71,7 +71,7 @@ export class GoogleFinanceExchangeService {
       
     } catch (error) {
       console.error('구글 파이낸스 환율 조회 실패:', error);
-      console.log(`⚠️ 기존 환율 유지: ${this.currentRate}원`);
+      // console.log(`⚠️ 기존 환율 유지: ${this.currentRate}원`);
     } finally {
       this.isUpdating = false;
     }

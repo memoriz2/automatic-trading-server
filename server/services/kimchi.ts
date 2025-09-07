@@ -1,8 +1,9 @@
+import 'dotenv/config';
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
 import { UpbitWebSocketService, UpbitTickerData } from './upbit-websocket.js';
-import { BinanceWebSocketService, BinanceMarkPriceData } from './binance-websocket.js';
+import { BinanceWebSocketService, BinanceAggTrade } from './binance-websocket.js';
 import { GoogleFinanceExchangeService } from './google-finance-exchange.js';
 
 export interface KimchiData {
@@ -55,13 +56,13 @@ export class KimchiService {
     // 2. 업비트 데이터 수신 콜백 *먼저* 등록
     this.upbitWebSocketService.onData('kimchi-service', (data: UpbitTickerData) => {
       // 💥 KRW-USDT 환율 처리 로직 제거
-      const symbol = data.code.replace('KRW-', '');
+      const symbol = data.cd.replace('KRW-', '');
       this.realtimePrices.upbit[symbol] = data.trade_price;
       this.recalculateAndStorePremiums();
     });
 
     // 3. 바이낸스 데이터 수신 콜백 *먼저* 등록
-    this.binanceWebSocketService.onData('kimchi-service', (data: BinanceMarkPriceData) => {
+    this.binanceWebSocketService.onData('kimchi-service', (data: BinanceAggTrade) => {
       const symbol = data.s.replace('USDT', '');
       // 💥 현물(c) -> 선물(p) 데이터 필드로 복귀
       this.realtimePrices.binance[symbol] = parseFloat(data.p); 
@@ -139,9 +140,9 @@ export class KimchiService {
       const history = await storage.getKimchiPremiumHistory(symbol, limit);
       return history.map(h => ({
         symbol: h.symbol,
-        upbitPrice: parseFloat(h.upbitPrice),
-        binancePrice: parseFloat(h.binancePrice),
-        premiumRate: parseFloat(h.premiumRate),
+        upbitPrice: Number(h.upbitPrice as any),
+        binancePrice: Number(h.binancePrice as any),
+        premiumRate: Number(h.premiumRate as any),
         timestamp: h.timestamp || new Date()
       }));
     } catch (error) {

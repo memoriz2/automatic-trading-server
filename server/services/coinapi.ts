@@ -9,6 +9,25 @@ export class CoinAPIService {
     this.apiKey = process.env.COINAPI_KEY || 'demo-key';
   }
 
+  private async fetchFromCoinAPI<T>(endpoint: string): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    try {
+      const response = await fetch(url, {
+        headers: { "X-CoinAPI-Key": this.apiKey },
+      });
+
+      if (!response.ok) {
+        throw new Error(`CoinAPI request failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data as T;
+    } catch (error) {
+      console.error("Error fetching from CoinAPI:", error);
+      throw error;
+    }
+  }
+
   // 실시간 환율 조회 (USDT/KRW)
   async getUSDTKRWRate(): Promise<number> {
     try {
@@ -20,7 +39,7 @@ export class CoinAPIService {
       const response = await fetch(`${this.baseUrl}/exchangerate/USDT/KRW`, { headers });
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as { rate: number };
         const rate = data.rate;
         console.log(`CoinAPI USDT/KRW 환율: ${rate}원`);
         return rate;
@@ -33,98 +52,39 @@ export class CoinAPIService {
     }
   }
 
-  // 바이낸스 실시간 선물 가격 조회
-  async getBinanceFuturesPrice(symbol: string): Promise<number> {
-    try {
-      const headers = {
-        'X-CoinAPI-Key': this.apiKey,
-        'Accept': 'application/json'
-      };
-
-      // 바이낸스 선물 마켓 ID 매핑
-      const futuresSymbolMap: {[key: string]: string} = {
-        'BTC': 'BINANCE_DAPI_BTCUSD_PERP',  // BTC 선물
-        'ETH': 'BINANCE_DAPI_ETHUSD_PERP',  // ETH 선물
-        'XRP': 'BINANCE_DAPI_XRPUSD_PERP',  // XRP 선물
-        'ADA': 'BINANCE_DAPI_ADAUSD_PERP',  // ADA 선물
-        'DOT': 'BINANCE_DAPI_DOTUSD_PERP'   // DOT 선물
-      };
-
-      const symbolId = futuresSymbolMap[symbol];
-      if (!symbolId) {
-        throw new Error(`지원하지 않는 심볼: ${symbol}`);
-      }
-
-      const response = await fetch(`${this.baseUrl}/quotes/current?filter_symbol_id=${symbolId}`, { headers });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          const price = data[0].price;
-          console.log(`${symbol} CoinAPI 선물가격: $${price.toLocaleString()}`);
-          return price;
-        }
-      }
-      
-      throw new Error(`CoinAPI ${symbol} 선물 가격 조회 실패`);
-    } catch (error) {
-      console.warn(`CoinAPI ${symbol} 선물 가격 조회 실패:`, error);
-      
-      // 대체값: 현재 시장 기준 선물 가격
-      const fallbackPrices: {[key: string]: number} = {
-        'BTC': 118359,
-        'ETH': 3628,
-        'XRP': 3.15,
-        'ADA': 0.807,
-        'DOT': 3.98
-      };
-      
-      const price = fallbackPrices[symbol] || 0;
-      console.log(`${symbol} 선물 대체가격: $${price.toLocaleString()}`);
-      return price;
-    }
+  async getExchangeRate(baseAsset: string, quoteAsset: string): Promise<number> {
+    const endpoint = `/v1/exchangerate/${baseAsset}/${quoteAsset}`;
+    const data = await this.fetchFromCoinAPI<{ rate: number }>(endpoint);
+    return data.rate;
   }
 
-  // 업비트 실시간 가격 조회
-  async getUpbitPrice(symbol: string): Promise<number> {
-    try {
-      const headers = {
-        'X-CoinAPI-Key': this.apiKey,
-        'Accept': 'application/json'
-      };
-
-      // 업비트 심볼 ID 매핑
-      const upbitSymbolMap: {[key: string]: string} = {
-        'BTC': 'UPBIT_SPOT_BTC_KRW',
-        'ETH': 'UPBIT_SPOT_ETH_KRW',
-        'XRP': 'UPBIT_SPOT_XRP_KRW',
-        'ADA': 'UPBIT_SPOT_ADA_KRW',
-        'DOT': 'UPBIT_SPOT_DOT_KRW'
-      };
-
-      const symbolId = upbitSymbolMap[symbol];
-      if (!symbolId) {
-        throw new Error(`지원하지 않는 심볼: ${symbol}`);
-      }
-
-      const response = await fetch(`${this.baseUrl}/quotes/current?filter_symbol_id=${symbolId}`, { headers });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.length > 0) {
-          const price = data[0].price;
-          console.log(`${symbol} CoinAPI 업비트가격: ${price.toLocaleString()}원`);
-          return price;
-        }
-      }
-      
-      throw new Error(`CoinAPI ${symbol} 업비트 가격 조회 실패`);
-    } catch (error) {
-      console.warn(`CoinAPI ${symbol} 업비트 가격 조회 실패:`, error);
-      
-      // 업비트 직접 API 호출로 대체
-      return await this.getUpbitPriceDirect(symbol);
+  async getCryptoPrice(symbol: string): Promise<number | null> {
+    const endpoint = `/v1/ohlcv/${symbol}/latest?period_id=1MIN`;
+    const data = await this.fetchFromCoinAPI<any[]>(endpoint);
+    if (data && data.length > 0) {
+      return data[0].price_close;
     }
+    return null;
+  }
+
+  async getBinanceFuturesPrice(symbol: string): Promise<number | null> {
+    const endpoint = `/v1/trades/BINANCE_FTS_PERP_${symbol}USD/latest?limit=1`;
+    const data = await this.fetchFromCoinAPI<any[]>(endpoint);
+    if (data && data.length > 0) {
+      const price = data[0].price;
+      return price;
+    }
+    return null;
+  }
+
+  async getUpbitPrice(symbol: string): Promise<number | null> {
+    const endpoint = `/v1/trades/UPBIT_SPOT_${symbol}_KRW/latest?limit=1`;
+    const data = await this.fetchFromCoinAPI<any[]>(endpoint);
+    if (data && data.length > 0) {
+      const price = data[0].price;
+      return price;
+    }
+    return null;
   }
 
   // 업비트 직접 API 호출 (CoinAPI 실패시 대체)
@@ -134,7 +94,7 @@ export class CoinAPIService {
       const response = await fetch(`https://api.upbit.com/v1/ticker?markets=${market}`);
       
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as { trade_price: number }[];
         if (data && data.length > 0) {
           const price = data[0].trade_price;
           console.log(`${symbol} 업비트 직접조회: ${price.toLocaleString()}원`);
@@ -164,6 +124,10 @@ export class CoinAPIService {
         this.getBinanceFuturesPrice(symbol),
         this.getUSDTKRWRate()
       ]);
+
+      if (upbitPrice === null || binanceFuturesPrice === null) {
+        throw new Error(`Failed to fetch prices for ${symbol}`);
+      }
 
       const binancePriceKRW = binanceFuturesPrice * usdtKrwRate;
       const premiumRate = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;

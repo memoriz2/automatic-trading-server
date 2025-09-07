@@ -1,4 +1,5 @@
-import WebSocket from 'ws';
+/// <reference types="ws" />
+import WebSocket, { type RawData } from 'ws';
 import { priceCache } from './price-cache.js';
 import { naverExchange } from './naver-exchange.js';
 
@@ -26,17 +27,17 @@ export class BinanceWebSocketService {
         .join('/');
       const url = `wss://fstream.binance.com/stream?streams=${symbols}`;
 
-      console.log('🔌 바이낸스 [선물 aggTrade] WebSocket 연결 시도...');
-      console.log('🔗 연결 URL:', url);
+      // console.log('🔌 바이낸스 [선물 aggTrade] WebSocket 연결 시도...');
+      // console.log('🔗 연결 URL:', url);
 
       this.ws = new WebSocket(url);
 
       this.ws.on('open', () => {
-        console.log('✅ 바이낸스 [선물 aggTrade] WebSocket 연결 성공');
+        // console.log('✅ 바이낸스 [선물 aggTrade] WebSocket 연결 성공');
         this.isConnected = true;
       });
 
-      this.ws.on('message', (data) => {
+      this.ws.on('message', (data: RawData) => {
         try {
           const message = JSON.parse(data.toString());
           
@@ -51,31 +52,31 @@ export class BinanceWebSocketService {
               const usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate();
               const priceInKrw = price * usdKrwRate;
 
-              console.log(`📊 바이낸스선물 ${symbol}: ₩${priceInKrw.toLocaleString('ko-KR', { maximumFractionDigits: 0 })} (웹소켓-aggTrade)`);
+              // console.log(`📊 바이낸스선물 ${symbol}: ₩${priceInKrw.toLocaleString('ko-KR', { maximumFractionDigits: 0 })} (웹소켓-aggTrade)`);
 
               // 콜백 호출 유지 (타입은 내부적으로만 사용되므로 외부 영향 적음)
               Object.values(this.callbacks).forEach(cb => cb(trade as any));
             }
           } else {
-            console.log('ℹ️ 바이낸스 WebSocket 비-거래 메시지 수신:', message);
+            // console.log('ℹ️ 바이낸스 WebSocket 비-거래 메시지 수신:', message);
           }
         } catch (error) {
-          console.error('바이낸스 WebSocket 메시지 처리 오류:', error, '원본 데이터:', data.toString());
+          // console.error('바이낸스 WebSocket 메시지 처리 오류:', error, '원본 데이터:', data.toString());
         }
       });
 
-      this.ws.on('error', (error) => {
-        console.error('바이낸스 WebSocket 오류:', error.message);
+      this.ws.on('error', (error: Error) => {
+        // console.error('바이낸스 WebSocket 오류:', error.message);
         this.scheduleReconnect();
       });
 
-      this.ws.on('close', (code, reason) => {
-        console.log(`🔌 바이낸스 WebSocket 연결 종료: 코드=${code}, 이유=${reason.toString()}`);
+      this.ws.on('close', (code: number, reason: Buffer) => {
+        // console.log(`🔌 바이낸스 WebSocket 연결 종료: 코드=${code}, 이유=${reason.toString()}`);
         this.isConnected = false;
         this.scheduleReconnect();
       });
     } catch (error) {
-      console.error('바이낸스 WebSocket 연결 설정 오류:', error);
+      // console.error('바이낸스 WebSocket 연결 설정 오류:', error);
       this.scheduleReconnect();
     }
   }
@@ -91,9 +92,9 @@ export class BinanceWebSocketService {
     }
 
     this.isConnected = false;
-    console.log('🔄 바이낸스 WebSocket 재연결 시도...');
+    // console.log('🔄 바이낸스 WebSocket 재연결 시도...');
     setTimeout(() => {
-      console.log('🔄 바이낸스 WebSocket 재연결 시도...');
+      // console.log('🔄 바이낸스 WebSocket 재연결 시도...');
       this.connect();
     }, this.reconnectInterval);
   }
@@ -117,7 +118,7 @@ export class BinanceWebSocketService {
     }
     this.isConnected = false;
     this.callbacks = {};
-    console.log('🔌 바이낸스 WebSocket 연결 해제');
+    // console.log('🔌 바이낸스 WebSocket 연결 해제');
   }
 
   // 연결 상태 확인

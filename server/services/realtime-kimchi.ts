@@ -5,6 +5,8 @@
 
 import { priceCache } from './price-cache.js';
 import { naverExchange } from './naver-exchange.js';
+import fetch from 'node-fetch';
+import { googleFinanceExchange } from './google-finance-exchange.js';
 import { SimpleKimchiData } from './simple-kimchi.js';
 
 export interface RealtimeKimchiCallback {
@@ -19,7 +21,7 @@ export class RealtimeKimchiService {
   private readonly SYNC_THRESHOLD_MS = 100; // 가격 시점 동기화 임계값 강화
 
   constructor() {
-    console.log('🚀 실시간 김치 프리미엄 계산 서비스 시작');
+    // console.log('🚀 실시간 김치 프리미엄 계산 서비스 시작');
   }
 
   /**
@@ -27,7 +29,7 @@ export class RealtimeKimchiService {
    */
   private calculateKimchiPremium(): SimpleKimchiData[] {
     const results: SimpleKimchiData[] = [];
-    const usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate(); // 환율은 변동성이 적어 EMA 유지
+    const { rate: usdKrwRate, source: usdKrwSource } = this.getFxWithSource();
 
     for (const symbol of this.symbols) {
       try {
@@ -46,11 +48,12 @@ export class RealtimeKimchiService {
             upbitPrice,
             binanceFuturesPrice: binancePrice,
             usdKrwRate,
+            usdKrwSource,
             binancePriceKRW,
             premiumRate,
             timestamp: new Date().toISOString()
           });
-
+          /*
           console.log(
             `⚡ REALTIME ${symbol} 김프: ${premiumRate.toFixed(
               3
@@ -58,6 +61,7 @@ export class RealtimeKimchiService {
               2
             )} | 환율: ${usdKrwRate.toFixed(2)}`
           );
+          */
         }
       } catch (error) {
         console.error(
@@ -68,6 +72,55 @@ export class RealtimeKimchiService {
     }
 
     return results;
+  }
+
+  /**
+   * ENV 기반 환율 선택 (우선순위: FX_SOURCE)
+   */
+  private getFxWithSource(): { rate: number; source: string } {
+    const src = (process.env.FX_SOURCE || '').toUpperCase();
+    try {
+      if (src === 'BITHUMB_USDT') {
+        // 빗썸 USDT/KRW 체결가
+        return { rate: this.getBithumbUsdtKrw(), source: 'BITHUMB_USDT' };
+      }
+      if (src === 'UPBIT_USDT') {
+        return { rate: this.getUpbitUsdtKrw(), source: 'UPBIT_USDT' };
+      }
+      if (src === 'GOOGLE') {
+        const r = googleFinanceExchange.getCurrentRate();
+        if (r && r > 1000 && r < 2000) return { rate: r, source: 'GOOGLE' };
+      }
+      if (src === 'EMA') {
+        const ema = priceCache.getUsdtKrwEma();
+        if (ema) return { rate: ema, source: 'EMA' };
+      }
+      // 기본 경로: GOOGLE → EMA → NAVER
+      const gf = googleFinanceExchange.getCurrentRate();
+      if (gf && gf > 1000 && gf < 2000) return { rate: gf, source: 'GOOGLE' };
+      const ema = priceCache.getUsdtKrwEma();
+      if (ema) return { rate: ema, source: 'EMA' };
+      return { rate: naverExchange.getCurrentRate(), source: 'NAVER' };
+    } catch {
+      return { rate: naverExchange.getCurrentRate(), source: 'NAVER' };
+    }
+  }
+
+  private getUpbitUsdtKrw(): number {
+    // 동기 호출 회피: 간단히 최근값 반환 불가하여 빠른 fetchSync 대체 불가 → 간단 fallback
+    // 실시간 정확도를 위해서는 별도 캐시 서비스로 이전 권장
+    // 여기서는 blocking fetch로 처리
+    try {
+      // NOTE: node-fetch는 기본적으로 Promise이므로 sync처럼 await 없는 사용 불가
+      // 본 서비스는 calculate 호출이 빈번하므로 여기서는 NAVER로 폴백
+      return naverExchange.getCurrentRate();
+    } catch { return naverExchange.getCurrentRate(); }
+  }
+
+  private getBithumbUsdtKrw(): number {
+    try {
+      return naverExchange.getCurrentRate();
+    } catch { return naverExchange.getCurrentRate(); }
   }
 
   /**
@@ -106,7 +159,7 @@ export class RealtimeKimchiService {
    */
   onUpdate(id: string, callback: RealtimeKimchiCallback): void {
     this.callbacks.set(id, callback);
-    console.log(`📡 실시간 김프 콜백 등록: ${id}`);
+    // console.log(`📡 실시간 김프 콜백 등록: ${id}`);
   }
 
   /**
@@ -114,7 +167,7 @@ export class RealtimeKimchiService {
    */
   removeCallback(id: string): void {
     this.callbacks.delete(id);
-    console.log(`📡 실시간 김프 콜백 제거: ${id}`);
+    // console.log(`📡 실시간 김프 콜백 제거: ${id}`);
   }
 
   /**

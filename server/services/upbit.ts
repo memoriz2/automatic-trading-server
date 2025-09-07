@@ -130,35 +130,61 @@ export class UpbitService {
     }
   }
 
+  private async sendRequest(endpoint: string, method: 'GET' | 'POST' | 'DELETE', params: any = {}): Promise<any> {
+    const url = `${this.baseUrl}/v1/${endpoint}`;
+    const nonNilParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v != null));
+    
+    // Convert all param values to strings for URLSearchParams
+    const stringParams: Record<string, string> = {};
+    for (const key in nonNilParams) {
+      stringParams[key] = String(nonNilParams[key]);
+    }
+    
+    const queryString = new URLSearchParams(stringParams).toString();
+    const authToken = this.generateAuthToken(queryString || undefined);
+
+    const options: RequestInit = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      },
+    };
+
+    let fullUrl = url;
+    if (method === 'GET' || method === 'DELETE') {
+      if (queryString) fullUrl += `?${queryString}`;
+    } else if (method === 'POST') {
+      options.body = JSON.stringify(nonNilParams);
+    }
+
+    const response = await fetch(fullUrl, options);
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Upbit API error (${response.status}): ${errorBody}`);
+    }
+
+    return response.json();
+  }
+
+  // 지정가 매수
   async placeBuyOrder(market: string, price: number, orderType: 'limit' | 'price' = 'price'): Promise<any> {
     try {
-      const params = {
+      const params: any = {
         market,
         side: 'bid',
         ord_type: orderType,
-        ...(orderType === 'price' ? { price: price.toString() } : { volume: '0', price: price.toString() })
       };
-
-      const query = new URLSearchParams(params).toString();
-      const authToken = this.generateAuthToken(query);
-      
-      const response = await fetch(`${this.baseUrl}/v1/orders`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(params)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Upbit order error: ${response.status}`);
+      if (orderType === 'limit') {
+        params.price = price.toString();
+      } else {
+        params.price = price.toString(); // 시장가 매수 시 총액
       }
-
-      return await response.json();
+      return this.sendRequest('orders', 'POST', params);
     } catch (error) {
       console.error('Upbit placeBuyOrder error:', error);
-      throw error;
+      throw new Error(`주문 조회 실패: ${(error as Error).message}`);
     }
   }
 
@@ -167,112 +193,18 @@ export class UpbitService {
       const params = {
         market,
         side: 'ask',
-        ord_type: 'market',
-        volume: volume.toString()
+        volume: volume.toString(),
+        ord_type: 'limit',
       };
-
-      const query = new URLSearchParams(params).toString();
-      const authToken = this.generateAuthToken(query);
-      
-      const response = await fetch(`${this.baseUrl}/v1/orders`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(params)
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Upbit order error: ${response.status}`);
-      }
-
-      return await response.json();
+      return this.sendRequest('orders', 'POST', params);
     } catch (error) {
       console.error('Upbit placeSellOrder error:', error);
       throw error;
     }
   }
 
-  // 새로운 김프 전략용 메소드들
-
-  // KRW 현물 매수 (김프 차익거래용)
-  async placeBuyOrder(market: string, amount: number, orderType: 'price' | 'market' = 'price'): Promise<any> {
-    try {
-      if (!this.accessKey) {
-        throw new Error('Upbit API key not configured');
-      }
-
-      const body = {
-        market,
-        side: 'bid',
-        ord_type: orderType,
-        ...(orderType === 'price' ? { price: amount.toString() } : { volume: amount.toString() })
-      };
-
-      const queryString = Object.entries(body)
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join('&');
-      const token = this.generateAuthToken(queryString);
-      
-      const response = await fetch('https://api.upbit.com/v1/orders', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upbit buy order error (${response.status}): ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Upbit placeBuyOrder error:', error);
-      throw error;
-    }
-  }
-
-  // KRW 현물 매도 (김프 차익거래용)
-  async placeSellOrder(market: string, quantity: number): Promise<any> {
-    try {
-      if (!this.accessKey) {
-        throw new Error('Upbit API key not configured');
-      }
-
-      const body = {
-        market,
-        side: 'ask',
-        ord_type: 'market',
-        volume: quantity.toString()
-      };
-
-      const queryString = Object.entries(body)
-        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
-        .join('&');
-      const token = this.generateAuthToken(queryString);
-      
-      const response = await fetch('https://api.upbit.com/v1/orders', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upbit sell order error (${response.status}): ${errorText}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Upbit placeSellOrder error:', error);
-      throw error;
-    }
+  async cancelOrder(uuid: string): Promise<any> {
+    const params = { uuid };
+    return this.sendRequest('order', 'DELETE', params);
   }
 }

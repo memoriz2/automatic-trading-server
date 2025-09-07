@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [previousExchangeRate, setPreviousExchangeRate] = useState<number | null>(null);
   const { isConnected, subscribe } = useWebSocket();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // useAuth에서 token 직접 가져오기
   
   // 세션에서 로그인한 사용자 ID 사용 (로그인 필수)
   const userId = user?.id;
@@ -102,9 +102,27 @@ export default function Dashboard() {
   });
 
   // Queries
-  const { data: positions = [], refetch: refetchPositions } = useQuery<Position[]>({
-    queryKey: [`/api/positions/${userId}`],
-    enabled: !!userId,
+  const { data: positions = [], refetch: refetchPositions, isLoading: isLoadingPositions, error: positionsError } = useQuery<Position[]>({
+    queryKey: ['/api/positions', userId], // 올바른 queryKey 형식
+    queryFn: async () => {
+      console.log(`[CLIENT] Fetching positions for userId: ${userId}`);
+      if (!token) {
+        console.error('[CLIENT] No token available for fetching positions.');
+        throw new Error('Authentication token is missing.');
+      }
+      const response = await fetch(`/api/positions`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[CLIENT] Failed to fetch positions: ${response.status} ${errorText}`);
+        throw new Error(`Failed to fetch positions: ${errorText}`);
+      }
+      const data = await response.json();
+      console.log(`[CLIENT] Fetched positions data:`, data);
+      return data;
+    },
+    enabled: !!userId && !!token,
   });
 
   const { data: trades = [] } = useQuery<Trade[]>({
@@ -123,6 +141,41 @@ export default function Dashboard() {
 
   const { data: tradingStatus } = useQuery({
     queryKey: ['/api/trading/status'],
+  });
+
+  // 오늘(한국시간) 경과 분 계산
+  const getKstMinutesSinceMidnight = () => {
+    const now = new Date();
+    const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const y = kstNow.getUTCFullYear();
+    const m = kstNow.getUTCMonth();
+    const d = kstNow.getUTCDate();
+    const kstMidnightUtc = Date.UTC(y, m, d, -9, 0, 0);
+    return Math.max(1, Math.floor((now.getTime() - kstMidnightUtc) / 60000));
+  };
+
+  // KST 오늘 범위 기준 지표(주문/진입/청산) 조회
+  const { data: todayMetrics } = useQuery<any>({
+    queryKey: ['/api/kimpga/metrics', 'today'],
+    enabled: !!userId,
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const minutes = getKstMinutesSinceMidnight();
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/kimpga/metrics?minutes=${minutes}`,
+        {
+          method: 'GET',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'X-User-ID': String(userId),
+          },
+          credentials: 'include',
+          cache: 'no-store',
+        }
+      );
+      if (!res.ok) throw new Error(`${res.status}: metrics fetch failed`);
+      return await res.json();
+    },
   });
 
   // WebSocket subscriptions
@@ -182,6 +235,20 @@ export default function Dashboard() {
     }
   }, [exchangeRateError, toast]);
 
+  useEffect(() => {
+    if (isLoadingPositions) {
+      console.log('[CLIENT] Positions are loading...');
+    }
+    if (positionsError) {
+      console.error('[CLIENT] Error fetching positions:', positionsError);
+      toast({
+        title: "포지션 로딩 실패",
+        description: positionsError.message,
+        variant: "destructive",
+      });
+    }
+  }, [isLoadingPositions, positionsError, toast]);
+
   const handleEmergencyStop = async () => {
     try {
       await apiRequest('POST', `/api/trading/emergency-stop/${userId}`);
@@ -202,17 +269,49 @@ export default function Dashboard() {
   };
 
   const handleClosePosition = async (positionId: number) => {
+    console.log(`[클라이언트] 포지션 청산 함수 호출됨. ID: ${positionId}`);
     try {
-      await apiRequest('POST', `/api/positions/${positionId}/close`);
+      console.log(`[클라이언트] 인증 토큰 확인 중... 토큰 존재 여부: ${token ? '있음' : '없음'}`);
+      if (!token) {
+        toast({
+          title: "인증 오류",
+          description: "인증 토큰을 찾을 수 없습니다. 다시 로그인해주세요.",
+          variant: "destructive",
+        });
+        throw new Error("Auth token not found");
+      }
+      
+      console.log(`[클라이언트] 서버에 청산 요청 전송: POST /api/positions/${positionId}/close`);
+      const res = await fetch(`/api/positions/${positionId}/close`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log(`[클라이언트] 서버 응답 수신. 상태 코드: ${res.status}`);
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorMessage = errorData.error || errorData.message || '알 수 없는 서버 오류';
+        console.error('[클라이언트] 서버가 오류를 반환했습니다:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const result = await res.json();
+      console.log('[클라이언트] 포지션 청산 성공. 서버 응답:', result);
+
       toast({
-        title: "포지션 청산",
+        title: "성공",
         description: "포지션이 성공적으로 청산되었습니다.",
       });
       refetchPositions();
     } catch (error) {
+      console.error("[클라이언트] 포지션 청산 요청 실패:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "오류",
-        description: "포지션 청산 중 오류가 발생했습니다.",
+        description: `포지션 청산에 실패했습니다: ${errorMessage}`,
         variant: "destructive",
       });
     }
@@ -223,11 +322,28 @@ export default function Dashboard() {
     return sum + (parseFloat(pos.profitLossRate?.toString() || '0'));
   }, 0) / Math.max(positions.length, 1);
 
-  // Count today's trades
-  const today = new Date().toDateString();
-  const todayTradeCount = trades.filter(trade => 
-    new Date(trade.timestamp).toDateString() === today
-  ).length;
+  // Count today's trades (KST, by logged-in user)
+  const toKstDateString = (d: string | Date) =>
+    new Date(
+      new Date(typeof d === 'string' ? d : d.toISOString()).toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
+    ).toDateString();
+
+  const todayKst = toKstDateString(new Date());
+
+  // 지표 기반 합산(체결+진입+청산) → 폴백은 로컬 필터
+  const todayTradeCountFromMetrics = todayMetrics
+    ? (Number(todayMetrics.total_orders || 0) + Number(todayMetrics.entries || 0) + Number(todayMetrics.exits || 0))
+    : null;
+
+  const todayTradeCountFallback = userId
+    ? (trades || []).filter((t: any) => {
+        const ts = (t as any).executedAt || (t as any).createdAt || (t as any).timestamp;
+        if (!ts) return false;
+        return toKstDateString(ts) === todayKst;
+      }).length
+    : 0;
+
+  const todayTradeCount = todayTradeCountFromMetrics ?? todayTradeCountFallback;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

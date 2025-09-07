@@ -1,6 +1,6 @@
 
-import { storage } from "../storage";
-import { SimpleKimchiService } from "./simple-kimchi";
+import { storage } from "../storage.js";
+import { SimpleKimchiService } from "./simple-kimchi.js";
 
 // Define the structure for backtest parameters
 export interface BacktestParams {

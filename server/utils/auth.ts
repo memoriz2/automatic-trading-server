@@ -57,20 +57,26 @@ export function verifyToken(token: string): { userId: number; username: string }
  * 인증 미들웨어
  */
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
+  console.log(`[서버 인증] 미들웨어 실행: ${req.method} ${req.originalUrl}`);
   const authHeader = req.headers['authorization'];
+  console.log(`[서버 인증] Authorization 헤더 수신: ${authHeader}`);
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
+    console.log('[서버 인증] 실패: 요청에 토큰이 없습니다. (401 반환)');
     return res.status(401).json({ message: '로그인이 필요합니다' });
   }
+  console.log(`[서버 인증] 요청에서 토큰 추출: ${token.substring(0, 15)}...`);
 
   const decoded = verifyToken(token);
   if (!decoded) {
+    console.log('[서버 인증] 실패: 토큰이 유효하지 않습니다. (403 반환)');
     return res.status(403).json({ message: '유효하지 않은 토큰입니다' });
   }
 
   // 요청 객체에 사용자 정보 추가
   (req as any).user = decoded;
+  console.log(`[서버 인증] 성공: 사용자 정보를 요청에 추가했습니다.`, decoded);
   next();
 }
 

@@ -4,6 +4,7 @@ import { apiRequest } from '@/lib/queryClient';
 interface User {
   id: number;
   username: string;
+  token?: string;
 }
 
 interface AuthState {
@@ -23,51 +24,31 @@ export function useAuth() {
 
   // 토큰 확인 및 사용자 정보 로드
   useEffect(() => {
-    const initAuth = () => {
-      const token = localStorage.getItem('authToken');
-      const userStr = localStorage.getItem('user');
-      
-      if (!token || !userStr) {
-        setAuthState({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-          token: null
-        });
-        return;
-      }
+    try {
+      const storedToken = sessionStorage.getItem('authToken');
+      const storedUser = sessionStorage.getItem('user');
 
-      try {
-        // localStorage에서 사용자 정보 파싱
-        const user = JSON.parse(userStr);
+      if (storedToken && storedUser) {
         setAuthState({
-          user,
+          user: JSON.parse(storedUser),
           isAuthenticated: true,
           isLoading: false,
-          token
+          token: storedToken,
         });
-      } catch (error) {
-        // 파싱 실패시 로그아웃 처리
-        console.error('사용자 정보 파싱 실패:', error);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        setAuthState({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-          token: null
-        });
+      } else {
+        setAuthState(prev => ({ ...prev, isLoading: false }));
       }
-    };
-
-    initAuth();
+    } catch (error) {
+      console.error("Failed to parse auth data from sessionStorage", error);
+      setAuthState(prev => ({ ...prev, isLoading: false }));
+    }
   }, []);
 
   const login = (user: User, token: string) => {
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.setItem('authToken', token);
+    sessionStorage.setItem('user', JSON.stringify(user));
     setAuthState({
-      user,
+      user: { ...user, token },
       isAuthenticated: true,
       isLoading: false,
       token
@@ -76,8 +57,8 @@ export function useAuth() {
 
   const logout = () => {
     console.log('useAuth logout 함수 실행');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('user');
     setAuthState({
       user: null,
       isAuthenticated: false,
@@ -96,7 +77,7 @@ export function useAuth() {
 
 // 인증이 필요한 API 요청을 위한 헬퍼 함수
 export async function authenticatedApiRequest(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('authToken');
+  const token = sessionStorage.getItem('authToken');
   
   if (!token) {
     throw new Error('인증 토큰이 없습니다');

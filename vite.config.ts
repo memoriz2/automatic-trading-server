@@ -27,6 +27,16 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      external: [
+        "@prisma/client",
+        // Node.js built-in modules that Prisma might use
+        "fs",
+        "path",
+        "os",
+        "crypto",
+      ],
+    },
   },
   server: {
       host: '0.0.0.0',
@@ -35,5 +45,16 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    proxy: {
+      "/api": "http://localhost:5000",
+      "/ws": {
+        target: "ws://localhost:5000",
+        ws: true,
+      },
+    },
+  },
+  ssr: {
+    noExternal: true, // 모든 의존성을 번들에 포함하도록 설정
+    external: ["@prisma/client"], // Prisma Client는 예외로 처리
   },
 });

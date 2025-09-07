@@ -15,9 +15,9 @@ export class GoogleFinanceExchangeService {
   }
 
   private startAutoUpdate(): void {
-    console.log('🔄 구글 파이낸스 환율 자동 업데이트 시작 (3초 간격)');
+    // console.log('🔄 구글 파이낸스 환율 자동 업데이트 시작 (3초 간격)');
     this.updateInterval = setInterval(() => {
-      console.log('⏰ 구글 파이낸스 환율 업데이트 시도 중...');
+      // console.log('⏰ 구글 파이낸스 환율 업데이트 시도 중...');
       this.updateRate();
     }, 3000); // 3초마다 업데이트
   }
@@ -36,7 +36,7 @@ export class GoogleFinanceExchangeService {
     
     try {
       // 💥 구글 파이낸스 환율만 사용 (간단하고 안정적)
-      console.log('🔍 구글 파이낸스 환율 조회 시도...');
+      // console.log('🔍 구글 파이낸스 환율 조회 시도...');
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -66,12 +66,12 @@ export class GoogleFinanceExchangeService {
         
         if (rate && rate > 1000 && rate < 2000) {
           this.googleRate = rate;
-          console.log(`✅ 구글 파이낸스 환율: ${rate}원`);
+          // console.log(`✅ 구글 파이낸스 환율: ${rate}원`);
         } else {
           console.warn(`❌ 구글 파이낸스 비정상 환율 값: ${rate}`);
         }
       } else {
-        console.log(`❌ 구글 파이낸스 환율 파싱 실패`);
+        // console.log(`❌ 구글 파이낸스 환율 파싱 실패`);
       }
       
     } catch (error) {
@@ -88,13 +88,13 @@ export class GoogleFinanceExchangeService {
       // 환율 변경 감지 및 로그
       if (this.lastCalculatedRate === null) {
         const timestamp = new Date().toLocaleTimeString();
-        console.log(`💰 [${timestamp}] 초기 환율: ${this.googleRate.toFixed(2)}원 (구글 파이낸스)`);
+        // console.log(`💰 [${timestamp}] 초기 환율: ${this.googleRate.toFixed(2)}원 (구글 파이낸스)`);
         this.lastCalculatedRate = this.googleRate;
       } else if (Math.abs(this.googleRate - this.lastCalculatedRate) > 0.001) {
         const timestamp = new Date().toLocaleTimeString();
         const change = this.googleRate - this.lastCalculatedRate;
         const changeSymbol = change > 0 ? '📈' : '📉';
-        console.log(`${changeSymbol} [${timestamp}] 환율 변경: ${this.lastCalculatedRate.toFixed(2)}원 → ${this.googleRate.toFixed(2)}원 (${change > 0 ? '+' : ''}${change.toFixed(2)}원)`);
+        // console.log(`${changeSymbol} [${timestamp}] 환율 변경: ${this.lastCalculatedRate.toFixed(2)}원 → ${this.googleRate.toFixed(2)}원 (${change > 0 ? '+' : ''}${change.toFixed(2)}원)`);
         this.lastCalculatedRate = this.googleRate;
       }
       
@@ -102,7 +102,7 @@ export class GoogleFinanceExchangeService {
     }
     
     // 기본값 (구글 파이낸스 실패 시)
-    console.log(`⚠️ 구글 파이낸스 환율 없음 - 기본값 1394.0원 사용`);
+    // console.log(`⚠️ 구글 파이낸스 환율 없음 - 기본값 1394.0원 사용`);
     return 1394.0;
   }
 

@@ -2,11 +2,8 @@ import { UpbitService } from "./upbit.js";
 import { BinanceService } from "./binance.js";
 import { SimpleKimchiService } from "./simple-kimchi.js";
 import { storage } from "../storage.js";
-import type {
-  TradingSettings,
-  Position,
-  TradingStrategy,
-} from "@shared/schema";
+import { Prisma } from "../generated/prisma";
+import type { TradingSetting as TradingSettings, Position, TradingStrategy } from "../generated/prisma";
 
 export interface StrategySignal {
   symbol: string;
@@ -173,9 +170,9 @@ export class MultiStrategyTradingService {
     );
 
     // 사용자 설정 값
-    const entryRate = parseFloat(strategy.entryRate);
-    const exitRate = parseFloat(strategy.exitRate);
-    const tolerance = parseFloat(strategy.toleranceRate);
+    const entryRate = Number(strategy.entryRate);
+    const exitRate = Number(strategy.exitRate);
+    const tolerance = Number(strategy.toleranceRate);
 
     console.log(
       `🔍 BTC 자동매매 체크: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`
@@ -275,7 +272,7 @@ export class MultiStrategyTradingService {
       throw new Error(`전략을 찾을 수 없습니다: ${signal.strategyId}`);
     }
 
-    const upbitEntryAmount = parseFloat(strategy.investmentAmount);
+    const upbitEntryAmount = Number(strategy.investmentAmount);
     const binanceLeverage = strategy.leverage;
 
     // 현재 김프 방향 자동 판단
@@ -289,8 +286,8 @@ export class MultiStrategyTradingService {
     );
 
     // 🚨 진입 조건 2차 검증 (단순 로직)
-    const entryRate = parseFloat(strategy.entryRate);
-    const tolerance = parseFloat(strategy.toleranceRate);
+    const entryRate = Number(strategy.entryRate);
+    const tolerance = Number(strategy.toleranceRate);
 
     console.log(
       `🔍 진입 조건 2차 검증: 현재김프=${signal.premiumRate}%, 설정진입율=${entryRate}%, 허용오차=${tolerance}%`
@@ -504,8 +501,7 @@ export class MultiStrategyTradingService {
           exchange: "upbit",
           quantity: String(adjustedQuantity),
           price: String(currentPrice),
-          amount: String(upbitEntryAmount),
-          orderId: upbitResult.uuid,
+          exchangeOrderId: upbitResult.uuid,
         }),
         storage.createTrade({
           userId: parseInt(userId),
@@ -515,8 +511,7 @@ export class MultiStrategyTradingService {
           exchange: "binance",
           quantity: String(adjustedQuantity),
           price: String(currentPrice),
-          amount: String(adjustedQuantity * currentPrice),
-          orderId: binanceResult.orderId,
+          exchangeOrderId: binanceResult.orderId,
         }),
       ]);
 
@@ -579,7 +574,7 @@ export class MultiStrategyTradingService {
         binanceExchange.apiSecret
       );
 
-      const quantity = parseFloat(position.quantity);
+      const quantity = Number(position.quantity);
 
       // 1. 업비트에서 현물 매도
       const market = `KRW-${signal.symbol}`;
@@ -599,7 +594,7 @@ export class MultiStrategyTradingService {
 
       // 3. 포지션 상태 업데이트
       await storage.updatePosition(position.id, {
-        currentPremiumRate: String(signal.premiumRate),
+        currentPremiumRate: new Prisma.Decimal(signal.premiumRate),
       });
 
       // 4. 거래 기록 생성
@@ -612,8 +607,7 @@ export class MultiStrategyTradingService {
           exchange: "upbit",
           quantity: String(upbitResult.volume || "0"),
           price: String(upbitResult.price || "0"),
-          amount: String((upbitResult.volume || 0) * (upbitResult.price || 0)),
-          orderId: upbitResult.uuid,
+          exchangeOrderId: upbitResult.uuid,
         }),
         storage.createTrade({
           userId: parseInt(userId),
@@ -623,10 +617,7 @@ export class MultiStrategyTradingService {
           exchange: "binance",
           quantity: String(binanceResult.executedQty || binanceResult.quantity),
           price: String(binanceResult.avgPrice || binanceResult.price),
-          amount: String(
-            (binanceResult.executedQty || 0) * (binanceResult.avgPrice || 0)
-          ),
-          orderId: binanceResult.orderId?.toString(),
+          exchangeOrderId: binanceResult.orderId?.toString(),
         }),
       ]);
 
@@ -682,11 +673,11 @@ export class MultiStrategyTradingService {
         if (!currentData) continue;
 
         // 실제 포지션이 진입된 경우에만 수익률 계산
-        const entryPremium = parseFloat(position.entryPremiumRate || "0");
+        const entryPremium = Number(position.entryPremiumRate || 0);
         const currentPremium = currentData.premiumRate;
 
         // 진입가격이 정상적인 범위인지 확인 (5만원이면 모의거래 오류)
-        const entryPrice = parseFloat(position.entryPrice || "0");
+        const entryPrice = Number(position.entryPrice || 0);
         const isValidEntry = entryPrice > 100000; // 10만원 이상이면 정상 진입
 
         if (isValidEntry) {
@@ -695,19 +686,14 @@ export class MultiStrategyTradingService {
 
           // 포지션 업데이트
           await storage.updatePosition(position.id, {
-            currentPrice: String(
-              currentData.upbitPrice || position.currentPrice
-            ),
-            currentPremiumRate: String(currentPremium),
-            // Prisma 정합: profitLossRate 제거. 필요하면 unrealizedPnl 계산으로 대체
+            currentPrice: new Prisma.Decimal(currentData.upbitPrice ?? Number(position.currentPrice ?? 0)),
+            currentPremiumRate: new Prisma.Decimal(currentPremium),
           });
         } else {
           // 비정상 진입 포지션은 현재 김프율만 업데이트
           await storage.updatePosition(position.id, {
-            currentPrice: String(
-              currentData.upbitPrice || position.currentPrice
-            ),
-            currentPremiumRate: String(currentPremium),
+            currentPrice: new Prisma.Decimal(currentData.upbitPrice ?? Number(position.currentPrice ?? 0)),
+            currentPremiumRate: new Prisma.Decimal(currentPremium),
           });
         }
       } catch (error) {

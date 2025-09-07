@@ -24,6 +24,7 @@ export class PriceCacheService {
   private emaRate: number | null = null; // USDT/KRW EMA
   private readonly EMA_ALPHA = 2 / (5 + 1); // 5초 EMA 가중치 (대략 5틱 가정)
   private priceUpdateCallbacks: PriceUpdateCallback[] = [];
+  private namedCallbacks: Map<string, (data: any[]) => void> = new Map();
 
   /**
    * 업비트 가격 캐시에 저장
@@ -44,7 +45,7 @@ export class PriceCacheService {
     }
     
     if (source === 'websocket') {
-      console.log(`📊 업비트 ${symbol}: ₩${price.toLocaleString()} (웹소켓)`);
+      // console.log(`📊 업비트 ${symbol}: ₩${price.toLocaleString()} (웹소켓)`);
       
       // USDT 환율 EMA 업데이트
       if (symbol === 'USDT') {
@@ -53,7 +54,7 @@ export class PriceCacheService {
         } else {
           this.emaRate = this.emaRate + this.EMA_ALPHA * (price - this.emaRate);
         }
-        console.log(`📈 USDT/KRW EMA: ${this.emaRate.toFixed(2)} (raw: ${price.toFixed(2)})`);
+        // console.log(`📈 USDT/KRW EMA: ${this.emaRate.toFixed(2)} (raw: ${price.toFixed(2)})`);
       }
 
       // 🚀 가격 변동시 실시간 김치 계산 트리거
@@ -86,7 +87,7 @@ export class PriceCacheService {
     }
 
     if (source === 'websocket') {
-      console.log(`📊 바이낸스 ${symbol}: $${price.toLocaleString()} (웹소켓)`);
+      // console.log(`📊 바이낸스 ${symbol}: $${price.toLocaleString()} (웹소ket)`);
       
       // 🚀 가격 변동시 실시간 김치 계산 트리거
       this.priceUpdateCallbacks.forEach(callback => {
@@ -111,7 +112,7 @@ export class PriceCacheService {
     
     // 캐시 만료 확인
     if (Date.now() - cached.timestamp > this.CACHE_EXPIRE_MS) {
-      console.warn(`⚠️ 업비트 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
+      // console.warn(`⚠️ 업비트 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
       return null;
     }
     
@@ -127,7 +128,7 @@ export class PriceCacheService {
       return null;
     }
     if (Date.now() - cached.timestamp > this.CACHE_EXPIRE_MS) {
-      console.warn(`⚠️ 업비트 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
+      // console.warn(`⚠️ 업비트 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
       return null;
     }
     return cached;
@@ -145,7 +146,7 @@ export class PriceCacheService {
     
     // 캐시 만료 확인
     if (Date.now() - cached.timestamp > this.CACHE_EXPIRE_MS) {
-      console.warn(`⚠️ 바이낸스 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
+      // console.warn(`⚠️ 바이낸스 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
       return null;
     }
     
@@ -161,7 +162,7 @@ export class PriceCacheService {
       return null;
     }
     if (Date.now() - cached.timestamp > this.CACHE_EXPIRE_MS) {
-      console.warn(`⚠️ 바이낸스 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
+      // console.warn(`⚠️ 바이낸스 ${symbol} 캐시 만료 (${Math.round((Date.now() - cached.timestamp) / 1000)}초 전)`);
       return null;
     }
     return cached;
@@ -222,7 +223,15 @@ export class PriceCacheService {
    */
   onPriceUpdate(callback: PriceUpdateCallback): void {
     this.priceUpdateCallbacks.push(callback);
-    console.log(`📡 가격 변동 콜백 등록 (총 ${this.priceUpdateCallbacks.length}개)`);
+    // console.log(`📡 가격 변동 콜백 등록 (총 ${this.priceUpdateCallbacks.length}개)`);
+  }
+
+  onUpdate(name: string, callback: (data: any[]) => void): void {
+    this.namedCallbacks.set(name, callback);
+  }
+
+  removeCallback(name: string): void {
+    this.namedCallbacks.delete(name);
   }
 
   /**
@@ -235,7 +244,7 @@ export class PriceCacheService {
     this.upbitPrices.forEach((cached, symbol) => {
       if (now - cached.timestamp > this.CACHE_EXPIRE_MS) {
         this.upbitPrices.delete(symbol);
-        console.log(`🧹 만료된 업비트 ${symbol} 캐시 삭제`);
+        // console.log(`🧹 만료된 업비트 ${symbol} 캐시 삭제`);
       }
     });
     
@@ -243,7 +252,7 @@ export class PriceCacheService {
     this.binancePrices.forEach((cached, symbol) => {
       if (now - cached.timestamp > this.CACHE_EXPIRE_MS) {
         this.binancePrices.delete(symbol);
-        console.log(`🧹 만료된 바이낸스 ${symbol} 캐시 삭제`);
+        // console.log(`🧹 만료된 바이낸스 ${symbol} 캐시 삭제`);
       }
     });
   }
