@@ -67,7 +67,7 @@ export default function AutoTrading() {
       if (!r.ok) throw new Error("current_kimp failed");
       return r.json();
     },
-    refetchInterval: 100,
+    refetchInterval: 5000, // 5초마다 잔고 조회 (API 제한 고려)
   });
   const { data: kimpgaStatus, refetch: refetchKimpgaStatus } =
     useQuery<KimpgaStatus>({
@@ -77,7 +77,7 @@ export default function AutoTrading() {
         if (!r.ok) throw new Error("status failed");
         return r.json();
       },
-      refetchInterval: 100,
+      refetchInterval: 5000, // 5초마다 잔고 조회 (API 제한 고려)
     });
   const { data: kimpgaMetrics } = useQuery<KimpgaMetrics>({
     queryKey: ["/api/kimpga/metrics", tick],
@@ -86,7 +86,7 @@ export default function AutoTrading() {
       if (!r.ok) throw new Error("metrics failed");
       return r.json();
     },
-    refetchInterval: 100,
+    refetchInterval: 5000, // 5초마다 잔고 조회 (API 제한 고려)
   });
 
   // kimpga 제어
@@ -166,12 +166,83 @@ export default function AutoTrading() {
     amount: 0, // 투자금액
   });
 
+  // 멀티 밴드 설정
+  interface TradingBand {
+    id: string;
+    name: string;
+    entryRate: number;
+    exitRate: number;
+    tolerance: number;
+    leverage: number;
+    amount: number;
+    isActive: boolean;
+  }
+
+  const [bands, setBands] = useState<TradingBand[]>([]);
+
+  // 밴드 추가 함수
+  const addBand = () => {
+    const newBand: TradingBand = {
+      id: `band-${Date.now()}`,
+      name: `밴드 ${bands.length + 1}`,
+      entryRate: 3.0,
+      exitRate: 2.0,
+      tolerance: 0.1,
+      leverage: 1,
+      amount: 0.01,
+      isActive: false,
+    };
+    setBands(prev => [...prev, newBand]);
+  };
+
+  // 밴드 삭제 함수
+  const deleteBand = (id: string) => {
+    setBands(prev => prev.filter(band => band.id !== id));
+  };
+
+  // 밴드 업데이트 함수
+  const updateBand = (id: string, field: keyof TradingBand, value: any) => {
+    setBands(prev => prev.map(band => 
+      band.id === id ? { ...band, [field]: value } : band
+    ));
+  };
+
+  // 로컬 저장 함수
+  const saveBandsToLocal = () => {
+    localStorage.setItem('trading-bands', JSON.stringify(bands));
+    toast({
+      title: "설정 저장",
+      description: `${bands.length}개 밴드가 로컬에 저장되었습니다.`,
+    });
+  };
+
+  // 로컬 불러오기 함수
+  const loadBandsFromLocal = () => {
+    try {
+      const saved = localStorage.getItem('trading-bands');
+      if (saved) {
+        const loadedBands = JSON.parse(saved);
+        setBands(loadedBands);
+        toast({
+          title: "설정 불러오기",
+          description: `${loadedBands.length}개 밴드를 불러왔습니다.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "불러오기 실패",
+        description: "저장된 설정을 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Queries
   const { data: positions = [], refetch: refetchPositions } = useQuery<
     Position[]
   >({
     queryKey: ["/api/positions", userId],
-    refetchInterval: 100, // 1초마다 포지션 업데이트
+    refetchInterval: 5000, // 5초마다 잔고 조회 (API 제한 고려) // 1초마다 포지션 업데이트
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화 (TanStack Query v5)
     enabled: !!userId,
@@ -179,7 +250,7 @@ export default function AutoTrading() {
 
   const { data: tradingStatus } = useQuery({
     queryKey: ["/api/trading/status"],
-    refetchInterval: 100,
+    refetchInterval: 5000, // 5초마다 잔고 조회 (API 제한 고려)
   });
 
   // 서버 저장된 거래 설정 불러와 폼 초기값 세팅
@@ -407,155 +478,154 @@ export default function AutoTrading() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* 설정 입력 섹션 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <Label
-                  htmlFor="entryRate"
-                  className="text-slate-700 dark:text-slate-300"
-                >
-                  진입 김프율 (%)
-                </Label>
-                <Input
-                  id="entryRate"
-                  type="number"
-                  step="0.1"
-                  value={config.entryRate}
-                  onChange={(e) => {
-                    if (!isTouched) setIsTouched(true);
-                    const value = e.target.value;
-                    setConfig(prev => ({ ...prev, entryRate: value === '' ? 0 : Number(value) }));
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  className="mt-1"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  이 김프율에 도달하면 진입
-                </p>
+            {/* 멀티 밴드 전략 설정 */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold">전략 설정 (멀티 밴드)</h3>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={addBand}>
+                    밴드 추가
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={saveBandsToLocal}>
+                    설정 저장(로컬)
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={loadBandsFromLocal}>
+                    불러오기
+                  </Button>
+                </div>
               </div>
-
-              <div>
-                <Label
-                  htmlFor="exitRate"
-                  className="text-slate-700 dark:text-slate-300"
-                >
-                  청산 김프율 (%)
-                </Label>
-                <Input
-                  id="exitRate"
-                  type="number"
-                  step="0.1"
-                  value={config.exitRate}
-                  onChange={(e) => {
-                    if (!isTouched) setIsTouched(true);
-                    const value = e.target.value;
-                    setConfig(prev => ({ ...prev, exitRate: value === '' ? 0 : Number(value) }));
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  className="mt-1"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  이 김프율에 도달하면 청산
-                </p>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-slate-300 dark:border-slate-600">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-800">
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[90px]">이름</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[120px]">진입 김프율(%)</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[120px]">청산 김프율(%)</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[120px]">허용오차(%)</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[120px]">레버리지</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[150px]">투자수량(BTC)</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[220px]">미리보기 (Upbit KRW / Binance USDT) 수수료 포함</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[130px]">상태</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[220px]">서버</th>
+                      <th className="border border-slate-300 dark:border-slate-600 px-3 py-2 text-left min-w-[80px]">삭제</th>
+                    </tr>
+                  </thead>
+                  <tbody id="band-tbody">
+                    {bands.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="border border-slate-300 dark:border-slate-600 px-3 py-4 text-center text-slate-500 dark:text-slate-400">
+                          밴드를 추가하세요
+                        </td>
+                      </tr>
+                    ) : (
+                      bands.map((band) => (
+                        <tr key={band.id} className="hover:bg-slate-50 dark:hover:bg-slate-700">
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Input
+                              value={band.name}
+                              onChange={(e) => updateBand(band.id, 'name', e.target.value)}
+                              className="w-full text-xs"
+                            />
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={band.entryRate}
+                              onChange={(e) => updateBand(band.id, 'entryRate', Number(e.target.value))}
+                              className="w-full text-xs"
+                            />
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={band.exitRate}
+                              onChange={(e) => updateBand(band.id, 'exitRate', Number(e.target.value))}
+                              className="w-full text-xs"
+                            />
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={band.tolerance}
+                              onChange={(e) => updateBand(band.id, 'tolerance', Number(e.target.value))}
+                              className="w-full text-xs"
+                            />
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={band.leverage}
+                              onChange={(e) => updateBand(band.id, 'leverage', Number(e.target.value))}
+                              className="w-full text-xs"
+                            />
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Input
+                              type="number"
+                              step="0.001"
+                              value={band.amount}
+                              onChange={(e) => updateBand(band.id, 'amount', Number(e.target.value))}
+                              className="w-full text-xs"
+                            />
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2 text-xs">
+                            <div className="space-y-1">
+                              <div>업비트: ₩{(band.amount * (kimp?.upbit_price || 156000000)).toLocaleString()}</div>
+                              <div>바이낸스: ${(band.amount * (kimp?.binance_price || 112000) * band.leverage).toFixed(2)}</div>
+                              <div className="text-slate-500">수수료: ~0.1%</div>
+                            </div>
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Badge variant={band.isActive ? "default" : "secondary"} className="text-xs">
+                              {band.isActive ? "활성" : "비활성"}
+                            </Badge>
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2 text-xs">
+                            <div className="space-y-1">
+                              <div>진입: {band.entryRate - band.tolerance}% ~ {band.entryRate + band.tolerance}%</div>
+                              <div>청산: {band.exitRate}%</div>
+                              <div>현재: {kimp?.kimp?.toFixed(3) || '0.000'}%</div>
+                            </div>
+                          </td>
+                          <td className="border border-slate-300 dark:border-slate-600 px-2 py-2">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deleteBand(band.id)}
+                              className="w-full text-xs"
+                            >
+                              삭제
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-
-              <div>
-                <Label
-                  htmlFor="amount"
-                  className="text-slate-700 dark:text-slate-300"
-                >
-                  투자금액 (원)
-                </Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="100000"
-                  value={config.amount}
-                  onChange={(e) => {
-                    if (!isTouched) setIsTouched(true);
-                    const value = e.target.value;
-                    setConfig(prev => ({ ...prev, amount: value === '' ? 0 : Number(value) }));
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  className="mt-1"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  {config.amount.toLocaleString()}원
-                </p>
+              
+              <div className="flex gap-4 mt-4">
+                <Button id="btn-start" className="bg-green-600 hover:bg-green-700">
+                  ▶ 전략 시작
+                </Button>
+                <Button variant="secondary" id="btn-stop" disabled>
+                  ■ 전략 중지
+                </Button>
               </div>
-
-              <div>
-                <Label
-                  htmlFor="leverage"
-                  className="text-slate-700 dark:text-slate-300"
-                >
-                  레버리지 (배)
-                </Label>
-                <Input
-                  id="leverage"
-                  type="number"
-                  min="1"
-                  max="10"
-                  value={config.leverage}
-                  onChange={(e) => {
-                    if (!isTouched) setIsTouched(true);
-                    const value = e.target.value;
-                    setConfig(prev => ({ ...prev, leverage: value === '' ? 1 : Number(value) }));
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  className="mt-1"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  {config.leverage}배 레버리지
+              
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  ※ 이 UI는 <strong>강제 진입이 없습니다.</strong> 각 밴드는 <strong>entry_kimp±tolerance</strong> 범위에 <strong>도달하면 자동 진입</strong>, 이후 <strong>exit_kimp</strong> 등 조건 충족 시 자동 청산됩니다.
                 </p>
-              </div>
-
-              <div>
-                <Label
-                  htmlFor="tolerance"
-                  className="text-slate-700 dark:text-slate-300"
-                >
-                  허용 오차 (%)
-                </Label>
-                <Input
-                  id="tolerance"
-                  type="number"
-                  step="0.01"
-                  value={config.tolerance}
-                  onChange={(e) => {
-                    if (!isTouched) setIsTouched(true);
-                    const value = e.target.value;
-                    setConfig(prev => ({ ...prev, tolerance: value === '' ? 0 : Number(value) }));
-                  }}
-                  onFocus={(e) => e.target.select()}
-                  className="mt-1"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  ±{config.tolerance}% 오차 허용
-                </p>
-              </div>
-            </div>
-
-            {/* 단순 로직 설명 */}
-            <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-                💡 단순 자동매매 로직
-              </h4>
-              <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
-                <p>
-                  • 현재 김프율이 <strong>진입율({config.entryRate}%)</strong>{" "}
-                  조건 만족 → 업비트 BTC 매수 + 바이낸스 BTC 숏포지션
-                </p>
-                <p>
-                  • 현재 김프율이 <strong>청산율({config.exitRate}%)</strong>{" "}
-                  조건 만족 → 업비트 BTC 매도 + 바이낸스 숏포지션 청산
-                </p>
-                <p>
-                  • 김프 방향(양수/음수) 구분 없이 오직 설정값만 확인하여 작동
-                </p>
-                <p>• 24시간 자동 진입→청산→재진입 무한 반복</p>
               </div>
             </div>
+
 
             {/* 자동매매 시작/중지 버튼 */}
             <div className="flex flex-col gap-4">
@@ -859,7 +929,7 @@ function TradingStatusCard({
   // 실시간 김프 데이터 가져오기 (대체 엔드포인트 사용)
   const { data: kimchiData, isLoading } = useQuery<any[]>({
     queryKey: ["/api/kimchi-premium/simple"],
-    refetchInterval: 100,
+    refetchInterval: 5000, // 5초마다 잔고 조회 (API 제한 고려)
     enabled: newKimchiActive,
   });
 

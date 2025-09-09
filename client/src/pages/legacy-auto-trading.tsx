@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useWebSocket } from '@/hooks/use-websocket';
+import { MockTradingSystem } from '@/components/mock-trading-system';
+import { TRADING_CONSTANTS } from '@/lib/utils';
 import './legacy-auto-trading.css';
 
 interface Band {
@@ -54,28 +57,31 @@ const mapStrategyToBand = (s: any): Band => ({
 const LegacyAutoTradingPage = () => {
   // 인증 정보
   const { user } = useAuth();
-  // userId 동적 결정: Auth → URL(?userId|uid) → localStorage(x-user-id) → 기본값('6')
+  const { isConnected, subscribe } = useWebSocket();
+  // userId 동적 결정: Auth → URL(?userId|uid) → localStorage(x-user-id) → null (하드코딩 금지)
   const initialUserId = (() => {
     try {
       const fromAuth = user?.id != null ? String(user.id) : undefined;
       const search = new URLSearchParams(window.location.search);
       const fromQuery = search.get('userId') || search.get('uid') || undefined;
       const fromStorage = localStorage.getItem('x-user-id') || undefined;
-      return fromAuth || fromQuery || fromStorage || '6';
+      return fromAuth || fromQuery || fromStorage || null; // 하드코딩 '6' 제거
     } catch {
-      return user?.id != null ? String(user.id) : '6';
+      return user?.id != null ? String(user.id) : null;
     }
   })();
-  const [effectiveUserId, setEffectiveUserId] = useState<string>(initialUserId);
+  const [effectiveUserId, setEffectiveUserId] = useState<string>(initialUserId || '6');
   useEffect(() => {
     try {
       const search = new URLSearchParams(window.location.search);
       const fromAuth = user?.id != null ? String(user.id) : undefined;
       const fromQuery = search.get('userId') || search.get('uid') || undefined;
       const fromStorage = localStorage.getItem('x-user-id') || undefined;
-      const id = fromAuth || fromQuery || fromStorage || effectiveUserId || '6';
-      if (id !== effectiveUserId) setEffectiveUserId(id);
-      localStorage.setItem('x-user-id', id);
+      const id = fromAuth || fromQuery || fromStorage || effectiveUserId;
+      if (id && id !== effectiveUserId) {
+        setEffectiveUserId(id);
+        localStorage.setItem('x-user-id', id);
+      }
     } catch {}
   }, [user?.id]);
   
@@ -96,6 +102,67 @@ const LegacyAutoTradingPage = () => {
   const [netOk, setNetOk] = useState<boolean>(true);
   const [errCount, setErrCount] = useState<number>(0);
   const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
+  
+  // 새 전략 모달 상태
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newStrategy, setNewStrategy] = useState({
+    name: '',
+    crypto: '',
+    entryCondition: '3.0',
+    takeProfitCondition: '2.0',
+    baseAmount: '500000',
+    investmentAmount: '0.001',
+    leverage: '3',
+    tolerance: TRADING_CONSTANTS.DEFAULT_TOLERANCE,
+    riskLevel: 'moderate',
+    activateImmediately: false
+  });
+
+  // 김치프리미엄 차트 시간대 상태
+  const [chartTimeframe, setChartTimeframe] = useState('1H');
+  
+  // 시간대별 데이터 필터링
+  const getChartData = useCallback(() => {
+    if (sparkData.length === 0) return [];
+    
+    switch (chartTimeframe) {
+      case '1H':
+        return sparkData.slice(-60); // 최근 60포인트 (1시간)
+      case '4H':
+        return sparkData.filter((_, index) => index % 4 === 0).slice(-60); // 4배 간격으로 샘플링
+      case '1D':
+        return sparkData.filter((_, index) => index % 24 === 0).slice(-60); // 24배 간격으로 샘플링
+      default:
+        return sparkData.slice(-60);
+    }
+  }, [sparkData, chartTimeframe]);
+
+  // 투자수량 변경 시 기본투자금액 자동 계산
+  useEffect(() => {
+    const btcAmount = parseFloat(newStrategy.investmentAmount) || 0.001;
+    const leverage = parseFloat(newStrategy.leverage) || 3;
+    const btcPrice = 156000000;
+    const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
+    
+    if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
+      console.log('🔄 useEffect로 baseAmount 강제 업데이트:', {
+        btcAmount,
+        leverage,
+        calculatedBaseAmount,
+        currentBaseAmount: newStrategy.baseAmount
+      });
+      
+      setNewStrategy(prev => ({
+        ...prev,
+        baseAmount: String(calculatedBaseAmount)
+      }));
+    }
+  }, [newStrategy.investmentAmount, newStrategy.leverage]);
+
+  // 전략 목록 상태 (카드 표시용)
+  const [strategies, setStrategies] = useState<any[]>([]);
+
+  const [editingStrategyId, setEditingStrategyId] = useState(null);
 
   // ===== Memoized maps for O(1) lookups =====
   const configuredByName = useMemo(() => {
@@ -167,17 +234,16 @@ const LegacyAutoTradingPage = () => {
     const isApiTrading = url.startsWith('/api/trading');
     const fullUrl = isApiTrading ? url : `/api/kimpga${url}`;
     
-    const token = sessionStorage.getItem('authToken');
+    console.log('🔗 API 요청 URL:', fullUrl);
+    console.log('👤 사용자 정보:', { effectiveUserId, userFromAuth: user?.id });
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-User-ID': String(effectiveUserId || ''),
       ...(opt as any)?.headers,
     };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    
+    console.log('📤 API 요청 헤더:', headers);
     
     const noCachePaths = ['/balance', '/metrics', '/current', '/status'];
     const isNoCacheTarget = noCachePaths.some(p => url.startsWith(p));
@@ -190,8 +256,11 @@ const LegacyAutoTradingPage = () => {
         ...opt,
         headers,
         cache: isNoCacheTarget ? 'no-store' : (opt as any)?.cache,
+        credentials: 'include', // 세션 쿠키 포함
         signal: (opt as any)?.signal ?? ctrl.signal,
       });
+      
+      console.log('📥 API 응답 상태:', r.status, r.statusText);
       if (!r.ok) {
         const errorBody = await r.text();
         setErrCount(c => c + 1);
@@ -793,10 +862,129 @@ const LegacyAutoTradingPage = () => {
     });
   };
 
+  // ===== 실제 전략 목록 불러오기 (세션 기반) =====
+  const loadStrategiesFromDB = useCallback(async () => {
+    try {
+      // 1. 세션에서 인증된 사용자 정보 우선 사용
+      let userId = effectiveUserId;
+      
+      // 2. 세션 기반 사용자 ID 가져오기
+      if (user?.id) {
+        userId = String(user.id);
+        console.log('🔍 세션에서 사용자 ID 확인:', userId);
+      }
+      
+      // 3. 해당 사용자의 전략 목록 조회
+      console.log('📊 전략 조회 요청 - 사용자 ID:', userId);
+      console.log('🔗 API URL:', `/api/trading-strategies/${userId}`);
+      
+      const dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
+      console.log('📥 API 응답 데이터:', dbStrategies);
+      
+      if (Array.isArray(dbStrategies)) {
+        const formattedStrategies = dbStrategies.map(s => ({
+          id: String(s.id),
+          name: s.name,
+          crypto: s.symbol,
+          entryCondition: String(s.entryRate),
+          takeProfitCondition: String(s.exitRate),
+          investmentAmount: String(s.investmentAmount),
+          leverage: String(s.leverage),
+          tolerance: String(s.toleranceRate || TRADING_CONSTANTS.DEFAULT_TOLERANCE), // DB에서 로드하거나 기본값
+          riskLevel: 'moderate',
+          isActive: s.isActive,
+          profitRate: s.totalProfit > 0 ? `+${s.totalProfit}` : String(s.totalProfit || '+0.00'),
+          executionCount: s.totalTrades || 0
+        }));
+        
+        setStrategies(formattedStrategies);
+        console.log(`✅ 사용자 ${userId}의 전략 ${formattedStrategies.length}개 로드 완료:`, formattedStrategies);
+        
+        if (formattedStrategies.length === 0) {
+          console.log('ℹ️ 등록된 전략이 없습니다. 새 전략을 추가해보세요.');
+        }
+      } else {
+        console.log('⚠️ 전략 데이터 형식이 올바르지 않습니다:', dbStrategies);
+        setStrategies([]);
+      }
+    } catch (error) {
+      console.error('❌ 전략 목록 로드 실패:', error);
+      setStrategies([]);
+      showToast('전략 로드 실패', '저장된 전략을 불러오는데 실패했습니다.', false);
+    }
+  }, [fetchJson, effectiveUserId, user?.id, showToast]);
+
   // ===== Lifecycle Hooks =====
   useEffect(() => {
     refreshServerBands();
-  }, [refreshServerBands]);
+    
+    // 페이지 로드 시 즉시 세션 확인 및 전략 로드 시도
+    setTimeout(async () => {
+      try {
+        console.log('🔄 페이지 로드 - 세션 직접 확인');
+        const sessionRes = await fetch('/api/auth/me', {credentials: 'include'});
+        const sessionData = await sessionRes.json();
+        
+        if (sessionData.id) {
+          console.log('✅ 페이지 로드 - 세션 확인됨:', sessionData.id);
+          setEffectiveUserId(String(sessionData.id));
+          loadStrategiesFromDB();
+        } else {
+          console.log('❌ 페이지 로드 - 세션 없음, 로그인 필요');
+        }
+      } catch (error) {
+        console.log('❌ 페이지 로드 - 세션 확인 실패:', error);
+      }
+    }, 500); // 0.5초 후 시도
+  }, [refreshServerBands, loadStrategiesFromDB]);
+
+  // 사용자 정보나 effectiveUserId가 변경될 때 전략 목록 다시 로드
+  useEffect(() => {
+    console.log('👤 사용자 정보 변경 감지, 전략 목록 다시 로드');
+    console.log('🔍 현재 사용자 상태:', { 
+      userFromAuth: user?.id, 
+      effectiveUserId,
+      sessionUser: user,
+      isAuthenticated: !!user,
+      userLoading: !user && effectiveUserId
+    });
+    
+    // 세션에서 사용자 정보가 있을 때만 전략 로드
+    if (user?.id) {
+      console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
+      setEffectiveUserId(String(user.id)); // 세션 사용자 ID로 설정
+      loadStrategiesFromDB();
+    } else {
+      console.log('⚠️ 세션에 사용자 정보가 없습니다.');
+      console.log('🔍 useAuth 상태 확인:', { user, isLoading: !user });
+      
+      // 간단히 전략 로드 시도 - 서버에서 세션 체크함
+      loadStrategiesFromDB();
+    }
+  }, [user?.id, effectiveUserId, loadStrategiesFromDB, user]);
+
+  // 웹소켓 메시지 핸들러 등록
+  useEffect(() => {
+    const unsubscribeKimchi = subscribe('kimchi-premium', (data: any[]) => {
+      console.log('📨 김치프리미엄 데이터 수신:', data.length, '개');
+      // 실시간 김치프리미엄 데이터를 kimp 상태에 반영
+      if (data && data.length > 0) {
+        const btcData = data.find(item => item.symbol === 'BTC');
+        if (btcData) {
+          setKimp({
+            kimp: btcData.premiumRate,
+            upbit_price: btcData.upbitPrice,
+            binance_price: btcData.binanceFuturesPrice,
+            usdkrw: btcData.usdKrwRate || btcData.exchangeRate
+          });
+        }
+      }
+    });
+
+    return () => {
+      if (unsubscribeKimchi) unsubscribeKimchi();
+    };
+  }, [subscribe]);
 
   useEffect(() => {
     const intervals: NodeJS.Timeout[] = [];
@@ -894,7 +1082,7 @@ const LegacyAutoTradingPage = () => {
             <i className={`dot ${serverState.running ? 'ok' : ''}`}></i>
             <span>{serverState.running ? '실행중' : '중지됨'}</span>
           </span>
-          <span id="arm-badge" className="chip" title="진입 정책"><i className={`dot ${serverState.running ? 'ok' : 'danger'}`}></i><span>조건 충족 시 자동 대기→진입</span></span>
+          <span id="arm-badge" className="chip" title="진입 정책"><i className={`dot ${serverState.running ? 'ok' : 'danger'}`}></i><span>정확한 일치 시 자동 대기→진입</span></span>
           <span className="chip" title="수수료 기준"><i className="dot ok"></i>추정 비용 ≈ 0.18%p</span>
           <span id="net-badge" className="chip" title="네트워크 상태">
             <i className={`dot ${netOk ? 'ok' : (errCount > 0 ? 'warn' : 'danger')}`}></i>
@@ -909,157 +1097,1034 @@ const LegacyAutoTradingPage = () => {
       </header>
       <div className="wrap">
         <div className="grid">
-          {/* 전략 설정: 멀티 밴드 */}
-          <section className="card col-12">
-            <h3>전략 설정 (멀티 밴드)</h3>
-            <div className="row" style={{gap: '6px', marginBottom: '8px'}}>
-              <button className="btn ghost" id="btn-add-band" onClick={() => handleAddBand()}>밴드 추가</button>
-              <button className="btn ghost" id="btn-save" onClick={handleSaveBands}>설정 저장(로컬)</button>
-              <button className="btn ghost" id="btn-load" onClick={handleLoadBands}>불러오기</button>
-            </div>
-
-            <div style={{marginTop: '12px', overflow: 'auto'}}>
-              <table>
-                <thead>
-                  <tr>
-                    <th style={{minWidth: '90px'}}>이름</th>
-                    <th style={{minWidth: '120px'}}>진입 김프율(%)</th>
-                    <th style={{minWidth: '120px'}}>청산 김프율(%)</th>
-                    <th style={{minWidth: '120px'}}>허용오차(%)</th>
-                    <th style={{minWidth: '120px'}}>레버리지</th>
-                    <th style={{minWidth: '150px'}}>투자수량(BTC)</th>
-                    <th style={{minWidth: '220px'}}>미리보기 (Upbit KRW / Binance USDT) 수수료 포함</th>
-                    <th style={{minWidth: '130px'}}>상태</th>
-                    <th style={{minWidth: '220px'}}>서버</th>
-                    <th style={{minWidth: '80px'}}>삭제</th>
-                  </tr>
-                </thead>
-                <tbody id="band-tbody" ref={bandTbodyRef}>
-                  {renderBands()}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="row" style={{marginTop: '12px'}}>
-              <button className="btn" id="btn-start" onClick={handleStart} disabled={serverState.running}>▶ 전략 시작</button>
-              <button className="btn secondary" id="btn-stop" onClick={handleStop} disabled={!serverState.running}>■ 전략 중지</button>
-            </div>
-            <p className="hint">※ 이 UI는 <b>강제 진입이 없습니다.</b> 각 밴드는 <b>entry_kimp±tolerance</b> 범위에 <b>도달하면 자동 진입</b>, 이후 <b>exit_kimp</b> 등 조건 충족 시 자동 청산됩니다.</p>
-          </section>
-
-          {/* 시장 스냅샷 */}
-          <section className="card col-6">
-            <h3>시장 스냅샷</h3>
-            <div className="grid" style={{gap: '12px', gridTemplateColumns: 'repeat(12, 1fr)'}}>
-              <div className="col-6">
-                <div className="kv">
-                  <b>김프</b><span><span id="kimp" className="mono" style={{fontWeight: 800}}>{fx(kimp.kimp, 2)}%</span> <span id="kimp-sign" className={`badge ${kimp.kimp < 0 ? 'bad' : 'good'}`}>{kimp.kimp < 0 ? '역프' : '정프'}</span></span>
-                  <b>업비트</b><span className="mono" id="upbit_price">{loc(kimp.upbit_price)}</span>
-                  <b>바이낸스</b><span className="mono" id="binance_price">{loc(kimp.binance_price)}</span>
-                  <b>환율</b><span className="mono" id="usdkrw">{loc(kimp.usdkrw)}</span>
-                  <b>Upbit KRW</b><span className="mono" id="bal-krw">{loc(balances.real.krw)}</span>
-                  <b>Upbit BTC</b><span className="mono" id="bal-btc">{fx(balances.real.btc_upbit, 6)}</span>
-                  <b>Binance USDT</b><span className="mono" id="bal-usdt">{loc(balances.real.usdt)}</span>
-                  <b>진입 증거금(USDT)</b><span className="mono" id="used-usdt">{loc(serverState.used_balance_usdt)}</span>
-                </div>
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
+            <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">자동매매 전략</h2>
+                <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" data-testid="button-add-strategy" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-:r0:" data-state="closed" onClick={() => setShowCreateModal(true)}>
+                  <i className="fas fa-plus mr-2"></i>새 전략 추가
+                </button>
               </div>
-              <div className="col-6">
-                <div className="spark-wrap">
-                  <canvas ref={sparkCanvasRef} id="spark" className="spark"></canvas>
-                  <div className="spark-val mono">
-                    <small>최근 60초 범위</small>
-                    <div><span id="spark-min">-</span> ~ <span id="spark-max">-</span></div>
+              <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', scrollbarColor: '#64748b #1e293b'}}>
+                {strategies.map((strategy) => (
+                  <div key={strategy.id} className="border border-border rounded-lg p-4 hover:border-primary transition-colors" data-testid={`card-strategy-${strategy.id}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-3 h-3 rounded-full ${strategy.isActive ? 'bg-green-500' : 'bg-gray-500'}`}></div>
+                        <h3 className="font-medium" data-testid={`text-strategy-name-${strategy.id}`}>
+                          {strategy.name}
+                        </h3>
+                        <button 
+                          type="button" 
+                          role="switch" 
+                          aria-checked={strategy.isActive} 
+                          data-state={strategy.isActive ? "checked" : "unchecked"} 
+                          className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-400" 
+                          data-testid={`switch-status-${strategy.id}`}
+                          onClick={async () => {
+                            const newActiveState = !strategy.isActive;
+                            
+                            // UI 즉시 업데이트
+                            setStrategies(prev => prev.map(s => 
+                              s.id === strategy.id 
+                                ? {...s, isActive: newActiveState}
+                                : s
+                            ));
+                            
+                            // DB에 저장
+                            try {
+                              const payload = {
+                                name: strategy.name,
+                                strategyType: 'positive_kimchi',
+                                entryRate: strategy.entryCondition,
+                                exitRate: strategy.takeProfitCondition,
+                                toleranceRate: "0.1",
+                                leverage: parseInt(strategy.leverage) || 3,
+                                investmentAmount: strategy.investmentAmount,
+                                symbol: strategy.crypto || 'BTC',
+                                isActive: newActiveState,
+                                isAutoTrading: newActiveState,
+                                tolerance: "0.1"
+                              };
+                              
+                              await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload),
+                              });
+                              
+                              showToast(
+                                `전략 ${newActiveState ? '활성화' : '비활성화'}`, 
+                                `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`
+                              );
+                              loadStrategiesFromDB();
+                            } catch (error) {
+                              console.error('전략 상태 변경 실패:', error);
+                              setStrategies(prev => prev.map(s => 
+                                s.id === strategy.id 
+                                  ? {...s, isActive: strategy.isActive}
+                                  : s
+                              ));
+                              showToast('상태 변경 실패', '서버 저장에 실패했습니다.', false);
+                            }
+                          }}
+                        >
+                          <span 
+                            data-state={strategy.isActive ? "checked" : "unchecked"} 
+                            className="pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+                          ></span>
+                        </button>
+                        <span className={`text-xs font-medium ${strategy.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                          {strategy.isActive ? '활성' : '비활성'}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-red-600 text-white hover:bg-red-700 h-9 rounded-md px-3" 
+                          data-testid={`button-delete-${strategy.id}`}
+                          style={{
+                            backgroundColor: '#dc2626',
+                            color: '#ffffff',
+                            border: 'none'
+                          }}
+                          onClick={async () => {
+                            if (!confirm(`"${strategy.name}" 전략을 정말 삭제하시겠습니까?`)) {
+                              return;
+                            }
+                            
+                            // UI에서 즉시 제거
+                            setStrategies(prev => prev.filter(s => s.id !== strategy.id));
+                            
+                            // DB에서 삭제 시도
+                            try {
+                              await fetchJson(`/api/trading-strategies/${strategy.id}`, {
+                                method: 'DELETE'
+                              });
+                              
+                              console.log('✅ 전략 삭제 성공:', strategy.id);
+                              showToast('전략 삭제 완료', `${strategy.name} 전략이 삭제되었습니다.`);
+                              // DB 삭제 성공 시 UI에서 제거 상태 유지 (이미 제거됨)
+                            } catch (error) {
+                              console.error('❌ 전략 삭제 실패:', error);
+                              // 실패 시 UI에 다시 추가 (롤백)
+                              setStrategies(prev => [...prev, strategy]);
+                              showToast('전략 삭제 실패', '서버에서 삭제에 실패했습니다.', false);
+                            }
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
+                            <path d="M18 6 6 18"></path>
+                            <path d="m6 6 12 12"></path>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">코인</p>
+                        <p className="font-medium" data-testid={`text-crypto-${strategy.id}`}>{strategy.crypto}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">진입 조건 (정확한 일치)</p>
+                        <p className="font-medium text-green-500" data-testid={`text-entry-${strategy.id}`}>
+                          {strategy.entryCondition}% ± {strategy.tolerance || '0.01'}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">익절 조건 (정확한 일치)</p>
+                        <p className="font-medium text-primary" data-testid={`text-take-profit-${strategy.id}`}>
+                          {strategy.takeProfitCondition}% ± {strategy.tolerance || '0.01'}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">투자 수량</p>
+                        <p className="font-medium" data-testid={`text-amount-${strategy.id}`}>
+                          {strategy.investmentAmount} BTC
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">수익률: </span>
+                        <span className="text-green-500 font-medium" data-testid={`text-profit-rate-${strategy.id}`}>{strategy.profitRate}%</span>
+                        <span className="text-muted-foreground ml-4">실행 횟수: </span>
+                        <span className="font-medium" data-testid={`text-execution-count-${strategy.id}`}>{strategy.executionCount}회</span>
+                      </div>
+                      <button 
+                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3" 
+                        data-testid={`button-details-${strategy.id}`}
+                        onClick={() => {
+                          // 해당 전략 데이터를 모달에 로드
+                          setNewStrategy({
+                            name: strategy.name,
+                            crypto: strategy.crypto,
+                            entryCondition: strategy.entryCondition,
+                            takeProfitCondition: strategy.takeProfitCondition,
+                            baseAmount: '500000',
+                            investmentAmount: strategy.investmentAmount,
+                            leverage: strategy.leverage,
+                            tolerance: strategy.tolerance || '0.01',
+                            riskLevel: strategy.riskLevel,
+                            activateImmediately: strategy.isActive
+                          });
+                          setEditingStrategyId(strategy.id);
+                          setShowCreateModal(true);
+                        }}
+                      >
+                        상세 보기
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border">
+              <h3>성과 요약</h3>
+              <div className="grid" style={{gap: '12px', gridTemplateColumns: 'repeat(12, 1fr)'}}>
+                <div className="col-6">
+                  <div className="kv">
+                    <b>주문 합계(오늘)</b><span id="metric-total" className="mono">0</span>
+                    <b>루프</b><span id="metric-loops" className="mono">0</span>
+                    <b>바이낸스 주문</b><span id="metric-bn" className="mono">0</span>
+                    <b>업비트 주문</b><span id="metric-up" className="mono">0</span>
+                    <b>API 오류</b><span id="metric-errors" className="badge bad">0</span>
+                    <b>진입</b><span id="metric-entries" className="mono">0</span>
+                    <b>청산</b><span id="metric-exits" className="mono">0</span>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="kv">
+                    <b>실현 손익(누적)</b><span><span id="pnl-krw-sum" className="mono hl">0</span> KRW</span>
+                    <b>Upbit 수수료(누적)</b><span id="fee-upbit-krw" className="mono">0</span>
+                    <b>Binance 수수료(USDT)</b><span id="fee-binance-usdt" className="mono">0.000</span>
+                    <b>Binance 수수료(KRW)</b><span id="fee-binance-krw" className="mono">0</span>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 성과 요약 */}
+          {/* 모의 거래 시스템 */}
+          <section className="card col-12">
+            <MockTradingSystem 
+              strategies={strategies}
+              currentKimchiData={kimp}
+              userId={user?.id || "1"}
+            />
+          </section>
+
+          {/* 시장 스냅샷 */}
           <section className="card col-6">
-            <h3>성과 요약</h3>
-            <div className="grid" style={{gap: '12px', gridTemplateColumns: 'repeat(12, 1fr)'}}>
-              <div className="col-6">
-                <div className="kv">
-                  <b>주문 합계(오늘)</b><span id="metric-total" className="mono">-</span>
-                  <b>루프</b><span id="metric-loops" className="mono">{loc(metrics.loops)}</span>
-                  <b>바이낸스 주문</b><span id="metric-bn" className="mono">{loc(metrics.binance_orders)}</span>
-                  <b>업비트 주문</b><span id="metric-up" className="mono">{loc(metrics.upbit_orders)}</span>
-                  <b>API 오류</b><span id="metric-errors" className="badge bad">{loc(metrics.errors)}</span>
-                  <b>진입</b><span id="metric-entries" className="mono">-</span>
-                  <b>청산</b><span id="metric-exits" className="mono">-</span>
-                </div>
-              </div>
-              <div className="col-6">
-                <div className="kv">
-                  <b>실현 손익(누적)</b><span><span id="pnl-krw-sum" className="mono hl">0</span> KRW</span>
-                  <b>Upbit 수수료(누적)</b><span id="fee-upbit-krw" className="mono">-</span>
-                  <b>Binance 수수료(USDT)</b><span id="fee-binance-usdt" className="mono">-</span>
-                  <b>Binance 수수료(KRW)</b><span id="fee-binance-krw" className="mono">-</span>
-                </div>
-              </div>
+            <h3>시장 스냅샷</h3>
+            <div className="kv">
+              <b>김프</b><span><span id="kimp" className="mono" style={{fontWeight: 800}}>{fx(kimp.kimp, 2)}%</span> <span id="kimp-sign" className={`badge ${kimp.kimp < 0 ? 'bad' : 'good'}`}>{kimp.kimp < 0 ? '역프' : '정프'}</span></span>
+              <b>업비트</b><span className="mono" id="upbit_price">{loc(kimp.upbit_price)}</span>
+              <b>바이낸스</b><span className="mono" id="binance_price">{loc(kimp.binance_price)}</span>
+              <b>환율</b><span className="mono" id="usdkrw">{loc(kimp.usdkrw)}</span>
+              <b>Upbit KRW</b><span className="mono" id="bal-krw">{loc(balances.real.krw)}</span>
+              <b>Upbit BTC</b><span className="mono" id="bal-btc">{fx(balances.real.btc_upbit, 6)}</span>
+              <b>Binance USDT</b><span className="mono" id="bal-usdt">{loc(balances.real.usdt)}</span>
+              <b>진입 증거금(USDT)</b><span className="mono" id="used-usdt">{loc(serverState.used_balance_usdt)}</span>
             </div>
           </section>
 
-          {/* 밴드 보드 */}
-          <section className="card col-12">
-            <div className="row" style={{justifyContent: 'space-between', alignItems: 'center'}}>
-              <h3 style={{margin: 0}}>밴드 보드</h3>
-              <div className="row">
-                <button className="btn ghost" id="btn-refresh-bands" onClick={refreshServerBands}>서버 동기화</button>
+          {/* 김치프리미엄 차트 */}
+          <section className="card col-6">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border" data-testid="card-premium-chart">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">김치프리미엄 차트</h2>
+              <div className="flex space-x-2">
+                <button 
+                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
+                    chartTimeframe === '1H' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                  data-testid="button-timeframe-1H"
+                  onClick={() => setChartTimeframe('1H')}
+                >
+                  1H
+                </button>
+                <button 
+                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
+                    chartTimeframe === '4H' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                  data-testid="button-timeframe-4H"
+                  onClick={() => setChartTimeframe('4H')}
+                >
+                  4H
+                </button>
+                <button 
+                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
+                    chartTimeframe === '1D' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                  data-testid="button-timeframe-1D"
+                  onClick={() => setChartTimeframe('1D')}
+                >
+                  1D
+                </button>
               </div>
             </div>
-
-            <div style={{marginTop: '10px', overflow: 'auto', maxHeight: '420px'}}>
-              <table id="pos-table">
-                <thead>
-                  <tr>
-                    <th>id</th>
-                    <th>상태</th>
-                    <th>엔트리 김프</th>
-                    <th>허용오차</th>
-                    <th>Exit 김프</th>
-                    <th>Upbit 수량(BTC)</th>
-                    <th>PnL(KRW)</th>
-                    <th>액션</th>
-                  </tr>
-                </thead>
-                <tbody id="pos-tbody">
-                  {Array.isArray(serverStatusBands) && serverStatusBands.length > 0 ? (
-                    serverStatusBands.map((b: any) => {
-                      const cls = b?.state === 'entered' ? 'good' : (b?.state === 'waiting' ? 'warn' : '');
-                      return (
-                        <tr key={String(b?.id ?? Math.random())}>
-                          <td className="mono">{b?.id ?? '-'}</td>
-                          <td><span className={`badge ${cls}`}>{String(b?.state ?? '-')}</span></td>
-                          <td className="mono">{isNum(b?.entry_kimp) ? fx(b.entry_kimp, 2) + '%' : '-'}</td>
-                          <td className="mono">{isNum(b?.tolerance) ? '±' + fx(b.tolerance, 2) : '-'}</td>
-                          <td className="mono">{isNum(b?.exit_kimp) ? fx(b.exit_kimp, 2) + '%' : '-'}</td>
-                          <td className="mono">{isNum(b?.filled_qty) ? Number(b.filled_qty).toFixed(3) : '0.000'}</td>
-                          <td className="mono">{isNum(b?.pnl_krw) ? Number(b.pnl_krw).toLocaleString() : '0'}</td>
-                          <td>
-                            <div className="row">
-                              <button className="btn secondary" onClick={() => handleBoardClose(b?.id)} disabled={boardActingId === b?.id}>{boardActingId === b?.id ? '처리 중…' : '청산'}</button>
-                              <button className="btn secondary" onClick={() => handleBoardCancelWaiting(b?.id)} disabled={boardActingId === b?.id}>{boardActingId === b?.id ? '처리 중…' : '대기 취소'}</button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr><td colSpan={8} className="muted">밴드 없음</td></tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="h-64 bg-muted rounded-lg p-4">
+              <canvas 
+                ref={(canvas) => {
+                  if (canvas) {
+                    // 김치프리미엄 차트 그리기
+                    const ctx = canvas.getContext('2d');
+                    const chartData = getChartData();
+                    if (ctx && chartData.length > 0) {
+                      const dpr = window.devicePixelRatio || 1;
+                      const w = canvas.clientWidth || 300;
+                      const h = canvas.clientHeight || 200;
+                      
+                      canvas.width = w * dpr;
+                      canvas.height = h * dpr;
+                      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                      
+                      // 배경 클리어
+                      ctx.fillStyle = '#1e293b';
+                      ctx.fillRect(0, 0, w, h);
+                      
+                      if (sparkData.length > 1) {
+                        const min = Math.min(...sparkData);
+                        const max = Math.max(...sparkData);
+                        const span = Math.max(0.01, max - min);
+                        
+                        // 그리드 라인 그리기
+                        ctx.strokeStyle = '#374151';
+                        ctx.lineWidth = 1;
+                        for (let i = 1; i < 5; i++) {
+                          const y = (h / 5) * i;
+                          ctx.beginPath();
+                          ctx.moveTo(0, y);
+                          ctx.lineTo(w, y);
+                          ctx.stroke();
+                        }
+                        
+                        // 데이터 라인 그리기
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#10b981';
+                        ctx.lineWidth = 2;
+                        
+                        chartData.forEach((value, index) => {
+                          const x = (w * index) / (chartData.length - 1);
+                          const y = h - ((value - min) / span) * h;
+                          
+                          if (index === 0) {
+                            ctx.moveTo(x, y);
+                          } else {
+                            ctx.lineTo(x, y);
+                          }
+                        });
+                        ctx.stroke();
+                        
+                        // 현재 값 포인트
+                        if (chartData.length > 0) {
+                          const lastValue = chartData[chartData.length - 1];
+                          const lastX = w;
+                          const lastY = h - ((lastValue - min) / span) * h;
+                          
+                          ctx.beginPath();
+                          ctx.fillStyle = '#10b981';
+                          ctx.arc(lastX - 5, lastY, 4, 0, 2 * Math.PI);
+                          ctx.fill();
+                        }
+                      }
+                    }
+                  }
+                }}
+                className="w-full h-full rounded"
+                style={{backgroundColor: '#1e293b'}}
+                key={`chart-${chartTimeframe}-${getChartData().length}`}
+              />
             </div>
-
-            <h4 style={{margin: '14px 0 8px 0', color: '#cbd5e1'}}>최근 로그 (상위 300)</h4>
-            <div id="log" className="log" aria-live="polite">{logs}</div>
+            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-muted-foreground">평균 프리미엄</p>
+                <p className="font-semibold text-primary" data-testid="text-avg-premium">
+                  {(() => {
+                    const data = getChartData();
+                    return data.length > 0 ? (data.reduce((sum, val) => sum + val, 0) / data.length).toFixed(2) : '0.00';
+                  })()}%
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">최고 프리미엄</p>
+                <p className="font-semibold text-green-500" data-testid="text-max-premium">
+                  {(() => {
+                    const data = getChartData();
+                    return data.length > 0 ? Math.max(...data).toFixed(2) : '0.00';
+                  })()}%
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">최저 프리미엄</p>
+                <p className="font-semibold text-red-500" data-testid="text-min-premium">
+                  {(() => {
+                    const data = getChartData();
+                    return data.length > 0 ? Math.min(...data).toFixed(2) : '0.00';
+                  })()}%
+                </p>
+              </div>
+            </div>
+          </div>
           </section>
         </div>
       </div>
 
       <div className="toast-wrap" id="toasts"></div>
+      
+      {/* 새 전략 생성 모달 */}
+      {showCreateModal && (
+        <div
+          role="dialog"
+          id="radix-:r0:"
+          aria-describedby="radix-:r2:"
+          aria-labelledby="radix-:r1:"
+          data-state="open"
+          className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border p-6 shadow-lg rounded-lg"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90%',
+            maxWidth: '500px',
+            backgroundColor: '#0f1729',
+            border: '1px solid #1e293b',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            zIndex: 1000,
+            pointerEvents: 'auto',
+            color: '#e2e8f0'
+          }}
+          data-testid="dialog-create-strategy"
+          tabIndex={-1}
+        >
+          {/* 모달 헤더 */}
+          <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+            <h2
+              id="radix-:r1:"
+              className="text-lg font-semibold leading-none tracking-tight"
+            >
+              {newStrategy.name === 'zzzzz' ? '전략 수정' : '새 자동매매 전략 생성'}
+            </h2>
+            <p
+              id="radix-:r2:"
+              className="text-sm text-muted-foreground"
+            >
+              {newStrategy.name === 'zzzzz' ? '기존 자동매매 전략을 수정합니다.' : '새로운 자동매매 전략을 설정하고 생성합니다.'}
+            </p>
+          </div>
+
+          {/* 폼 */}
+          <form 
+            className="space-y-4" 
+            style={{color: '#e2e8f0'}}
+            onSubmit={async (e) => {
+              e.preventDefault();
+              
+              if (editingStrategyId) {
+                // 기존 전략 수정
+                setStrategies(prev => prev.map(strategy => 
+                  strategy.id === editingStrategyId 
+                    ? {
+                        ...strategy,
+                        name: newStrategy.name,
+                        crypto: newStrategy.crypto,
+                        entryCondition: newStrategy.entryCondition,
+                        takeProfitCondition: newStrategy.takeProfitCondition,
+                        investmentAmount: newStrategy.investmentAmount,
+                        leverage: newStrategy.leverage,
+                        riskLevel: newStrategy.riskLevel,
+                        isActive: newStrategy.activateImmediately
+                      }
+                    : strategy
+                ));
+                
+                // DB 저장 시도
+                try {
+                  const payload = {
+                    name: newStrategy.name,
+                    strategyType: 'positive_kimchi',
+                    entryRate: newStrategy.entryCondition,
+                    exitRate: newStrategy.takeProfitCondition,
+                    toleranceRate: newStrategy.tolerance || "0.01",
+                    leverage: parseInt(newStrategy.leverage) || 3,
+                    investmentAmount: String(newStrategy.investmentAmount || '0.001'),
+                    symbol: newStrategy.crypto || 'BTC',
+                    isActive: newStrategy.activateImmediately,
+                    isAutoTrading: newStrategy.activateImmediately,
+                    tolerance: newStrategy.tolerance || "0.01"
+                  };
+                  
+                  console.log('🔍 전략 수정 payload:', payload);
+                  
+                  const result = await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  
+                  console.log('✅ 전략 수정 성공:', result);
+                  showToast('전략 수정 완료', '전략이 성공적으로 수정되었습니다.');
+                  // DB에서 최신 데이터 다시 로드
+                  loadStrategiesFromDB();
+                } catch (error: any) {
+                  console.error('❌ 전략 수정 실패:', error);
+                  showToast('전략 수정 실패', `서버 저장 실패: ${error.message}`, false);
+                }
+                
+                setEditingStrategyId(null);
+              } else {
+                // 새 전략 생성
+                const newId = `strategy-${Date.now()}`;
+                const newStrategyData = {
+                  id: newId,
+                  name: newStrategy.name,
+                  crypto: newStrategy.crypto,
+                  entryCondition: newStrategy.entryCondition,
+                  takeProfitCondition: newStrategy.takeProfitCondition,
+                  investmentAmount: newStrategy.investmentAmount,
+                  leverage: newStrategy.leverage,
+                  riskLevel: newStrategy.riskLevel,
+                  isActive: newStrategy.activateImmediately,
+                  profitRate: '+0.00',
+                  executionCount: 0
+                };
+                
+                setStrategies(prev => [...prev, newStrategyData]);
+                
+                // DB 저장 시도
+                try {
+                  const payload = {
+                    name: newStrategy.name || '새 전략',
+                    strategyType: 'positive_kimchi',
+                    entryRate: newStrategy.entryCondition,
+                    exitRate: newStrategy.takeProfitCondition,
+                    toleranceRate: newStrategy.tolerance || "0.01",
+                    leverage: parseInt(newStrategy.leverage) || 3,
+                    investmentAmount: String(newStrategy.investmentAmount || '0.001'),
+                    symbol: newStrategy.crypto || 'BTC',
+                    isActive: newStrategy.activateImmediately,
+                    isAutoTrading: newStrategy.activateImmediately,
+                    tolerance: newStrategy.tolerance || "0.01"
+                  };
+                  
+                  console.log('🔍 전략 생성 payload:', payload);
+                  console.log('🔍 newStrategy 상태:', {
+                    investmentAmount: newStrategy.investmentAmount,
+                    baseAmount: newStrategy.baseAmount,
+                    leverage: newStrategy.leverage
+                  });
+                  
+                  const result = await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  
+                  console.log('✅ 전략 생성 성공:', result);
+                  showToast('전략 생성 완료', '새 전략이 성공적으로 생성되었습니다.');
+                  // DB에서 최신 데이터 다시 로드
+                  loadStrategiesFromDB();
+                } catch (error: any) {
+                  console.error('❌ 전략 생성 실패:', error);
+                  showToast('전략 생성 실패', `서버 저장 실패: ${error.message}`, false);
+                }
+              }
+              
+              // 모달 닫기 및 폼 초기화
+              setShowCreateModal(false);
+              setNewStrategy({
+                name: '',
+                crypto: '',
+                entryCondition: '3.0',
+                takeProfitCondition: '2.0',
+                baseAmount: '500000',
+                investmentAmount: '0.001',
+                leverage: '3',
+                tolerance: TRADING_CONSTANTS.DEFAULT_TOLERANCE,
+                riskLevel: 'moderate',
+                activateImmediately: false
+              });
+            }}
+          >
+            {/* 전략 이름 */}
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor=":rt:-form-item"
+              >
+                전략 이름
+              </label>
+              <input
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                style={{
+                  backgroundColor: '#0b1220',
+                  border: '1px solid #1e293b',
+                  color: '#dbe6ff',
+                  borderRadius: '10px'
+                }}
+                name="name"
+                placeholder="전략 이름을 입력하세요"
+                data-testid="input-strategy-name"
+                id=":rt:-form-item"
+                aria-describedby=":rt:-form-item-description"
+                aria-invalid="false"
+                value={newStrategy.name}
+                onChange={(e) => setNewStrategy(prev => ({...prev, name: e.target.value}))}
+              />
+            </div>
+
+            {/* 코인 선택 */}
+            <div className="space-y-2 relative">
+              <label
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                htmlFor=":ru:-form-item"
+              >
+                코인
+              </label>
+              <button
+                type="button"
+                role="combobox"
+                aria-controls="radix-:rv:"
+                aria-expanded="false"
+                aria-autocomplete="none"
+                dir="ltr"
+                data-state="closed"
+                data-placeholder=""
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
+                style={{
+                  backgroundColor: '#0b1220',
+                  border: '1px solid #1e293b',
+                  color: '#dbe6ff',
+                  borderRadius: '10px'
+                }}
+                data-testid="select-crypto"
+                id=":ru:-form-item"
+                aria-describedby=":ru:-form-item-description"
+                aria-invalid="false"
+                onClick={() => {
+                  const dropdown = document.getElementById('crypto-dropdown');
+                  if (dropdown) {
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                  }
+                }}
+              >
+                <span style={{pointerEvents: 'none'}}>
+                  {newStrategy.crypto ? `${newStrategy.crypto} - ${newStrategy.crypto === 'BTC' ? 'Bitcoin' : newStrategy.crypto === 'ETH' ? 'Ethereum' : 'Cardano'}` : '코인을 선택하세요'}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-chevron-down h-4 w-4 opacity-50"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </button>
+              {/* 코인 선택 드롭다운 */}
+              <div 
+                className="absolute top-full left-0 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg" 
+                style={{
+                  display: 'none',
+                  zIndex: 1001,
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #374151'
+                }} 
+                id="crypto-dropdown"
+              >
+                <div className="p-2 hover:bg-slate-700 cursor-pointer rounded-t-lg" onClick={() => {setNewStrategy(prev => ({...prev, crypto: 'BTC'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
+                  <div className="text-white font-medium">BTC - Bitcoin</div>
+                </div>
+                <div className="p-2 hover:bg-slate-700 cursor-pointer" onClick={() => {setNewStrategy(prev => ({...prev, crypto: 'ETH'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
+                  <div className="text-white font-medium">ETH - Ethereum</div>
+                </div>
+                <div className="p-2 hover:bg-slate-700 cursor-pointer rounded-b-lg" onClick={() => {setNewStrategy(prev => ({...prev, crypto: 'ADA'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
+                  <div className="text-white font-medium">ADA - Cardano</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 진입/익절 조건 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor=":r10:-form-item"
+                >
+                  진입 조건 (%) - 정확한 일치
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  name="entryCondition"
+                  placeholder="3.0"
+                  data-testid="input-entry-condition"
+                  id=":r10:-form-item"
+                  aria-describedby=":r10:-form-item-description"
+                  aria-invalid="false"
+                  value={newStrategy.entryCondition}
+                  onChange={(e) => setNewStrategy(prev => ({...prev, entryCondition: e.target.value}))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor=":r11:-form-item"
+                >
+                  익절 조건 (%) - 정확한 일치
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  name="takeProfitCondition"
+                  placeholder="2.0"
+                  data-testid="input-take-profit"
+                  id=":r11:-form-item"
+                  aria-describedby=":r11:-form-item-description"
+                  aria-invalid="false"
+                  value={newStrategy.takeProfitCondition}
+                  onChange={(e) => setNewStrategy(prev => ({...prev, takeProfitCondition: e.target.value}))}
+                />
+              </div>
+            </div>
+
+            {/* 기본투자금액과 허용오차 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor=":r12a:-form-item"
+                >
+                  기본 투자 금액 (원)
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  style={{
+                    backgroundColor: '#0b1220',
+                    border: '1px solid #1e293b',
+                    color: '#dbe6ff',
+                    borderRadius: '10px'
+                  }}
+                  name="baseAmount"
+                  placeholder="500000"
+                  data-testid="input-base-amount"
+                  id=":r12a:-form-item"
+                  key={`base-amount-${newStrategy.baseAmount}`}
+                  value={newStrategy.baseAmount}
+                  onChange={(e) => {
+                    const baseAmount = parseFloat(e.target.value) || 500000;
+                    const leverage = parseFloat(newStrategy.leverage) || 3;
+                    const btcPrice = 156000000;
+                    const calculatedBTC = (baseAmount / leverage / btcPrice).toFixed(3);
+                    
+                    setNewStrategy(prev => ({
+                      ...prev, 
+                      baseAmount: e.target.value,
+                      investmentAmount: calculatedBTC
+                    }));
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor="tolerance-input"
+                >
+                  허용오차 (%) - 정확한 일치 범위 설정
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  style={{
+                    backgroundColor: '#0b1220',
+                    border: '1px solid #1e293b',
+                    color: '#dbe6ff',
+                    borderRadius: '10px'
+                  }}
+                  name="tolerance"
+                  type="number"
+                  step={TRADING_CONSTANTS.TOLERANCE_STEP}
+                  min={TRADING_CONSTANTS.MIN_TOLERANCE}
+                  max={TRADING_CONSTANTS.MAX_TOLERANCE}
+                  placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
+                  data-testid="input-tolerance"
+                  id="tolerance-input"
+                  value={newStrategy.tolerance}
+                  onChange={(e) => setNewStrategy(prev => ({...prev, tolerance: e.target.value}))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  예: 3.0% ± {TRADING_CONSTANTS.DEFAULT_TOLERANCE}% → 2.999% ~ 3.001% 범위에서만 정확한 매매 (기본값: {TRADING_CONSTANTS.DEFAULT_TOLERANCE}%)
+                </p>
+              </div>
+            </div>
+
+            {/* 레버리지와 투자수량 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor=":r12b:-form-item"
+                >
+                  레버리지 (배)
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  style={{
+                    backgroundColor: '#0b1220',
+                    border: '1px solid #1e293b',
+                    color: '#dbe6ff',
+                    borderRadius: '10px'
+                  }}
+                  name="leverage"
+                  type="number"
+                  min="1"
+                  max="10"
+                  placeholder="3"
+                  data-testid="input-leverage"
+                  id=":r12b:-form-item"
+                  value={newStrategy.leverage}
+                  onChange={(e) => {
+                    const leverage = parseFloat(e.target.value) || 3;
+                    const baseAmount = parseFloat(newStrategy.baseAmount) || 500000;
+                    const btcPrice = 156000000; // 대략적인 BTC 가격
+                    const calculatedBTC = (baseAmount / leverage / btcPrice).toFixed(3);
+                    
+                    setNewStrategy(prev => ({
+                      ...prev, 
+                      leverage: e.target.value,
+                      investmentAmount: calculatedBTC
+                    }));
+                  }}
+                />
+                <div className="text-xs text-muted-foreground">
+                  레버리지 {newStrategy.leverage}배 기준 권장 수량
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor=":r12:-form-item"
+                >
+                  투자수량 (BTC)
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  style={{
+                    backgroundColor: '#0b1220',
+                    border: '1px solid #1e293b',
+                    color: '#dbe6ff',
+                    borderRadius: '10px'
+                  }}
+                  name="investmentAmount"
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  max="10"
+                  placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
+                  data-testid="input-investment-amount"
+                  id=":r12:-form-item"
+                  key={`investment-amount-${newStrategy.investmentAmount}`}
+                  value={newStrategy.investmentAmount}
+                  onChange={(e) => {
+                    const btcAmount = parseFloat(e.target.value) || 0.001;
+                    const leverage = parseFloat(newStrategy.leverage) || 3;
+                    const btcPrice = 156000000; // BTC 가격
+                    const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
+                    
+                    console.log('🔢 투자수량 변경:', {
+                      btcAmount,
+                      leverage,
+                      btcPrice,
+                      calculatedBaseAmount,
+                      stringBaseAmount: String(calculatedBaseAmount)
+                    });
+                    
+                    setNewStrategy(prev => ({
+                      ...prev, 
+                      investmentAmount: e.target.value
+                      // baseAmount는 useEffect에서 자동 계산됨
+                    }));
+                  }}
+                />
+                <div className="text-xs text-muted-foreground">
+                  ₩{parseInt(newStrategy.baseAmount || '500000').toLocaleString()} ÷ {newStrategy.leverage}배 = {(parseInt(newStrategy.baseAmount || '500000') / parseInt(newStrategy.leverage || '3')).toLocaleString()}원 증거금
+                </div>
+              </div>
+            </div>
+
+            {/* 리스크 레벨 */}
+            <div className="space-y-2 relative">
+              <label 
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" 
+                htmlFor=":r13:-form-item"
+              >
+                리스크 레벨
+              </label>
+              <div className="text-sm text-muted-foreground mb-2">
+                투자 금액 대비 위험도와 수익률을 결정합니다
+              </div>
+              <button 
+                type="button" 
+                role="combobox" 
+                aria-controls="radix-:r14:" 
+                aria-expanded="false" 
+                aria-autocomplete="none" 
+                dir="ltr" 
+                data-state="closed" 
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1" 
+                style={{
+                  backgroundColor: '#0b1220',
+                  border: '1px solid #1e293b',
+                  color: '#dbe6ff',
+                  borderRadius: '10px'
+                }}
+                data-testid="select-risk-level" 
+                id=":r13:-form-item"
+                onClick={() => {
+                  const dropdown = document.getElementById('risk-dropdown');
+                  if (dropdown) {
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                  }
+                }}
+              >
+                <span style={{pointerEvents: 'none'}}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {newStrategy.riskLevel === 'conservative' ? '보수적' : 
+                       newStrategy.riskLevel === 'moderate' ? '중간' : 
+                       newStrategy.riskLevel === 'aggressive' ? '공격적' : '중간'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {newStrategy.riskLevel === 'conservative' ? '안전한 투자, 낮은 수익률' : 
+                       newStrategy.riskLevel === 'moderate' ? '균형잡힌 투자, 적당한 수익률' : 
+                       newStrategy.riskLevel === 'aggressive' ? '고위험 투자, 높은 수익률 기대' : '균형잡힌 투자, 적당한 수익률'}
+                    </span>
+                  </div>
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down h-4 w-4 opacity-50" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </button>
+              
+              {/* 리스크 레벨 드롭다운 */}
+              <div 
+                className="absolute top-full left-0 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg" 
+                style={{
+                  display: 'none',
+                  zIndex: 1001,
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #374151'
+                }} 
+                id="risk-dropdown"
+              >
+                <div className="p-3 hover:bg-slate-700 cursor-pointer rounded-t-lg" onClick={() => {setNewStrategy(prev => ({...prev, riskLevel: 'conservative'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
+                  <div className="text-white font-medium">보수적</div>
+                  <div className="text-slate-400 text-xs">안전한 투자, 낮은 수익률</div>
+                </div>
+                <div className="p-3 hover:bg-slate-700 cursor-pointer bg-slate-700" onClick={() => {setNewStrategy(prev => ({...prev, riskLevel: 'moderate'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
+                  <div className="text-white font-medium flex items-center">
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
+                    </svg>
+                    중간
+                  </div>
+                  <div className="text-slate-400 text-xs">균형잡힌 투자, 적당한 수익률</div>
+                </div>
+                <div className="p-3 hover:bg-slate-700 cursor-pointer rounded-b-lg" onClick={() => {setNewStrategy(prev => ({...prev, riskLevel: 'aggressive'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
+                  <div className="text-white font-medium">공격적</div>
+                  <div className="text-slate-400 text-xs">고위험 투자, 높은 수익률 기대</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 즉시 활성화 토글 */}
+            <div className="space-y-2 flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <label 
+                  className="font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-base" 
+                  htmlFor=":r15:-form-item"
+                >
+                  즉시 활성화
+                </label>
+                <div className="text-sm text-muted-foreground">
+                  전략 생성 후 바로 자동매매를 시작합니다
+                </div>
+              </div>
+              <button 
+                type="button" 
+                role="switch" 
+                aria-checked={newStrategy.activateImmediately} 
+                data-state={newStrategy.activateImmediately ? "checked" : "unchecked"} 
+                value="on" 
+                className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input" 
+                data-testid="switch-activate-strategy" 
+                id=":r15:-form-item" 
+                onClick={() => setNewStrategy(prev => ({...prev, activateImmediately: !prev.activateImmediately}))}
+              >
+                <span 
+                  data-state={newStrategy.activateImmediately ? "checked" : "unchecked"} 
+                  className="pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
+                ></span>
+              </button>
+            </div>
+
+            {/* 액션 버튼들 */}
+            <div className="flex gap-2">
+              <button 
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" 
+                type="submit" 
+                data-testid="button-create-strategy"
+              >
+                {newStrategy.name === 'zzzzz' ? '전략 수정' : '전략 생성'}
+              </button>
+              <button 
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2" 
+                type="button" 
+                data-testid="button-cancel-create" 
+                onClick={() => setShowCreateModal(false)}
+              >
+                취소
+              </button>
+            </div>
+          </form>
+
+          {/* 닫기 버튼 */}
+          <button 
+            type="button" 
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground" 
+            onClick={() => setShowCreateModal(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x h-4 w-4">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+            <span className="sr-only">Close</span>
+          </button>
+        </div>
+      )}
+      
+      {/* 모달 배경 오버레이 */}
+      {showCreateModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999
+          }}
+          onClick={() => setShowCreateModal(false)}
+        ></div>
+      )}
     </>
   );
 };

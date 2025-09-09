@@ -43,7 +43,7 @@ export const BalanceDisplay = React.memo(() => {
   
   const { data: balances, isLoading, error } = useQuery<BalanceData>({
     queryKey: [`/api/balances/${userId}`],
-    refetchInterval: 1000,
+    refetchInterval: 10000, // 10초마다 잔고 조회 (API 제한 고려)
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화
     enabled: !!userId, // 로그인한 경우에만 API 호출

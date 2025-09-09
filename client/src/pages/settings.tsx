@@ -111,6 +111,7 @@ export default function Settings() {
     console.log('🔍 연동테스트 시작:', exchangeName);
     console.log('📊 현재 exchanges 데이터:', exchanges);
     console.log('👤 현재 userId:', userId, '타입:', typeof userId);
+    console.log('📤 전송할 데이터:', { exchange: exchangeName, userId });
     
     // 해당 거래소의 기존 API 키가 있는지 확인
     const existingExchange = exchanges.find(ex => ex.name === exchangeName);
@@ -128,6 +129,7 @@ export default function Settings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           exchange: exchangeName,
+          userId: userId
         })
       });
       

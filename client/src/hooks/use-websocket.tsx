@@ -14,14 +14,15 @@ export function useWebSocket() {
         // 환경별 WebSocket URL 결정
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const baseHostname = window.location.hostname.replace(/^www\./, '');
-        let host = `${baseHostname}${window.location.port ? `:${window.location.port}` : ''}`;
+        const port = window.location.port || '5001';
+        const host = `${baseHostname}:${port}`;
         
-        // 로컬 개발 환경에서는 현재 포트를 그대로 사용
-        if (window.location.hostname === 'localhost') {
-          const currentPort = window.location.port || '5001';
-          console.log(`🔍 로컬 환경 감지: 현재 포트 ${currentPort} 사용`);
-          host = `localhost:${currentPort}`;
-        }
+        console.log(`🔍 WebSocket URL 구성:`, {
+          protocol,
+          hostname: baseHostname,
+          port,
+          host
+        });
         
         // 인증 토큰 추가
         const token = localStorage.getItem('authToken');
@@ -31,6 +32,7 @@ export function useWebSocket() {
         
         console.log('WebSocket 연결 시도:', wsUrl);
         ws.current = new WebSocket(wsUrl);
+        console.log('WebSocket 객체 생성 완료, 연결 대기 중...');
 
         ws.current.onopen = () => {
           console.log('WebSocket connected');
@@ -52,14 +54,17 @@ export function useWebSocket() {
         ws.current.onmessage = (event) => {
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
+            console.log('📨 WebSocket 메시지 수신:', message.type, message.data?.length || 'no data');
             setLastMessage(message);
             
             const handler = messageHandlers.current.get(message.type);
             if (handler) {
               handler(message.data);
+            } else {
+              console.warn('📨 처리되지 않은 메시지 타입:', message.type);
             }
           } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            console.error('Error parsing WebSocket message:', error, event.data);
           }
         };
 

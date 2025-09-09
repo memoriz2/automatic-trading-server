@@ -3,21 +3,47 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUp, ArrowDown, BarChart3, Layers, ArrowLeftRight } from "lucide-react";
 import type { KimchiPremium, Position } from "@/types/trading";
 
-// 숫자만 갱신하는 컴포넌트
+// 숫자만 갱신하는 컴포넌트 (가격 변동 색상 애니메이션 포함)
 const NumberDisplay = React.memo<{ 
   value: number; 
   formatter?: (v: number) => string;
   prefix?: string;
   suffix?: string;
-}>(({ value, formatter, prefix = '', suffix = '' }) => {
+  enableColorAnimation?: boolean;
+  baseColor?: string;
+}>(({ value, formatter, prefix = '', suffix = '', enableColorAnimation = false, baseColor = '' }) => {
+  const [previousValue, setPreviousValue] = useState<number>(value);
+  const [colorClass, setColorClass] = useState<string>(baseColor);
+
   const displayValue = React.useMemo(() => {
     if (formatter) {
       return formatter(value);
     }
-    return value.toFixed(2);
+    return value.toFixed(3);
   }, [value, formatter]);
 
-  return <>{prefix}{displayValue}{suffix}</>;
+  // 가격 변동 색상 애니메이션
+  useEffect(() => {
+    if (enableColorAnimation && previousValue !== value) {
+      if (value > previousValue) {
+        // 상승: 빨간색으로 즉시 변화 후 기본 색상으로 복귀
+        setColorClass('text-red-500 transition-colors duration-150');
+        setTimeout(() => {
+          setColorClass(`${baseColor} transition-colors duration-150`);
+        }, 150);
+      } else if (value < previousValue) {
+        // 하락: 파란색으로 즉시 변화 후 기본 색상으로 복귀
+        setColorClass('text-blue-500 transition-colors duration-150');
+        setTimeout(() => {
+          setColorClass(`${baseColor} transition-colors duration-150`);
+        }, 150);
+      }
+      
+      setPreviousValue(value);
+    }
+  }, [value, previousValue, enableColorAnimation, baseColor]);
+
+  return <span className={colorClass}>{prefix}{displayValue}{suffix}</span>;
 });
 
 NumberDisplay.displayName = 'NumberDisplay';
@@ -66,7 +92,9 @@ export const KimchiCards = React.memo<KimchiCardsProps>(({ kimchiData, positions
                   value={mainPremiumRate}
                   prefix={mainPremiumRate >= 0 ? '+' : ''}
                   suffix="%"
-                  formatter={(v) => v.toFixed(2)}
+                  formatter={(v) => v.toFixed(3)}
+                  enableColorAnimation={true}
+                  baseColor={mainPremiumRate >= 0 ? 'text-success' : 'text-danger'}
                 />
               </p>
               <p className="text-xs text-slate-500 mt-1">BTC 기준</p>
@@ -92,6 +120,8 @@ export const KimchiCards = React.memo<KimchiCardsProps>(({ kimchiData, positions
                 value={Math.abs(mainPremiumRate * 0.1)}
                 suffix="%"
                 formatter={(v) => v.toFixed(3)}
+                enableColorAnimation={true}
+                baseColor={mainPremiumRate >= 0 ? 'text-success' : 'text-danger'}
               />
             </span>
             <span className="text-slate-400 ml-1">실시간 변동</span>
@@ -111,6 +141,8 @@ export const KimchiCards = React.memo<KimchiCardsProps>(({ kimchiData, positions
                   prefix={dailyProfitRate >= 0 ? '+' : ''}
                   suffix="%"
                   formatter={(v) => v.toFixed(2)}
+                  enableColorAnimation={true}
+                  baseColor={dailyProfitRate >= 0 ? 'text-success' : 'text-danger'}
                 />
               </p>
             </div>

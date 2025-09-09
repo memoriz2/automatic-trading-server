@@ -6,13 +6,18 @@ import { StopCircle, DollarSign, Wallet, TrendingUp } from "lucide-react";
 import type { KimchiPremium } from "@/types/trading";
 import { BalanceDisplay } from "@/components/balance-display";
 
-// 숫자만 갱신하는 컴포넌트
+// 숫자만 갱신하는 컴포넌트 (가격 변동 색상 애니메이션 포함)
 const NumberDisplay = React.memo<{ 
   value: number; 
   formatter?: (v: number) => string;
   prefix?: string;
   suffix?: string;
-}>(({ value, formatter, prefix = '', suffix = '' }) => {
+  enableColorAnimation?: boolean;
+  baseColor?: string;
+}>(({ value, formatter, prefix = '', suffix = '', enableColorAnimation = false, baseColor = '' }) => {
+  const [previousValue, setPreviousValue] = useState<number>(value);
+  const [colorClass, setColorClass] = useState<string>(baseColor);
+
   const displayValue = React.useMemo(() => {
     if (formatter) {
       return formatter(value);
@@ -20,7 +25,28 @@ const NumberDisplay = React.memo<{
     return value.toFixed(3);
   }, [value, formatter]);
 
-  return <>{prefix}{displayValue}{suffix}</>;
+  // 가격 변동 색상 애니메이션
+  useEffect(() => {
+    if (enableColorAnimation && previousValue !== value) {
+      if (value > previousValue) {
+        // 상승: 빨간색으로 즉시 변화 후 기본 색상으로 복귀
+        setColorClass('text-red-500 transition-colors duration-150');
+        setTimeout(() => {
+          setColorClass(`${baseColor} transition-colors duration-150`);
+        }, 150);
+      } else if (value < previousValue) {
+        // 하락: 파란색으로 즉시 변화 후 기본 색상으로 복귀
+        setColorClass('text-blue-500 transition-colors duration-150');
+        setTimeout(() => {
+          setColorClass(`${baseColor} transition-colors duration-150`);
+        }, 150);
+      }
+      
+      setPreviousValue(value);
+    }
+  }, [value, previousValue, enableColorAnimation, baseColor]);
+
+  return <span className={colorClass}>{prefix}{displayValue}{suffix}</span>;
 });
 
 NumberDisplay.displayName = 'NumberDisplay';
@@ -71,6 +97,8 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
               ₩<NumberDisplay 
                 value={stableExchangeRate}
                 formatter={(v) => v.toFixed(2)}
+                enableColorAnimation={true}
+                baseColor="text-green-400"
               />
             </div>
             <div className="text-sm text-slate-400 mt-1">USD/KRW</div>
@@ -100,16 +128,19 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
               <span className="font-mono text-blue-400">
                 ₩<NumberDisplay 
                   value={stableBtcData?.upbitPrice || 153906000}
-                  formatter={(v) => v.toLocaleString()}
+                  formatter={(v) => v.toLocaleString(undefined, {minimumFractionDigits: 3, maximumFractionDigits: 3})}
+                  enableColorAnimation={true}
                 />
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-400">바이낸스 선물</span>
               <span className="font-mono text-yellow-400">
-                $<NumberDisplay 
-                  value={stableBtcData?.binanceFuturesPrice || 110756.90}
-                  formatter={(v) => v.toLocaleString()}
+                ₩<NumberDisplay 
+                  value={(stableBtcData?.binanceFuturesPrice || 110756.90) * stableExchangeRate}
+                  formatter={(v) => v.toLocaleString(undefined, {minimumFractionDigits: 3, maximumFractionDigits: 3})}
+                  enableColorAnimation={true}
+                  baseColor="text-yellow-400"
                 />
               </span>
             </div>
@@ -121,6 +152,8 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
                   prefix={stableBtcData?.premiumRate && stableBtcData.premiumRate >= 0 ? '+' : ''}
                   suffix="%"
                   formatter={(v) => v.toFixed(3)}
+                  enableColorAnimation={true}
+                  baseColor="text-green-400"
                 />
               </span>
             </div>

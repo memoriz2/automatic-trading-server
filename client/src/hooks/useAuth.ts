@@ -48,13 +48,43 @@ export function useAuth() {
             });
           } else {
             setAuthState(prev => ({ ...prev, isLoading: false }));
+            // 세션 만료 시 로그인 페이지로 리다이렉트
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
           }
         } catch {
           setAuthState(prev => ({ ...prev, isLoading: false }));
+          // 세션 만료 시 로그인 페이지로 리다이렉트
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  // 주기적 세션 체크 (5분마다)
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        await apiFetch('/api/auth/me');
+      } catch (error) {
+        // 세션 만료 시 자동 로그아웃 및 리다이렉트
+        console.log('세션 만료 감지, 로그인 페이지로 이동');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('authToken');
+        setAuthState({ user: null, isAuthenticated: false, isLoading: false, token: null });
+        
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    };
+
+    const interval = setInterval(checkSession, 5 * 60 * 1000); // 5분마다 체크
+    return () => clearInterval(interval);
   }, []);
 
   const login = (user: User, token?: string) => {
