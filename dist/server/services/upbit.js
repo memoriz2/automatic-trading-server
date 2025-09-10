@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+// @ts-ignore
 import jwt from 'jsonwebtoken';
 export class UpbitService {
     baseUrl = 'https://api.upbit.com';

@@ -9,6 +9,7 @@ import type {
   TradingStrategy,
   Position,
   Trade,
+  TradeLog,
   SystemAlert,
 } from "../generated/prisma";
 import { hashPassword, verifyPassword } from "./utils/auth.js";
@@ -110,6 +111,7 @@ export type InsertPosition = {
 export type InsertTrade = {
   userId: number;
   positionId?: number | null;
+  tradeLogId?: number | null;
   symbol: string;
   side: string;
   exchange: string;
@@ -120,6 +122,13 @@ export type InsertTrade = {
   exchangeOrderId?: string | null;
   exchangeTradeId?: string | null;
   executedAt?: Date;
+};
+
+export type InsertTradeLog = {
+  kimp: number;
+  action: string;
+  amount: number;
+  result: string;
 };
 
 export type InsertSystemAlert = {
@@ -213,6 +222,10 @@ export interface IStorage {
   getTradesByUserId(userId: string, limit?: number): Promise<Trade[]>;
   getTradesByPositionId(positionId: number): Promise<Trade[]>;
   createTrade(trade: InsertTrade): Promise<Trade>;
+
+  // TradeLogs
+  createTradeLog(tradeLog: InsertTradeLog): Promise<TradeLog>;
+  getTradeLogs(limit?: number): Promise<TradeLog[]>;
 
   // System Alerts
   getSystemAlerts(limit?: number): Promise<SystemAlert[]>;
@@ -696,6 +709,7 @@ export class DatabaseStorage implements IStorage {
       data: {
         userId: insertTrade.userId,
         positionId: insertTrade.positionId ?? null,
+        tradeLogId: insertTrade.tradeLogId ?? null,
         symbol: insertTrade.symbol,
         side: insertTrade.side,
         exchange: insertTrade.exchange,
@@ -709,6 +723,26 @@ export class DatabaseStorage implements IStorage {
       },
     });
     return trade as Trade;
+  }
+
+  // TradeLogs
+  async createTradeLog(tradeLog: InsertTradeLog): Promise<TradeLog> {
+    const log = await prisma.tradeLog.create({
+      data: {
+        kimp: tradeLog.kimp,
+        action: tradeLog.action,
+        amount: tradeLog.amount,
+        result: tradeLog.result,
+      },
+    });
+    return log as TradeLog;
+  }
+
+  async getTradeLogs(limit: number = 50): Promise<TradeLog[]> {
+    return prisma.tradeLog.findMany({
+      orderBy: { timestamp: "desc" },
+      take: limit,
+    });
   }
 
   // Trading Strategies
@@ -731,7 +765,7 @@ export class DatabaseStorage implements IStorage {
   async createOrUpdateTradingStrategy(
     strategy: InsertTradingStrategy
   ): Promise<TradingStrategy> {
-    const userId = strategy.userId;
+    const userId = typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId;
     const strategyName = (strategy as any).name || "김치 프리미엄 전략";
 
     const existing = await prisma.tradingStrategy.findFirst({
@@ -744,7 +778,7 @@ export class DatabaseStorage implements IStorage {
       exitRate: new Prisma.Decimal(((strategy as any).exitRate ?? "0.1") as any),
       toleranceRate: new Prisma.Decimal(((strategy as any).toleranceRate ?? "0.1") as any),
       leverage: (strategy as any).leverage ?? 3,
-      investmentAmount: new Prisma.Decimal(((strategy as any).investmentAmount ?? "100000") as any),
+      investmentAmount: new Prisma.Decimal(String((strategy as any).investmentAmount ?? "100000")),
       isActive: (strategy as any).isActive ?? true,
       symbol: (strategy as any).symbol ?? "BTC",
       tolerance: new Prisma.Decimal(((strategy as any).tolerance ?? "0.1") as any),
@@ -940,6 +974,15 @@ export class DatabaseStorage implements IStorage {
       totalVolume: 0,
     };
   }
+
+  // 포지션 조회
+  async getPositions(whereClause: any): Promise<Position[]> {
+    return await prisma.position.findMany({
+      where: whereClause,
+      orderBy: { entryTime: 'desc' }
+    });
+  }
+
 }
 
 export const storage = new DatabaseStorage();

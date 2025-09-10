@@ -214,6 +214,7 @@ exports.Prisma.PositionScalarFieldEnum = {
   exitPremiumRate: 'exitPremiumRate',
   unrealizedPnl: 'unrealizedPnl',
   realizedPnl: 'realizedPnl',
+  isMock: 'isMock',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -245,6 +246,7 @@ exports.Prisma.TradeScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   positionId: 'positionId',
+  tradeLogId: 'tradeLogId',
   symbol: 'symbol',
   side: 'side',
   exchange: 'exchange',

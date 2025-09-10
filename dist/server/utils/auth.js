@@ -1,4 +1,6 @@
+// @ts-ignore
 import bcrypt from 'bcrypt';
+// @ts-ignore
 import jwt from 'jsonwebtoken';
 const JWT_SECRET = (() => {
     const value = process.env.JWT_SECRET;
@@ -52,30 +54,7 @@ export function verifyToken(token) {
         return null;
     }
 }
-/**
- * 인증 미들웨어
- */
-export function authenticateToken(req, res, next) {
-    console.log(`[서버 인증] 미들웨어 실행: ${req.method} ${req.originalUrl}`);
-    const authHeader = req.headers['authorization'];
-    const cookieToken = req.cookies?.access_token;
-    console.log(`[서버 인증] Authorization 헤더 수신: ${authHeader}`);
-    const token = (authHeader && authHeader.split(' ')[1]) || cookieToken; // Bearer TOKEN or Cookie
-    if (!token) {
-        console.log('[서버 인증] 실패: 요청에 토큰이 없습니다. (401 반환)');
-        return res.status(401).json({ message: '로그인이 필요합니다' });
-    }
-    console.log(`[서버 인증] 요청에서 토큰 추출: ${token.substring(0, 15)}...`);
-    const decoded = verifyToken(token);
-    if (!decoded) {
-        console.log('[서버 인증] 실패: 토큰이 유효하지 않습니다. (403 반환)');
-        return res.status(403).json({ message: '유효하지 않은 토큰입니다' });
-    }
-    // 요청 객체에 사용자 정보 추가
-    req.user = decoded;
-    console.log(`[서버 인증] 성공: 사용자 정보를 요청에 추가했습니다.`, decoded);
-    next();
-}
+// JWT 토큰 인증 미들웨어 제거됨 - 세션 기반 인증으로 전환
 /**
  * 비밀번호 강도 검증
  */

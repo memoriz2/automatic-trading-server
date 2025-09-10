@@ -42,6 +42,7 @@ export class PriceCacheService {
                 // console.log(`📈 USDT/KRW EMA: ${this.emaRate.toFixed(2)} (raw: ${price.toFixed(2)})`);
             }
             // 🚀 가격 변동시 실시간 김치 계산 트리거
+            // console.log(`🔥 업비트 ${symbol} 트리거 호출 (콜백 ${this.priceUpdateCallbacks.length}개)`);
             this.priceUpdateCallbacks.forEach(callback => {
                 try {
                     callback('upbit', symbol, price);
@@ -72,6 +73,7 @@ export class PriceCacheService {
         if (source === 'websocket') {
             // console.log(`📊 바이낸스 ${symbol}: $${price.toLocaleString()} (웹소ket)`);
             // 🚀 가격 변동시 실시간 김치 계산 트리거
+            // console.log(`🔥 바이낸스 ${symbol} 트리거 호출 (콜백 ${this.priceUpdateCallbacks.length}개)`);
             this.priceUpdateCallbacks.forEach(callback => {
                 try {
                     callback('binance', symbol, price);
@@ -139,6 +141,13 @@ export class PriceCacheService {
             return null;
         }
         return cached;
+    }
+    /**
+     * 바이낸스 현물 가격 조회 (현재는 선물 가격과 동일하게 처리)
+     */
+    getBinanceSpotPrice(symbol) {
+        // 현재는 선물 가격과 동일하게 처리 (향후 현물 전용 캐시 추가 가능)
+        return this.getBinancePrice(symbol);
     }
     /**
      * 업비트 SMA 가격 조회

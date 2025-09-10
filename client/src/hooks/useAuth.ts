@@ -27,19 +27,23 @@ export function useAuth() {
     let cancelled = false;
     (async () => {
       try {
+        console.log('🔍 useAuth: 서버 세션 확인 중...');
         const res = await apiFetch('/api/auth/me');
         const user = await res.json();
         if (!cancelled) {
+          console.log('✅ useAuth: 서버 세션 성공', user);
           sessionStorage.setItem('user', JSON.stringify(user));
           setAuthState({ user, isAuthenticated: true, isLoading: false, token: null });
           return;
         }
-      } catch {
+      } catch (error) {
+        console.log('❌ useAuth: 서버 세션 실패', error);
         // 쿠키 세션이 없거나 만료됨 → 세션스토리지 폴백 시도
         try {
           const storedUser = sessionStorage.getItem('user');
           const storedToken = sessionStorage.getItem('authToken');
           if (storedUser) {
+            console.log('✅ useAuth: 세션스토리지에서 사용자 복원', JSON.parse(storedUser));
             setAuthState({
               user: JSON.parse(storedUser),
               isAuthenticated: true,
@@ -47,17 +51,19 @@ export function useAuth() {
               token: storedToken,
             });
           } else {
+            console.log('❌ useAuth: 세션스토리지에도 사용자 없음');
             setAuthState(prev => ({ ...prev, isLoading: false }));
             // 세션 만료 시 로그인 페이지로 리다이렉트
             if (window.location.pathname !== '/login') {
-              window.location.href = '/login';
+              window.dispatchEvent(new CustomEvent('auth-failed'));
             }
           }
-        } catch {
+        } catch (error) {
+          console.log('❌ useAuth: 세션스토리지 파싱 실패', error);
           setAuthState(prev => ({ ...prev, isLoading: false }));
           // 세션 만료 시 로그인 페이지로 리다이렉트
           if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
+            window.dispatchEvent(new CustomEvent('auth-failed'));
           }
         }
       }
@@ -78,7 +84,7 @@ export function useAuth() {
         setAuthState({ user: null, isAuthenticated: false, isLoading: false, token: null });
         
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+          window.dispatchEvent(new CustomEvent('auth-failed'));
         }
       }
     };

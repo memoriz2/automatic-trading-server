@@ -833,7 +833,22 @@ export async function registerRoutes(
     }
   });
 
-  // 거래 내역 조회
+  // 거래 내역 조회 (세션 기반)
+  app.get("/api/trades", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      console.log(`📊 거래 내역 조회: 사용자 ID ${userId}`);
+      const trades = await storage.getTradesByUserId(String(userId), limit);
+      console.log(`📊 조회된 거래 수: ${trades.length}건`);
+      res.json(trades);
+    } catch (error) {
+      console.error("거래 내역 조회 오류:", error);
+      res.status(500).json({ error: "Failed to fetch trades" });
+    }
+  });
+
+  // 거래 내역 조회 (기존 userId 파라미터 방식 - 호환성 유지)
   app.get("/api/trades/:userId", async (req, res) => {
     try {
       const userId = req.params.userId; // string으로 처리
@@ -1772,8 +1787,155 @@ export async function registerRoutes(
     }
   });
 
+  // 활동 추적 API
+  app.post("/api/activity", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { timestamp, type, source } = req.body;
+      
+      // 활동 감지 시 세션 갱신
+      if (req.session) {
+        req.session.touch();
+        req.session.cookie.maxAge = 24 * 60 * 60 * 1000; // 24시간으로 연장
+        console.log(`🔄 활동 감지로 세션 갱신: ${type} - 사용자: ${userId}`);
+      }
+      
+      res.json({ success: true, message: "활동이 기록되었습니다" });
+    } catch (error) {
+      console.error("활동 추적 오류:", error);
+      res.status(500).json({ error: "활동 추적 중 오류가 발생했습니다" });
+    }
+  });
+
+  // 포지션 조회 API
+  app.get("/api/positions", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { isMock } = req.query;
+      
+      const whereClause: any = { userId };
+      if (isMock !== undefined) {
+        whereClause.isMock = isMock === 'true';
+      }
+      
+      const positions = await storage.getPositions(whereClause);
+      
+      res.json(positions);
+    } catch (error) {
+      console.error("포지션 조회 오류:", error);
+      res.status(500).json({ error: "포지션 조회 중 오류가 발생했습니다" });
+    }
+  });
+
+
+  // 실거래 API 엔드포인트
+  app.post("/api/live-trades", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const tradeData = req.body;
+      
+      console.log(`💰 실거래 저장 요청:`, {
+        userId,
+        tradeId: tradeData.id,
+        type: tradeData.type,
+        symbol: tradeData.symbol,
+        quantity: tradeData.quantity,
+        price: tradeData.price
+      });
+
+      // TradeLog 먼저 생성
+      const tradeLog = await storage.createTradeLog({
+        kimp: tradeData.premiumRate || 0,
+        action: tradeData.type,
+        amount: tradeData.quantity * tradeData.price,
+        result: 'success'
+      });
+
+      // 실거래 기록을 DB에 저장
+      const trade = await storage.createTrade({
+        userId: parseInt(userId),
+        positionId: null,
+        tradeLogId: tradeLog.id,
+        symbol: tradeData.symbol,
+        side: tradeData.type,
+        exchange: tradeData.exchange || 'upbit',
+        quantity: tradeData.quantity,
+        price: tradeData.price,
+        fee: tradeData.fee || 0,
+        orderType: 'LIVE', // 실거래
+        exchangeOrderId: tradeData.id,
+        exchangeTradeId: tradeData.id,
+      });
+
+      console.log(`✅ 실거래 저장 완료: ${trade.id} (TradeLog: ${tradeLog.id})`);
+      
+      res.json({
+        success: true,
+        message: "실거래가 저장되었습니다",
+        tradeId: trade.id,
+        tradeLogId: tradeLog.id
+      });
+    } catch (error) {
+      console.error("실거래 저장 오류:", error);
+      res.status(500).json({ error: "실거래 저장 중 오류가 발생했습니다" });
+    }
+  });
+
   // Mock Trading API 엔드포인트들
-  // Mock 거래 기록 저장
+  // Mock 거래 기록 저장 (세션 기반)
+  app.post("/api/mock-trades", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const tradeData = req.body;
+      
+      console.log(`📊 Mock 거래 저장 요청:`, {
+        userId,
+        tradeId: tradeData.id,
+        type: tradeData.type,
+        symbol: tradeData.symbol,
+        quantity: tradeData.quantity,
+        price: tradeData.price
+      });
+
+      // TradeLog 먼저 생성
+      const tradeLog = await storage.createTradeLog({
+        kimp: tradeData.premiumRate || 0,
+        action: tradeData.type, // buy, sell, short, cover
+        amount: tradeData.quantity * tradeData.price,
+        result: 'success'
+      });
+
+      // Mock 거래 기록을 실제 DB에 저장
+      const trade = await storage.createTrade({
+        userId: parseInt(userId),
+        positionId: null, // Mock 거래는 포지션 ID 없음
+        tradeLogId: tradeLog.id, // TradeLog 연결
+        symbol: tradeData.symbol,
+        side: tradeData.type, // buy, sell, short, cover
+        exchange: tradeData.exchange || 'upbit',
+        quantity: tradeData.quantity,
+        price: tradeData.price,
+        fee: tradeData.fee || 0,
+        orderType: tradeData.isMock ? 'MOCK' : 'LIVE', // Mock/실거래 구분
+        exchangeOrderId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+        exchangeTradeId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+      });
+
+      console.log(`✅ Mock 거래 저장 완료: ${trade.id} (TradeLog: ${tradeLog.id})`);
+      
+      res.json({
+        success: true,
+        message: "Mock 거래가 저장되었습니다",
+        tradeId: trade.id,
+        tradeLogId: tradeLog.id
+      });
+    } catch (error) {
+      console.error("Mock 거래 저장 오류:", error);
+      res.status(500).json({ error: "Mock 거래 저장 중 오류가 발생했습니다" });
+    }
+  });
+
+  // Mock 거래 기록 저장 (기존 userId 파라미터 방식 - 호환성 유지)
   app.post("/api/mock-trades/:userId", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
@@ -1788,14 +1950,37 @@ export async function registerRoutes(
         price: tradeData.price
       });
 
-      // Mock 거래 기록을 DB에 저장 (실제 구현 필요)
-      // 현재는 로그만 출력
-      console.log(`✅ Mock 거래 저장 완료: ${tradeData.id}`);
+      // TradeLog 먼저 생성
+      const tradeLog = await storage.createTradeLog({
+        kimp: tradeData.premiumRate || 0,
+        action: tradeData.type, // buy, sell, short, cover
+        amount: tradeData.quantity * tradeData.price,
+        result: 'success'
+      });
+
+      // Mock 거래 기록을 실제 DB에 저장
+      const trade = await storage.createTrade({
+        userId: parseInt(userId),
+        positionId: null, // Mock 거래는 포지션 ID 없음
+        tradeLogId: tradeLog.id, // TradeLog 연결
+        symbol: tradeData.symbol,
+        side: tradeData.type, // buy, sell, short, cover
+        exchange: tradeData.exchange || 'upbit',
+        quantity: tradeData.quantity,
+        price: tradeData.price,
+        fee: tradeData.fee || 0,
+        orderType: tradeData.isMock ? 'MOCK' : 'LIVE', // Mock/실거래 구분
+        exchangeOrderId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+        exchangeTradeId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+      });
+
+      console.log(`✅ Mock 거래 저장 완료: ${trade.id} (TradeLog: ${tradeLog.id})`);
       
       res.json({
         success: true,
         message: "Mock 거래가 저장되었습니다",
-        tradeId: tradeData.id
+        tradeId: trade.id,
+        tradeLogId: tradeLog.id
       });
     } catch (error) {
       console.error("Mock 거래 저장 오류:", error);

@@ -355,6 +355,7 @@ export class DatabaseStorage {
             data: {
                 userId: insertTrade.userId,
                 positionId: insertTrade.positionId ?? null,
+                tradeLogId: insertTrade.tradeLogId ?? null,
                 symbol: insertTrade.symbol,
                 side: insertTrade.side,
                 exchange: insertTrade.exchange,
@@ -368,6 +369,24 @@ export class DatabaseStorage {
             },
         });
         return trade;
+    }
+    // TradeLogs
+    async createTradeLog(tradeLog) {
+        const log = await prisma.tradeLog.create({
+            data: {
+                kimp: tradeLog.kimp,
+                action: tradeLog.action,
+                amount: tradeLog.amount,
+                result: tradeLog.result,
+            },
+        });
+        return log;
+    }
+    async getTradeLogs(limit = 50) {
+        return prisma.tradeLog.findMany({
+            orderBy: { timestamp: "desc" },
+            take: limit,
+        });
     }
     // Trading Strategies
     async getTradingStrategies(userId) {
@@ -383,7 +402,7 @@ export class DatabaseStorage {
         });
     }
     async createOrUpdateTradingStrategy(strategy) {
-        const userId = strategy.userId;
+        const userId = typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId;
         const strategyName = strategy.name || "김치 프리미엄 전략";
         const existing = await prisma.tradingStrategy.findFirst({
             where: { userId, name: strategyName },
@@ -394,7 +413,7 @@ export class DatabaseStorage {
             exitRate: new Prisma.Decimal((strategy.exitRate ?? "0.1")),
             toleranceRate: new Prisma.Decimal((strategy.toleranceRate ?? "0.1")),
             leverage: strategy.leverage ?? 3,
-            investmentAmount: new Prisma.Decimal((strategy.investmentAmount ?? "100000")),
+            investmentAmount: new Prisma.Decimal(String(strategy.investmentAmount ?? "100000")),
             isActive: strategy.isActive ?? true,
             symbol: strategy.symbol ?? "BTC",
             tolerance: new Prisma.Decimal((strategy.tolerance ?? "0.1")),
@@ -559,6 +578,13 @@ export class DatabaseStorage {
             activePositions,
             totalVolume: 0,
         };
+    }
+    // 포지션 조회
+    async getPositions(whereClause) {
+        return await prisma.position.findMany({
+            where: whereClause,
+            orderBy: { entryTime: 'desc' }
+        });
     }
 }
 export const storage = new DatabaseStorage();

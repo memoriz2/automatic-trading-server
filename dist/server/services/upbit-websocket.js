@@ -29,6 +29,7 @@ export class UpbitWebSocketService {
                         // 가격 캐시에 저장 (KRW- 제거하여 심볼 정규화)
                         const symbol = message.code.replace('KRW-', '');
                         const price = message.trade_price;
+                        // console.log(`📊 업비트 웹소켓 수신: ${symbol} = ₩${price.toLocaleString()}`);
                         priceCache.setUpbitPrice(symbol, price, 'websocket');
                         // 등록된 콜백들에 데이터 전송
                         this.callbacks.forEach(callback => {

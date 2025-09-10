@@ -31,6 +31,21 @@ export async function apiRequest(
 
 export async function apiFetch(url: string, init: RequestInit = {}) {
   const res = await fetch(url, { credentials: 'include', ...init });
+  
+  // 401 Unauthorized - 인증 실패 이벤트 발생
+  if (res.status === 401) {
+    console.log('🔒 인증 실패 - 로그인 페이지로 이동');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('authToken');
+    localStorage.removeItem('authToken');
+    
+    // 전역 이벤트로 인증 실패 알림 (상태 업데이트 포함)
+    window.dispatchEvent(new CustomEvent('auth-failed', { 
+      detail: { clearAuth: true } 
+    }));
+    throw new Error('Unauthorized');
+  }
+  
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res;
 }

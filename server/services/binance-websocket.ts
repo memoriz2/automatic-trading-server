@@ -46,6 +46,7 @@ export class BinanceWebSocketService {
             if (trade && trade.s && trade.p) {
               const symbol = trade.s.replace('USDT', '');
               const price = parseFloat(trade.p);
+              // console.log(`📊 바이낸스 웹소켓 수신: ${symbol} = $${price.toLocaleString()}`);
               priceCache.setBinancePrice(symbol, price, 'websocket');
 
               // 환율을 적용하여 원화 가격 계산

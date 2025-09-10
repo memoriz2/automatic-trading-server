@@ -56,7 +56,7 @@ const mapStrategyToBand = (s: any): Band => ({
 
 const LegacyAutoTradingPage = () => {
   // 인증 정보
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { isConnected, subscribe } = useWebSocket();
   // userId 동적 결정: Auth → URL(?userId|uid) → localStorage(x-user-id) → null (하드코딩 금지)
   const initialUserId = (() => {
@@ -163,6 +163,14 @@ const LegacyAutoTradingPage = () => {
   const [strategies, setStrategies] = useState<any[]>([]);
 
   const [editingStrategyId, setEditingStrategyId] = useState(null);
+  const [dailyStats, setDailyStats] = useState({
+    totalTrades: 0,
+    upbitTrades: 0,
+    binanceTrades: 0,
+    activePositions: 0,
+    totalFees: 0,
+    realizedPnl: 0
+  });
 
   // ===== Memoized maps for O(1) lookups =====
   const configuredByName = useMemo(() => {
@@ -1065,6 +1073,40 @@ const LegacyAutoTradingPage = () => {
     return () => window.removeEventListener('resize', drawSpark);
   }, [drawSpark]);
 
+  // 디버깅 로그
+  console.log('🔍 LegacyAutoTradingPage 상태:', { 
+    isLoading, 
+    isAuthenticated, 
+    user: user?.id,
+    effectiveUserId 
+  });
+
+  // 로딩 중이거나 인증되지 않은 경우 처리
+  if (isLoading) {
+    console.log('⏳ 로딩 중...');
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p>인증 상태 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    console.log('❌ 인증되지 않음');
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-center text-white">
+          <p>로그인이 필요합니다.</p>
+        </div>
+      </div>
+    );
+  }
+
+  console.log('✅ 정상 렌더링 시작');
+
   
   return (
     <>
@@ -1278,27 +1320,37 @@ const LegacyAutoTradingPage = () => {
                 ))}
               </div>
             </div>
-            <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border">
-              <h3>성과 요약</h3>
-              <div className="grid" style={{gap: '12px', gridTemplateColumns: 'repeat(12, 1fr)'}}>
-                <div className="col-6">
-                  <div className="kv">
-                    <b>주문 합계(오늘)</b><span id="metric-total" className="mono">0</span>
-                    <b>루프</b><span id="metric-loops" className="mono">0</span>
-                    <b>바이낸스 주문</b><span id="metric-bn" className="mono">0</span>
-                    <b>업비트 주문</b><span id="metric-up" className="mono">0</span>
-                    <b>API 오류</b><span id="metric-errors" className="badge bad">0</span>
-                    <b>진입</b><span id="metric-entries" className="mono">0</span>
-                    <b>청산</b><span id="metric-exits" className="mono">0</span>
-                  </div>
+            {/* 일일 거래 통계 */}
+            <div className="mt-4 pt-4 border-t border-slate-600">
+              <h4 className="text-slate-400 text-sm mb-3">오늘의 거래 통계</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center">
+                  <p className="text-xl font-bold text-blue-400">{dailyStats.totalTrades}</p>
+                  <p className="text-xs text-slate-400">총 거래</p>
                 </div>
-                <div className="col-6">
-                  <div className="kv">
-                    <b>실현 손익(누적)</b><span><span id="pnl-krw-sum" className="mono hl">0</span> KRW</span>
-                    <b>Upbit 수수료(누적)</b><span id="fee-upbit-krw" className="mono">0</span>
-                    <b>Binance 수수료(USDT)</b><span id="fee-binance-usdt" className="mono">0.000</span>
-                    <b>Binance 수수료(KRW)</b><span id="fee-binance-krw" className="mono">0</span>
-                  </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-green-400">{dailyStats.upbitTrades}</p>
+                  <p className="text-xs text-slate-400">업비트 거래</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-orange-400">{dailyStats.binanceTrades}</p>
+                  <p className="text-xs text-slate-400">바이낸스 거래</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold text-purple-400">{dailyStats.activePositions}</p>
+                  <p className="text-xs text-slate-400">활성 포지션</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-yellow-400">₩{dailyStats.totalFees.toLocaleString()}</p>
+                  <p className="text-xs text-slate-400">총 수수료</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-lg font-bold ${dailyStats.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {dailyStats.realizedPnl >= 0 ? '+' : ''}₩{dailyStats.realizedPnl.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-slate-400">실현 손익</p>
                 </div>
               </div>
             </div>
@@ -1309,22 +1361,78 @@ const LegacyAutoTradingPage = () => {
             <MockTradingSystem 
               strategies={strategies}
               currentKimchiData={kimp}
-              userId={user?.id || "1"}
+              userId={user?.id ? String(user.id) : "1"}
+              onDailyStatsUpdate={setDailyStats}
             />
           </section>
 
           {/* 시장 스냅샷 */}
           <section className="card col-6">
-            <h3>시장 스냅샷</h3>
-            <div className="kv">
-              <b>김프</b><span><span id="kimp" className="mono" style={{fontWeight: 800}}>{fx(kimp.kimp, 2)}%</span> <span id="kimp-sign" className={`badge ${kimp.kimp < 0 ? 'bad' : 'good'}`}>{kimp.kimp < 0 ? '역프' : '정프'}</span></span>
-              <b>업비트</b><span className="mono" id="upbit_price">{loc(kimp.upbit_price)}</span>
-              <b>바이낸스</b><span className="mono" id="binance_price">{loc(kimp.binance_price)}</span>
-              <b>환율</b><span className="mono" id="usdkrw">{loc(kimp.usdkrw)}</span>
-              <b>Upbit KRW</b><span className="mono" id="bal-krw">{loc(balances.real.krw)}</span>
-              <b>Upbit BTC</b><span className="mono" id="bal-btc">{fx(balances.real.btc_upbit, 6)}</span>
-              <b>Binance USDT</b><span className="mono" id="bal-usdt">{loc(balances.real.usdt)}</span>
-              <b>진입 증거금(USDT)</b><span className="mono" id="used-usdt">{loc(serverState.used_balance_usdt)}</span>
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border">
+              <h3 className="text-xl font-semibold mb-6 text-slate-200 flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                시장 스냅샷
+              </h3>
+              
+              {/* 김프율 - 하이라이트 */}
+              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-slate-800 to-slate-700 border border-slate-600">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-slate-400">김치프리미엄</span>
+                  <div className="flex items-center gap-3">
+                    <span id="kimp" className="text-2xl font-bold text-white" style={{fontWeight: 800}}>
+                      {fx(kimp.kimp, 2)}%
+                    </span>
+                    <span id="kimp-sign" className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      kimp.kimp < 0 
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                        : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                    }`}>
+                      {kimp.kimp < 0 ? '역프' : '정프'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 가격 정보 */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
+                    <span className="text-sm text-slate-400">업비트</span>
+                    <span className="text-lg font-bold text-green-400" id="upbit_price">{loc(kimp.upbit_price)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
+                    <span className="text-sm text-slate-400">바이낸스</span>
+                    <span className="text-lg font-bold text-orange-400" id="binance_price">{loc(kimp.binance_price)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
+                    <span className="text-sm text-slate-400">환율</span>
+                    <span className="text-lg font-bold text-blue-400" id="usdkrw">{loc(kimp.usdkrw)}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
+                    <span className="text-sm text-slate-400">Upbit KRW</span>
+                    <span className="text-lg font-bold text-yellow-400" id="bal-krw">{loc(balances.real.krw)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
+                    <span className="text-sm text-slate-400">Upbit BTC</span>
+                    <span className="text-lg font-bold text-purple-400" id="bal-btc">{fx(balances.real.btc_upbit, 6)}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
+                    <span className="text-sm text-slate-400">Binance USDT</span>
+                    <span className="text-lg font-bold text-cyan-400" id="bal-usdt">{loc(balances.real.usdt)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 진입 증거금 */}
+              <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-slate-400">진입 증거금(USDT)</span>
+                  <span className="text-lg font-bold text-pink-400" id="used-usdt">{loc(serverState.used_balance_usdt)}</span>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -1827,7 +1935,8 @@ const LegacyAutoTradingPage = () => {
                     setNewStrategy(prev => ({
                       ...prev, 
                       baseAmount: e.target.value,
-                      investmentAmount: calculatedBTC
+                      investmentAmount: calculatedBTC,
+                      tolerance: prev.tolerance
                     }));
                   }}
                 />

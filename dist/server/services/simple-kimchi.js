@@ -65,20 +65,20 @@ export class SimpleKimchiService {
         const usdKrwRate = (gf && gf > 1000 && gf < 2000) ? gf : (ema ?? fallback);
         for (const symbol of symbols) {
             try {
-                // 🚀 웹소켓 캐시에서 가격 조회 (즉시 반환)
+                // 🚀 웹소켓 캐시에서 가격 조회 (즉시 반환) - 바이낸스 현물 가격 사용
                 let upbitPrice = priceCache.getUpbitPrice(symbol);
-                let binanceFuturesPrice = priceCache.getBinancePrice(symbol);
+                let binanceSpotPrice = priceCache.getBinanceSpotPrice(symbol); // 현물 가격 사용
                 // 캐시에 없으면 API 호출 (백업)
                 if (upbitPrice === null) {
                     console.warn(`⚠️ ${symbol} 업비트 캐시 없음, API 호출`);
                     upbitPrice = await this.getUpbitPrice(symbol, userId);
                 }
-                if (binanceFuturesPrice === null) {
-                    console.warn(`⚠️ ${symbol} 바이낸스 캐시 없음, API 호출`);
-                    binanceFuturesPrice = await this.getBinanceFuturesPrice(symbol, userId);
+                if (binanceSpotPrice === null) {
+                    console.warn(`⚠️ ${symbol} 바이낸스 현물 캐시 없음, API 호출`);
+                    binanceSpotPrice = await this.getBinanceSpotPrice(symbol, userId);
                 }
-                // 김프율 계산: kimpga 방식 - (업비트KRW - 바이낸스USD×환율) ÷ (바이낸스USD×환율) × 100
-                const binancePriceKRW = binanceFuturesPrice * usdKrwRate; // 바이낸스 USD를 KRW로 변환
+                // 김프율 계산: kimpga 방식 - (업비트KRW - 바이낸스현물USD×환율) ÷ (바이낸스현물USD×환율) × 100
+                const binancePriceKRW = binanceSpotPrice * usdKrwRate; // 바이낸스 현물 USD를 KRW로 변환
                 const premiumRate = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;
                 // console.log(`${symbol} 김프율 계산 (kimpga 방식-선물Last):`, {
                 //   업비트가격: `${upbitPrice.toLocaleString()}원`,
@@ -90,7 +90,7 @@ export class SimpleKimchiService {
                 results.push({
                     symbol,
                     upbitPrice,
-                    binanceFuturesPrice,
+                    binanceFuturesPrice: binanceSpotPrice, // 현물 가격을 binanceFuturesPrice 필드에 저장 (호환성)
                     usdKrwRate,
                     binancePriceKRW: binancePriceKRW, // 바이낸스 가격을 KRW로 변환한 값
                     premiumRate,
@@ -244,6 +244,20 @@ export class SimpleKimchiService {
             };
             console.log(`⚠️ ${symbol} 최종 fallback 가격 사용: $${fallbackPrices[symbol]}`);
             return fallbackPrices[symbol] || 0;
+        }
+    }
+    /**
+     * 바이낸스 현물 가격 조회
+     */
+    async getBinanceSpotPrice(symbol, userId) {
+        try {
+            const binanceService = new BinanceService();
+            const price = await binanceService.getSymbolPrice(symbol);
+            return price;
+        }
+        catch (error) {
+            console.error(`${symbol} 바이낸스 현물 가격 조회 실패:`, error);
+            return 0;
         }
     }
     /**

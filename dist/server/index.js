@@ -40,34 +40,45 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // 쿠키 파싱 (JWT 쿠키 사용)
 import cookieParser from 'cookie-parser';
+// @ts-ignore
 import session from 'express-session';
-import connectPgSimple from 'connect-pg-simple';
-import { prisma } from './db.js';
 app.use(cookieParser());
-// 서버 세션(쿠키 기반) 설정
-const PgSession = connectPgSimple(session);
+// 서버 세션(메모리 기반) 설정 - 개발용 최적화
 app.use(session({
-    store: new PgSession({
-        conString: process.env.DATABASE_URL,
-        tableName: 'sessions',
-        createTableIfMissing: false,
-    }),
-    secret: process.env.SESSION_SECRET || 'dev-session-secret',
+    secret: process.env.SESSION_SECRET || 'dev-session-secret-2024',
     resave: false,
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
         sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000,
+        secure: false, // 개발환경에서는 false
+        maxAge: 30 * 60 * 1000, // 30분 기본
         path: '/',
     },
+    rolling: true, // 활동 시마다 세션 시간 갱신
 }));
-// 요청마다 마지막 활동 시각을 가볍게 갱신 (실패 무시)
-app.use((req, _res, next) => {
+// 세션 갱신 미들웨어 (개선된 활동 감지)
+app.use((req, res, next) => {
     const user = req.session?.user;
-    if (user && req.sessionID) {
-        prisma.$executeRawUnsafe(`UPDATE sessions SET last_access_at=now(), user_id=COALESCE(user_id, $1) WHERE sid=$2`, user.id, req.sessionID).catch(() => { });
+    const path = req.path;
+    const method = req.method;
+    // API 요청이나 페이지 접근 시 활동으로 간주
+    const isActivity = (path.startsWith('/api/') || // API 호출
+        path.startsWith('/dashboard') || // 대시보드 접근
+        path.startsWith('/trading') || // 거래 페이지 접근
+        path.startsWith('/settings') || // 설정 페이지 접근
+        path.startsWith('/history') || // 히스토리 페이지 접근
+        path.startsWith('/auto-trading') || // 자동거래 페이지 접근
+        path === '/' || // 홈페이지 접근
+        method === 'POST' || // POST 요청
+        method === 'PUT' || // PUT 요청
+        method === 'DELETE' // DELETE 요청
+    );
+    if (user && isActivity) {
+        console.log(`🔄 세션 갱신: ${method} ${path} - 사용자: ${user.id}`);
+        req.session.touch();
+        // 세션 만료 시간을 다시 30분으로 설정
+        req.session.cookie.maxAge = 30 * 60 * 1000;
     }
     next();
 });
@@ -134,7 +145,7 @@ app.get("/healthz", (_req, res) => {
     logInfo(`🌐 환경 설정 중... NODE_ENV: ${app.get("env")}`);
     if (app.get("env") === "development") {
         logInfo(`⚡ Vite 개발 서버 설정 중...`);
-        const { setupVite } = await import('./vite.ts');
+        const { setupVite } = await import('./vite');
         await setupVite(app, server);
         logInfo(`✅ Vite 개발 서버 설정 완료`);
     }

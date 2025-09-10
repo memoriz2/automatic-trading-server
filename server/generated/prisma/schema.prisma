@@ -240,7 +240,7 @@ model TradingStrategy {
   entryRate        Decimal  @map("entry_rate") @db.Decimal(10, 4)
   exitRate         Decimal  @map("exit_rate") @db.Decimal(10, 4)
   leverage         Int      @default(1)
-  investmentAmount Decimal  @map("investment_amount") @db.Decimal(20, 2)
+  investmentAmount Decimal  @map("investment_amount") @db.Decimal(20, 8)
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

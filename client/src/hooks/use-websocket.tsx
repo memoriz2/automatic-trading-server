@@ -53,15 +53,35 @@ export function useWebSocket() {
 
         ws.current.onmessage = (event) => {
           try {
-            const message: WebSocketMessage = JSON.parse(event.data);
-            console.log('📨 WebSocket 메시지 수신:', message.type, message.data?.length || 'no data');
+            // JSON 파싱 시도
+            let message: WebSocketMessage;
+            try {
+              message = JSON.parse(event.data);
+            } catch {
+              // JSON이 아닌 경우, kimchi-premium 메시지로 처리
+              const data = event.data.trim();
+              if (data && !isNaN(Number(data))) {
+                message = {
+                  type: 'kimchi-premium',
+                  data: Number(data)
+                };
+              } else {
+                console.warn('📨 알 수 없는 메시지 형식:', event.data);
+                return;
+              }
+            }
+            
+            console.log('📨 WebSocket 메시지 수신:', message.type, message.data);
             setLastMessage(message);
             
             const handler = messageHandlers.current.get(message.type);
             if (handler) {
               handler(message.data);
             } else {
-              console.warn('📨 처리되지 않은 메시지 타입:', message.type);
+              // kimchi-premium은 기본 상태 업데이트만으로 충분하므로 경고 생략
+              if (message.type !== 'kimchi-premium') {
+                console.warn('📨 처리되지 않은 메시지 타입:', message.type);
+              }
             }
           } catch (error) {
             console.error('Error parsing WebSocket message:', error, event.data);

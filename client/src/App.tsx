@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,10 +15,38 @@ import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import BacktestPage from "@/pages/backtest";
 import { useAuth } from "@/hooks/useAuth";
+import { useActivityTracker } from "@/hooks/useActivityTracker";
 import LegacyAutoTradingPage from "@/pages/legacy-auto-trading";
+import { useEffect } from "react";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const [, navigate] = useLocation();
+  
+  // 활동 추적기 활성화 (로그인된 사용자만)
+  useActivityTracker({
+    interval: 30000, // 30초마다 하트비트
+    debounceTime: 1000 // 1초 디바운스
+  });
+
+  // 인증 실패 이벤트 감지
+  useEffect(() => {
+    const handleAuthFailed = (event: any) => {
+      console.log('🔒 인증 실패 이벤트 감지 - 로그인 페이지로 이동');
+      
+      // 인증 상태 강제 업데이트
+      if (event.detail?.clearAuth) {
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('authToken');
+        localStorage.removeItem('authToken');
+      }
+      
+      navigate('/login');
+    };
+
+    window.addEventListener('auth-failed', handleAuthFailed);
+    return () => window.removeEventListener('auth-failed', handleAuthFailed);
+  }, [navigate]);
 
   // 디버깅용 로그
   console.log("App Router 상태:", { isAuthenticated, isLoading, user });

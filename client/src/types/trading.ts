@@ -28,15 +28,23 @@ export interface Position {
 
 export interface Trade {
   id: number;
+  userId: number;
+  positionId?: number | null;
   symbol: string;
-  side: 'buy' | 'sell';
+  side: 'buy' | 'sell' | 'short' | 'cover';
   exchange: 'upbit' | 'binance';
-  quantity: string;
-  amount?: string;
-  price: string;
+  quantity: number;
+  price: number;
+  fee?: number;
+  orderType?: string;
+  exchangeOrderId?: string;
+  exchangeTradeId?: string;
   executedAt: string;
   createdAt: string;
-  // timestamp?: string; // optional legacy compatibility
+  // 계산된 필드들
+  amount?: number;
+  profit?: number;
+  type?: 'buy' | 'sell' | 'short' | 'cover'; // side와 동일하지만 호환성을 위해 유지
 }
 
 export interface TradingSettings {

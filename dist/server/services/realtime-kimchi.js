@@ -22,9 +22,9 @@ export class RealtimeKimchiService {
         const { rate: usdKrwRate, source: usdKrwSource } = this.getFxWithSource();
         for (const symbol of this.symbols) {
             try {
-                // 실시간 가격으로 다시 변경
+                // 실시간 가격으로 다시 변경 (바이낸스 현물 가격 사용)
                 const upbitPrice = priceCache.getUpbitPrice(symbol);
-                const binancePrice = priceCache.getBinancePrice(symbol);
+                const binancePrice = priceCache.getBinanceSpotPrice(symbol); // 현물 가격 사용
                 // 실시간 가격이 모두 유효할 때만 계산 진행
                 if (upbitPrice && binancePrice) {
                     // 김프율 계산: (업비트KRW - 바이낸스USD×환율) ÷ (바이낸스USD×환율) × 100

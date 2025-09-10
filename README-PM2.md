@@ -1,8 +1,7 @@
 # PM2 환경별 실행 가이드
 
 ## 📋 파일 구조
-
-### 로컬 개발용 파일들:
+제 ### 로컬 개발용 파일들:
 ```
 ecosystem.config.mjs              # 로컬 PM2 설정
 tsconfig.server.local.json       # 로컬 TypeScript 설정

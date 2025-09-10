@@ -1852,6 +1852,36 @@ export namespace Prisma {
    */
 
 
+  /**
+   * Count Type TradeLogCountOutputType
+   */
+
+  export type TradeLogCountOutputType = {
+    trades: number
+  }
+
+  export type TradeLogCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    trades?: boolean | TradeLogCountOutputTypeCountTradesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * TradeLogCountOutputType without action
+   */
+  export type TradeLogCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TradeLogCountOutputType
+     */
+    select?: TradeLogCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * TradeLogCountOutputType without action
+   */
+  export type TradeLogCountOutputTypeCountTradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TradeWhereInput
+  }
+
 
   /**
    * Models
@@ -2071,6 +2101,8 @@ export namespace Prisma {
     action?: boolean
     amount?: boolean
     result?: boolean
+    trades?: boolean | TradeLog$tradesArgs<ExtArgs>
+    _count?: boolean | TradeLogCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["tradeLog"]>
 
   export type TradeLogSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -2101,10 +2133,18 @@ export namespace Prisma {
   }
 
   export type TradeLogOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "timestamp" | "kimp" | "action" | "amount" | "result", ExtArgs["result"]["tradeLog"]>
+  export type TradeLogInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    trades?: boolean | TradeLog$tradesArgs<ExtArgs>
+    _count?: boolean | TradeLogCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type TradeLogIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type TradeLogIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
   export type $TradeLogPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "TradeLog"
-    objects: {}
+    objects: {
+      trades: Prisma.$TradePayload<ExtArgs>[]
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       timestamp: Date
@@ -2506,6 +2546,7 @@ export namespace Prisma {
    */
   export interface Prisma__TradeLogClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    trades<T extends TradeLog$tradesArgs<ExtArgs> = {}>(args?: Subset<T, TradeLog$tradesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TradePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2558,6 +2599,10 @@ export namespace Prisma {
      */
     omit?: TradeLogOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    /**
      * Filter, which TradeLog to fetch.
      */
     where: TradeLogWhereUniqueInput
@@ -2576,6 +2621,10 @@ export namespace Prisma {
      */
     omit?: TradeLogOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    /**
      * Filter, which TradeLog to fetch.
      */
     where: TradeLogWhereUniqueInput
@@ -2593,6 +2642,10 @@ export namespace Prisma {
      * Omit specific fields from the TradeLog
      */
     omit?: TradeLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
     /**
      * Filter, which TradeLog to fetch.
      */
@@ -2642,6 +2695,10 @@ export namespace Prisma {
      */
     omit?: TradeLogOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    /**
      * Filter, which TradeLog to fetch.
      */
     where?: TradeLogWhereInput
@@ -2690,6 +2747,10 @@ export namespace Prisma {
      */
     omit?: TradeLogOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    /**
      * Filter, which TradeLogs to fetch.
      */
     where?: TradeLogWhereInput
@@ -2732,6 +2793,10 @@ export namespace Prisma {
      * Omit specific fields from the TradeLog
      */
     omit?: TradeLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
     /**
      * The data needed to create a TradeLog.
      */
@@ -2780,6 +2845,10 @@ export namespace Prisma {
      * Omit specific fields from the TradeLog
      */
     omit?: TradeLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
     /**
      * The data needed to update a TradeLog.
      */
@@ -2847,6 +2916,10 @@ export namespace Prisma {
      */
     omit?: TradeLogOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    /**
      * The filter to search for the TradeLog to update in case it exists.
      */
     where: TradeLogWhereUniqueInput
@@ -2873,6 +2946,10 @@ export namespace Prisma {
      */
     omit?: TradeLogOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    /**
      * Filter which TradeLog to delete.
      */
     where: TradeLogWhereUniqueInput
@@ -2893,6 +2970,30 @@ export namespace Prisma {
   }
 
   /**
+   * TradeLog.trades
+   */
+  export type TradeLog$tradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Trade
+     */
+    select?: TradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Trade
+     */
+    omit?: TradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    where?: TradeWhereInput
+    orderBy?: TradeOrderByWithRelationInput | TradeOrderByWithRelationInput[]
+    cursor?: TradeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: TradeScalarFieldEnum | TradeScalarFieldEnum[]
+  }
+
+  /**
    * TradeLog without action
    */
   export type TradeLogDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2904,6 +3005,10 @@ export namespace Prisma {
      * Omit specific fields from the TradeLog
      */
     omit?: TradeLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
   }
 
 
@@ -8487,6 +8592,7 @@ export namespace Prisma {
     exitPremiumRate: Decimal | null
     unrealizedPnl: Decimal | null
     realizedPnl: Decimal | null
+    isMock: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8512,6 +8618,7 @@ export namespace Prisma {
     exitPremiumRate: Decimal | null
     unrealizedPnl: Decimal | null
     realizedPnl: Decimal | null
+    isMock: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8537,6 +8644,7 @@ export namespace Prisma {
     exitPremiumRate: number
     unrealizedPnl: number
     realizedPnl: number
+    isMock: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -8594,6 +8702,7 @@ export namespace Prisma {
     exitPremiumRate?: true
     unrealizedPnl?: true
     realizedPnl?: true
+    isMock?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8619,6 +8728,7 @@ export namespace Prisma {
     exitPremiumRate?: true
     unrealizedPnl?: true
     realizedPnl?: true
+    isMock?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8644,6 +8754,7 @@ export namespace Prisma {
     exitPremiumRate?: true
     unrealizedPnl?: true
     realizedPnl?: true
+    isMock?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -8756,6 +8867,7 @@ export namespace Prisma {
     exitPremiumRate: Decimal | null
     unrealizedPnl: Decimal | null
     realizedPnl: Decimal | null
+    isMock: boolean
     createdAt: Date
     updatedAt: Date
     _count: PositionCountAggregateOutputType | null
@@ -8800,6 +8912,7 @@ export namespace Prisma {
     exitPremiumRate?: boolean
     unrealizedPnl?: boolean
     realizedPnl?: boolean
+    isMock?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["position"]>
@@ -8825,6 +8938,7 @@ export namespace Prisma {
     exitPremiumRate?: boolean
     unrealizedPnl?: boolean
     realizedPnl?: boolean
+    isMock?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["position"]>
@@ -8850,6 +8964,7 @@ export namespace Prisma {
     exitPremiumRate?: boolean
     unrealizedPnl?: boolean
     realizedPnl?: boolean
+    isMock?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["position"]>
@@ -8875,11 +8990,12 @@ export namespace Prisma {
     exitPremiumRate?: boolean
     unrealizedPnl?: boolean
     realizedPnl?: boolean
+    isMock?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type PositionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "strategyId" | "symbol" | "type" | "entryPrice" | "currentPrice" | "quantity" | "entryPremiumRate" | "currentPremiumRate" | "status" | "entryTime" | "exitTime" | "upbitOrderId" | "binanceOrderId" | "side" | "exitPrice" | "exitPremiumRate" | "unrealizedPnl" | "realizedPnl" | "createdAt" | "updatedAt", ExtArgs["result"]["position"]>
+  export type PositionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "strategyId" | "symbol" | "type" | "entryPrice" | "currentPrice" | "quantity" | "entryPremiumRate" | "currentPremiumRate" | "status" | "entryTime" | "exitTime" | "upbitOrderId" | "binanceOrderId" | "side" | "exitPrice" | "exitPremiumRate" | "unrealizedPnl" | "realizedPnl" | "isMock" | "createdAt" | "updatedAt", ExtArgs["result"]["position"]>
 
   export type $PositionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Position"
@@ -8905,6 +9021,7 @@ export namespace Prisma {
       exitPremiumRate: Prisma.Decimal | null
       unrealizedPnl: Prisma.Decimal | null
       realizedPnl: Prisma.Decimal | null
+      isMock: boolean
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["position"]>
@@ -9350,6 +9467,7 @@ export namespace Prisma {
     readonly exitPremiumRate: FieldRef<"Position", 'Decimal'>
     readonly unrealizedPnl: FieldRef<"Position", 'Decimal'>
     readonly realizedPnl: FieldRef<"Position", 'Decimal'>
+    readonly isMock: FieldRef<"Position", 'Boolean'>
     readonly createdAt: FieldRef<"Position", 'DateTime'>
     readonly updatedAt: FieldRef<"Position", 'DateTime'>
   }
@@ -11879,6 +11997,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     positionId: number | null
+    tradeLogId: number | null
     quantity: Decimal | null
     price: Decimal | null
     fee: Decimal | null
@@ -11888,6 +12007,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     positionId: number | null
+    tradeLogId: number | null
     quantity: Decimal | null
     price: Decimal | null
     fee: Decimal | null
@@ -11897,6 +12017,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     positionId: number | null
+    tradeLogId: number | null
     symbol: string | null
     side: string | null
     exchange: string | null
@@ -11914,6 +12035,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     positionId: number | null
+    tradeLogId: number | null
     symbol: string | null
     side: string | null
     exchange: string | null
@@ -11931,6 +12053,7 @@ export namespace Prisma {
     id: number
     userId: number
     positionId: number
+    tradeLogId: number
     symbol: number
     side: number
     exchange: number
@@ -11950,6 +12073,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     positionId?: true
+    tradeLogId?: true
     quantity?: true
     price?: true
     fee?: true
@@ -11959,6 +12083,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     positionId?: true
+    tradeLogId?: true
     quantity?: true
     price?: true
     fee?: true
@@ -11968,6 +12093,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     positionId?: true
+    tradeLogId?: true
     symbol?: true
     side?: true
     exchange?: true
@@ -11985,6 +12111,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     positionId?: true
+    tradeLogId?: true
     symbol?: true
     side?: true
     exchange?: true
@@ -12002,6 +12129,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     positionId?: true
+    tradeLogId?: true
     symbol?: true
     side?: true
     exchange?: true
@@ -12106,6 +12234,7 @@ export namespace Prisma {
     id: number
     userId: number
     positionId: number | null
+    tradeLogId: number | null
     symbol: string
     side: string
     exchange: string
@@ -12142,6 +12271,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     positionId?: boolean
+    tradeLogId?: boolean
     symbol?: boolean
     side?: boolean
     exchange?: boolean
@@ -12153,12 +12283,14 @@ export namespace Prisma {
     exchangeTradeId?: boolean
     executedAt?: boolean
     createdAt?: boolean
+    tradeLog?: boolean | Trade$tradeLogArgs<ExtArgs>
   }, ExtArgs["result"]["trade"]>
 
   export type TradeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
     positionId?: boolean
+    tradeLogId?: boolean
     symbol?: boolean
     side?: boolean
     exchange?: boolean
@@ -12170,12 +12302,14 @@ export namespace Prisma {
     exchangeTradeId?: boolean
     executedAt?: boolean
     createdAt?: boolean
+    tradeLog?: boolean | Trade$tradeLogArgs<ExtArgs>
   }, ExtArgs["result"]["trade"]>
 
   export type TradeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
     positionId?: boolean
+    tradeLogId?: boolean
     symbol?: boolean
     side?: boolean
     exchange?: boolean
@@ -12187,12 +12321,14 @@ export namespace Prisma {
     exchangeTradeId?: boolean
     executedAt?: boolean
     createdAt?: boolean
+    tradeLog?: boolean | Trade$tradeLogArgs<ExtArgs>
   }, ExtArgs["result"]["trade"]>
 
   export type TradeSelectScalar = {
     id?: boolean
     userId?: boolean
     positionId?: boolean
+    tradeLogId?: boolean
     symbol?: boolean
     side?: boolean
     exchange?: boolean
@@ -12206,15 +12342,27 @@ export namespace Prisma {
     createdAt?: boolean
   }
 
-  export type TradeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "positionId" | "symbol" | "side" | "exchange" | "quantity" | "price" | "fee" | "orderType" | "exchangeOrderId" | "exchangeTradeId" | "executedAt" | "createdAt", ExtArgs["result"]["trade"]>
+  export type TradeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "positionId" | "tradeLogId" | "symbol" | "side" | "exchange" | "quantity" | "price" | "fee" | "orderType" | "exchangeOrderId" | "exchangeTradeId" | "executedAt" | "createdAt", ExtArgs["result"]["trade"]>
+  export type TradeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tradeLog?: boolean | Trade$tradeLogArgs<ExtArgs>
+  }
+  export type TradeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tradeLog?: boolean | Trade$tradeLogArgs<ExtArgs>
+  }
+  export type TradeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tradeLog?: boolean | Trade$tradeLogArgs<ExtArgs>
+  }
 
   export type $TradePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Trade"
-    objects: {}
+    objects: {
+      tradeLog: Prisma.$TradeLogPayload<ExtArgs> | null
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       userId: number
       positionId: number | null
+      tradeLogId: number | null
       symbol: string
       side: string
       exchange: string
@@ -12620,6 +12768,7 @@ export namespace Prisma {
    */
   export interface Prisma__TradeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    tradeLog<T extends Trade$tradeLogArgs<ExtArgs> = {}>(args?: Subset<T, Trade$tradeLogArgs<ExtArgs>>): Prisma__TradeLogClient<$Result.GetResult<Prisma.$TradeLogPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -12652,6 +12801,7 @@ export namespace Prisma {
     readonly id: FieldRef<"Trade", 'Int'>
     readonly userId: FieldRef<"Trade", 'Int'>
     readonly positionId: FieldRef<"Trade", 'Int'>
+    readonly tradeLogId: FieldRef<"Trade", 'Int'>
     readonly symbol: FieldRef<"Trade", 'String'>
     readonly side: FieldRef<"Trade", 'String'>
     readonly exchange: FieldRef<"Trade", 'String'>
@@ -12680,6 +12830,10 @@ export namespace Prisma {
      */
     omit?: TradeOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    /**
      * Filter, which Trade to fetch.
      */
     where: TradeWhereUniqueInput
@@ -12698,6 +12852,10 @@ export namespace Prisma {
      */
     omit?: TradeOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    /**
      * Filter, which Trade to fetch.
      */
     where: TradeWhereUniqueInput
@@ -12715,6 +12873,10 @@ export namespace Prisma {
      * Omit specific fields from the Trade
      */
     omit?: TradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
     /**
      * Filter, which Trade to fetch.
      */
@@ -12764,6 +12926,10 @@ export namespace Prisma {
      */
     omit?: TradeOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    /**
      * Filter, which Trade to fetch.
      */
     where?: TradeWhereInput
@@ -12812,6 +12978,10 @@ export namespace Prisma {
      */
     omit?: TradeOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    /**
      * Filter, which Trades to fetch.
      */
     where?: TradeWhereInput
@@ -12855,6 +13025,10 @@ export namespace Prisma {
      */
     omit?: TradeOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    /**
      * The data needed to create a Trade.
      */
     data: XOR<TradeCreateInput, TradeUncheckedCreateInput>
@@ -12888,6 +13062,10 @@ export namespace Prisma {
      */
     data: TradeCreateManyInput | TradeCreateManyInput[]
     skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -12902,6 +13080,10 @@ export namespace Prisma {
      * Omit specific fields from the Trade
      */
     omit?: TradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
     /**
      * The data needed to update a Trade.
      */
@@ -12954,6 +13136,10 @@ export namespace Prisma {
      * Limit how many Trades to update.
      */
     limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -12968,6 +13154,10 @@ export namespace Prisma {
      * Omit specific fields from the Trade
      */
     omit?: TradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
     /**
      * The filter to search for the Trade to update in case it exists.
      */
@@ -12995,6 +13185,10 @@ export namespace Prisma {
      */
     omit?: TradeOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
+    /**
      * Filter which Trade to delete.
      */
     where: TradeWhereUniqueInput
@@ -13015,6 +13209,25 @@ export namespace Prisma {
   }
 
   /**
+   * Trade.tradeLog
+   */
+  export type Trade$tradeLogArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TradeLog
+     */
+    select?: TradeLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TradeLog
+     */
+    omit?: TradeLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeLogInclude<ExtArgs> | null
+    where?: TradeLogWhereInput
+  }
+
+  /**
    * Trade without action
    */
   export type TradeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -13026,6 +13239,10 @@ export namespace Prisma {
      * Omit specific fields from the Trade
      */
     omit?: TradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradeInclude<ExtArgs> | null
   }
 
 
@@ -15630,6 +15847,7 @@ export namespace Prisma {
     exitPremiumRate: 'exitPremiumRate',
     unrealizedPnl: 'unrealizedPnl',
     realizedPnl: 'realizedPnl',
+    isMock: 'isMock',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -15670,6 +15888,7 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     positionId: 'positionId',
+    tradeLogId: 'tradeLogId',
     symbol: 'symbol',
     side: 'side',
     exchange: 'exchange',
@@ -15890,6 +16109,7 @@ export namespace Prisma {
     action?: StringFilter<"TradeLog"> | string
     amount?: FloatFilter<"TradeLog"> | number
     result?: StringFilter<"TradeLog"> | string
+    trades?: TradeListRelationFilter
   }
 
   export type TradeLogOrderByWithRelationInput = {
@@ -15899,6 +16119,7 @@ export namespace Prisma {
     action?: SortOrder
     amount?: SortOrder
     result?: SortOrder
+    trades?: TradeOrderByRelationAggregateInput
   }
 
   export type TradeLogWhereUniqueInput = Prisma.AtLeast<{
@@ -15911,6 +16132,7 @@ export namespace Prisma {
     action?: StringFilter<"TradeLog"> | string
     amount?: FloatFilter<"TradeLog"> | number
     result?: StringFilter<"TradeLog"> | string
+    trades?: TradeListRelationFilter
   }, "id">
 
   export type TradeLogOrderByWithAggregationInput = {
@@ -16353,6 +16575,7 @@ export namespace Prisma {
     exitPremiumRate?: DecimalNullableFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: DecimalNullableFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: DecimalNullableFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolFilter<"Position"> | boolean
     createdAt?: DateTimeFilter<"Position"> | Date | string
     updatedAt?: DateTimeFilter<"Position"> | Date | string
   }
@@ -16378,6 +16601,7 @@ export namespace Prisma {
     exitPremiumRate?: SortOrderInput | SortOrder
     unrealizedPnl?: SortOrderInput | SortOrder
     realizedPnl?: SortOrderInput | SortOrder
+    isMock?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -16406,6 +16630,7 @@ export namespace Prisma {
     exitPremiumRate?: DecimalNullableFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: DecimalNullableFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: DecimalNullableFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolFilter<"Position"> | boolean
     createdAt?: DateTimeFilter<"Position"> | Date | string
     updatedAt?: DateTimeFilter<"Position"> | Date | string
   }, "id">
@@ -16431,6 +16656,7 @@ export namespace Prisma {
     exitPremiumRate?: SortOrderInput | SortOrder
     unrealizedPnl?: SortOrderInput | SortOrder
     realizedPnl?: SortOrderInput | SortOrder
+    isMock?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: PositionCountOrderByAggregateInput
@@ -16464,6 +16690,7 @@ export namespace Prisma {
     exitPremiumRate?: DecimalNullableWithAggregatesFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: DecimalNullableWithAggregatesFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: DecimalNullableWithAggregatesFilter<"Position"> | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolWithAggregatesFilter<"Position"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Position"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Position"> | Date | string
   }
@@ -16618,6 +16845,7 @@ export namespace Prisma {
     id?: IntFilter<"Trade"> | number
     userId?: IntFilter<"Trade"> | number
     positionId?: IntNullableFilter<"Trade"> | number | null
+    tradeLogId?: IntNullableFilter<"Trade"> | number | null
     symbol?: StringFilter<"Trade"> | string
     side?: StringFilter<"Trade"> | string
     exchange?: StringFilter<"Trade"> | string
@@ -16629,12 +16857,14 @@ export namespace Prisma {
     exchangeTradeId?: StringNullableFilter<"Trade"> | string | null
     executedAt?: DateTimeFilter<"Trade"> | Date | string
     createdAt?: DateTimeFilter<"Trade"> | Date | string
+    tradeLog?: XOR<TradeLogNullableScalarRelationFilter, TradeLogWhereInput> | null
   }
 
   export type TradeOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrderInput | SortOrder
+    tradeLogId?: SortOrderInput | SortOrder
     symbol?: SortOrder
     side?: SortOrder
     exchange?: SortOrder
@@ -16646,6 +16876,7 @@ export namespace Prisma {
     exchangeTradeId?: SortOrderInput | SortOrder
     executedAt?: SortOrder
     createdAt?: SortOrder
+    tradeLog?: TradeLogOrderByWithRelationInput
   }
 
   export type TradeWhereUniqueInput = Prisma.AtLeast<{
@@ -16655,6 +16886,7 @@ export namespace Prisma {
     NOT?: TradeWhereInput | TradeWhereInput[]
     userId?: IntFilter<"Trade"> | number
     positionId?: IntNullableFilter<"Trade"> | number | null
+    tradeLogId?: IntNullableFilter<"Trade"> | number | null
     symbol?: StringFilter<"Trade"> | string
     side?: StringFilter<"Trade"> | string
     exchange?: StringFilter<"Trade"> | string
@@ -16666,12 +16898,14 @@ export namespace Prisma {
     exchangeTradeId?: StringNullableFilter<"Trade"> | string | null
     executedAt?: DateTimeFilter<"Trade"> | Date | string
     createdAt?: DateTimeFilter<"Trade"> | Date | string
+    tradeLog?: XOR<TradeLogNullableScalarRelationFilter, TradeLogWhereInput> | null
   }, "id">
 
   export type TradeOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrderInput | SortOrder
+    tradeLogId?: SortOrderInput | SortOrder
     symbol?: SortOrder
     side?: SortOrder
     exchange?: SortOrder
@@ -16697,6 +16931,7 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"Trade"> | number
     userId?: IntWithAggregatesFilter<"Trade"> | number
     positionId?: IntNullableWithAggregatesFilter<"Trade"> | number | null
+    tradeLogId?: IntNullableWithAggregatesFilter<"Trade"> | number | null
     symbol?: StringWithAggregatesFilter<"Trade"> | string
     side?: StringWithAggregatesFilter<"Trade"> | string
     exchange?: StringWithAggregatesFilter<"Trade"> | string
@@ -16949,6 +17184,7 @@ export namespace Prisma {
     action: string
     amount: number
     result: string
+    trades?: TradeCreateNestedManyWithoutTradeLogInput
   }
 
   export type TradeLogUncheckedCreateInput = {
@@ -16958,6 +17194,7 @@ export namespace Prisma {
     action: string
     amount: number
     result: string
+    trades?: TradeUncheckedCreateNestedManyWithoutTradeLogInput
   }
 
   export type TradeLogUpdateInput = {
@@ -16966,6 +17203,7 @@ export namespace Prisma {
     action?: StringFieldUpdateOperationsInput | string
     amount?: FloatFieldUpdateOperationsInput | number
     result?: StringFieldUpdateOperationsInput | string
+    trades?: TradeUpdateManyWithoutTradeLogNestedInput
   }
 
   export type TradeLogUncheckedUpdateInput = {
@@ -16975,6 +17213,7 @@ export namespace Prisma {
     action?: StringFieldUpdateOperationsInput | string
     amount?: FloatFieldUpdateOperationsInput | number
     result?: StringFieldUpdateOperationsInput | string
+    trades?: TradeUncheckedUpdateManyWithoutTradeLogNestedInput
   }
 
   export type TradeLogCreateManyInput = {
@@ -17456,6 +17695,7 @@ export namespace Prisma {
     exitPremiumRate?: Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: Decimal | DecimalJsLike | number | string | null
     realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    isMock?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -17481,6 +17721,7 @@ export namespace Prisma {
     exitPremiumRate?: Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: Decimal | DecimalJsLike | number | string | null
     realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    isMock?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -17505,6 +17746,7 @@ export namespace Prisma {
     exitPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17530,6 +17772,7 @@ export namespace Prisma {
     exitPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17555,6 +17798,7 @@ export namespace Prisma {
     exitPremiumRate?: Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: Decimal | DecimalJsLike | number | string | null
     realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    isMock?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -17579,6 +17823,7 @@ export namespace Prisma {
     exitPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17604,6 +17849,7 @@ export namespace Prisma {
     exitPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     unrealizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    isMock?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17780,12 +18026,14 @@ export namespace Prisma {
     exchangeTradeId?: string | null
     executedAt?: Date | string
     createdAt?: Date | string
+    tradeLog?: TradeLogCreateNestedOneWithoutTradesInput
   }
 
   export type TradeUncheckedCreateInput = {
     id?: number
     userId: number
     positionId?: number | null
+    tradeLogId?: number | null
     symbol: string
     side: string
     exchange: string
@@ -17813,12 +18061,14 @@ export namespace Prisma {
     exchangeTradeId?: NullableStringFieldUpdateOperationsInput | string | null
     executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tradeLog?: TradeLogUpdateOneWithoutTradesNestedInput
   }
 
   export type TradeUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    tradeLogId?: NullableIntFieldUpdateOperationsInput | number | null
     symbol?: StringFieldUpdateOperationsInput | string
     side?: StringFieldUpdateOperationsInput | string
     exchange?: StringFieldUpdateOperationsInput | string
@@ -17836,6 +18086,7 @@ export namespace Prisma {
     id?: number
     userId: number
     positionId?: number | null
+    tradeLogId?: number | null
     symbol: string
     side: string
     exchange: string
@@ -17869,6 +18120,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    tradeLogId?: NullableIntFieldUpdateOperationsInput | number | null
     symbol?: StringFieldUpdateOperationsInput | string
     side?: StringFieldUpdateOperationsInput | string
     exchange?: StringFieldUpdateOperationsInput | string
@@ -18209,6 +18461,16 @@ export namespace Prisma {
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
     not?: NestedStringFilter<$PrismaModel> | string
+  }
+
+  export type TradeListRelationFilter = {
+    every?: TradeWhereInput
+    some?: TradeWhereInput
+    none?: TradeWhereInput
+  }
+
+  export type TradeOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
   export type TradeLogCountOrderByAggregateInput = {
@@ -18722,6 +18984,7 @@ export namespace Prisma {
     exitPremiumRate?: SortOrder
     unrealizedPnl?: SortOrder
     realizedPnl?: SortOrder
+    isMock?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -18762,6 +19025,7 @@ export namespace Prisma {
     exitPremiumRate?: SortOrder
     unrealizedPnl?: SortOrder
     realizedPnl?: SortOrder
+    isMock?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -18787,6 +19051,7 @@ export namespace Prisma {
     exitPremiumRate?: SortOrder
     unrealizedPnl?: SortOrder
     realizedPnl?: SortOrder
+    isMock?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -19019,10 +19284,16 @@ export namespace Prisma {
     _max?: NestedJsonNullableFilter<$PrismaModel>
   }
 
+  export type TradeLogNullableScalarRelationFilter = {
+    is?: TradeLogWhereInput | null
+    isNot?: TradeLogWhereInput | null
+  }
+
   export type TradeCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrder
+    tradeLogId?: SortOrder
     symbol?: SortOrder
     side?: SortOrder
     exchange?: SortOrder
@@ -19040,6 +19311,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrder
+    tradeLogId?: SortOrder
     quantity?: SortOrder
     price?: SortOrder
     fee?: SortOrder
@@ -19049,6 +19321,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrder
+    tradeLogId?: SortOrder
     symbol?: SortOrder
     side?: SortOrder
     exchange?: SortOrder
@@ -19066,6 +19339,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrder
+    tradeLogId?: SortOrder
     symbol?: SortOrder
     side?: SortOrder
     exchange?: SortOrder
@@ -19083,6 +19357,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     positionId?: SortOrder
+    tradeLogId?: SortOrder
     quantity?: SortOrder
     price?: SortOrder
     fee?: SortOrder
@@ -19273,6 +19548,20 @@ export namespace Prisma {
     toleranceRate?: SortOrder
   }
 
+  export type TradeCreateNestedManyWithoutTradeLogInput = {
+    create?: XOR<TradeCreateWithoutTradeLogInput, TradeUncheckedCreateWithoutTradeLogInput> | TradeCreateWithoutTradeLogInput[] | TradeUncheckedCreateWithoutTradeLogInput[]
+    connectOrCreate?: TradeCreateOrConnectWithoutTradeLogInput | TradeCreateOrConnectWithoutTradeLogInput[]
+    createMany?: TradeCreateManyTradeLogInputEnvelope
+    connect?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+  }
+
+  export type TradeUncheckedCreateNestedManyWithoutTradeLogInput = {
+    create?: XOR<TradeCreateWithoutTradeLogInput, TradeUncheckedCreateWithoutTradeLogInput> | TradeCreateWithoutTradeLogInput[] | TradeUncheckedCreateWithoutTradeLogInput[]
+    connectOrCreate?: TradeCreateOrConnectWithoutTradeLogInput | TradeCreateOrConnectWithoutTradeLogInput[]
+    createMany?: TradeCreateManyTradeLogInputEnvelope
+    connect?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -19289,12 +19578,40 @@ export namespace Prisma {
     set?: string
   }
 
+  export type TradeUpdateManyWithoutTradeLogNestedInput = {
+    create?: XOR<TradeCreateWithoutTradeLogInput, TradeUncheckedCreateWithoutTradeLogInput> | TradeCreateWithoutTradeLogInput[] | TradeUncheckedCreateWithoutTradeLogInput[]
+    connectOrCreate?: TradeCreateOrConnectWithoutTradeLogInput | TradeCreateOrConnectWithoutTradeLogInput[]
+    upsert?: TradeUpsertWithWhereUniqueWithoutTradeLogInput | TradeUpsertWithWhereUniqueWithoutTradeLogInput[]
+    createMany?: TradeCreateManyTradeLogInputEnvelope
+    set?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    disconnect?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    delete?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    connect?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    update?: TradeUpdateWithWhereUniqueWithoutTradeLogInput | TradeUpdateWithWhereUniqueWithoutTradeLogInput[]
+    updateMany?: TradeUpdateManyWithWhereWithoutTradeLogInput | TradeUpdateManyWithWhereWithoutTradeLogInput[]
+    deleteMany?: TradeScalarWhereInput | TradeScalarWhereInput[]
+  }
+
   export type IntFieldUpdateOperationsInput = {
     set?: number
     increment?: number
     decrement?: number
     multiply?: number
     divide?: number
+  }
+
+  export type TradeUncheckedUpdateManyWithoutTradeLogNestedInput = {
+    create?: XOR<TradeCreateWithoutTradeLogInput, TradeUncheckedCreateWithoutTradeLogInput> | TradeCreateWithoutTradeLogInput[] | TradeUncheckedCreateWithoutTradeLogInput[]
+    connectOrCreate?: TradeCreateOrConnectWithoutTradeLogInput | TradeCreateOrConnectWithoutTradeLogInput[]
+    upsert?: TradeUpsertWithWhereUniqueWithoutTradeLogInput | TradeUpsertWithWhereUniqueWithoutTradeLogInput[]
+    createMany?: TradeCreateManyTradeLogInputEnvelope
+    set?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    disconnect?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    delete?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    connect?: TradeWhereUniqueInput | TradeWhereUniqueInput[]
+    update?: TradeUpdateWithWhereUniqueWithoutTradeLogInput | TradeUpdateWithWhereUniqueWithoutTradeLogInput[]
+    updateMany?: TradeUpdateManyWithWhereWithoutTradeLogInput | TradeUpdateManyWithWhereWithoutTradeLogInput[]
+    deleteMany?: TradeScalarWhereInput | TradeScalarWhereInput[]
   }
 
   export type BoolFieldUpdateOperationsInput = {
@@ -19331,6 +19648,22 @@ export namespace Prisma {
     decrement?: Decimal | DecimalJsLike | number | string
     multiply?: Decimal | DecimalJsLike | number | string
     divide?: Decimal | DecimalJsLike | number | string
+  }
+
+  export type TradeLogCreateNestedOneWithoutTradesInput = {
+    create?: XOR<TradeLogCreateWithoutTradesInput, TradeLogUncheckedCreateWithoutTradesInput>
+    connectOrCreate?: TradeLogCreateOrConnectWithoutTradesInput
+    connect?: TradeLogWhereUniqueInput
+  }
+
+  export type TradeLogUpdateOneWithoutTradesNestedInput = {
+    create?: XOR<TradeLogCreateWithoutTradesInput, TradeLogUncheckedCreateWithoutTradesInput>
+    connectOrCreate?: TradeLogCreateOrConnectWithoutTradesInput
+    upsert?: TradeLogUpsertWithoutTradesInput
+    disconnect?: TradeLogWhereInput | boolean
+    delete?: TradeLogWhereInput | boolean
+    connect?: TradeLogWhereUniqueInput
+    update?: XOR<XOR<TradeLogUpdateToOneWithWhereWithoutTradesInput, TradeLogUpdateWithoutTradesInput>, TradeLogUncheckedUpdateWithoutTradesInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -19648,6 +19981,203 @@ export namespace Prisma {
     gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type TradeCreateWithoutTradeLogInput = {
+    userId: number
+    positionId?: number | null
+    symbol: string
+    side: string
+    exchange: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    orderType?: string
+    exchangeOrderId?: string | null
+    exchangeTradeId?: string | null
+    executedAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type TradeUncheckedCreateWithoutTradeLogInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    symbol: string
+    side: string
+    exchange: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    orderType?: string
+    exchangeOrderId?: string | null
+    exchangeTradeId?: string | null
+    executedAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type TradeCreateOrConnectWithoutTradeLogInput = {
+    where: TradeWhereUniqueInput
+    create: XOR<TradeCreateWithoutTradeLogInput, TradeUncheckedCreateWithoutTradeLogInput>
+  }
+
+  export type TradeCreateManyTradeLogInputEnvelope = {
+    data: TradeCreateManyTradeLogInput | TradeCreateManyTradeLogInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type TradeUpsertWithWhereUniqueWithoutTradeLogInput = {
+    where: TradeWhereUniqueInput
+    update: XOR<TradeUpdateWithoutTradeLogInput, TradeUncheckedUpdateWithoutTradeLogInput>
+    create: XOR<TradeCreateWithoutTradeLogInput, TradeUncheckedCreateWithoutTradeLogInput>
+  }
+
+  export type TradeUpdateWithWhereUniqueWithoutTradeLogInput = {
+    where: TradeWhereUniqueInput
+    data: XOR<TradeUpdateWithoutTradeLogInput, TradeUncheckedUpdateWithoutTradeLogInput>
+  }
+
+  export type TradeUpdateManyWithWhereWithoutTradeLogInput = {
+    where: TradeScalarWhereInput
+    data: XOR<TradeUpdateManyMutationInput, TradeUncheckedUpdateManyWithoutTradeLogInput>
+  }
+
+  export type TradeScalarWhereInput = {
+    AND?: TradeScalarWhereInput | TradeScalarWhereInput[]
+    OR?: TradeScalarWhereInput[]
+    NOT?: TradeScalarWhereInput | TradeScalarWhereInput[]
+    id?: IntFilter<"Trade"> | number
+    userId?: IntFilter<"Trade"> | number
+    positionId?: IntNullableFilter<"Trade"> | number | null
+    tradeLogId?: IntNullableFilter<"Trade"> | number | null
+    symbol?: StringFilter<"Trade"> | string
+    side?: StringFilter<"Trade"> | string
+    exchange?: StringFilter<"Trade"> | string
+    quantity?: DecimalFilter<"Trade"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalFilter<"Trade"> | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFilter<"Trade"> | Decimal | DecimalJsLike | number | string
+    orderType?: StringFilter<"Trade"> | string
+    exchangeOrderId?: StringNullableFilter<"Trade"> | string | null
+    exchangeTradeId?: StringNullableFilter<"Trade"> | string | null
+    executedAt?: DateTimeFilter<"Trade"> | Date | string
+    createdAt?: DateTimeFilter<"Trade"> | Date | string
+  }
+
+  export type TradeLogCreateWithoutTradesInput = {
+    timestamp?: Date | string
+    kimp: number
+    action: string
+    amount: number
+    result: string
+  }
+
+  export type TradeLogUncheckedCreateWithoutTradesInput = {
+    id?: number
+    timestamp?: Date | string
+    kimp: number
+    action: string
+    amount: number
+    result: string
+  }
+
+  export type TradeLogCreateOrConnectWithoutTradesInput = {
+    where: TradeLogWhereUniqueInput
+    create: XOR<TradeLogCreateWithoutTradesInput, TradeLogUncheckedCreateWithoutTradesInput>
+  }
+
+  export type TradeLogUpsertWithoutTradesInput = {
+    update: XOR<TradeLogUpdateWithoutTradesInput, TradeLogUncheckedUpdateWithoutTradesInput>
+    create: XOR<TradeLogCreateWithoutTradesInput, TradeLogUncheckedCreateWithoutTradesInput>
+    where?: TradeLogWhereInput
+  }
+
+  export type TradeLogUpdateToOneWithWhereWithoutTradesInput = {
+    where?: TradeLogWhereInput
+    data: XOR<TradeLogUpdateWithoutTradesInput, TradeLogUncheckedUpdateWithoutTradesInput>
+  }
+
+  export type TradeLogUpdateWithoutTradesInput = {
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    kimp?: FloatFieldUpdateOperationsInput | number
+    action?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type TradeLogUncheckedUpdateWithoutTradesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    kimp?: FloatFieldUpdateOperationsInput | number
+    action?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    result?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type TradeCreateManyTradeLogInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    symbol: string
+    side: string
+    exchange: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    orderType?: string
+    exchangeOrderId?: string | null
+    exchangeTradeId?: string | null
+    executedAt?: Date | string
+    createdAt?: Date | string
+  }
+
+  export type TradeUpdateWithoutTradeLogInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    exchange?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    orderType?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    exchangeTradeId?: NullableStringFieldUpdateOperationsInput | string | null
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TradeUncheckedUpdateWithoutTradeLogInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    exchange?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    orderType?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    exchangeTradeId?: NullableStringFieldUpdateOperationsInput | string | null
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type TradeUncheckedUpdateManyWithoutTradeLogInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    exchange?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    orderType?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    exchangeTradeId?: NullableStringFieldUpdateOperationsInput | string | null
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 

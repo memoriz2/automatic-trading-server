@@ -44,7 +44,8 @@ const loginUserSchema = z.object({
     password: z.string(),
 });
 import { getCurrentServerIP, isReplit } from "./utils/ip.js";
-import { authenticateToken, generateToken, verifyToken, } from "./utils/auth.js";
+import { generateToken, verifyToken, } from "./utils/auth.js";
+// @ts-ignore
 import bcrypt from "bcrypt";
 /**
  * JWT 토큰에서 사용자 ID 추출
@@ -125,6 +126,19 @@ export async function registerRoutes(app, server) {
         console.log('✅ 업비트 웹소켓 구독 완료 (USDT 포함)');
         console.log('✅ 바이낸스 웹소켓 자동 연결 완료');
         console.log('🚀 실시간 김치 프리미엄 계산 시스템 활성화');
+        // 🚀 웹소켓 연결 후 초기 데이터 한 번 전송
+        setTimeout(() => {
+            try {
+                const kimchiData = realtimeKimchiService.getCurrentKimchiPremium();
+                if (kimchiData.length > 0) {
+                    console.log('🚀 초기 김치프리미엄 데이터 브로드캐스트:', kimchiData.length, '개 심볼');
+                    realtimeKimchiService.onPriceUpdate('upbit', 'BTC');
+                }
+            }
+            catch (error) {
+                console.error('초기 트리거 오류:', error);
+            }
+        }, 1000); // 1초 후 초기 데이터 전송
     }, 2000); // 2초 후 구독 시작
     // 💥💥💥 문제의 원인이었던 직접 생성 코드 제거 💥💥💥
     // const upbitWebSocket = new UpbitWebSocketService();
@@ -327,12 +341,15 @@ export async function registerRoutes(app, server) {
             });
         }
     });
-    // 세션 인증 미들웨어
+    // 세션 인증 미들웨어 (단순화)
     function authenticateSession(req, res, next) {
-        const u = req.session?.user;
-        if (!u)
+        const user = req.session?.user;
+        if (!user) {
+            console.log('❌ 세션 인증 실패: 사용자 정보 없음');
             return res.status(401).json({ message: '로그인이 필요합니다' });
-        req.user = u;
+        }
+        console.log('✅ 세션 인증 성공:', user.username);
+        req.user = user;
         next();
     }
     // 로그인
@@ -370,12 +387,11 @@ export async function registerRoutes(app, server) {
             const token = generateToken(user.id, user.username);
             // 서버 세션 저장 (쿠키 connect.sid)
             req.session.user = { id: user.id, username: user.username, role: user.role };
-            // 세션 행에 감사 정보 기록 (스키마에 컬럼 추가 시 반영)
-            try {
-                const { prisma } = await import('./db.js');
-                await prisma.$executeRawUnsafe(`UPDATE sessions SET user_id=$1, ip=$2, user_agent=$3, created_at=COALESCE(created_at, now()), last_access_at=now() WHERE sid=$4`, user.id, req.ip || null, req.headers['user-agent'] || null, req.sessionID);
-            }
-            catch { }
+            console.log('✅ 세션 저장:', {
+                sessionId: req.sessionID,
+                userId: user.id,
+                username: user.username
+            });
             res.json({
                 message: "로그인 성공",
                 user: {
@@ -703,7 +719,22 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: "Failed to close position" });
         }
     });
-    // 거래 내역 조회
+    // 거래 내역 조회 (세션 기반)
+    app.get("/api/trades", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const limit = parseInt(req.query.limit) || 50;
+            console.log(`📊 거래 내역 조회: 사용자 ID ${userId}`);
+            const trades = await storage.getTradesByUserId(String(userId), limit);
+            console.log(`📊 조회된 거래 수: ${trades.length}건`);
+            res.json(trades);
+        }
+        catch (error) {
+            console.error("거래 내역 조회 오류:", error);
+            res.status(500).json({ error: "Failed to fetch trades" });
+        }
+    });
+    // 거래 내역 조회 (기존 userId 파라미터 방식 - 호환성 유지)
     app.get("/api/trades/:userId", async (req, res) => {
         try {
             const userId = req.params.userId; // string으로 처리
@@ -1024,9 +1055,9 @@ export async function registerRoutes(app, server) {
         }
     });
     // 잔고 조회
-    app.get("/api/balances/:userId", authenticateToken, async (req, res) => {
+    app.get("/api/balances/:userId", authenticateSession, async (req, res) => {
         try {
-            const userId = req.user.userId; // 인증된 사용자 ID 사용
+            const userId = req.user.id; // 인증된 사용자 ID 사용
             console.log(`[${new Date().toISOString()}] Fetching balances for user ${userId}`);
             const exchanges = await storage.getExchangesByUserId(String(userId));
             console.log(`[${new Date().toISOString()}] Retrieved ${exchanges.length} exchanges for user ${userId}`);
@@ -1101,6 +1132,10 @@ export async function registerRoutes(app, server) {
                         hint: error.hint,
                         fullError: error,
                     });
+                    // API 제한이나 타임아웃 에러인 경우 재시도 지연
+                    if (error.message?.includes('rate limit') || error.message?.includes('timeout')) {
+                        console.log(`⏳ ${exchange.exchange} API 제한 감지, 30초 후 재시도 권장`);
+                    }
                     balances[exchange.exchange || "unknown"] = {
                         [exchange.exchange === "upbit" ? "krw" : "usdt"]: 0,
                         connected: false,
@@ -1127,25 +1162,44 @@ export async function registerRoutes(app, server) {
         }
     });
     // 거래 전략 목록 조회
-    app.get("/api/trading-strategies/:userId", async (req, res) => {
+    app.get("/api/trading-strategies/:userId", authenticateSession, async (req, res) => {
         try {
-            const userId = req.params.userId; // string으로 처리
-            const strategies = await storage.getTradingStrategiesByUserId(userId);
+            const authenticatedUserId = req.user.id;
+            const requestedUserId = req.params.userId;
+            console.log(`🔍 전략조회 요청:`, {
+                authenticatedUserId,
+                requestedUserId,
+                sessionId: req.sessionID,
+                path: req.path
+            });
+            const strategies = await storage.getTradingStrategiesByUserId(String(authenticatedUserId));
+            console.log(`✅ 전략조회 성공: ${strategies.length}개 전략`);
             res.json(strategies);
         }
         catch (error) {
-            console.error("거래 전략 조회 오류:", error);
-            res.status(500).json({ error: "거래 전략 조회 중 오류가 발생했습니다" });
+            console.error("❌ 거래 전략 조회 오류:", {
+                error: error,
+                message: error.message,
+                stack: error.stack,
+                authenticatedUserId: req.user?.id,
+                requestedUserId: req.params.userId
+            });
+            res.status(500).json({
+                error: "거래 전략 조회 중 오류가 발생했습니다",
+                details: error.message,
+                authenticatedUserId: req.user?.id,
+                requestedUserId: req.params.userId
+            });
         }
     });
     // 임시 디버깅: 테이블 구조 확인
     // 제거됨: Prisma 전환으로 pool 의존성 삭제
     // 거래 전략 생성/수정
-    app.post("/api/trading-strategies/:userId", async (req, res) => {
+    app.post("/api/trading-strategies/:userId", authenticateSession, async (req, res) => {
         try {
-            const userId = req.params.userId; // string으로 처리
-            const strategyData = { ...req.body, userId };
-            console.log("거래 전략 생성/수정 요청:", strategyData);
+            const authenticatedUserId = req.user.id; // 인증된 사용자 ID 사용
+            const strategyData = { ...req.body, userId: authenticatedUserId };
+            console.log(`거래 전략 생성/수정 요청: 인증된 사용자 ${authenticatedUserId}`, strategyData);
             const strategy = await storage.createOrUpdateTradingStrategy(strategyData);
             res.json({
                 message: "거래 전략이 저장되었습니다",
@@ -1161,22 +1215,33 @@ export async function registerRoutes(app, server) {
         }
     });
     // 거래 전략 삭제
-    app.delete("/api/trading-strategies/:id", async (req, res) => {
+    app.delete("/api/trading-strategies/:id", authenticateSession, async (req, res) => {
         try {
             const strategyId = parseInt(req.params.id);
-            const strategy = await storage.deleteTradingStrategy(strategyId);
-            if (!strategy) {
-                return res.status(404).json({ error: "거래 전략을 찾을 수 없습니다" });
+            console.log("거래 전략 삭제 요청:", strategyId);
+            const deletedStrategy = await storage.deleteTradingStrategy(strategyId);
+            if (deletedStrategy) {
+                res.json({
+                    message: "거래 전략이 삭제되었습니다",
+                    strategy: deletedStrategy,
+                });
             }
-            res.json({ message: "거래 전략이 삭제되었습니다" });
+            else {
+                res.status(404).json({
+                    error: "삭제할 전략을 찾을 수 없습니다"
+                });
+            }
         }
         catch (error) {
             console.error("거래 전략 삭제 오류:", error);
-            res.status(500).json({ error: "거래 전략 삭제 중 오류가 발생했습니다" });
+            res.status(500).json({
+                error: "거래 전략 삭제 중 오류가 발생했습니다",
+                details: error.message,
+            });
         }
     });
     // 관리자 전용: 모든 사용자 조회
-    app.get("/api/admin/users", authenticateToken, async (req, res) => {
+    app.get("/api/admin/users", authenticateSession, async (req, res) => {
         try {
             // 관리자 권한 확인
             const currentUser = await storage.getUser(req.user.userId);
@@ -1202,10 +1267,10 @@ export async function registerRoutes(app, server) {
         }
     });
     // 관리자 전용: 사용자 권한 변경
-    app.put("/api/admin/users/:userId/role", authenticateToken, async (req, res) => {
+    app.put("/api/admin/users/:userId/role", authenticateSession, async (req, res) => {
         try {
             // 관리자 권한 확인
-            const currentUser = await storage.getUser(req.user.userId);
+            const currentUser = await storage.getUser(req.user.id);
             if (!currentUser || currentUser.role !== "admin") {
                 return res.status(403).json({ message: "관리자 권한이 필요합니다" });
             }
@@ -1259,29 +1324,15 @@ export async function registerRoutes(app, server) {
         console.log("WebSocket client connected");
         // 첫 클라이언트 연결 시 KimchiService의 지연 초기화를 트리거
         kimchiService.getLatestKimchiPremiums();
-        // URL 쿼리에서 토큰 추출 시도
-        const url = new URL(req.url || '', `http://${req.headers.host}`);
-        const token = url.searchParams.get('token');
-        if (token) {
-            const userId = getUserIdFromToken(`Bearer ${token}`);
-            if (userId) {
-                // wsUserMap.set(ws, userId); // 이 부분은 더 이상 필요 없으므로 제거
-                console.log(`WebSocket 사용자 연결: User ID ${userId}`);
-            }
-        }
+        // WebSocket 연결 로깅 (세션 기반 인증 사용)
+        console.log(`WebSocket 클라이언트 연결: ${req.headers['user-agent']?.substring(0, 50)}...`);
         ws.on("message", (message) => {
             const messageStr = message.toString();
             console.log("WebSocket message received:", messageStr);
-            // 인증 메시지 처리
+            // WebSocket 메시지 처리 (세션 기반 인증 사용)
             try {
                 const msg = JSON.parse(messageStr);
-                if (msg.type === 'auth' && msg.token) {
-                    const userId = getUserIdFromToken(`Bearer ${msg.token}`);
-                    if (userId) {
-                        // wsUserMap.set(ws, userId); // 이 부분은 더 이상 필요 없으므로 제거
-                        console.log(`WebSocket 사용자 인증: User ID ${userId}`);
-                    }
-                }
+                console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
             }
             catch (error) {
                 // JSON 파싱 실패시 무시
@@ -1348,10 +1399,19 @@ export async function registerRoutes(app, server) {
     // };
     // setInterval(sendKimchiData, 100); // 이 부분은 더 이상 필요 없으므로 제거
     // 거래소 연동 테스트 API (중요: 이 라우트는 /api/exchanges/:userId 보다 먼저 선언되어야 함)
-    app.post("/api/test-exchange-connection", async (req, res) => {
+    app.post("/api/test-exchange-connection", authenticateSession, async (req, res) => {
         try {
             const { exchange, userId } = req.body;
+            const authenticatedUserId = req.user.id;
+            console.log(`🔍 연동테스트 요청:`, {
+                exchange,
+                userId,
+                authenticatedUserId,
+                sessionId: req.sessionID,
+                body: req.body
+            });
             if (!exchange || !userId) {
+                console.log('❌ 연동테스트 실패: 필수 정보 누락');
                 return res.status(400).json({
                     error: '필수 정보가 누락되었습니다',
                     details: '거래소와 사용자 ID를 입력해주세요'
@@ -1382,7 +1442,7 @@ export async function registerRoutes(app, server) {
             });
             // 연동테스트 서비스로 실제 테스트 수행
             const testResult = await exchangeTestService.testExchangeConnection(exchange, apiKey, apiSecret);
-            console.log(`✅ [${new Date().toISOString()}] 연동 테스트 완료:`, {
+            console.log(`✅ 연동테스트 완료:`, {
                 exchange,
                 success: testResult.success,
                 message: testResult.message
@@ -1414,6 +1474,237 @@ export async function registerRoutes(app, server) {
         catch (error) {
             console.error("테스트 로그 기록 오류:", error);
             res.status(500).json({ error: "로그 기록 중 오류가 발생했습니다" });
+        }
+    });
+    // 활동 추적 API
+    app.post("/api/activity", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const { timestamp, type, source } = req.body;
+            // 활동 감지 시 세션 갱신
+            if (req.session) {
+                req.session.touch();
+                req.session.cookie.maxAge = 24 * 60 * 60 * 1000; // 24시간으로 연장
+                console.log(`🔄 활동 감지로 세션 갱신: ${type} - 사용자: ${userId}`);
+            }
+            res.json({ success: true, message: "활동이 기록되었습니다" });
+        }
+        catch (error) {
+            console.error("활동 추적 오류:", error);
+            res.status(500).json({ error: "활동 추적 중 오류가 발생했습니다" });
+        }
+    });
+    // 포지션 조회 API
+    app.get("/api/positions", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const { isMock } = req.query;
+            const whereClause = { userId };
+            if (isMock !== undefined) {
+                whereClause.isMock = isMock === 'true';
+            }
+            const positions = await storage.getPositions(whereClause);
+            res.json(positions);
+        }
+        catch (error) {
+            console.error("포지션 조회 오류:", error);
+            res.status(500).json({ error: "포지션 조회 중 오류가 발생했습니다" });
+        }
+    });
+    // 실거래 API 엔드포인트
+    app.post("/api/live-trades", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const tradeData = req.body;
+            console.log(`💰 실거래 저장 요청:`, {
+                userId,
+                tradeId: tradeData.id,
+                type: tradeData.type,
+                symbol: tradeData.symbol,
+                quantity: tradeData.quantity,
+                price: tradeData.price
+            });
+            // TradeLog 먼저 생성
+            const tradeLog = await storage.createTradeLog({
+                kimp: tradeData.premiumRate || 0,
+                action: tradeData.type,
+                amount: tradeData.quantity * tradeData.price,
+                result: 'success'
+            });
+            // 실거래 기록을 DB에 저장
+            const trade = await storage.createTrade({
+                userId: parseInt(userId),
+                positionId: null,
+                tradeLogId: tradeLog.id,
+                symbol: tradeData.symbol,
+                side: tradeData.type,
+                exchange: tradeData.exchange || 'upbit',
+                quantity: tradeData.quantity,
+                price: tradeData.price,
+                fee: tradeData.fee || 0,
+                orderType: 'LIVE', // 실거래
+                exchangeOrderId: tradeData.id,
+                exchangeTradeId: tradeData.id,
+            });
+            console.log(`✅ 실거래 저장 완료: ${trade.id} (TradeLog: ${tradeLog.id})`);
+            res.json({
+                success: true,
+                message: "실거래가 저장되었습니다",
+                tradeId: trade.id,
+                tradeLogId: tradeLog.id
+            });
+        }
+        catch (error) {
+            console.error("실거래 저장 오류:", error);
+            res.status(500).json({ error: "실거래 저장 중 오류가 발생했습니다" });
+        }
+    });
+    // Mock Trading API 엔드포인트들
+    // Mock 거래 기록 저장 (세션 기반)
+    app.post("/api/mock-trades", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const tradeData = req.body;
+            console.log(`📊 Mock 거래 저장 요청:`, {
+                userId,
+                tradeId: tradeData.id,
+                type: tradeData.type,
+                symbol: tradeData.symbol,
+                quantity: tradeData.quantity,
+                price: tradeData.price
+            });
+            // TradeLog 먼저 생성
+            const tradeLog = await storage.createTradeLog({
+                kimp: tradeData.premiumRate || 0,
+                action: tradeData.type, // buy, sell, short, cover
+                amount: tradeData.quantity * tradeData.price,
+                result: 'success'
+            });
+            // Mock 거래 기록을 실제 DB에 저장
+            const trade = await storage.createTrade({
+                userId: parseInt(userId),
+                positionId: null, // Mock 거래는 포지션 ID 없음
+                tradeLogId: tradeLog.id, // TradeLog 연결
+                symbol: tradeData.symbol,
+                side: tradeData.type, // buy, sell, short, cover
+                exchange: tradeData.exchange || 'upbit',
+                quantity: tradeData.quantity,
+                price: tradeData.price,
+                fee: tradeData.fee || 0,
+                orderType: tradeData.isMock ? 'MOCK' : 'LIVE', // Mock/실거래 구분
+                exchangeOrderId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+                exchangeTradeId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+            });
+            console.log(`✅ Mock 거래 저장 완료: ${trade.id} (TradeLog: ${tradeLog.id})`);
+            res.json({
+                success: true,
+                message: "Mock 거래가 저장되었습니다",
+                tradeId: trade.id,
+                tradeLogId: tradeLog.id
+            });
+        }
+        catch (error) {
+            console.error("Mock 거래 저장 오류:", error);
+            res.status(500).json({ error: "Mock 거래 저장 중 오류가 발생했습니다" });
+        }
+    });
+    // Mock 거래 기록 저장 (기존 userId 파라미터 방식 - 호환성 유지)
+    app.post("/api/mock-trades/:userId", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const tradeData = req.body;
+            console.log(`📊 Mock 거래 저장 요청:`, {
+                userId,
+                tradeId: tradeData.id,
+                type: tradeData.type,
+                symbol: tradeData.symbol,
+                quantity: tradeData.quantity,
+                price: tradeData.price
+            });
+            // TradeLog 먼저 생성
+            const tradeLog = await storage.createTradeLog({
+                kimp: tradeData.premiumRate || 0,
+                action: tradeData.type, // buy, sell, short, cover
+                amount: tradeData.quantity * tradeData.price,
+                result: 'success'
+            });
+            // Mock 거래 기록을 실제 DB에 저장
+            const trade = await storage.createTrade({
+                userId: parseInt(userId),
+                positionId: null, // Mock 거래는 포지션 ID 없음
+                tradeLogId: tradeLog.id, // TradeLog 연결
+                symbol: tradeData.symbol,
+                side: tradeData.type, // buy, sell, short, cover
+                exchange: tradeData.exchange || 'upbit',
+                quantity: tradeData.quantity,
+                price: tradeData.price,
+                fee: tradeData.fee || 0,
+                orderType: tradeData.isMock ? 'MOCK' : 'LIVE', // Mock/실거래 구분
+                exchangeOrderId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+                exchangeTradeId: tradeData.isMock ? `MOCK-${tradeData.id}` : tradeData.id,
+            });
+            console.log(`✅ Mock 거래 저장 완료: ${trade.id} (TradeLog: ${tradeLog.id})`);
+            res.json({
+                success: true,
+                message: "Mock 거래가 저장되었습니다",
+                tradeId: trade.id,
+                tradeLogId: tradeLog.id
+            });
+        }
+        catch (error) {
+            console.error("Mock 거래 저장 오류:", error);
+            res.status(500).json({ error: "Mock 거래 저장 중 오류가 발생했습니다" });
+        }
+    });
+    // Mock 포지션 저장
+    app.post("/api/mock-positions/:userId", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const positionData = req.body;
+            console.log(`📈 Mock 포지션 저장 요청:`, {
+                userId,
+                positionId: positionData.id,
+                symbol: positionData.symbol,
+                entryPremiumRate: positionData.entryPremiumRate,
+                status: positionData.status
+            });
+            // Mock 포지션을 DB에 저장 (실제 구현 필요)
+            // 현재는 로그만 출력
+            console.log(`✅ Mock 포지션 저장 완료: ${positionData.id}`);
+            res.json({
+                success: true,
+                message: "Mock 포지션이 저장되었습니다",
+                positionId: positionData.id
+            });
+        }
+        catch (error) {
+            console.error("Mock 포지션 저장 오류:", error);
+            res.status(500).json({ error: "Mock 포지션 저장 중 오류가 발생했습니다" });
+        }
+    });
+    // Mock 포지션 업데이트
+    app.put("/api/mock-positions/:positionId", authenticateSession, async (req, res) => {
+        try {
+            const positionId = req.params.positionId;
+            const updateData = req.body;
+            console.log(`🔄 Mock 포지션 업데이트 요청:`, {
+                positionId,
+                status: updateData.status,
+                realizedPnl: updateData.realizedPnl,
+                unrealizedPnl: updateData.unrealizedPnl
+            });
+            // Mock 포지션을 DB에서 업데이트 (실제 구현 필요)
+            // 현재는 로그만 출력
+            console.log(`✅ Mock 포지션 업데이트 완료: ${positionId}`);
+            res.json({
+                success: true,
+                message: "Mock 포지션이 업데이트되었습니다",
+                positionId
+            });
+        }
+        catch (error) {
+            console.error("Mock 포지션 업데이트 오류:", error);
+            res.status(500).json({ error: "Mock 포지션 업데이트 중 오류가 발생했습니다" });
         }
     });
     // CORS preflight 처리
