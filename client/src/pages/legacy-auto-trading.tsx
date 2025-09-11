@@ -2,7 +2,13 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { MockTradingSystem } from '@/components/mock-trading-system';
+import { StrategyList } from '@/components/trading/StrategyList';
+import { KimchiChart } from '@/components/trading/KimchiChart';
 import { TRADING_CONSTANTS } from '@/lib/utils';
+import { isNum, fx, loc, formatKRW, formatUSD, formatCompact, floorQty } from '@/utils/trading/formatters';
+import { normalizeAmountBtc, mapStrategyToBand } from '@/utils/trading/calculations';
+import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
+import { LEVERAGE_CONFIG, parseLeverage, normalizeLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
@@ -17,48 +23,7 @@ interface Band {
   serverId?: string | number;
 }
 
-// ===== Helpers (컴포넌트 외부 또는 내부에 정의) =====
-const isNum = (v: any): v is number => typeof v === 'number' && isFinite(v);
-const fx = (v: number | undefined | null, n = 2) => (isNum(v) ? Number(v).toFixed(n) : '-');
-const loc = (v: number | undefined | null) => (isNum(v) ? Number(v).toLocaleString() : '-');
-const floorQty = (q: number | string | undefined | null) => Math.floor((Number(q) || 0) / 0.001) * 0.001;
-const formatKRW = (n: number) => new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(Math.round(n));
-const formatUSD = (n: number) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
-const formatCompact = (n: number, digits = 1): string => {
-  const abs = Math.abs(n);
-  if (abs >= 1e9) return `${(n / 1e9).toFixed(digits)}B`;
-  if (abs >= 1e6) return `${(n / 1e6).toFixed(digits)}M`;
-  if (abs >= 1e3) return `${(n / 1e3).toFixed(digits)}K`;
-  return `${n.toFixed(Math.min(digits, 2))}`;
-};
-
-// ===== 전역 in-flight/캐시 (전략 조회 과호출 방지) =====
-const INFLIGHT_API = new Map<string, Promise<any>>();
-const API_CACHE = new Map<string, { ts: number; data: any }>();
-
-// 투자 수량 보정: 서버 원화 금액/비정상 값이 들어왔을 때 안전한 BTC 수량으로 변환
-const normalizeAmountBtc = (raw: any, upbitPrice?: number): number => {
-  let amt = Number(raw ?? 0) || 0;
-  // 원화 금액(100 이상) 또는 과도한 수량은 변환/클램프
-  if (amt >= 100 && upbitPrice && upbitPrice > 0) {
-    amt = +(amt / upbitPrice).toFixed(3);
-  }
-  if (!isFinite(amt) || amt <= 0) amt = 0.001;
-  if (amt > 10) amt = 0.001; // 상식적 한도 초과 시 최소값
-  return Math.max(0.001, amt);
-};
-
-// 서버 전략 → UI 밴드 매핑
-const mapStrategyToBand = (s: any): Band => ({
-  name: s?.name,
-  target_kimp: Number(s?.entryRate),
-  exit_kimp: Number(s?.exitRate),
-  tolerance: Number(s?.toleranceRate ?? s?.tolerance ?? 0.1),
-  leverage: Number(s?.leverage ?? 3),
-  // 현재 서버는 BTC 수량을 investmentAmount로 보관 중 → 역매핑
-  amount_btc: Number(s?.investmentAmount ?? 0) || 0,
-  serverId: s?.id,
-});
+// 유틸리티 함수들은 별도 파일로 분리됨
 
 const LegacyAutoTradingPage = () => {
   // 인증 정보
@@ -114,6 +79,8 @@ const LegacyAutoTradingPage = () => {
   const [netOk, setNetOk] = useState<boolean>(true);
   const [errCount, setErrCount] = useState<number>(0);
   const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false); // 전략 로딩 상태 추가
+  const [strategies, setStrategies] = useState<any[]>([]); // 전략 목록 상태 추가
   
   // 새 전략 모달 상태
   type NewStrategyForm = {
@@ -142,33 +109,7 @@ const LegacyAutoTradingPage = () => {
     activateImmediately: false
   });
 
-  // 김치프리미엄 차트 시간대 상태
-  const [chartTimeframe, setChartTimeframe] = useState('1H');
-  
-  // 시간대별 데이터 필터링(타임스탬프 윈도우 + 리샘플)
-  const getChartData = useCallback(() => {
-    if (sparkData.length === 0) return [] as SparkPoint[];
-    const now = Date.now();
-    const WINDOW_MS: Record<string, number> = { '1H': 60 * 60 * 1000, '4H': 4 * 60 * 60 * 1000, '1D': 24 * 60 * 60 * 1000 };
-    const windowMs = WINDOW_MS[chartTimeframe] ?? WINDOW_MS['1H'];
-    const inWindow = sparkData.filter(p => p.t >= now - windowMs);
-
-    // 리샘플 버킷(ms): 1H=1m, 4H=5m, 1D=15m
-    const bucketMs = chartTimeframe === '1H' ? 60 * 1000 : chartTimeframe === '4H' ? 5 * 60 * 1000 : 15 * 60 * 1000;
-    const buckets = new Map<number, number[]>();
-    for (const p of inWindow) {
-      const b = Math.floor(p.t / bucketMs) * bucketMs;
-      const arr = buckets.get(b) || [];
-      arr.push(p.v);
-      buckets.set(b, arr);
-    }
-    const entriesArray: Array<[number, number[]]> = Array.from(buckets.entries());
-    const resampled: SparkPoint[] = entriesArray
-      .sort((a, b) => a[0] - b[0])
-      .map(([t, arr]) => ({ t, v: arr.reduce((sum: number, val: number) => sum + val, 0) / arr.length }));
-    const limited = resampled.slice(-120);
-    return limited;
-  }, [sparkData, chartTimeframe]);
+  // 차트 관련 상태는 KimchiChart 컴포넌트로 이동됨
 
   // 투자수량 변경 시 기본투자금액 자동 계산 (비동기 처리로 깜박임 방지)
   useEffect(() => {
@@ -193,8 +134,7 @@ const LegacyAutoTradingPage = () => {
     return () => clearTimeout(timeoutId);
   }, [newStrategy.investmentAmount, newStrategy.leverage, kimp?.upbit_price]);
 
-  // 전략 목록 상태 (카드 표시용)
-  const [strategies, setStrategies] = useState<any[]>([]);
+  // 전략 목록 상태는 위에서 이미 선언됨 (line 118)
 
   const [editingStrategyId, setEditingStrategyId] = useState<string | null>(null);
   const [dailyStats, setDailyStats] = useState({
@@ -233,7 +173,6 @@ const LegacyAutoTradingPage = () => {
 
   // DOM 요소 참조 (useRef)
   const bandTbodyRef = useRef<HTMLTableSectionElement>(null);
-  const sparkCanvasRef = useRef<HTMLCanvasElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   // --- REFS ---
@@ -931,7 +870,7 @@ const LegacyAutoTradingPage = () => {
           <td><input className="ctrl" data-k="target_kimp" type="number" step="0.01" value={b.target_kimp || ''} onChange={(e) => handleBandChange(index, 'target_kimp', e.target.value)} /></td>
           <td><input className="ctrl" data-k="exit_kimp" type="number" step="0.01" value={b.exit_kimp || ''} onChange={(e) => handleBandChange(index, 'exit_kimp', e.target.value)} /></td>
           <td><input className="ctrl" data-k="tolerance" type="number" step="0.01" value={b.tolerance ?? 0.1} onChange={(e) => handleBandChange(index, 'tolerance', e.target.value)} /></td>
-          <td><input className="ctrl" data-k="leverage" type="number" step="1" value={b.leverage ?? 3} onChange={(e) => {
+          <td><input className="ctrl" data-k="leverage" type="number" step={LEVERAGE_CONFIG.STEP} min={LEVERAGE_CONFIG.MIN} max={LEVERAGE_CONFIG.MAX} value={b.leverage ?? LEVERAGE_CONFIG.DEFAULT} onChange={(e) => {
             handleBandChange(index, 'leverage', e.target.value);
             const tr = bandRefs.current[index];
             if (tr) setTimeout(() => updatePreviewForRow(tr), 0);
@@ -1080,6 +1019,10 @@ const LegacyAutoTradingPage = () => {
       console.log('📋 [DEBUG] 이미 로드됨 - 함수 종료');
       return;
     }
+
+    // 로딩 상태 시작
+    setIsLoadingStrategies(true);
+    
     try {
       // 세션 우선: 세션/효과적 사용자 ID가 없으면 조회 보류
       console.log('👤 [DEBUG] 사용자 상태 확인:', { 
@@ -1091,24 +1034,25 @@ const LegacyAutoTradingPage = () => {
       
       if (!user?.id && !effectiveUserId) {
         console.warn('⏸️ [DEBUG] 세션 사용자 미확정으로 전략 조회를 보류합니다.');
-        toast({ title: '전략 조회 보류', description: '세션 확인 후 다시 시도합니다.', variant: 'destructive' });
+        toast({ 
+          title: '전략 조회 보류', 
+          description: '로그인 후 다시 시도해주세요.', 
+          variant: 'destructive' 
+        });
         return;
       }
 
       // 1. 세션에서 인증된 사용자 정보 우선 사용
       const userId = user?.id ? String(user.id) : String(effectiveUserId);
-      console.log('🔍 세션에서 사용자 ID 확인:', userId);
+      console.log('🔍 전략조회 요청:', { userId, url: `/api/trading-strategies/${userId}` });
       
       // 3. 해당 사용자의 전략 목록 조회
-      console.log('📊 전략 조회 요청 - 사용자 ID:', userId);
-      console.log('🔗 API URL:', `/api/trading-strategies/${userId}`);
-      
       const dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
       if (dbStrategies == null) {
         console.log('⏭️ 전략 조회가 취소됨(Abort) - 기존 화면 상태 유지');
         return;
       }
-      console.log('📥 API 응답 데이터:', dbStrategies);
+      console.log('📥 전략조회 응답:', dbStrategies);
       
       if (Array.isArray(dbStrategies)) {
         const formattedStrategies = dbStrategies.map(s => ({
@@ -1150,15 +1094,43 @@ const LegacyAutoTradingPage = () => {
         
         if (formattedStrategies.length === 0) {
           console.log('ℹ️ 등록된 전략이 없습니다. 새 전략을 추가해보세요.');
+          toast({
+            title: '전략 없음',
+            description: '등록된 전략이 없습니다. 새로운 전략을 생성해보세요.',
+          });
         }
       } else {
-        console.log('⚠️ 전략 데이터 형식이 올바르지 않습니다:', dbStrategies);
-        // 실패 시 토스트 대신 로딩 상태 유지 (UI에서 스피너)
-        setStrategies((prev) => prev); // no-op to avoid clearing UI
+        console.error('⚠️ 전략 데이터 형식이 올바르지 않습니다:', dbStrategies);
+        toast({
+          title: '데이터 오류',
+          description: '전략 데이터 형식이 올바르지 않습니다.',
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('❌ 전략 목록 로드 실패:', error);
-      // 실패 시 토스트 미노출, 화면은 로딩 상태로 유지
+      
+      // 401 Unauthorized 에러 처리
+      if (error instanceof Error && error.message.includes('401')) {
+        toast({
+          title: '인증 필요',
+          description: '로그인이 필요합니다. 로그인 페이지로 이동합니다.',
+          variant: 'destructive'
+        });
+        // 로그인 페이지로 리다이렉트 (필요시)
+        // window.location.href = '/login';
+        return;
+      }
+      
+      // 네트워크 오류 등 기타 에러 처리
+      toast({
+        title: '전략 조회 실패',
+        description: '전략을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        variant: 'destructive'
+      });
+    } finally {
+      // 로딩 상태 종료
+      setIsLoadingStrategies(false);
     }
   }, [fetchJson, effectiveUserId, user?.id, toast]);
 
@@ -1257,68 +1229,7 @@ const LegacyAutoTradingPage = () => {
   }, [tickLight, tickHeavy, cancelInflight]);
 
 
-  // ===== 차트 그리기 로직 =====
-  const drawSpark = useCallback(() => {
-    const c = sparkCanvasRef.current;
-    const data = getChartData();
-    if (!c || data.length === 0) return;
-
-    const ctx = c.getContext('2d', { alpha: false });
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const w = c.clientWidth || 300;
-    const h = c.clientHeight || 60;
-
-    // Canvas 크기 설정
-    if (c.width !== w * dpr) c.width = w * dpr;
-    if (c.height !== h * dpr) c.height = h * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // 배경 클리어
-    ctx.clearRect(0, 0, w, h);
-
-    if (data.length === 0) return;
-
-    // 최소/최대값 계산 (값 기준)
-    const min = Math.min(...data.map(d => d.v));
-    const max = Math.max(...data.map(d => d.v));
-    const span = Math.max(1e-9, max - min);
-
-    // 최소/최대값 표시 업데이트
-    const sparkMinEl = document.querySelector('#spark-min');
-    const sparkMaxEl = document.querySelector('#spark-max');
-    if (sparkMinEl) sparkMinEl.textContent = min.toFixed(2);
-    if (sparkMaxEl) sparkMaxEl.textContent = max.toFixed(2);
-
-    // 차트 그리기
-    const pad = 6;
-    ctx.beginPath();
-    
-    const firstT = data[0].t;
-    const lastT = data[data.length - 1].t;
-    const tSpan = Math.max(1, lastT - firstT);
-    data.forEach((point, index) => {
-      const x = pad + (w - 2 * pad) * ((point.t - firstT) / tSpan);
-      const y = h - pad - (h - 2 * pad) * ((point.v - min) / span);
-      
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#7aa2ff';
-    ctx.stroke();
-  }, [getChartData]);
-
-  useEffect(() => {
-    drawSpark(); // sparkData가 변경될 때마다 차트를 다시 그립니다.
-    window.addEventListener('resize', drawSpark);
-    return () => window.removeEventListener('resize', drawSpark);
-  }, [drawSpark]);
+  // 차트 그리기 로직은 KimchiChart 컴포넌트로 이동됨
 
   // 디버깅 로그
   console.log('🔍 LegacyAutoTradingPage 상태:', { 
@@ -1428,256 +1339,50 @@ const LegacyAutoTradingPage = () => {
           )}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
             <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">자동매매 전략</h2>
-                <div className="flex items-center space-x-2">
-                  {!isAuthenticated && !isLoading && (
-                    <button 
-                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                      onClick={() => checkSession()}
-                    >
-                      <i className="fas fa-sync-alt mr-2"></i>세션 조회
-                    </button>
-                  )}
-                  <button 
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" 
-                    data-testid="button-add-strategy" type="button" onClick={() => {
-                      // 새 전략 추가 → 편집 모드 해제 및 폼 초기화
-                      setEditingStrategyId(null);
-                      setNewStrategy({
-                        name: '',
-                        crypto: '',
-                        entryCondition: '3.0',
-                        takeProfitCondition: '2.0',
-                        baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))),
-                        investmentAmount: '0.003',
-                        leverage: '3',
-                        tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
-                        riskLevel: 'moderate',
-                        activateImmediately: false
-                      });
-                      setShowCreateModal(true);
-                    }}
-                    disabled={!isAuthenticated}
-                    title={!isAuthenticated ? "로그인 후 사용할 수 있습니다" : ""}
-                  >
-                    <i className="fas fa-plus mr-2"></i>새 전략 추가
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', scrollbarColor: '#64748b #1e293b'}}>
-                {strategies.map((strategy) => (
-                  <div key={strategy.id} className="border border-border rounded-lg p-4 hover:border-primary transition-colors" data-testid={`card-strategy-${strategy.id}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${strategy.isActive ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                        <h3 className="font-medium" data-testid={`text-strategy-name-${strategy.id}`}>
-                          {strategy.name}
-                        </h3>
-                        
-                        <button 
-                          type="button" 
-                          role="switch" 
-                          aria-checked={strategy.isActive} 
-                          data-state={strategy.isActive ? "checked" : "unchecked"} 
-                          className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-400" 
-                          data-testid={`switch-status-${strategy.id}`}
-                          onClick={async () => {
-                            const newActiveState = !strategy.isActive;
-                            
-                            // 세션 우선: 세션/효과적 사용자 ID가 없으면 중단
-                            if (!user?.id && !effectiveUserId) {
-                              console.warn('⏸️ 세션 미확정: 전략 상태 변경 요청을 보류합니다.');
-                              toast({ title: '세션 확인 필요', description: '로그인/세션 확인 후 다시 시도하세요.', variant: 'destructive' });
-                              return;
-                            }
-
-                            // 🔒 활성화 시 기존 포지션 확인 (중복 진입 방지)
-                            if (newActiveState) {
-                              try {
-                                const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
-                                if (positionsResponse.ok) {
-                                  const positions = await positionsResponse.json();
-                                  const activePosition = positions.find((p: any) => 
-                                    p.status === 'open' && 
-                                    p.strategyId === strategy.id && 
-                                    p.symbol === (strategy.crypto || 'BTC')
-                                  );
-                                  
-                                  if (activePosition) {
-                                    const entryTime = new Date(activePosition.entryTime);
-                                    const elapsed = Date.now() - entryTime.getTime();
-                                    const remainMinutes = Math.ceil((600000 - elapsed) / 60000); // 10분 쿨다운
-                                    
-                                    if (activePosition.status === 'open') {
-                                      toast({ 
-                                        title: '포지션 보유 중', 
-                                        description: `이 전략은 현재 포지션을 청산한 후 다시 활성화할 수 있습니다.`,
-                                        variant: 'destructive' 
-                                      });
-                                      return;
-                                    }
-                                  }
-                                }
-                              } catch (error) {
-                                console.error('포지션 확인 실패:', error);
-                              }
-                            }
-
-                            // UI 즉시 업데이트
-                            setStrategies(prev => prev.map(s => 
-                              s.id === strategy.id 
-                                ? {...s, isActive: newActiveState}
-                                : s
-                            ));
-                            
-                            // DB에 저장 (기존 허용오차/설정값 보존)
-                            try {
-                              const payload = {
-                                name: strategy.name,
-                                strategyType: strategy.strategyType || 'positive_kimchi',
-                                entryRate: strategy.entryCondition,
-                                exitRate: strategy.takeProfitCondition,
-                                toleranceRate: String(strategy.tolerance ?? strategy.toleranceRate ?? TRADING_CONSTANTS.DEFAULT_TOLERANCE),
-                                leverage: parseInt(strategy.leverage) || 3,
-                                investmentAmount: strategy.investmentAmount?.toString() || '0.003',
-                                symbol: strategy.crypto || 'BTC',
-                                isActive: newActiveState,
-                                isAutoTrading: newActiveState,
-                                tolerance: String(strategy.tolerance ?? strategy.toleranceRate ?? TRADING_CONSTANTS.DEFAULT_TOLERANCE)
-                              };
-                              
-                              // 세션 기반: 서버에서 세션 사용자로 처리 (무파라미터 라우트 미구현이면 기존 경로 유지)
-                              await fetchJson(`/api/trading-strategies/${user?.id ? String(user.id) : String(effectiveUserId)}`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload),
-                              });
-                              
-                              toast({
-                                title: `전략 ${newActiveState ? '활성화' : '비활성화'}`,
-                                description: `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`,
-                              });
-                              loadStrategiesFromDB();
-                            } catch (error) {
-                              console.error('전략 상태 변경 실패:', error);
-                              setStrategies(prev => prev.map(s => 
-                                s.id === strategy.id 
-                                  ? {...s, isActive: strategy.isActive}
-                                  : s
-                              ));
-                              toast({ title: '상태 변경 실패', description: '서버 저장에 실패했습니다.', variant: 'destructive' });
-                            }
-                          }}
-                        >
-                          <span 
-                            data-state={strategy.isActive ? "checked" : "unchecked"} 
-                            className="pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0"
-                          ></span>
-                        </button>
-                        <span className={`text-xs font-medium ${strategy.isActive ? 'text-green-600' : 'text-gray-500'}`}>
-                          {strategy.isActive ? '활성' : '비활성'}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button 
-                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-red-600 text-white hover:bg-red-700 h-9 rounded-md px-3" 
-                          data-testid={`button-delete-${strategy.id}`}
-                          style={{
-                            backgroundColor: '#dc2626',
-                            color: '#ffffff',
-                            border: 'none'
-                          }}
-                          onClick={async () => {
-                            if (!confirm(`"${strategy.name}" 전략을 정말 삭제하시겠습니까?`)) {
-                              return;
-                            }
-                            
-                            // UI에서 즉시 제거
-                            setStrategies(prev => prev.filter(s => s.id !== strategy.id));
-                            
-                            // DB에서 삭제 시도
-                            try {
-                              await fetchJson(`/api/trading-strategies/${strategy.id}`, {
-                                method: 'DELETE'
-                              });
-                              
-                              console.log('✅ 전략 삭제 성공:', strategy.id);
-                              toast({ title: '전략 삭제 완료', description: `${strategy.name} 전략이 삭제되었습니다.` });
-                              // DB 삭제 성공 시 UI에서 제거 상태 유지 (이미 제거됨)
-                            } catch (error) {
-                              console.error('❌ 전략 삭제 실패:', error);
-                              // 실패 시 UI에 다시 추가 (롤백)
-                              setStrategies(prev => [...prev, strategy]);
-                              toast({ title: '전략 삭제 실패', description: '서버에서 삭제에 실패했습니다.', variant: 'destructive' });
-                            }
-                          }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
-                            <path d="M18 6 6 18"></path>
-                            <path d="m6 6 12 12"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">코인</p>
-                        <p className="font-medium" data-testid={`text-crypto-${strategy.id}`}>{strategy.crypto}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">진입 조건 (정확한 일치)</p>
-                        <p className="font-medium text-green-500" data-testid={`text-entry-${strategy.id}`}>
-                          {parseFloat(Number(strategy.entryCondition).toFixed(3))}% ± {parseFloat(Number(strategy.tolerance || '0.01').toFixed(3))}%
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">익절 조건 (이상이면 청산)</p>
-                        <p className="font-medium text-primary" data-testid={`text-take-profit-${strategy.id}`}>
-                          {parseFloat(Number(strategy.takeProfitCondition).toFixed(3))}% ≤ 김프율
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">투자 수량</p>
-                        <p className="font-medium" data-testid={`text-amount-${strategy.id}`}>
-                          {parseFloat(Number(strategy.investmentAmount || 0).toFixed(3))} BTC
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">수익률: </span>
-                        <span className="text-green-500 font-medium" data-testid={`text-profit-rate-${strategy.id}`}>{strategy.profitRate}%</span>
-                        <span className="text-muted-foreground ml-4">실행 횟수: </span>
-                        <span className="font-medium" data-testid={`text-execution-count-${strategy.id}`}>{strategy.executionCount}회</span>
-                      </div>
-                      <button 
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 rounded-md px-3" 
-                        data-testid={`button-details-${strategy.id}`}
-                        onClick={() => {
-                          // 해당 전략 데이터를 모달에 로드
-                          setNewStrategy({
-                            name: strategy.name,
-                            crypto: strategy.crypto,
-                            entryCondition: strategy.entryCondition,
-                            takeProfitCondition: strategy.takeProfitCondition,
-                            baseAmount: '500000',
-                            investmentAmount: strategy.investmentAmount?.toString() || '0.003',
-                            leverage: strategy.leverage,
-                            tolerance: strategy.tolerance || '0.01',
-                            riskLevel: strategy.riskLevel,
-                            activateImmediately: strategy.isActive
-                          });
-                          setEditingStrategyId(strategy.id);
-                          setShowCreateModal(true);
-                        }}
-                      >
-                        상세 보기
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <StrategyList
+                strategies={strategies}
+                isLoadingStrategies={isLoadingStrategies}
+                onStrategyUpdate={setStrategies}
+                onStrategyEdit={(strategy) => {
+                  setNewStrategy({
+                    name: strategy.name,
+                    crypto: strategy.crypto,
+                    entryCondition: strategy.entryCondition,
+                    takeProfitCondition: strategy.takeProfitCondition,
+                    baseAmount: '500000',
+                    investmentAmount: strategy.investmentAmount?.toString() || '0.003',
+                    leverage: strategy.leverage,
+                    tolerance: strategy.tolerance || '0.01',
+                    riskLevel: strategy.riskLevel,
+                    activateImmediately: strategy.isActive
+                  });
+                  setEditingStrategyId(strategy.id);
+                  setShowCreateModal(true);
+                }}
+                onCreateNew={() => {
+                  setEditingStrategyId(null);
+                  setNewStrategy({
+                    name: '',
+                    crypto: '',
+                    entryCondition: '3.0',
+                    takeProfitCondition: '2.0',
+                    baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))),
+                    investmentAmount: '0.003',
+                    leverage: '3',
+                    tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
+                    riskLevel: 'moderate',
+                    activateImmediately: false
+                  });
+                  setShowCreateModal(true);
+                }}
+                fetchJson={fetchJson}
+                loadStrategiesFromDB={loadStrategiesFromDB}
+                user={user || undefined}
+                effectiveUserId={effectiveUserId}
+                isAuthenticated={isAuthenticated}
+                checkSession={checkSession}
+                isLoading={isLoading}
+              />
             </div>
             {/* 일일 거래 통계 */}
             <div className="mt-4 pt-4 border-t border-slate-600">
@@ -1808,158 +1513,7 @@ const LegacyAutoTradingPage = () => {
           </section>
 
           {/* 김치프리미엄 차트 */}
-          <section className="card col-6">
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border" data-testid="card-premium-chart">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">김치프리미엄 차트</h2>
-              <div className="flex space-x-2">
-                <button 
-                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
-                    chartTimeframe === '1H' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                  data-testid="button-timeframe-1H"
-                  onClick={() => setChartTimeframe('1H')}
-                >
-                  1H
-                </button>
-                <button 
-                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
-                    chartTimeframe === '4H' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                  data-testid="button-timeframe-4H"
-                  onClick={() => setChartTimeframe('4H')}
-                >
-                  4H
-                </button>
-                <button 
-                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
-                    chartTimeframe === '1D' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
-                  }`}
-                  data-testid="button-timeframe-1D"
-                  onClick={() => setChartTimeframe('1D')}
-                >
-                  1D
-                </button>
-              </div>
-            </div>
-            <div className="h-64 bg-muted rounded-lg p-4">
-              <canvas 
-                ref={(canvas) => {
-                  if (canvas) {
-                    // 김치프리미엄 차트 그리기
-                    const ctx = canvas.getContext('2d');
-                    const chartData = getChartData();
-                    if (ctx && chartData.length > 0) {
-                      const dpr = window.devicePixelRatio || 1;
-                      const w = canvas.clientWidth || 300;
-                      const h = canvas.clientHeight || 200;
-                      
-                      canvas.width = w * dpr;
-                      canvas.height = h * dpr;
-                      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                      
-                      // 배경 클리어
-                      ctx.fillStyle = '#1e293b';
-                      ctx.fillRect(0, 0, w, h);
-                      
-                      if (chartData.length > 1) {
-                        const min = Math.min(...chartData.map(p => p.v));
-                        const max = Math.max(...chartData.map(p => p.v));
-                        const span = Math.max(0.01, max - min);
-
-                        // 여백 설정 (좌측 y축 라벨 공간 확보)
-                        const leftPad = 44;
-                        const rightPad = 8;
-                        const topPad = 8;
-                        const bottomPad = 12;
-                        const plotW = Math.max(1, w - leftPad - rightPad);
-                        const plotH = Math.max(1, h - topPad - bottomPad);
-
-                        // 그리드 + y축 라벨
-                        ctx.strokeStyle = '#374151';
-                        ctx.lineWidth = 1;
-                        ctx.fillStyle = '#9fb0c9';
-                        ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-                        ctx.textAlign = 'right';
-                        ctx.textBaseline = 'middle';
-
-                        const gridCount = 5;
-                        for (let i = 0; i <= gridCount; i++) {
-                          const ratio = i / gridCount; // 0(bottom) → 1(top)
-                          const y = topPad + plotH * (1 - ratio);
-                          // 라인
-                          ctx.beginPath();
-                          ctx.moveTo(leftPad, y);
-                          ctx.lineTo(w - rightPad, y);
-                          ctx.stroke();
-                          // 라벨 값 (min → max 선형)
-                          const labelVal = min + span * ratio;
-                          ctx.fillText(`${labelVal.toFixed(2)}%`, leftPad - 6, y);
-                        }
-
-                        // 데이터 라인 그리기
-                        ctx.beginPath();
-                        ctx.strokeStyle = '#10b981';
-                        ctx.lineWidth = 2;
-
-                        const t0 = chartData[0].t;
-                        const t1 = chartData[chartData.length - 1].t;
-                        const tSpan = Math.max(1, t1 - t0);
-                        chartData.forEach((point, index) => {
-                          const x = leftPad + (plotW * (point.t - t0)) / tSpan;
-                          const y = topPad + plotH * (1 - ((point.v - min) / span));
-                          if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                        });
-                        ctx.stroke();
-
-                        // 현재 값 포인트
-                        const lastPoint = chartData[chartData.length - 1];
-                        const lastX = leftPad + plotW;
-                        const lastY = topPad + plotH * (1 - ((lastPoint.v - min) / span));
-                        ctx.beginPath();
-                        ctx.fillStyle = '#10b981';
-                        ctx.arc(lastX - 5, lastY, 4, 0, 2 * Math.PI);
-                        ctx.fill();
-                      }
-                    }
-                  }
-                }}
-                className="w-full h-full rounded"
-                style={{backgroundColor: '#1e293b'}}
-                key={`chart-${chartTimeframe}-${getChartData().length}`}
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-muted-foreground">평균 프리미엄</p>
-                <p className="font-semibold text-primary" data-testid="text-avg-premium">
-                  {(() => {
-                    const data = getChartData();
-                    return data.length > 0 ? (data.reduce((sum, p) => sum + p.v, 0) / data.length).toFixed(2) : '0.00';
-                  })()}%
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">최고 프리미엄</p>
-                <p className="font-semibold text-green-500" data-testid="text-max-premium">
-                  {(() => {
-                    const data = getChartData();
-                    return data.length > 0 ? Math.max(...data.map(p => p.v)).toFixed(2) : '0.00';
-                  })()}%
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">최저 프리미엄</p>
-                <p className="font-semibold text-red-500" data-testid="text-min-premium">
-                  {(() => {
-                    const data = getChartData();
-                    return data.length > 0 ? Math.min(...data.map(p => p.v)).toFixed(2) : '0.00';
-                  })()}%
-                </p>
-              </div>
-            </div>
-          </div>
-          </section>
+          <KimchiChart sparkData={sparkData} />
         </div>
       </div>
 
@@ -2381,17 +1935,17 @@ const LegacyAutoTradingPage = () => {
                   }}
                   name="leverage"
                   type="number"
-                  min="1"
-                  max="10"
-                  placeholder="3"
+                  min={LEVERAGE_CONFIG.MIN}
+                  max={LEVERAGE_CONFIG.MAX}
+                  placeholder={String(LEVERAGE_CONFIG.DEFAULT)}
                   data-testid="input-leverage"
                   id=":r12b:-form-item"
                   value={newStrategy.leverage}
                   onChange={(e) => {
-                    const leverage = parseFloat(e.target.value) || 3;
+                    const leverage = parseLeverage(e.target.value);
                     const baseAmount = parseFloat(newStrategy.baseAmount) || 500000;
                     const btcPrice = 156000000; // 대략적인 BTC 가격
-                    const calculatedBTC = parseFloat((baseAmount / leverage / btcPrice).toFixed(3));
+                    const calculatedBTC = calculateInvestmentWithLeverage(baseAmount, leverage, btcPrice);
                     
                     setNewStrategy(prev => ({
                       ...prev, 

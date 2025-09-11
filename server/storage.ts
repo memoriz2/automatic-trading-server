@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { hashPassword } from "./utils/auth.js";
 import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
+import { normalizeLeverage } from "./utils/trading-constants.js";
 
 // PostgreSQL 연결 풀 설정
 const pool = new Pool({
@@ -729,7 +730,7 @@ export class DatabaseStorage {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING *
       `, [
-        data.userId, data.name, data.entryRate, data.exitRate, data.leverage || 1,
+        data.userId, data.name, data.entryRate, data.exitRate, normalizeLeverage(data.leverage),
         data.investmentAmount, data.symbol, data.tolerance || 0.1,
         data.isAutoTrading || false, data.strategyType || 'positive_kimchi',
         data.toleranceRate || 0.1

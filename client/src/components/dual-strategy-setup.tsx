@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { TrendingUp, TrendingDown, Play, Square, DollarSign } from "lucide-react";
+import { LEVERAGE_CONFIG } from "@/utils/trading/leverage";
 
 interface Strategy {
   id?: number;
@@ -30,7 +31,7 @@ export function DualStrategySetup() {
     entryRate: 1.1,
     exitRate: 1.5,
     toleranceRate: 0.1,
-    leverage: 3,
+    leverage: LEVERAGE_CONFIG.DEFAULT,
     investmentAmount: 10000000,
     isActive: true
   });
@@ -41,7 +42,7 @@ export function DualStrategySetup() {
     entryRate: -0.5,
     exitRate: -0.2,
     toleranceRate: 0.1,
-    leverage: 3,
+    leverage: LEVERAGE_CONFIG.DEFAULT,
     investmentAmount: 10000000,
     isActive: true
   });
