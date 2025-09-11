@@ -1044,31 +1044,26 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
               variant="secondary" 
               size="sm" 
               onClick={() => {
-                console.log('🔍 === 현재 상태 확인 ===');
-                console.log('📊 활성 전략:', strategies.filter(s => s.isActive).length, '개');
-                console.log('📊 활성 포지션:', mockPositions.filter(p => p.status === 'open').length, '개');
-                console.log('📊 현재 김프율:', currentKimchiData?.kimp?.toFixed(3), '%');
+                const currentKimp = currentKimchiData?.kimp || 0;
+                console.log('🧪 강제 진입 실행: 김프', currentKimp.toFixed(3), '%');
                 
-                // 각 활성 포지션의 청산 조건 체크
-                const activePositions = mockPositions.filter(p => p.status === 'open');
-                activePositions.forEach(pos => {
-                  const strategy = strategies.find(s => s.id === pos.strategyId);
-                  if (strategy) {
-                    const exitRate = parseFloat(strategy.takeProfitCondition);
-                    const currentPremium = currentKimchiData?.kimp || 0;
-                    const shouldExit = exitRate <= currentPremium;
-                    console.log(`💰 포지션 ${pos.id}: 익절${exitRate}% ≤ 김프${currentPremium.toFixed(3)}% = ${shouldExit ? '청산가능' : '대기'}`);
-                  }
-                });
+                // 기본 강제진입 전략 생성
+                const forceStrategy = {
+                  id: 'force-entry',
+                  name: '강제진입',
+                  entryCondition: String(currentKimp),
+                  takeProfitCondition: String(Math.max(0.1, currentKimp + 0.5)), // 현재 김프 + 0.5%
+                  tolerance: '0.001',
+                  investmentAmount: '0.003',
+                  leverage: '3', // 기본 레버리지 3배
+                  isActive: true
+                };
                 
-                // 강제 자동매매 체크 실행
-                if (strategies.filter(s => s.isActive).length > 0) {
-                  console.log('🚀 강제 자동매매 체크 실행');
-                  Promise.all(strategies.filter(s => s.isActive).map(strategy => executeMockTrade(strategy)));
-                }
+                // 조건 없이 바로 진입
+                mockEntry(forceStrategy, currentKimp);
               }}
             >
-              🔍 상태확인
+              🧪 강제 진입
             </Button>
             <Button 
               variant="destructive" 
