@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { TRADING_CONSTANTS } from "@/lib/utils";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
+import { MockPositionList } from '@/components/trading/MockPositionList';
+import { MockTradeHistory } from '@/components/trading/MockTradeHistory';
+import { MockBalanceDisplay } from '@/components/trading/MockBalanceDisplay';
 
 // API 호출 함수
 const apiFetch = async (url: string, options: RequestInit = {}) => {
@@ -1170,225 +1173,30 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       </CardHeader>
       <CardContent>
         
-        {/* 모의 잔고 표시 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <h4 className="text-slate-400 text-sm">업비트 KRW</h4>
-            <p className="text-xl font-bold text-blue-400">
-              ₩{(mockBalance.krw || 0).toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <h4 className="text-slate-400 text-sm">업비트 BTC</h4>
-            <p className="text-xl font-bold text-yellow-400">
-              {(openUpbitQty || 0).toFixed(6)} BTC
-            </p>
-          </div>
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>
-            <p className="text-xl font-bold text-orange-400">
-              {(openBinanceQty || 0).toFixed(6)} BTC
-            </p>
-          </div>
-          <div className="bg-slate-800 p-4 rounded-lg">
-            <h4 className="text-slate-400 text-sm">바이낸스 USDT</h4>
-            <p className="text-xl font-bold text-green-400">
-              ${(mockBalance.binanceUsdt || 0).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* 수익률 표시 */}
-        <div className="bg-slate-800 p-4 rounded-lg mb-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-slate-400 text-sm">총 수익률</h4>
-            <div className="text-right">
-              <p className={`text-xl font-bold ${profitRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {profitRate >= 0 ? '+' : ''}{isFinite(profitRate) ? profitRate.toFixed(2) : '0.00'}%
-              </p>
-              <p className={`text-sm ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalPnl >= 0 ? '+' : ''}₩{isFinite(totalPnl) ? totalPnl.toLocaleString() : '0'}
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* 잔고 및 수익률 표시 */}
+        <MockBalanceDisplay
+          mockBalance={mockBalance}
+          openUpbitQty={openUpbitQty}
+          openBinanceQty={openBinanceQty}
+          profitRate={profitRate}
+          totalPnl={totalPnl}
+        />
 
 
         {/* 활성 포지션 */}
-        <div className="mb-4">
-          <h4 className="text-white font-medium mb-2">활성 포지션 ({mockPositions.filter(p => p.status === 'open').length}개)</h4>
-          {(() => {
-            console.log('🎯 현재 모든 포지션:', mockPositions);
-            console.log('🎯 활성 포지션 필터링 결과:', mockPositions.filter(p => p.status === 'open'));
-            return null;
-          })()}
-          
-          {/* 포지션이 없을 때 안내 */}
-          {mockPositions.filter(p => p.status === 'open').length === 0 && (
-            <div className="bg-slate-800 p-3 rounded-lg text-center">
-              <p className="text-slate-400 text-sm">전략 조건을 수정해주세요.</p>
-            </div>
-          )}
-          
-          {mockPositions.filter(p => p.status === 'open').map(position => {
-            const currentPremium = lastKimchiData?.kimp ?? position.entryPremiumRate;
-            
-            // 김프 상승 시 수익이 +로 보이도록: 김프 차이 기반 근사 PnL (진입가 기준 노출)
-            const premiumDelta = (currentPremium - position.entryPremiumRate); // 상승(+)
-            const baseNotionalKRW = position.upbitQuantity * position.upbitPrice; // 진입 시 원화 노출 기준
-            // 진입 수수료 + (예상) 청산 수수료까지 반영
-            const currentUpbitPriceEst = lastKimchiData?.upbit_price || position.upbitPrice;
-            const currentBinancePriceEst = lastKimchiData?.binance_price || position.binancePrice;
-            const usdKrwEst = lastKimchiData?.usdkrw || position.entryUsdKrw || 1390;
-            const entryUpbitBuyFee = (position.upbitQuantity * position.upbitPrice) * 0.0005;
-            const entryBinanceShortFeeKRW = (position.binanceQuantity * position.binancePrice * 0.0004) * usdKrwEst;
-            const estUpbitSellFee = (position.upbitQuantity * currentUpbitPriceEst) * 0.0005;
-            const estBinanceCoverFeeKRW = (position.binanceQuantity * currentBinancePriceEst * 0.0004) * usdKrwEst;
-            const unrealizedGross = (premiumDelta / 100) * baseNotionalKRW;
-            const unrealizedPnl = unrealizedGross - (entryUpbitBuyFee + entryBinanceShortFeeKRW + estUpbitSellFee + estBinanceCoverFeeKRW);
-            
-            // 김프율 변화 방향 계산
-            const premiumChange = currentPremium - position.entryPremiumRate;
-            const isRising = premiumChange > 0;
-            const isFalling = premiumChange < 0;
-            
-            return (
-              <div key={position.id} className="bg-slate-800 p-3 rounded-lg mb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-white font-medium">
-                      {(() => {
-                        const strategy = strategies.find(s => s.id === position.strategyId);
-                        if (strategy?.name) {
-                          // 강제진입 번호 표시 (이미 번호가 포함된 이름)
-                          return strategy.name.includes('강제진입') ? `🧪 ${strategy.name}` : strategy.name;
-                        }
-                        // strategyId가 force-entry로 시작하면 강제진입으로 표시
-                        if (position.strategyId && String(position.strategyId).startsWith('force-entry')) {
-                          return '🧪 강제진입';
-                        }
-                        // 포지션 타입이 force_entry면 DB에서 가져온 포지션
-                        if (position.type === 'force_entry') {
-                          return `🧪 강제진입${position.id || position.strategyId}`;
-                        }
-                        return 'Unknown';
-                      })()}
-                    </span>
-                    <Badge 
-                      variant="outline" 
-                      className={`ml-2 ${
-                        isRising ? 'text-red-400' : 
-                        isFalling ? 'text-blue-400' : 
-                        ''
-                      }`}
-                    >
-                      {position.entryPremiumRate.toFixed(3)}% → {currentPremium.toFixed(3)}%
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-right">
-                      <p className={`font-bold ${unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {unrealizedPnl >= 0 ? '+' : ''}₩{unrealizedPnl.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        업비트: {position.upbitQuantity.toFixed(6)} BTC
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        바이낸스 선물: {position.binanceQuantity.toFixed(6)} BTC (숏) × {position.leverage}배
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="text-xs px-2 py-1 h-6"
-                        onClick={() => mockExit(position, currentPremium, 0.5)}
-                      >
-                        반절청산
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        className="text-xs px-2 py-1 h-6"
-                        onClick={() => mockExit(position, currentPremium, 1.0)}
-                      >
-                        전체청산
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <MockPositionList
+          mockPositions={mockPositions}
+          strategies={strategies}
+          lastKimchiData={lastKimchiData}
+          onMockExit={mockExit}
+        />
 
-        {/* 실시간 거래 로그 */}
-        {tradingLogs.length > 0 && (
-          <div className="mb-4">
-            <h4 className="text-white font-medium mb-2">실시간 거래 로그</h4>
-            <div className="bg-slate-900 p-3 rounded-lg max-h-32 overflow-y-auto">
-              {tradingLogs.map((log, index) => (
-                <div key={index} className="text-xs text-green-400 font-mono mb-1">
-                  {log}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 최근 거래 기록 */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-white font-medium">최근 거래 ({recentTrades.length}건)</h4>
-            <div className="text-xs text-slate-400">
-              <span className="text-blue-400">BUY💙</span> (업비트) | 
-              <span className="text-yellow-400">SELL💛</span> (업비트) | 
-              <span className="text-red-400">SHORT❤️</span> (바이낸스 선물) | 
-              <span className="text-green-400">COVER💚</span> (바이낸스 선물)
-            </div>
-          </div>
-          <div className="max-h-60 overflow-y-auto">
-            {recentTrades.length === 0 ? (
-              <div className="bg-slate-800 p-3 rounded-lg text-center">
-                <p className="text-slate-400 text-sm">거래 기록이 없습니다</p>
-              </div>
-            ) : (
-              recentTrades.map(trade => {
-                const strategy = strategies.find(s => s.id === trade.strategyId);
-                return (
-                  <div key={trade.id} className="bg-slate-700 p-2 rounded mb-1 text-xs border border-slate-600">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white">
-                        {new Date(trade.timestamp).toLocaleTimeString()} | <span className="font-bold">{trade.exchange}</span> | <span className={`${
-                          trade.type === 'buy' ? 'text-blue-400' : 
-                          trade.type === 'sell' ? 'text-yellow-400' :
-                          trade.type === 'short' ? 'text-red-400' :
-                          'text-green-400'
-                        } font-bold`}>
-                          {trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN')}
-                        </span>
-                        {strategy && (
-                          <span className="text-purple-400 ml-2">
-                            [{strategy.name.includes('강제진입') ? `🧪 ${strategy.name}` : strategy.name}]
-                          </span>
-                        )}
-                      </span>
-                      <span className={`font-medium ${
-                        trade.type === 'buy' ? 'text-blue-400' : 
-                        trade.type === 'sell' ? 'text-yellow-400' :
-                        trade.type === 'short' ? 'text-red-400' :
-                        'text-green-400'
-                      }`}>
-                        {(Number(trade.quantity) || 0).toFixed(6)} BTC @ {(Number(trade.price) || 0).toLocaleString()}
-                        {trade.exchange === 'binance' && (trade.type === 'short' || trade.type === 'cover') && ' (선물)'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+        {/* 거래 내역 */}
+        <MockTradeHistory
+          tradingLogs={tradingLogs}
+          recentTrades={recentTrades}
+          strategies={strategies}
+        />
       </CardContent>
     </Card>
 
