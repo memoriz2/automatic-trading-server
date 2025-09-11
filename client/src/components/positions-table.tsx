@@ -3,7 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Download, Edit, X } from "lucide-react";
 import type { Position } from "@/types/trading";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useState } from "react";
+import { toast } from "@/components/ui/use-toast";
 
 interface PositionsTableProps {
   positions: Position[];
@@ -12,6 +14,7 @@ interface PositionsTableProps {
 }
 
 export function PositionsTable({ positions, onRefresh, onClosePosition }: PositionsTableProps) {
+  const [closingAll, setClosingAll] = useState(false);
   const getCoinIcon = (symbol: string) => {
     const colors: Record<string, string> = {
       BTC: 'bg-orange-500',
@@ -51,6 +54,34 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
         <div className="flex items-center justify-between">
           <CardTitle className="text-white">활성 포지션</CardTitle>
           <div className="flex items-center space-x-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              className="font-bold border-2 border-red-400"
+              disabled={closingAll || positions.length === 0}
+              aria-busy={closingAll}
+              onClick={async () => {
+                if (positions.length === 0) {
+                  toast({ title: "청산 대상 없음", description: "활성 포지션이 없습니다." });
+                  return;
+                }
+                if (!confirm(`활성 포지션 ${positions.length}개를 모두 청산할까요?`)) return;
+                setClosingAll(true);
+                try {
+                  const res = await apiRequest("POST", "/api/positions/close-all", {});
+                  const json = await res.json();
+                  await queryClient.invalidateQueries({ queryKey: ['/api/positions', 1] });
+                  onRefresh();
+                  toast({ title: "전체 청산 완료", description: `${json?.closed ?? 0}개 포지션 청산됨` });
+                } catch (e: any) {
+                  toast({ title: "전체 청산 실패", description: e?.message ?? String(e), variant: "destructive" });
+                } finally {
+                  setClosingAll(false);
+                }
+              }}
+            >
+              전체 청산
+            </Button>
             <Button
               variant="outline"
               size="sm"

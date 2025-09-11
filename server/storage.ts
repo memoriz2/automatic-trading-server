@@ -254,6 +254,7 @@ export class DatabaseStorage implements IStorage {
     const user = await prisma.user.create({
       data: {
         username: insertUser.username,
+        passwordHash: hashedPassword,
         password: hashedPassword,
         role: insertUser.role ?? "user",
         email: insertUser.email ?? null,
@@ -685,6 +686,31 @@ export class DatabaseStorage implements IStorage {
     return position ?? undefined;
   }
 
+  /**
+   * 사용자의 활성 포지션을 조건에 따라 일괄 청산합니다.
+   * - symbol, strategyId, type 필터를 선택적으로 지원합니다.
+   */
+  async closeAllPositionsByUser(
+    userId: string,
+    filters?: { symbol?: string; strategyId?: number; type?: string }
+  ): Promise<{ count: number }> {
+    const where: Prisma.PositionWhereInput = {
+      userId: parseInt(userId),
+      status: "open",
+      ...(filters?.symbol ? { symbol: filters.symbol } : {}),
+      ...(filters?.strategyId ? { strategyId: filters.strategyId } : {}),
+      ...(filters?.type ? { type: filters.type as any } : {}),
+    };
+
+    const now = new Date();
+    const result = await prisma.position.updateMany({
+      where,
+      data: { status: "closed", exitTime: now, updatedAt: now },
+    });
+
+    return { count: result.count };
+  }
+
   // Trades
   async getTradesByUserId(
     userId: string,
@@ -756,10 +782,18 @@ export class DatabaseStorage implements IStorage {
   async getTradingStrategiesByUserId(
     userId: string
   ): Promise<TradingStrategy[]> {
-    return prisma.tradingStrategy.findMany({
-      where: { userId: parseInt(userId) },
-      orderBy: { createdAt: "desc" },
-    });
+    console.log('🔍 거래 전략 조회 시작 - 사용자 ID:', userId);
+    try {
+      const strategies = await prisma.tradingStrategy.findMany({
+        where: { userId: parseInt(userId) },
+        orderBy: { createdAt: "desc" },
+      });
+      console.log('✅ 거래 전략 조회 성공:', strategies.length, '개');
+      return strategies;
+    } catch (error) {
+      console.error('❌ 거래 전략 조회 오류:', error);
+      throw error;
+    }
   }
 
   async createOrUpdateTradingStrategy(
@@ -772,13 +806,61 @@ export class DatabaseStorage implements IStorage {
       where: { userId, name: strategyName },
     });
 
+    const sanitizeInvestment = (val: any): number => {
+      console.log('🔍 [DEBUG] sanitizeInvestment input (createOrUpdate):', val, 'type:', typeof val);
+
+      // null, undefined, 빈 문자열 처리
+      if (val == null || val === '') {
+        console.log('🔍 [DEBUG] sanitizeInvestment: null/empty input, returning default 0.003');
+        return 0.003;
+      }
+
+      const n = Number(val);
+      console.log('🔍 [DEBUG] sanitizeInvestment: converted to number:', n, 'isFinite:', Number.isFinite(n));
+
+      if (!Number.isFinite(n)) {
+        console.log('🔍 [DEBUG] sanitizeInvestment: not finite, returning default 0.003');
+        return 0.003;
+      }
+
+      if (n < 0) {
+        console.log('🔍 [DEBUG] sanitizeInvestment: negative value:', n, 'returning default 0.003');
+        return 0.003;
+      }
+
+      // 소수점 8자리로 제한 (더 정확한 방법)
+      const result = Math.round(n * 100000000) / 100000000;
+      console.log('🔍 [DEBUG] sanitizeInvestment result:', result, 'original:', n);
+
+      // 0이 되는 경우를 방지 (매우 작은 값은 최소값으로)
+      if (result === 0 && n > 0) {
+        console.log('🔍 [DEBUG] Result became 0 but original was positive, using original value');
+        return n;
+      }
+
+      return result;
+    };
+
     const defaults = {
       strategyType: (strategy as any).strategyType || "positive_kimchi",
       entryRate: new Prisma.Decimal(((strategy as any).entryRate ?? "0.5") as any),
       exitRate: new Prisma.Decimal(((strategy as any).exitRate ?? "0.1") as any),
       toleranceRate: new Prisma.Decimal(((strategy as any).toleranceRate ?? "0.1") as any),
       leverage: (strategy as any).leverage ?? 3,
-      investmentAmount: new Prisma.Decimal(String((strategy as any).investmentAmount ?? "100000")),
+      investmentAmount: (() => {
+        const rawValue = (strategy as any).investmentAmount;
+        console.log('🔍 [DEBUG] Raw investmentAmount value:', rawValue, 'type:', typeof rawValue);
+
+        const sanitized = sanitizeInvestment(rawValue);
+        console.log('🔍 [DEBUG] Sanitized value:', sanitized, 'type:', typeof sanitized);
+
+        // 실제 값 사용 (테스트용 하드코딩 제거)
+        console.log('🔍 [PROD] Using sanitized value:', sanitized, 'type:', typeof sanitized);
+        const decimalValue = new Prisma.Decimal(sanitized);
+        console.log('🔍 [PROD] Prisma.Decimal result:', decimalValue.toString(), 'type:', typeof decimalValue);
+        console.log('🔍 [PROD] Decimal value check - isDecimal:', Prisma.Decimal.isDecimal(decimalValue));
+        return decimalValue;
+      })(),
       isActive: (strategy as any).isActive ?? true,
       symbol: (strategy as any).symbol ?? "BTC",
       tolerance: new Prisma.Decimal(((strategy as any).tolerance ?? "0.1") as any),
@@ -789,14 +871,23 @@ export class DatabaseStorage implements IStorage {
       updatedAt: new Date(),
     };
 
+    console.log('🔍 [DB] Existing strategy found:', existing?.id);
+
     if (existing) {
+      console.log('🔍 [DB] Updating existing strategy...');
       const updated = await prisma.tradingStrategy.update({
         where: { id: existing.id },
         data: { ...defaults, name: strategyName },
       });
+      console.log('🔍 [DB] Update result:', {
+        id: updated.id,
+        investmentAmount: updated.investmentAmount?.toString(),
+        name: updated.name
+      });
       return updated as TradingStrategy;
     }
 
+    console.log('🔍 [DB] Creating new strategy...');
     const created = await prisma.tradingStrategy.create({
       data: {
         userId,
@@ -804,6 +895,11 @@ export class DatabaseStorage implements IStorage {
         ...defaults,
         createdAt: new Date(),
       },
+    });
+    console.log('🔍 [DB] Create result:', {
+      id: created.id,
+      investmentAmount: created.investmentAmount?.toString(),
+      name: created.name
     });
     return created as TradingStrategy;
   }
@@ -816,6 +912,40 @@ export class DatabaseStorage implements IStorage {
   async createTradingStrategy(
     insertStrategy: InsertTradingStrategy
   ): Promise<TradingStrategy> {
+    const sanitizeInvestment = (val: any): number => {
+      console.log('🔍 [DEBUG] sanitizeInvestment input (create):', val, 'type:', typeof val);
+
+      // null, undefined, 빈 문자열 처리
+      if (val == null || val === '') {
+        console.log('🔍 [DEBUG] sanitizeInvestment: null/empty input, returning default 0.003');
+        return 0.003;
+      }
+
+      const n = Number(val);
+      console.log('🔍 [DEBUG] sanitizeInvestment: converted to number:', n, 'isFinite:', Number.isFinite(n));
+
+      if (!Number.isFinite(n)) {
+        console.log('🔍 [DEBUG] sanitizeInvestment: not finite, returning default 0.003');
+        return 0.003;
+      }
+
+      if (n < 0) {
+        console.log('🔍 [DEBUG] sanitizeInvestment: negative value:', n, 'returning default 0.003');
+        return 0.003;
+      }
+
+      // 소수점 8자리로 제한 (더 정확한 방법)
+      const result = Math.round(n * 100000000) / 100000000;
+      console.log('🔍 [DEBUG] sanitizeInvestment result:', result, 'original:', n);
+
+      // 0이 되는 경우를 방지 (매우 작은 값은 최소값으로)
+      if (result === 0 && n > 0) {
+        console.log('🔍 [DEBUG] Result became 0 but original was positive, using original value');
+        return n;
+      }
+
+      return result;
+    };
     const strategy = await prisma.tradingStrategy.create({
       data: {
         userId: insertStrategy.userId,
@@ -823,7 +953,20 @@ export class DatabaseStorage implements IStorage {
         entryRate: new Prisma.Decimal(((insertStrategy as any).entryRate ?? "0.5") as any),
         exitRate: new Prisma.Decimal(((insertStrategy as any).exitRate ?? "0.1") as any),
         leverage: (insertStrategy as any).leverage ?? 1,
-        investmentAmount: new Prisma.Decimal(((insertStrategy as any).investmentAmount ?? "100000") as any),
+        investmentAmount: (() => {
+          const rawValue = (insertStrategy as any).investmentAmount;
+          console.log('🔍 [DEBUG] Raw investmentAmount value (create):', rawValue, 'type:', typeof rawValue);
+
+          const sanitized = sanitizeInvestment(rawValue);
+          console.log('🔍 [DEBUG] Sanitized value (create):', sanitized, 'type:', typeof sanitized);
+
+          // 실제 값 사용 (테스트용 하드코딩 제거)
+          console.log('🔍 [PROD] Using sanitized value (create):', sanitized, 'type:', typeof sanitized);
+          const decimalValue = new Prisma.Decimal(sanitized);
+          console.log('🔍 [PROD] Prisma.Decimal result (create):', decimalValue.toString(), 'type:', typeof decimalValue);
+          console.log('🔍 [PROD] Decimal value check (create) - isDecimal:', Prisma.Decimal.isDecimal(decimalValue));
+          return decimalValue;
+        })(),
         isActive: (insertStrategy as any).isActive ?? true,
         symbol: (insertStrategy as any).symbol ?? "BTC",
         tolerance: new Prisma.Decimal(((insertStrategy as any).tolerance ?? "0.1") as any),
@@ -977,10 +1120,36 @@ export class DatabaseStorage implements IStorage {
 
   // 포지션 조회
   async getPositions(whereClause: any): Promise<Position[]> {
-    return await prisma.position.findMany({
-      where: whereClause,
-      orderBy: { entryTime: 'desc' }
-    });
+    try {
+      console.log('🔍 포지션 조회 시작:', whereClause);
+      const positions = await prisma.position.findMany({
+        where: whereClause,
+        orderBy: { entryTime: 'desc' }
+      });
+      console.log('✅ 포지션 조회 성공:', positions.length, '개');
+      return positions;
+    } catch (error) {
+      console.error('❌ 포지션 조회 오류:', error);
+      throw error;
+    }
+  }
+
+  // 특정 전략의 최근 포지션 조회 (쿨다운 체크용)
+  async getRecentPositionByStrategy(userId: string, strategyId: number, symbol: string = "BTC"): Promise<Position | null> {
+    try {
+      const position = await prisma.position.findFirst({
+        where: {
+          userId: parseInt(userId),
+          strategyId: strategyId,
+          symbol: symbol
+        },
+        orderBy: { entryTime: 'desc' }
+      });
+      return position;
+    } catch (error) {
+      console.error('❌ 최근 포지션 조회 오류:', error);
+      return null;
+    }
   }
 
 }

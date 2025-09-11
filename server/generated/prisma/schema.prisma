@@ -16,6 +16,12 @@ model TradeLog {
   action    String
   amount    Float
   result    String
+
+  // 외래 키 관계
+  trades Trade[] @relation("TradeLogTrades")
+
+  @@index([timestamp], name: "idx_trade_logs_timestamp")
+  @@map("trade_logs")
 }
 
 model User {
@@ -26,12 +32,12 @@ model User {
   lastLoginAt     DateTime? @map("last_login_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
-  passwordHash    String?   @map("password_hash") @db.VarChar(255)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  password        String    @db.Text
   email           String?   @unique @db.VarChar(100)
   firstName       String?   @map("first_name") @db.VarChar(50)
   lastName        String?   @map("last_name") @db.VarChar(50)
   profileImageUrl String?   @map("profile_image_url") @db.VarChar(500)
-  password        String    @db.Text
 
   // 관계 정의 (다른 모델과의 연결)
   // exchanges Exchange[]
@@ -132,6 +138,7 @@ model Position {
   exitPremiumRate    Decimal?  @map("exit_premium_rate") @db.Decimal(10, 4)
   unrealizedPnl      Decimal?  @default("0") @map("unrealized_pnl") @db.Decimal(20, 2)
   realizedPnl        Decimal?  @default("0") @map("realized_pnl") @db.Decimal(20, 2)
+  isMock             Boolean   @default(true) @map("is_mock")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
@@ -143,6 +150,7 @@ model Position {
   @@index([strategyId], name: "idx_positions_strategy")
   @@index([userId, status], name: "idx_positions_user_status")
   @@index([userId, symbol], name: "idx_positions_user_symbol")
+  @@index([userId, isMock], name: "idx_positions_user_mock")
   @@map("positions")
 }
 
@@ -185,6 +193,7 @@ model Trade {
   id              Int      @id @default(autoincrement())
   userId          Int      @map("user_id")
   positionId      Int?     @map("position_id")
+  tradeLogId      Int?     @map("trade_log_id")
   symbol          String   @db.VarChar(10)
   side            String   @db.VarChar(10)
   exchange        String   @db.VarChar(20)
@@ -197,12 +206,14 @@ model Trade {
   executedAt      DateTime @default(now()) @map("executed_at")
   createdAt       DateTime @default(now()) @map("created_at")
 
-  // 외래 키 관계 (users, positions 테이블이 정의된 후 활성화)
+  // 외래 키 관계
   // user User @relation(fields: [userId], references: [id])
   // position Position? @relation(fields: [positionId], references: [id])
+  tradeLog TradeLog? @relation("TradeLogTrades", fields: [tradeLogId], references: [id])
 
   @@index([executedAt], name: "idx_trades_executed_at")
   @@index([positionId], name: "idx_trades_position")
+  @@index([tradeLogId], name: "idx_trades_trade_log")
   @@index([userId, symbol], name: "idx_trades_user_symbol")
   @@map("trades")
 }

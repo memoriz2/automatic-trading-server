@@ -24,7 +24,7 @@ import {
   Clock,
 } from "lucide-react";
 import type { TradingSettings, Position } from "@/types/trading";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, apiFetchJson } from "@/lib/queryClient";
 import { useAuth, authenticatedApiRequest } from "@/hooks/useAuth";
 
 // kimpga 호환 타입
@@ -54,6 +54,10 @@ export default function AutoTrading() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  
+  // 세션 조회 관련 상태
+  const [sessionInfo, setSessionInfo] = useState<any>(null);
+  const [showSessionInfo, setShowSessionInfo] = useState(false);
 
   // 인증된 사용자의 ID 사용
   const userId = user?.id;
@@ -423,6 +427,27 @@ export default function AutoTrading() {
     }
   };
 
+  const handleCheckSession = async () => {
+    try {
+      const data = await apiFetchJson('/api/auth/me', { method: 'GET' });
+
+      setSessionInfo(data);
+      setShowSessionInfo(true);
+      toast({
+        title: "세션 조회 성공",
+        description: `현재 로그인된 사용자: ${data.username}`,
+      });
+    } catch (error: any) {
+      setSessionInfo(null);
+      setShowSessionInfo(true);
+      toast({
+        title: "세션 없음",
+        description: "현재 로그인된 사용자가 없거나 인증이 만료되었습니다",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
@@ -456,6 +481,14 @@ export default function AutoTrading() {
           <div className="flex items-center space-x-4">
             <BalanceDisplay />
             <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCheckSession}
+              className="text-white border-white hover:bg-white hover:text-slate-900"
+            >
+              세션 확인
+            </Button>
+            <Button
               variant="destructive"
               onClick={handleEmergencyStop}
               className="bg-red-600 hover:bg-red-700"
@@ -469,6 +502,45 @@ export default function AutoTrading() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto p-6 space-y-6 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">
+        
+        {/* 세션 정보 표시 */}
+        {showSessionInfo && (
+          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <CardHeader>
+              <CardTitle className="text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                세션 정보
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sessionInfo ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <div className="text-slate-600 dark:text-slate-400">로그인 상태</div>
+                    <div className="font-bold text-green-600 dark:text-green-400">활성</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-600 dark:text-slate-400">사용자명</div>
+                    <div className="font-bold">{sessionInfo.username}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-600 dark:text-slate-400">권한</div>
+                    <div className="font-bold">{sessionInfo.role}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-600 dark:text-slate-400">사용자 ID</div>
+                    <div className="font-bold">{sessionInfo.id}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="text-red-600 dark:text-red-400 font-bold">로그인 상태: 비활성</div>
+                  <div className="text-slate-600 dark:text-slate-400 text-sm mt-1">로그인이 필요합니다</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {/* 설정값 기반 단순 자동매매 컨트롤 */}
         <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-blue-200 dark:border-blue-800">
           <CardHeader>

@@ -1161,8 +1161,8 @@ export async function registerRoutes(app, server) {
             });
         }
     });
-    // 거래 전략 목록 조회
-    app.get("/api/trading-strategies/:userId", authenticateSession, async (req, res) => {
+    // 거래 전략 목록 조회 (세션 기반 무파라미터 + 호환 :userId)
+    app.get(["/api/trading-strategies", "/api/trading-strategies/:userId"], authenticateSession, async (req, res) => {
         try {
             const authenticatedUserId = req.user.id;
             const requestedUserId = req.params.userId;
@@ -1172,7 +1172,11 @@ export async function registerRoutes(app, server) {
                 sessionId: req.sessionID,
                 path: req.path
             });
-            const strategies = await storage.getTradingStrategiesByUserId(String(authenticatedUserId));
+            // 요청 파라미터(userId)가 존재하고, 세션 사용자와 동일하면 그대로 사용(호환)
+            const effectiveUserId = requestedUserId && String(requestedUserId) === String(authenticatedUserId)
+                ? String(authenticatedUserId)
+                : String(authenticatedUserId); // 현재 정책: 세션 우선
+            const strategies = await storage.getTradingStrategiesByUserId(effectiveUserId);
             console.log(`✅ 전략조회 성공: ${strategies.length}개 전략`);
             res.json(strategies);
         }
@@ -1194,8 +1198,8 @@ export async function registerRoutes(app, server) {
     });
     // 임시 디버깅: 테이블 구조 확인
     // 제거됨: Prisma 전환으로 pool 의존성 삭제
-    // 거래 전략 생성/수정
-    app.post("/api/trading-strategies/:userId", authenticateSession, async (req, res) => {
+    // 거래 전략 생성/수정 (세션 기반 무파라미터 + 호환 :userId)
+    app.post(["/api/trading-strategies", "/api/trading-strategies/:userId"], authenticateSession, async (req, res) => {
         try {
             const authenticatedUserId = req.user.id; // 인증된 사용자 ID 사용
             const strategyData = { ...req.body, userId: authenticatedUserId };
@@ -1484,7 +1488,8 @@ export async function registerRoutes(app, server) {
             // 활동 감지 시 세션 갱신
             if (req.session) {
                 req.session.touch();
-                req.session.cookie.maxAge = 24 * 60 * 60 * 1000; // 24시간으로 연장
+                // index.ts의 세션 TTL과 동일하게 유지 (rolling)
+                req.session.cookie.maxAge = 24 * 60 * 60 * 1000;
                 console.log(`🔄 활동 감지로 세션 갱신: ${type} - 사용자: ${userId}`);
             }
             res.json({ success: true, message: "활동이 기록되었습니다" });

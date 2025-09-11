@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { apiFetch } from '@/lib/queryClient';
+import { useState, useEffect, useCallback } from 'react';
+import { apiFetchJson } from '@/lib/queryClient';
 
 interface User {
   id: number;
@@ -7,106 +7,57 @@ interface User {
   token?: string;
 }
 
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  token: string | null;
-}
-
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-    token: null
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 초기 로드: 서버 세션(쿠키)로 현재 사용자 조회 → 실패 시 세션스토리지 폴백
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        console.log('🔍 useAuth: 서버 세션 확인 중...');
-        const res = await apiFetch('/api/auth/me');
-        const user = await res.json();
-        if (!cancelled) {
-          console.log('✅ useAuth: 서버 세션 성공', user);
-          sessionStorage.setItem('user', JSON.stringify(user));
-          setAuthState({ user, isAuthenticated: true, isLoading: false, token: null });
-          return;
-        }
-      } catch (error) {
-        console.log('❌ useAuth: 서버 세션 실패', error);
-        // 쿠키 세션이 없거나 만료됨 → 세션스토리지 폴백 시도
+  const checkSession = useCallback(async () => {
+    // setIsLoading(true)는 초기 로딩 시에만 적용되도록 useEffect에서 호출
+    try {
+      console.log('🔍 useAuth: 서버 세션 확인 중...');
+      const userData = await apiFetchJson('/api/auth/me');
+      if (userData && userData.id) {
+        setUser(userData);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        console.log('✅ useAuth: 세션 확인됨', userData);
+      } else {
+        throw new Error('No session');
+      }
+    } catch (error) {
+        console.log('❌ useAuth: 서버 세션 확인 실패. 세션스토리지 확인.', error);
         try {
-          const storedUser = sessionStorage.getItem('user');
-          const storedToken = sessionStorage.getItem('authToken');
-          if (storedUser) {
-            console.log('✅ useAuth: 세션스토리지에서 사용자 복원', JSON.parse(storedUser));
-            setAuthState({
-              user: JSON.parse(storedUser),
-              isAuthenticated: true,
-              isLoading: false,
-              token: storedToken,
-            });
-          } else {
-            console.log('❌ useAuth: 세션스토리지에도 사용자 없음');
-            setAuthState(prev => ({ ...prev, isLoading: false }));
-            // 세션 만료 시 로그인 페이지로 리다이렉트
-            if (window.location.pathname !== '/login') {
-              window.dispatchEvent(new CustomEvent('auth-failed'));
+            const storedUser = sessionStorage.getItem('user');
+            if (storedUser) {
+                setUser(JSON.parse(storedUser));
+            } else {
+                setUser(null);
+                if (window.location.pathname !== '/login') {
+                    window.dispatchEvent(new CustomEvent('auth-failed'));
+                }
             }
-          }
-        } catch (error) {
-          console.log('❌ useAuth: 세션스토리지 파싱 실패', error);
-          setAuthState(prev => ({ ...prev, isLoading: false }));
-          // 세션 만료 시 로그인 페이지로 리다이렉트
-          if (window.location.pathname !== '/login') {
-            window.dispatchEvent(new CustomEvent('auth-failed'));
-          }
+        } catch (e) {
+            setUser(null);
         }
-      }
-    })();
-    return () => { cancelled = true; };
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  // 주기적 세션 체크 (5분마다)
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        await apiFetch('/api/auth/me');
-      } catch (error) {
-        // 세션 만료 시 자동 로그아웃 및 리다이렉트
-        console.log('세션 만료 감지, 로그인 페이지로 이동');
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('authToken');
-        setAuthState({ user: null, isAuthenticated: false, isLoading: false, token: null });
-        
-        if (window.location.pathname !== '/login') {
-          window.dispatchEvent(new CustomEvent('auth-failed'));
-        }
-      }
-    };
+    setIsLoading(true);
+    checkSession();
+  }, [checkSession]);
 
-    const interval = setInterval(checkSession, 5 * 60 * 1000); // 5분마다 체크
-    return () => clearInterval(interval);
-  }, []);
-
-  const login = (user: User, token?: string) => {
-    // 쿠키 기반 인증이 기본: 토큰이 있으면 저장, 없으면 쿠키만 사용
+  // 주기적 재검사는 전역 Provider나 사용자 동작 이벤트에서만 수행하도록 변경
+  
+  const login = (userData: User, token?: string) => {
     if (token) {
       sessionStorage.setItem('authToken', token);
     } else {
       sessionStorage.removeItem('authToken');
     }
-    sessionStorage.setItem('user', JSON.stringify(user));
-    setAuthState({
-      user: token ? { ...user, token } : { ...user },
-      isAuthenticated: true,
-      isLoading: false,
-      token: token ?? null,
-    });
+    sessionStorage.setItem('user', JSON.stringify(userData));
+    setUser(token ? { ...userData, token } : userData);
   };
 
   const logout = async () => {
@@ -115,14 +66,10 @@ export function useAuth() {
     } catch {}
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('user');
-    setAuthState({ user: null, isAuthenticated: false, isLoading: false, token: null });
+    setUser(null);
   };
 
-  return {
-    ...authState,
-    login,
-    logout
-  };
+  return { user, isLoading, isAuthenticated: !!user, login, logout, checkSession };
 }
 
 // 인증이 필요한 API 요청을 위한 헬퍼 함수

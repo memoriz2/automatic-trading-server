@@ -138,11 +138,11 @@ exports.Prisma.UserScalarFieldEnum = {
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   passwordHash: 'passwordHash',
+  password: 'password',
   email: 'email',
   firstName: 'firstName',
   lastName: 'lastName',
-  profileImageUrl: 'profileImageUrl',
-  password: 'password'
+  profileImageUrl: 'profileImageUrl'
 };
 
 exports.Prisma.CryptocurrencyScalarFieldEnum = {

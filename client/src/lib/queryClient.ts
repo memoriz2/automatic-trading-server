@@ -50,6 +50,37 @@ export async function apiFetch(url: string, init: RequestInit = {}) {
   return res;
 }
 
+// JSON 전용 dedupe: 동일 시점 동일 요청의 중복 파싱을 방지
+const inflightJson = new Map<string, Promise<any>>();
+export async function apiFetchJson<T = any>(url: string, init: RequestInit = {}): Promise<T> {
+  const method = ((init.method as string) || 'GET').toUpperCase();
+  const key = `${method} ${url}`;
+
+  const existing = inflightJson.get(key);
+  if (existing) return existing as Promise<T>;
+
+  const p = (async () => {
+    const res = await fetch(url, { credentials: 'include', ...init });
+    if (res.status === 401) {
+      console.log('🔒 인증 실패 - 로그인 페이지로 이동');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('authToken');
+      localStorage.removeItem('authToken');
+      window.dispatchEvent(new CustomEvent('auth-failed', { detail: { clearAuth: true } }));
+      throw new Error('Unauthorized');
+    }
+    if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+    return res.json();
+  })();
+
+  inflightJson.set(key, p);
+  try {
+    return await p as Promise<T>;
+  } finally {
+    inflightJson.delete(key);
+  }
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;

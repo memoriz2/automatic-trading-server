@@ -4,6 +4,8 @@ import { useWebSocket } from '@/hooks/use-websocket';
 import { MockTradingSystem } from '@/components/mock-trading-system';
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import './legacy-auto-trading.css';
+import { useToast } from '@/hooks/use-toast';
+import { apiFetchJson } from '@/lib/queryClient';
 
 interface Band {
   name?: string;
@@ -29,6 +31,10 @@ const formatCompact = (n: number, digits = 1): string => {
   if (abs >= 1e3) return `${(n / 1e3).toFixed(digits)}K`;
   return `${n.toFixed(Math.min(digits, 2))}`;
 };
+
+// ===== 전역 in-flight/캐시 (전략 조회 과호출 방지) =====
+const INFLIGHT_API = new Map<string, Promise<any>>();
+const API_CACHE = new Map<string, { ts: number; data: any }>();
 
 // 투자 수량 보정: 서버 원화 금액/비정상 값이 들어왔을 때 안전한 BTC 수량으로 변환
 const normalizeAmountBtc = (raw: any, upbitPrice?: number): number => {
@@ -56,8 +62,13 @@ const mapStrategyToBand = (s: any): Band => ({
 
 const LegacyAutoTradingPage = () => {
   // 인증 정보
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, checkSession } = useAuth();
   const { isConnected, subscribe } = useWebSocket();
+  const { toast } = useToast();
+  
+  // 세션 조회 관련 상태
+  const [sessionInfo, setSessionInfo] = useState<any>(null);
+  const [showSessionInfo, setShowSessionInfo] = useState(false);
   // userId 동적 결정: Auth → URL(?userId|uid) → localStorage(x-user-id) → null (하드코딩 금지)
   const initialUserId = (() => {
     try {
@@ -87,7 +98,8 @@ const LegacyAutoTradingPage = () => {
   
   // 상태 관리 (useState)
   const [bands, setBands] = useState<Band[]>([]);
-  const [sparkData, setSparkData] = useState<number[]>([]);
+  type SparkPoint = { t: number; v: number };
+  const [sparkData, setSparkData] = useState<SparkPoint[]>([]);
   const [logs, setLogs] = useState('Loading...');
   const [kimp, setKimp] = useState<any>({});
   const [balances, setBalances] = useState<any>({ real: {}, connected: {} });
@@ -104,16 +116,28 @@ const LegacyAutoTradingPage = () => {
   const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
   
   // 새 전략 모달 상태
+  type NewStrategyForm = {
+    name: string;
+    crypto: string;
+    entryCondition: string;
+    takeProfitCondition: string;
+    baseAmount: string;
+    investmentAmount: string;
+    leverage: string;
+    tolerance: string; // 타입 완화: 문자형으로 관리
+    riskLevel: string;
+    activateImmediately: boolean;
+  };
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newStrategy, setNewStrategy] = useState({
+  const [newStrategy, setNewStrategy] = useState<NewStrategyForm>({
     name: '',
     crypto: '',
     entryCondition: '3.0',
     takeProfitCondition: '2.0',
     baseAmount: '500000',
-    investmentAmount: '0.001',
+    investmentAmount: '0.003',
     leverage: '3',
-    tolerance: TRADING_CONSTANTS.DEFAULT_TOLERANCE,
+    tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
     riskLevel: 'moderate',
     activateImmediately: false
   });
@@ -121,48 +145,59 @@ const LegacyAutoTradingPage = () => {
   // 김치프리미엄 차트 시간대 상태
   const [chartTimeframe, setChartTimeframe] = useState('1H');
   
-  // 시간대별 데이터 필터링
+  // 시간대별 데이터 필터링(타임스탬프 윈도우 + 리샘플)
   const getChartData = useCallback(() => {
-    if (sparkData.length === 0) return [];
-    
-    switch (chartTimeframe) {
-      case '1H':
-        return sparkData.slice(-60); // 최근 60포인트 (1시간)
-      case '4H':
-        return sparkData.filter((_, index) => index % 4 === 0).slice(-60); // 4배 간격으로 샘플링
-      case '1D':
-        return sparkData.filter((_, index) => index % 24 === 0).slice(-60); // 24배 간격으로 샘플링
-      default:
-        return sparkData.slice(-60);
+    if (sparkData.length === 0) return [] as SparkPoint[];
+    const now = Date.now();
+    const WINDOW_MS: Record<string, number> = { '1H': 60 * 60 * 1000, '4H': 4 * 60 * 60 * 1000, '1D': 24 * 60 * 60 * 1000 };
+    const windowMs = WINDOW_MS[chartTimeframe] ?? WINDOW_MS['1H'];
+    const inWindow = sparkData.filter(p => p.t >= now - windowMs);
+
+    // 리샘플 버킷(ms): 1H=1m, 4H=5m, 1D=15m
+    const bucketMs = chartTimeframe === '1H' ? 60 * 1000 : chartTimeframe === '4H' ? 5 * 60 * 1000 : 15 * 60 * 1000;
+    const buckets = new Map<number, number[]>();
+    for (const p of inWindow) {
+      const b = Math.floor(p.t / bucketMs) * bucketMs;
+      const arr = buckets.get(b) || [];
+      arr.push(p.v);
+      buckets.set(b, arr);
     }
+    const entriesArray: Array<[number, number[]]> = Array.from(buckets.entries());
+    const resampled: SparkPoint[] = entriesArray
+      .sort((a, b) => a[0] - b[0])
+      .map(([t, arr]) => ({ t, v: arr.reduce((sum: number, val: number) => sum + val, 0) / arr.length }));
+    const limited = resampled.slice(-120);
+    return limited;
   }, [sparkData, chartTimeframe]);
 
   // 투자수량 변경 시 기본투자금액 자동 계산
   useEffect(() => {
-    const btcAmount = parseFloat(newStrategy.investmentAmount) || 0.001;
+    // 입력 중에는 계산하지 않고, 고정 소수점(최대 3자리) 형태로만 정상화
+    const raw = newStrategy.investmentAmount;
+    if (raw == null) return;
+    // 공백/빈 문자열은 건드리지 않음 → 포커스 유지
+    if (raw === '') return;
+    // 유효 숫자면 0.001 단위로 고정 (표시 영향 없음)
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return;
+    const fixed = n.toFixed(3);
+    if (fixed !== raw) {
+      setNewStrategy(prev => ({ ...prev, investmentAmount: fixed }));
+      return;
+    }
+    const btcAmount = n || 0.003;
     const leverage = parseFloat(newStrategy.leverage) || 3;
     const btcPrice = 156000000;
     const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
-    
     if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
-      console.log('🔄 useEffect로 baseAmount 강제 업데이트:', {
-        btcAmount,
-        leverage,
-        calculatedBaseAmount,
-        currentBaseAmount: newStrategy.baseAmount
-      });
-      
-      setNewStrategy(prev => ({
-        ...prev,
-        baseAmount: String(calculatedBaseAmount)
-      }));
+      setNewStrategy(prev => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
     }
   }, [newStrategy.investmentAmount, newStrategy.leverage]);
 
   // 전략 목록 상태 (카드 표시용)
   const [strategies, setStrategies] = useState<any[]>([]);
 
-  const [editingStrategyId, setEditingStrategyId] = useState(null);
+  const [editingStrategyId, setEditingStrategyId] = useState<string | null>(null);
   const [dailyStats, setDailyStats] = useState({
     totalTrades: 0,
     upbitTrades: 0,
@@ -205,6 +240,8 @@ const LegacyAutoTradingPage = () => {
   // --- REFS ---
   const bandRefs = useRef<Array<HTMLTableRowElement | null>>([]);
   const abortersRef = useRef<Array<AbortController>>([]);
+  const hasLoadedStrategiesRef = useRef<boolean>(false);
+  const hasScheduledInitialLoadRef = useRef<boolean>(false);
 
   const cancelInflight = useCallback(() => {
     try { abortersRef.current.forEach((a) => { try { a.abort(); } catch {} }); } finally { abortersRef.current = []; }
@@ -239,19 +276,45 @@ const LegacyAutoTradingPage = () => {
 
   // ===== API Helper =====
   const fetchJson = useCallback(async (url: string, opt = {}) => {
-    const isApiTrading = url.startsWith('/api/trading');
-    const fullUrl = isApiTrading ? url : `/api/kimpga${url}`;
+    // 1) 경로 정규화: 세션 기반 조회 보장 (undefined/null/빈 ID 방지)
+    let normalized = url;
+    if (normalized.startsWith('/api/trading-strategies')) {
+      // '/api/trading-strategies/undefined', '/null', '/' → '/api/trading-strategies'
+      if (
+        normalized === '/api/trading-strategies/undefined' ||
+        normalized === '/api/trading-strategies/null' ||
+        normalized === '/api/trading-strategies/' ||
+        normalized.startsWith('/api/trading-strategies/undefined?') ||
+        normalized.startsWith('/api/trading-strategies/null?')
+      ) {
+        console.warn('⚠️ 잘못된 사용자 ID로 전략 API 호출이 발생하여 차단되었습니다:', normalized);
+        throw new Error('유효하지 않은 사용자 ID 상태에서 전략 API가 호출되었습니다. 세션 확인 후 다시 시도해주세요.');
+      }
+      // 쿼리스트링이 있는 경우도 방어
+      // (무파라미터 라우트는 서버 추가 시 정상 허용)
+    }
+
+    // 2) 모든 '/api/' 시작 경로는 프록시 없이 그대로 통과
+    const isApiPath = normalized.startsWith('/api/');
+    const fullUrl = isApiPath ? normalized : `/api/kimpga${normalized}`;
     
-    console.log('🔗 API 요청 URL:', fullUrl);
-    console.log('👤 사용자 정보:', { effectiveUserId, userFromAuth: user?.id });
+    const cacheKey = `${(opt as any)?.method || 'GET'} ${fullUrl}`;
+
+    // 0) 짧은 캐시(1s): 동일 즉시 반복 호출 흡수
+    const cached = API_CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 1000) {
+      return cached.data;
+    }
+    // 0-1) in-flight dedupe (JSON 파싱까지 완료된 Promise 공유)
+    const inflight = INFLIGHT_API.get(cacheKey) as Promise<any> | undefined;
+    if (inflight) return await inflight;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'X-User-ID': String(effectiveUserId || ''),
+      // 세션 쿠키 우선. 식별자가 있을 때만 헤더 전달
+      ...(effectiveUserId ? { 'X-User-ID': String(effectiveUserId) } : {}),
       ...(opt as any)?.headers,
     };
-    
-    console.log('📤 API 요청 헤더:', headers);
     
     const noCachePaths = ['/balance', '/metrics', '/current', '/status'];
     const isNoCacheTarget = noCachePaths.some(p => url.startsWith(p));
@@ -260,32 +323,53 @@ const LegacyAutoTradingPage = () => {
     const ctrl = new AbortController();
     abortersRef.current.push(ctrl);
     try {
-      const r = await fetch(finalUrl, {
-        ...opt,
-        headers,
-        cache: isNoCacheTarget ? 'no-store' : (opt as any)?.cache,
-        credentials: 'include', // 세션 쿠키 포함
-        signal: (opt as any)?.signal ?? ctrl.signal,
-      });
-      
-      console.log('📥 API 응답 상태:', r.status, r.statusText);
-      if (!r.ok) {
-        const errorBody = await r.text();
-        setErrCount(c => c + 1);
-        console.error('API Error:', errorBody);
-        throw new Error(`${finalUrl} ${r.status} ${errorBody}`);
-      }
-      setErrCount(0);
-      return r.json();
+      const p = (async () => {
+        const r = await fetch(finalUrl, {
+          ...opt,
+          headers,
+          cache: isNoCacheTarget ? 'no-store' : (opt as any)?.cache,
+          credentials: 'include', // 세션 쿠키 포함
+          signal: (opt as any)?.signal ?? ctrl.signal,
+        });
+        console.log('📥 API 응답 상태:', r.status, r.statusText);
+        if (!r.ok) {
+          const errorBody = await r.text();
+          setErrCount(c => c + 1);
+          console.error('API Error:', errorBody);
+          throw new Error(`${finalUrl} ${r.status} ${errorBody}`);
+        }
+        setErrCount(0);
+        const data = await r.json();
+        API_CACHE.set(cacheKey, { ts: Date.now(), data });
+        return data;
+      })();
+      INFLIGHT_API.set(cacheKey, p);
+      return await p;
     } catch (e: any) {
       if (e?.name === 'AbortError' || /aborted/i.test(String(e?.message))) {
         return;
       }
       throw e;
     } finally {
+      INFLIGHT_API.delete(cacheKey);
       abortersRef.current = abortersRef.current.filter(a => a !== ctrl);
     }
   }, [effectiveUserId]);
+
+  const refreshServerBands = useCallback(async (options: { force?: boolean } = {}) => {
+    if (!options.force && hasLoadedStrategiesRef.current) return;
+    try {
+      const serverData = await fetchJson(`/api/trading-strategies/${effectiveUserId}`);
+      if (serverData == null) {
+        console.log('⏭️ 서버 밴드 조회가 취소/중단되어 UI 업데이트를 건너뜁니다.');
+        return;
+      }
+      setServerBands(serverData || []);
+      // NOTE: 게이트는 실제 전략 목록 로드에서만 설정합니다
+    } catch (e) {
+      console.error('Failed to fetch server bands', e);
+    }
+  }, [fetchJson, effectiveUserId]);
 
   // ===== 미리보기 원형 차트 =====
   const createCircleHTML = useCallback((label: string, valueText: string, unitText: string, sizePx: number, titleText?: string, extraStyle?: string) => {
@@ -368,9 +452,10 @@ const LegacyAutoTradingPage = () => {
       setKimp(k);
       if (isNum(k.kimp)) {
         setSparkData(prev => {
-          const newData = [...prev, k.kimp];
-          // 최대 180개 포인트 유지 (약 60초 분량)
-          return newData.slice(-180);
+          const next = { t: Date.now(), v: Number(k.kimp) };
+          const newData = [...prev, next];
+          // 최대 5000 포인트 유지 (메모리 보호)
+          return newData.slice(-5000);
         });
       }
       
@@ -389,21 +474,46 @@ const LegacyAutoTradingPage = () => {
   }, [fetchJson, updatePreviewForRow]);
 
   // ===== 진입 증거금 계산 =====
+  // Fallback: 서버 bands가 없을 때 로컬 mock 포지션으로 추정
+  const updateUsedMarginFromMock = useCallback(() => {
+    try {
+      const usedKrwEl = document.querySelector('#used-krw');
+      if (!usedKrwEl) return;
+
+      const uid = String(effectiveUserId ?? localStorage.getItem('userId') ?? '1');
+      const saved = localStorage.getItem(`mock-positions-${uid}`);
+      const positions = saved ? JSON.parse(saved) : [];
+      const open = Array.isArray(positions) ? positions.filter((p: any) => p?.status === 'open') : [];
+      if (!open.length) { usedKrwEl.textContent = '-'; return; }
+
+      const fallbackPrice = isNum(kimp.binance_price) ? Number(kimp.binance_price) : 0;
+      let total = 0;
+      for (const p of open) {
+        const lev = Math.max(1, parseInt(p?.leverage ?? 3, 10));
+        const qty = Number(p?.binanceQuantity || 0);
+        const price = Number(p?.binancePrice || fallbackPrice || 0);
+        if (qty > 0 && price > 0 && isFinite(lev)) total += (qty * price) / lev;
+      }
+      const usdkrw = isNum(kimp.usdkrw) ? Number(kimp.usdkrw) : 0;
+      usedKrwEl.textContent = total > 0 && usdkrw > 0 ? loc(total * usdkrw) : '-';
+    } catch {}
+  }, [effectiveUserId, kimp.binance_price]);
   const updateUsedMarginFromStatus = useCallback((status: any) => {
     try {
-      const usedUsdtEl = document.querySelector('#used-usdt');
-      if (!usedUsdtEl) return;
+      const usedKrwEl = document.querySelector('#used-krw');
+      if (!usedKrwEl) return;
 
       const bands = Array.isArray(status?.bands) ? status.bands : [];
       if (!bands.length) {
-        usedUsdtEl.textContent = '-';
+        // 서버에 런타임 밴드가 없으면 mock 포지션으로 추정
+        updateUsedMarginFromMock();
         return;
       }
 
       // 최신 바이낸스 선물가격 사용
       const binancePrice = isNum(kimp.binance_price) ? kimp.binance_price : NaN;
       if (!isNum(binancePrice) || binancePrice <= 0) {
-        usedUsdtEl.textContent = '-';
+        updateUsedMarginFromMock();
         return;
       }
 
@@ -420,12 +530,12 @@ const LegacyAutoTradingPage = () => {
         }
       }
 
-      usedUsdtEl.textContent = totalUsedMargin > 0 ? totalUsedMargin.toFixed(2) : '-';
+      const usdkrw = isNum(kimp.usdkrw) ? Number(kimp.usdkrw) : 0;
+      usedKrwEl.textContent = totalUsedMargin > 0 && usdkrw > 0 ? loc(totalUsedMargin * usdkrw) : '-';
     } catch (error) {
-      const usedUsdtEl = document.querySelector('#used-usdt');
-      if (usedUsdtEl) usedUsdtEl.textContent = '-';
+      updateUsedMarginFromMock();
     }
-  }, [kimp.binance_price]);
+  }, [kimp.binance_price, updateUsedMarginFromMock]);
 
   const tickHeavy = useCallback(async () => {
     try {
@@ -507,48 +617,6 @@ const LegacyAutoTradingPage = () => {
     } catch (e) { console.error(e); }
   }, [fetchJson, updateUsedMarginFromStatus, effectiveUserId]);
 
-  const refreshServerBands = useCallback(async () => {
-    try {
-      const serverData = await fetchJson(`/api/trading-strategies/${effectiveUserId}`);
-      setServerBands(serverData || []);
-    } catch (e) {
-      console.error('Failed to fetch server bands', e);
-    }
-  }, [fetchJson, effectiveUserId]);
-
-  // ===== Toast 알림 시스템 =====
-  const showToast = useCallback((title: string, message: string = '', isSuccess: boolean = true) => {
-    const toastContainer = document.querySelector('#toasts');
-    if (!toastContainer) return;
-
-    const toastEl = document.createElement('div');
-    toastEl.className = `toast ${isSuccess ? 'ok' : 'err'}`;
-    toastEl.style.cssText = `
-      position: fixed; right: 16px; bottom: 16px; 
-      background: #0b1320; border: 1px solid #1e2a42; 
-      padding: 10px 12px; border-radius: 12px; 
-      box-shadow: 0 10px 30px rgba(0,0,0,.35); 
-      max-width: 360px; z-index: 60; color: #e2e8f0;
-      opacity: 1; transition: opacity 0.3s ease;
-    `;
-    
-    toastEl.innerHTML = `
-      <div style="font-weight: 800; margin-bottom: 4px">${title}</div>
-      <div style="font-size: 12px; color: #9fb0c9">${message}</div>
-    `;
-
-    toastContainer.appendChild(toastEl);
-
-    // 3.2초 후 자동 제거
-    setTimeout(() => {
-      toastEl.style.opacity = '0';
-      setTimeout(() => {
-        if (toastContainer.contains(toastEl)) {
-          toastContainer.removeChild(toastEl);
-        }
-      }, 300);
-    }, 3200);
-  }, []);
 
   // ===== Component Event Handlers =====
   const handleAddBand = useCallback(() => {
@@ -571,27 +639,25 @@ const LegacyAutoTradingPage = () => {
   const handleSaveBands = useCallback(() => {
     try {
       localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: bands }));
-      showToast('설정 저장 완료', '브라우저 로컬에 저장되었습니다.');
+      toast({ title: '설정 저장 완료', description: '브라우저 로컬에 저장되었습니다.' });
     } catch (e) {
       console.error(e);
-      showToast('저장 실패', String(e), false);
+      toast({ title: '저장 실패', description: String(e), variant: 'destructive' });
     }
-  }, [bands, showToast]);
+  }, [bands, toast]);
 
   const handleLoadBands = useCallback(async () => {
     try {
-      // 0) 세션(JWT) 기반 먼저 시도
-      const token = localStorage.getItem('authToken');
-      let primary: any[] | undefined;
-      if (token) {
-        try {
-          primary = await fetchJson(`/api/trading-strategies`, { headers: { Authorization: `Bearer ${token}` } });
-        } catch {}
+      // 세션 우선: 세션/효과적 사용자 ID가 없으면 보류
+      if (!user?.id && !effectiveUserId) {
+        console.warn('⏸️ 세션 미확정: 서버 밴드 로드를 보류합니다.');
+        return;
       }
-      // 1) 세션 결과가 없으면 현재 ID로 시도
-      if (!Array.isArray(primary)) {
-        primary = await fetchJson(`/api/trading-strategies/${effectiveUserId}`);
-      }
+
+      // 세션 기반 사용자 ID 우선
+      const targetUserId = user?.id ? String(user.id) : String(effectiveUserId);
+
+      const primary = await fetchJson(`/api/trading-strategies/${targetUserId}`);
       if (Array.isArray(primary) && primary.length > 0) {
         // 서버 investmentAmount(원화)가 클라 BTC 수량으로 잘못 들어오는 경우 보정
         let up: number | undefined = isNum(kimp.upbit_price) ? kimp.upbit_price : undefined;
@@ -608,7 +674,7 @@ const LegacyAutoTradingPage = () => {
         });
         setBands(next);
         try { localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: next })); } catch {}
-        showToast('불러오기 완료', '세션 사용자 전략을 적용했습니다.');
+        toast({ title: '불러오기 완료', description: '세션 사용자 전략을 적용했습니다.' });
         return;
       }
       // 2) 폴백: 6 → 1 순서로 시도
@@ -624,7 +690,7 @@ const LegacyAutoTradingPage = () => {
             localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: next }));
           } catch {}
           setEffectiveUserId(uid);
-          showToast('불러오기 완료', `DB 전략을 userId=${uid}에서 불러와 적용했습니다.`);
+          toast({ title: '불러오기 완료', description: `DB 전략을 userId=${uid}에서 불러와 적용했습니다.` });
           return;
         }
       }
@@ -633,15 +699,15 @@ const LegacyAutoTradingPage = () => {
       if (raw) {
         const j = JSON.parse(raw);
         setBands(j.bands || []);
-        showToast('서버 전략 없음', '로컬 저장본을 불러왔습니다.');
+        toast({ title: '서버 전략 없음', description: '로컬 저장본을 불러왔습니다.' });
       } else {
-        showToast('불러오기 실패', '서버/로컬에 저장된 전략이 없습니다.', false);
+        toast({ title: '불러오기 실패', description: '서버/로컬에 저장된 전략이 없습니다.', variant: 'destructive' });
       }
     } catch (e) {
       console.error(e);
-      showToast('불러오기 실패', String(e), false);
+      toast({ title: '불러오기 실패', description: String(e), variant: 'destructive' });
     }
-  }, [effectiveUserId, fetchJson, showToast]);
+  }, [effectiveUserId, fetchJson, toast, user?.id, kimp.upbit_price]);
 
   const handleDeleteBand = useCallback((indexToDelete: number) => {
     setBands(prevBands => prevBands.filter((_, index) => index !== indexToDelete));
@@ -676,7 +742,7 @@ const LegacyAutoTradingPage = () => {
         body: JSON.stringify(payload),
       });
       console.log('✅ 서버 등록 성공:', result);
-      showToast('서버 등록 완료', `${band.name} 전략이 서버에 저장되었습니다.`);
+      toast({ title: '서버 등록 완료', description: `${band.name} 전략이 서버에 저장되었습니다.` });
       // 서버 ID를 즉시 로컬 상태에 반영하고 상태 배지를 갱신
       const newId = result?.strategy?.id ?? result?.id;
       if (newId != null) {
@@ -693,11 +759,11 @@ const LegacyAutoTradingPage = () => {
       refreshServerBands();
     } catch (e) {
       console.error('❌ 서버 등록 실패:', e);
-      showToast('서버 등록 실패', String(e), false);
+      toast({ title: '서버 등록 실패', description: String(e), variant: 'destructive' });
     } finally {
       setRegisteringIndex(null);
     }
-  }, [bands, fetchJson, refreshServerBands, showToast, effectiveUserId]);
+  }, [bands, fetchJson, refreshServerBands, toast, effectiveUserId, kimp.upbit_price]);
 
   const handleUnregisterBandAt = useCallback(async (index: number) => {
     const band = bands[index];
@@ -715,9 +781,9 @@ const LegacyAutoTradingPage = () => {
     try {
       if (targetId != null) {
         await fetchJson(`/api/trading-strategies/${targetId}`, { method: 'DELETE' });
-        showToast('등록 취소 완료', `${band.name || '-'} 전략이 서버에서 삭제되었습니다.`);
+        toast({ title: '등록 취소 완료', description: `${band.name || '-'} 전략이 서버에서 삭제되었습니다.` });
       } else {
-        showToast('서버 기록 없음', '서버에 해당 전략 ID를 찾지 못했습니다. 로컬에서 제거합니다.', false);
+        toast({ title: '서버 기록 없음', description: '서버에 해당 전략 ID를 찾지 못했습니다. 로컬에서 제거합니다.', variant: 'destructive' });
       }
       // UI 목록에서도 해당 밴드 삭제
       setBands(prev => {
@@ -730,12 +796,12 @@ const LegacyAutoTradingPage = () => {
       tickHeavy();
     } catch (e) {
       console.error(e);
-      showToast('서버 등록 취소 실패', String(e), false);
+      toast({ title: '서버 등록 취소 실패', description: String(e), variant: 'destructive' });
     }
     finally {
       setUnregisteringIndex(null);
     }
-  }, [bands, serverBands, fetchJson, refreshServerBands, tickHeavy, showToast]);
+  }, [bands, serverBands, fetchJson, refreshServerBands, tickHeavy, toast]);
 
   // ===== Band Board Optimistic Actions =====
   const removeBoardRowOptimistic = useCallback((id: string | number) => {
@@ -755,10 +821,10 @@ const LegacyAutoTradingPage = () => {
       // 낙관적 제거
       removeBoardRowOptimistic(id);
       console.log(`[레거시 클라이언트] 서버 요청 성공 후 UI에서 해당 전략 제거됨.`);
-      showToast('청산 완료', `전략 #${id}가 삭제되었습니다.`);
+      toast({ title: '청산 완료', description: `전략 #${id}가 삭제되었습니다.` });
     } catch (e) {
       console.error(`[레거시 클라이언트] 청산 요청 실패. 전략 ID: ${id}`, e);
-      showToast('청산 실패', String(e), false);
+      toast({ title: '청산 실패', description: String(e), variant: 'destructive' });
     } finally {
       setBoardActingId(null);
       try { 
@@ -766,60 +832,80 @@ const LegacyAutoTradingPage = () => {
         tickHeavy(); 
       } catch {}
     }
-  }, [removeBoardRowOptimistic, fetchJson, showToast, tickHeavy]);
+  }, [removeBoardRowOptimistic, fetchJson, tickHeavy, toast]);
 
   const handleBoardCancelWaiting = useCallback(async (id: string | number) => {
     try {
       setBoardActingId(id);
       await fetchJson(`/api/trading-strategies/${id}`, { method: 'DELETE' });
       removeBoardRowOptimistic(id);
-      showToast('대기 취소', `전략 #${id}가 삭제되었습니다.`);
+      toast({ title: '대기 취소', description: `전략 #${id}가 삭제되었습니다.` });
     } catch (e) {
       console.error(e);
-      showToast('대기 취소 실패', String(e), false);
+      toast({ title: '대기 취소 실패', description: String(e), variant: 'destructive' });
     } finally {
       setBoardActingId(null);
       try { tickHeavy(); } catch {}
     }
-  }, [removeBoardRowOptimistic, fetchJson, showToast, tickHeavy]);
+  }, [removeBoardRowOptimistic, fetchJson, tickHeavy, toast]);
   
   const handleStart = useCallback(async () => {
     if (serverState.running || starting) {
-      showToast('이미 실행 중', '자동매매가 실행 상태입니다.');
+      toast({ title: '이미 실행 중', description: '자동매매가 실행 상태입니다.' });
       return;
     }
     setStarting(true);
     try {
       await fetchJson(`/api/trading/start/${effectiveUserId}`, { method: 'POST', headers: { 'X-Trace-Id': `cli-${Date.now()}` } });
-      showToast('전략 시작', '자동매매가 시작되었습니다.');
+      toast({ title: '전략 시작', description: '자동매매가 시작되었습니다.' });
     } catch (e) {
       console.error(e);
       try {
         const stat = await fetchJson(`/api/trading/status/${effectiveUserId}`);
         if (stat?.isRunning) {
-          showToast('이미 실행 중', '자동매매가 이미 실행 중입니다.');
+          toast({ title: '이미 실행 중', description: '자동매매가 이미 실행 중입니다.' });
         } else {
-          showToast('시작 실패', String(e), false);
+          toast({ title: '시작 실패', description: String(e), variant: 'destructive' });
         }
       } catch {
-        showToast('시작 실패', String(e), false);
+        toast({ title: '시작 실패', description: String(e), variant: 'destructive' });
       }
     } finally {
       tickHeavy();
       setStarting(false);
     }
-  }, [fetchJson, tickHeavy, showToast, effectiveUserId, serverState.running, starting]);
+  }, [fetchJson, tickHeavy, toast, effectiveUserId, serverState.running, starting]);
 
   const handleStop = useCallback(async () => {
     try {
       await fetchJson(`/api/trading/stop/${effectiveUserId}`, { method: 'POST' });
-      showToast('전략 중지', '자동매매가 중지되었습니다.');
+      toast({ title: '전략 중지', description: '자동매매가 중지되었습니다.' });
       tickHeavy();
     } catch (e) {
       console.error(e);
-      showToast('중지 실패', String(e), false);
+      toast({ title: '중지 실패', description: String(e), variant: 'destructive' });
     }
-  }, [fetchJson, tickHeavy, showToast, effectiveUserId]);
+  }, [fetchJson, tickHeavy, toast, effectiveUserId]);
+
+  const handleCheckSession = useCallback(async () => {
+    try {
+      const data = await apiFetchJson('/api/auth/me', { method: 'GET' });
+      setSessionInfo(data);
+      setShowSessionInfo(true);
+      toast({
+        title: "세션 조회 성공",
+        description: `현재 로그인된 사용자: ${data.username}`,
+      });
+    } catch (error: any) {
+      setSessionInfo(null);
+      setShowSessionInfo(true);
+      toast({
+        title: "세션 없음",
+        description: "현재 로그인된 사용자가 없거나 인증이 만료되었습니다",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
   // ===== Render Functions =====
   const renderBands = (): JSX.Element | JSX.Element[] => {
@@ -870,23 +956,88 @@ const LegacyAutoTradingPage = () => {
     });
   };
 
-  // ===== 실제 전략 목록 불러오기 (세션 기반) =====
-  const loadStrategiesFromDB = useCallback(async () => {
+  // ===== 활성 전략들의 포지션 상태 확인 (중복 진입 방지) =====
+  const checkActiveStrategiesPositions = useCallback(async (strategies: any[]) => {
     try {
-      // 1. 세션에서 인증된 사용자 정보 우선 사용
-      let userId = effectiveUserId;
+      console.log('🔒 활성 전략들의 포지션 상태 확인 시작');
+      const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
       
-      // 2. 세션 기반 사용자 ID 가져오기
-      if (user?.id) {
-        userId = String(user.id);
-        console.log('🔍 세션에서 사용자 ID 확인:', userId);
+      if (positionsResponse.ok) {
+        const positions = await positionsResponse.json();
+        console.log('📊 현재 포지션 목록:', positions);
+        
+        const activeStrategies = strategies.filter(s => s.isActive);
+        console.log('🎯 활성 전략 목록:', activeStrategies.map(s => ({ id: s.id, name: s.name })));
+        
+        for (const strategy of activeStrategies) {
+          const activePosition = positions.find((p: any) => 
+            p.status === 'open' && 
+            p.strategyId === parseInt(strategy.id) && 
+            p.symbol === (strategy.crypto || 'BTC')
+          );
+          
+          if (activePosition) {
+            const entryTime = new Date(activePosition.entryTime);
+            const elapsed = Date.now() - entryTime.getTime();
+            const remainMinutes = Math.ceil((600000 - elapsed) / 60000); // 10분 쿨다운
+            
+            console.log(`🔒 전략 "${strategy.name}" 쿨다운 상태:`, {
+              positionId: activePosition.id,
+              entryTime: entryTime.toISOString(),
+              elapsed: Math.floor(elapsed / 1000) + 's',
+              remainMinutes: remainMinutes > 0 ? remainMinutes + 'min' : '완료'
+            });
+            
+            if (elapsed < 600000) { // 10분 미경과
+              console.log(`⏳ 전략 "${strategy.name}" 쿨다운 중 (${remainMinutes}분 남음)`);
+              // 자동으로 전략 비활성화 (UI 반영)
+              strategy.isActive = false;
+              
+              // 🔄 쿨다운 완료 시 자동 활성화 타이머 설정
+              const remainingTime = 600000 - elapsed;
+              setTimeout(() => {
+                console.log(`✅ 전략 "${strategy.name}" 쿨다운 완료 - 자동 활성화`);
+                setStrategies(prev => prev.map(s => 
+                  s.id === strategy.id ? { ...s, isActive: true } : s
+                ));
+                toast({
+                  title: '전략 활성화',
+                  description: `${strategy.name} 전략의 쿨다운이 완료되어 자동으로 활성화되었습니다.`
+                });
+              }, remainingTime);
+            }
+          }
+        }
       }
+    } catch (error) {
+      console.error('❌ 포지션 상태 확인 실패:', error);
+    }
+  }, []);
+
+  // ===== 실제 전략 목록 불러오기 (세션 기반) =====
+  const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean } = {}) => {
+    if (!opts.force && hasLoadedStrategiesRef.current) return;
+    try {
+      // 세션 우선: 세션/효과적 사용자 ID가 없으면 조회 보류
+      if (!user?.id && !effectiveUserId) {
+        console.warn('⏸️ 세션 사용자 미확정으로 전략 조회를 보류합니다.');
+        toast({ title: '전략 조회 보류', description: '세션 확인 후 다시 시도합니다.', variant: 'destructive' });
+        return;
+      }
+
+      // 1. 세션에서 인증된 사용자 정보 우선 사용
+      const userId = user?.id ? String(user.id) : String(effectiveUserId);
+      console.log('🔍 세션에서 사용자 ID 확인:', userId);
       
       // 3. 해당 사용자의 전략 목록 조회
       console.log('📊 전략 조회 요청 - 사용자 ID:', userId);
       console.log('🔗 API URL:', `/api/trading-strategies/${userId}`);
       
       const dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
+      if (dbStrategies == null) {
+        console.log('⏭️ 전략 조회가 취소됨(Abort) - 기존 화면 상태 유지');
+        return;
+      }
       console.log('📥 API 응답 데이터:', dbStrategies);
       
       if (Array.isArray(dbStrategies)) {
@@ -905,45 +1056,51 @@ const LegacyAutoTradingPage = () => {
           executionCount: s.totalTrades || 0
         }));
         
+        // 🔒 전략 로드 후 활성 전략들의 포지션 상태 확인
+        await checkActiveStrategiesPositions(formattedStrategies);
+        
         setStrategies(formattedStrategies);
         console.log(`✅ 사용자 ${userId}의 전략 ${formattedStrategies.length}개 로드 완료:`, formattedStrategies);
+        hasLoadedStrategiesRef.current = true;
         
         if (formattedStrategies.length === 0) {
           console.log('ℹ️ 등록된 전략이 없습니다. 새 전략을 추가해보세요.');
         }
       } else {
         console.log('⚠️ 전략 데이터 형식이 올바르지 않습니다:', dbStrategies);
-        setStrategies([]);
+        // 실패 시 토스트 대신 로딩 상태 유지 (UI에서 스피너)
+        setStrategies((prev) => prev); // no-op to avoid clearing UI
       }
     } catch (error) {
       console.error('❌ 전략 목록 로드 실패:', error);
-      setStrategies([]);
-      showToast('전략 로드 실패', '저장된 전략을 불러오는데 실패했습니다.', false);
+      // 실패 시 토스트 미노출, 화면은 로딩 상태로 유지
     }
-  }, [fetchJson, effectiveUserId, user?.id, showToast]);
+  }, [fetchJson, effectiveUserId, user?.id, toast]);
 
   // ===== Lifecycle Hooks =====
   useEffect(() => {
+    hasLoadedStrategiesRef.current = false; // 초기 진입 시 한번 허용
     refreshServerBands();
     
     // 페이지 로드 시 즉시 세션 확인 및 전략 로드 시도
-    setTimeout(async () => {
-      try {
-        console.log('🔄 페이지 로드 - 세션 직접 확인');
-        const sessionRes = await fetch('/api/auth/me', {credentials: 'include'});
-        const sessionData = await sessionRes.json();
-        
-        if (sessionData.id) {
-          console.log('✅ 페이지 로드 - 세션 확인됨:', sessionData.id);
-          setEffectiveUserId(String(sessionData.id));
-          loadStrategiesFromDB();
-        } else {
-          console.log('❌ 페이지 로드 - 세션 없음, 로그인 필요');
+    if (!hasScheduledInitialLoadRef.current) {
+      hasScheduledInitialLoadRef.current = true;
+      setTimeout(async () => {
+        try {
+          console.log('🔄 페이지 로드 - 세션 직접 확인');
+          const sessionData = await apiFetchJson('/api/auth/me');
+          if (sessionData.id) {
+            console.log('✅ 페이지 로드 - 세션 확인됨:', sessionData.id);
+            setEffectiveUserId(String(sessionData.id));
+            loadStrategiesFromDB();
+          } else {
+            console.log('❌ 페이지 로드 - 세션 없음, 로그인 필요');
+          }
+        } catch (error) {
+          console.log('❌ 페이지 로드 - 세션 확인 실패:', error);
         }
-      } catch (error) {
-        console.log('❌ 페이지 로드 - 세션 확인 실패:', error);
-      }
-    }, 500); // 0.5초 후 시도
+      }, 500); // 0.5초 후 시도
+    }
   }, [refreshServerBands, loadStrategiesFromDB]);
 
   // 사용자 정보나 effectiveUserId가 변경될 때 전략 목록 다시 로드
@@ -961,15 +1118,12 @@ const LegacyAutoTradingPage = () => {
     if (user?.id) {
       console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
       setEffectiveUserId(String(user.id)); // 세션 사용자 ID로 설정
+      hasLoadedStrategiesRef.current = false; // 사용자 변경 시 한 번 더 허용
       loadStrategiesFromDB();
     } else {
-      console.log('⚠️ 세션에 사용자 정보가 없습니다.');
-      console.log('🔍 useAuth 상태 확인:', { user, isLoading: !user });
-      
-      // 간단히 전략 로드 시도 - 서버에서 세션 체크함
-      loadStrategiesFromDB();
+      console.log('⚠️ 세션에 사용자 정보가 없습니다. 조회 보류');
     }
-  }, [user?.id, effectiveUserId, loadStrategiesFromDB, user]);
+  }, [user?.id]);
 
   // 웹소켓 메시지 핸들러 등록
   useEffect(() => {
@@ -1017,7 +1171,8 @@ const LegacyAutoTradingPage = () => {
   // ===== 차트 그리기 로직 =====
   const drawSpark = useCallback(() => {
     const c = sparkCanvasRef.current;
-    if (!c || sparkData.length === 0) return;
+    const data = getChartData();
+    if (!c || data.length === 0) return;
 
     const ctx = c.getContext('2d', { alpha: false });
     if (!ctx) return;
@@ -1034,11 +1189,11 @@ const LegacyAutoTradingPage = () => {
     // 배경 클리어
     ctx.clearRect(0, 0, w, h);
 
-    if (sparkData.length === 0) return;
+    if (data.length === 0) return;
 
-    // 최소/최대값 계산
-    const min = Math.min(...sparkData);
-    const max = Math.max(...sparkData);
+    // 최소/최대값 계산 (값 기준)
+    const min = Math.min(...data.map(d => d.v));
+    const max = Math.max(...data.map(d => d.v));
     const span = Math.max(1e-9, max - min);
 
     // 최소/최대값 표시 업데이트
@@ -1051,9 +1206,12 @@ const LegacyAutoTradingPage = () => {
     const pad = 6;
     ctx.beginPath();
     
-    sparkData.forEach((value, index) => {
-      const x = pad + (w - 2 * pad) * (index / (sparkData.length - 1));
-      const y = h - pad - (h - 2 * pad) * ((value - min) / span);
+    const firstT = data[0].t;
+    const lastT = data[data.length - 1].t;
+    const tSpan = Math.max(1, lastT - firstT);
+    data.forEach((point, index) => {
+      const x = pad + (w - 2 * pad) * ((point.t - firstT) / tSpan);
+      const y = h - pad - (h - 2 * pad) * ((point.v - min) / span);
       
       if (index === 0) {
         ctx.moveTo(x, y);
@@ -1065,7 +1223,7 @@ const LegacyAutoTradingPage = () => {
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#7aa2ff';
     ctx.stroke();
-  }, [sparkData]);
+  }, [getChartData]);
 
   useEffect(() => {
     drawSpark(); // sparkData가 변경될 때마다 차트를 다시 그립니다.
@@ -1132,20 +1290,91 @@ const LegacyAutoTradingPage = () => {
           </span>
 
           <div className="grow"></div>
+          <button 
+            onClick={handleCheckSession}
+            className="chip"
+            style={{ cursor: 'pointer', marginRight: '10px' }}
+            title="현재 세션 정보 확인"
+          >
+            <i className="dot ok"></i>
+            <span>세션 확인</span>
+          </button>
           <span id="kimp-brief" className="kimp-brief mono" aria-live="polite">
-            {`김프 ${fx(kimp.kimp, 2)}% · 업비트 ${loc(kimp.upbit_price)} KRW · 바이낸스 ${fx(kimp.binance_price, 2)} USDT · 환율 ${fx(kimp.usdkrw, 2)}`}
+            {`김프 ${fx(kimp.kimp, 3)}% · 업비트 ${loc(kimp.upbit_price)} KRW · 바이낸스 ${fx(kimp.binance_price, 2)} USDT · 환율 ${fx(kimp.usdkrw, 2)}`}
           </span>
         </div>
       </header>
       <div className="wrap">
         <div className="grid">
+          {/* 세션 정보 표시 */}
+          {showSessionInfo && (
+            <section style={{gridColumn: 'span 12', marginBottom: '20px'}}>
+              <div className="card" style={{padding: '15px', backgroundColor: sessionInfo ? '#e8f5e8' : '#ffe8e8'}}>
+                <h3 style={{margin: '0 0 10px 0', color: sessionInfo ? '#2d5a2d' : '#8b0000'}}>
+                  세션 정보
+                </h3>
+                {sessionInfo ? (
+                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '14px'}}>
+                    <div>
+                      <strong>로그인 상태:</strong> <span style={{color: '#2d5a2d'}}>활성</span>
+                    </div>
+                    <div>
+                      <strong>사용자명:</strong> {sessionInfo.username}
+                    </div>
+                    <div>
+                      <strong>권한:</strong> {sessionInfo.role}
+                    </div>
+                    <div>
+                      <strong>사용자 ID:</strong> {sessionInfo.id}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{textAlign: 'center', color: '#8b0000'}}>
+                    <strong>로그인 상태: 비활성</strong><br/>
+                    <small>로그인이 필요합니다</small>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
             <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">자동매매 전략</h2>
-                <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" data-testid="button-add-strategy" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="radix-:r0:" data-state="closed" onClick={() => setShowCreateModal(true)}>
-                  <i className="fas fa-plus mr-2"></i>새 전략 추가
-                </button>
+                <div className="flex items-center space-x-2">
+                  {!isAuthenticated && !isLoading && (
+                    <button 
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                      onClick={() => checkSession()}
+                    >
+                      <i className="fas fa-sync-alt mr-2"></i>세션 조회
+                    </button>
+                  )}
+                  <button 
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" 
+                    data-testid="button-add-strategy" type="button" onClick={() => {
+                      // 새 전략 추가 → 편집 모드 해제 및 폼 초기화
+                      setEditingStrategyId(null);
+                      setNewStrategy({
+                        name: '',
+                        crypto: '',
+                        entryCondition: '3.0',
+                        takeProfitCondition: '2.0',
+                        baseAmount: '500000',
+                        investmentAmount: '0.003',
+                        leverage: '3',
+                        tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
+                        riskLevel: 'moderate',
+                        activateImmediately: false
+                      });
+                      setShowCreateModal(true);
+                    }}
+                    disabled={!isAuthenticated}
+                    title={!isAuthenticated ? "로그인 후 사용할 수 있습니다" : ""}
+                  >
+                    <i className="fas fa-plus mr-2"></i>새 전략 추가
+                  </button>
+                </div>
               </div>
               <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2" style={{scrollbarWidth: 'thin', scrollbarColor: '#64748b #1e293b'}}>
                 {strategies.map((strategy) => (
@@ -1166,6 +1395,45 @@ const LegacyAutoTradingPage = () => {
                           onClick={async () => {
                             const newActiveState = !strategy.isActive;
                             
+                            // 세션 우선: 세션/효과적 사용자 ID가 없으면 중단
+                            if (!user?.id && !effectiveUserId) {
+                              console.warn('⏸️ 세션 미확정: 전략 상태 변경 요청을 보류합니다.');
+                              toast({ title: '세션 확인 필요', description: '로그인/세션 확인 후 다시 시도하세요.', variant: 'destructive' });
+                              return;
+                            }
+
+                            // 🔒 활성화 시 기존 포지션 확인 (중복 진입 방지)
+                            if (newActiveState) {
+                              try {
+                                const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
+                                if (positionsResponse.ok) {
+                                  const positions = await positionsResponse.json();
+                                  const activePosition = positions.find((p: any) => 
+                                    p.status === 'open' && 
+                                    p.strategyId === strategy.id && 
+                                    p.symbol === (strategy.crypto || 'BTC')
+                                  );
+                                  
+                                  if (activePosition) {
+                                    const entryTime = new Date(activePosition.entryTime);
+                                    const elapsed = Date.now() - entryTime.getTime();
+                                    const remainMinutes = Math.ceil((600000 - elapsed) / 60000); // 10분 쿨다운
+                                    
+                                    if (elapsed < 600000) { // 10분 미경과
+                                      toast({ 
+                                        title: '쿨다운 진행중', 
+                                        description: `이 전략은 ${remainMinutes}분 후 다시 활성화할 수 있습니다.`,
+                                        variant: 'destructive' 
+                                      });
+                                      return;
+                                    }
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('포지션 확인 실패:', error);
+                              }
+                            }
+
                             // UI 즉시 업데이트
                             setStrategies(prev => prev.map(s => 
                               s.id === strategy.id 
@@ -1173,32 +1441,33 @@ const LegacyAutoTradingPage = () => {
                                 : s
                             ));
                             
-                            // DB에 저장
+                            // DB에 저장 (기존 허용오차/설정값 보존)
                             try {
                               const payload = {
                                 name: strategy.name,
-                                strategyType: 'positive_kimchi',
+                                strategyType: strategy.strategyType || 'positive_kimchi',
                                 entryRate: strategy.entryCondition,
                                 exitRate: strategy.takeProfitCondition,
-                                toleranceRate: "0.1",
+                                toleranceRate: String(strategy.tolerance ?? strategy.toleranceRate ?? TRADING_CONSTANTS.DEFAULT_TOLERANCE),
                                 leverage: parseInt(strategy.leverage) || 3,
-                                investmentAmount: strategy.investmentAmount,
+                                investmentAmount: strategy.investmentAmount?.toString() || '0.003',
                                 symbol: strategy.crypto || 'BTC',
                                 isActive: newActiveState,
                                 isAutoTrading: newActiveState,
-                                tolerance: "0.1"
+                                tolerance: String(strategy.tolerance ?? strategy.toleranceRate ?? TRADING_CONSTANTS.DEFAULT_TOLERANCE)
                               };
                               
-                              await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
+                              // 세션 기반: 서버에서 세션 사용자로 처리 (무파라미터 라우트 미구현이면 기존 경로 유지)
+                              await fetchJson(`/api/trading-strategies/${user?.id ? String(user.id) : String(effectiveUserId)}`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(payload),
                               });
                               
-                              showToast(
-                                `전략 ${newActiveState ? '활성화' : '비활성화'}`, 
-                                `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`
-                              );
+                              toast({
+                                title: `전략 ${newActiveState ? '활성화' : '비활성화'}`,
+                                description: `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`,
+                              });
                               loadStrategiesFromDB();
                             } catch (error) {
                               console.error('전략 상태 변경 실패:', error);
@@ -1207,7 +1476,7 @@ const LegacyAutoTradingPage = () => {
                                   ? {...s, isActive: strategy.isActive}
                                   : s
                               ));
-                              showToast('상태 변경 실패', '서버 저장에 실패했습니다.', false);
+                              toast({ title: '상태 변경 실패', description: '서버 저장에 실패했습니다.', variant: 'destructive' });
                             }
                           }}
                         >
@@ -1244,13 +1513,13 @@ const LegacyAutoTradingPage = () => {
                               });
                               
                               console.log('✅ 전략 삭제 성공:', strategy.id);
-                              showToast('전략 삭제 완료', `${strategy.name} 전략이 삭제되었습니다.`);
+                              toast({ title: '전략 삭제 완료', description: `${strategy.name} 전략이 삭제되었습니다.` });
                               // DB 삭제 성공 시 UI에서 제거 상태 유지 (이미 제거됨)
                             } catch (error) {
                               console.error('❌ 전략 삭제 실패:', error);
                               // 실패 시 UI에 다시 추가 (롤백)
                               setStrategies(prev => [...prev, strategy]);
-                              showToast('전략 삭제 실패', '서버에서 삭제에 실패했습니다.', false);
+                              toast({ title: '전략 삭제 실패', description: '서버에서 삭제에 실패했습니다.', variant: 'destructive' });
                             }
                           }}
                         >
@@ -1281,7 +1550,7 @@ const LegacyAutoTradingPage = () => {
                       <div>
                         <p className="text-muted-foreground">투자 수량</p>
                         <p className="font-medium" data-testid={`text-amount-${strategy.id}`}>
-                          {strategy.investmentAmount} BTC
+                          {Math.floor(Number(strategy.investmentAmount || 0) * 1000) / 1000} BTC
                         </p>
                       </div>
                     </div>
@@ -1303,7 +1572,7 @@ const LegacyAutoTradingPage = () => {
                             entryCondition: strategy.entryCondition,
                             takeProfitCondition: strategy.takeProfitCondition,
                             baseAmount: '500000',
-                            investmentAmount: strategy.investmentAmount,
+                            investmentAmount: strategy.investmentAmount?.toString() || '0.003',
                             leverage: strategy.leverage,
                             tolerance: strategy.tolerance || '0.01',
                             riskLevel: strategy.riskLevel,
@@ -1363,6 +1632,13 @@ const LegacyAutoTradingPage = () => {
               currentKimchiData={kimp}
               userId={user?.id ? String(user.id) : "1"}
               onDailyStatsUpdate={setDailyStats}
+              onStrategyStatsUpdate={(stats) => {
+                // UI의 strategies 상태에 실행 횟수/수익률을 반영 (서버값이 없으면 로컬 값 사용)
+                setStrategies(prev => prev.map(s => {
+                  const st = stats[s.id];
+                  return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
+                }));
+              }}
             />
           </section>
 
@@ -1380,7 +1656,7 @@ const LegacyAutoTradingPage = () => {
                   <span className="text-sm text-slate-400">김치프리미엄</span>
                   <div className="flex items-center gap-3">
                     <span id="kimp" className="text-2xl font-bold text-white" style={{fontWeight: 800}}>
-                      {fx(kimp.kimp, 2)}%
+                      {fx(kimp.kimp, 3)}%
                     </span>
                     <span id="kimp-sign" className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       kimp.kimp < 0 
@@ -1426,11 +1702,11 @@ const LegacyAutoTradingPage = () => {
                 </div>
               </div>
 
-              {/* 진입 증거금 */}
+              {/* 진입 증거금 (KRW) */}
               <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">진입 증거금(USDT)</span>
-                  <span className="text-lg font-bold text-pink-400" id="used-usdt">{loc(serverState.used_balance_usdt)}</span>
+                  <span className="text-sm text-slate-400">진입 증거금(KRW)</span>
+                  <span className="text-lg font-bold text-pink-400" id="used-krw">-</span>
                 </div>
               </div>
             </div>
@@ -1491,50 +1767,64 @@ const LegacyAutoTradingPage = () => {
                       ctx.fillStyle = '#1e293b';
                       ctx.fillRect(0, 0, w, h);
                       
-                      if (sparkData.length > 1) {
-                        const min = Math.min(...sparkData);
-                        const max = Math.max(...sparkData);
+                      if (chartData.length > 1) {
+                        const min = Math.min(...chartData.map(p => p.v));
+                        const max = Math.max(...chartData.map(p => p.v));
                         const span = Math.max(0.01, max - min);
-                        
-                        // 그리드 라인 그리기
+
+                        // 여백 설정 (좌측 y축 라벨 공간 확보)
+                        const leftPad = 44;
+                        const rightPad = 8;
+                        const topPad = 8;
+                        const bottomPad = 12;
+                        const plotW = Math.max(1, w - leftPad - rightPad);
+                        const plotH = Math.max(1, h - topPad - bottomPad);
+
+                        // 그리드 + y축 라벨
                         ctx.strokeStyle = '#374151';
                         ctx.lineWidth = 1;
-                        for (let i = 1; i < 5; i++) {
-                          const y = (h / 5) * i;
+                        ctx.fillStyle = '#9fb0c9';
+                        ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                        ctx.textAlign = 'right';
+                        ctx.textBaseline = 'middle';
+
+                        const gridCount = 5;
+                        for (let i = 0; i <= gridCount; i++) {
+                          const ratio = i / gridCount; // 0(bottom) → 1(top)
+                          const y = topPad + plotH * (1 - ratio);
+                          // 라인
                           ctx.beginPath();
-                          ctx.moveTo(0, y);
-                          ctx.lineTo(w, y);
+                          ctx.moveTo(leftPad, y);
+                          ctx.lineTo(w - rightPad, y);
                           ctx.stroke();
+                          // 라벨 값 (min → max 선형)
+                          const labelVal = min + span * ratio;
+                          ctx.fillText(`${labelVal.toFixed(2)}%`, leftPad - 6, y);
                         }
-                        
+
                         // 데이터 라인 그리기
                         ctx.beginPath();
                         ctx.strokeStyle = '#10b981';
                         ctx.lineWidth = 2;
-                        
-                        chartData.forEach((value, index) => {
-                          const x = (w * index) / (chartData.length - 1);
-                          const y = h - ((value - min) / span) * h;
-                          
-                          if (index === 0) {
-                            ctx.moveTo(x, y);
-                          } else {
-                            ctx.lineTo(x, y);
-                          }
+
+                        const t0 = chartData[0].t;
+                        const t1 = chartData[chartData.length - 1].t;
+                        const tSpan = Math.max(1, t1 - t0);
+                        chartData.forEach((point, index) => {
+                          const x = leftPad + (plotW * (point.t - t0)) / tSpan;
+                          const y = topPad + plotH * (1 - ((point.v - min) / span));
+                          if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                         });
                         ctx.stroke();
-                        
+
                         // 현재 값 포인트
-                        if (chartData.length > 0) {
-                          const lastValue = chartData[chartData.length - 1];
-                          const lastX = w;
-                          const lastY = h - ((lastValue - min) / span) * h;
-                          
-                          ctx.beginPath();
-                          ctx.fillStyle = '#10b981';
-                          ctx.arc(lastX - 5, lastY, 4, 0, 2 * Math.PI);
-                          ctx.fill();
-                        }
+                        const lastPoint = chartData[chartData.length - 1];
+                        const lastX = leftPad + plotW;
+                        const lastY = topPad + plotH * (1 - ((lastPoint.v - min) / span));
+                        ctx.beginPath();
+                        ctx.fillStyle = '#10b981';
+                        ctx.arc(lastX - 5, lastY, 4, 0, 2 * Math.PI);
+                        ctx.fill();
                       }
                     }
                   }
@@ -1550,7 +1840,7 @@ const LegacyAutoTradingPage = () => {
                 <p className="font-semibold text-primary" data-testid="text-avg-premium">
                   {(() => {
                     const data = getChartData();
-                    return data.length > 0 ? (data.reduce((sum, val) => sum + val, 0) / data.length).toFixed(2) : '0.00';
+                    return data.length > 0 ? (data.reduce((sum, p) => sum + p.v, 0) / data.length).toFixed(2) : '0.00';
                   })()}%
                 </p>
               </div>
@@ -1559,7 +1849,7 @@ const LegacyAutoTradingPage = () => {
                 <p className="font-semibold text-green-500" data-testid="text-max-premium">
                   {(() => {
                     const data = getChartData();
-                    return data.length > 0 ? Math.max(...data).toFixed(2) : '0.00';
+                    return data.length > 0 ? Math.max(...data.map(p => p.v)).toFixed(2) : '0.00';
                   })()}%
                 </p>
               </div>
@@ -1568,7 +1858,7 @@ const LegacyAutoTradingPage = () => {
                 <p className="font-semibold text-red-500" data-testid="text-min-premium">
                   {(() => {
                     const data = getChartData();
-                    return data.length > 0 ? Math.min(...data).toFixed(2) : '0.00';
+                    return data.length > 0 ? Math.min(...data.map(p => p.v)).toFixed(2) : '0.00';
                   })()}%
                 </p>
               </div>
@@ -1614,13 +1904,13 @@ const LegacyAutoTradingPage = () => {
               id="radix-:r1:"
               className="text-lg font-semibold leading-none tracking-tight"
             >
-              {newStrategy.name === 'zzzzz' ? '전략 수정' : '새 자동매매 전략 생성'}
+              {editingStrategyId ? '전략 수정' : '새 자동매매 전략 생성'}
             </h2>
             <p
               id="radix-:r2:"
               className="text-sm text-muted-foreground"
             >
-              {newStrategy.name === 'zzzzz' ? '기존 자동매매 전략을 수정합니다.' : '새로운 자동매매 전략을 설정하고 생성합니다.'}
+              {editingStrategyId ? '기존 자동매매 전략을 수정합니다.' : '새로운 자동매매 전략을 설정하고 생성합니다.'}
             </p>
           </div>
 
@@ -1651,6 +1941,10 @@ const LegacyAutoTradingPage = () => {
                 
                 // DB 저장 시도
                 try {
+                  const normalizedInvestment = (() => {
+                    const n = Number(newStrategy.investmentAmount);
+                    return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : '0.003';
+                  })();
                   const payload = {
                     name: newStrategy.name,
                     strategyType: 'positive_kimchi',
@@ -1658,7 +1952,8 @@ const LegacyAutoTradingPage = () => {
                     exitRate: newStrategy.takeProfitCondition,
                     toleranceRate: newStrategy.tolerance || "0.01",
                     leverage: parseInt(newStrategy.leverage) || 3,
-                    investmentAmount: String(newStrategy.investmentAmount || '0.001'),
+                    // 서버에는 투자수량(BTC) 저장
+                    investmentAmount: normalizedInvestment,
                     symbol: newStrategy.crypto || 'BTC',
                     isActive: newStrategy.activateImmediately,
                     isAutoTrading: newStrategy.activateImmediately,
@@ -1667,19 +1962,25 @@ const LegacyAutoTradingPage = () => {
                   
                   console.log('🔍 전략 수정 payload:', payload);
                   
-                  const result = await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
+                  // 세션 기반: 서버에서 세션 사용자로 처리 (무파라미터 라우트 미구현이면 기존 경로 유지)
+                  await fetchJson(`/api/trading-strategies`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
+                    // 저장 요청은 취소되지 않도록 보장
+                    nonCancelable: true as any
                   });
                   
-                  console.log('✅ 전략 수정 성공:', result);
-                  showToast('전략 수정 완료', '전략이 성공적으로 수정되었습니다.');
-                  // DB에서 최신 데이터 다시 로드
+                  toast({
+                    title: '전략 수정 완료',
+                    description: `${newStrategy.name} 전략이 업데이트되었습니다.`,
+                  });
                   loadStrategiesFromDB();
-                } catch (error: any) {
-                  console.error('❌ 전략 수정 실패:', error);
-                  showToast('전략 수정 실패', `서버 저장 실패: ${error.message}`, false);
+                } catch (error) {
+                  console.error('전략 상태 변경 실패:', error);
+                  // 서버 상태와 동기화
+                  loadStrategiesFromDB();
+                  toast({ title: '상태 변경 실패', description: '서버 저장에 실패했습니다.', variant: 'destructive' });
                 }
                 
                 setEditingStrategyId(null);
@@ -1704,6 +2005,10 @@ const LegacyAutoTradingPage = () => {
                 
                 // DB 저장 시도
                 try {
+                  const normalizedInvestment = (() => {
+                    const n = Number(newStrategy.investmentAmount);
+                    return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : '0.003';
+                  })();
                   const payload = {
                     name: newStrategy.name || '새 전략',
                     strategyType: 'positive_kimchi',
@@ -1711,7 +2016,8 @@ const LegacyAutoTradingPage = () => {
                     exitRate: newStrategy.takeProfitCondition,
                     toleranceRate: newStrategy.tolerance || "0.01",
                     leverage: parseInt(newStrategy.leverage) || 3,
-                    investmentAmount: String(newStrategy.investmentAmount || '0.001'),
+                    // 서버는 투자수량(BTC)을 그대로 저장
+                    investmentAmount: normalizedInvestment,
                     symbol: newStrategy.crypto || 'BTC',
                     isActive: newStrategy.activateImmediately,
                     isAutoTrading: newStrategy.activateImmediately,
@@ -1725,19 +2031,20 @@ const LegacyAutoTradingPage = () => {
                     leverage: newStrategy.leverage
                   });
                   
-                  const result = await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
+                  const result = await fetchJson(`/api/trading-strategies`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
+                    nonCancelable: true as any
                   });
                   
                   console.log('✅ 전략 생성 성공:', result);
-                  showToast('전략 생성 완료', '새 전략이 성공적으로 생성되었습니다.');
+                  toast({ title: '전략 생성 완료', description: '새 전략이 성공적으로 생성되었습니다.' });
                   // DB에서 최신 데이터 다시 로드
-                  loadStrategiesFromDB();
+                  loadStrategiesFromDB({ force: true });
                 } catch (error: any) {
                   console.error('❌ 전략 생성 실패:', error);
-                  showToast('전략 생성 실패', `서버 저장 실패: ${error.message}`, false);
+                  toast({ title: '전략 생성 실패', description: `서버 저장 실패: ${error.message}`, variant: 'destructive' });
                 }
               }
               
@@ -2038,27 +2345,12 @@ const LegacyAutoTradingPage = () => {
                   placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
                   data-testid="input-investment-amount"
                   id=":r12:-form-item"
-                  key={`investment-amount-${newStrategy.investmentAmount}`}
                   value={newStrategy.investmentAmount}
+                  inputMode="decimal"
+                  pattern="^\\d*(\\.\\d{0,3})?$"
                   onChange={(e) => {
-                    const btcAmount = parseFloat(e.target.value) || 0.001;
-                    const leverage = parseFloat(newStrategy.leverage) || 3;
-                    const btcPrice = 156000000; // BTC 가격
-                    const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
-                    
-                    console.log('🔢 투자수량 변경:', {
-                      btcAmount,
-                      leverage,
-                      btcPrice,
-                      calculatedBaseAmount,
-                      stringBaseAmount: String(calculatedBaseAmount)
-                    });
-                    
-                    setNewStrategy(prev => ({
-                      ...prev, 
-                      investmentAmount: e.target.value
-                      // baseAmount는 useEffect에서 자동 계산됨
-                    }));
+                    // 문자열 그대로 유지하여 입력 중 포커스/커서 보존
+                    setNewStrategy(prev => ({ ...prev, investmentAmount: e.target.value }));
                   }}
                 />
                 <div className="text-xs text-muted-foreground">
@@ -2190,7 +2482,7 @@ const LegacyAutoTradingPage = () => {
                 type="submit" 
                 data-testid="button-create-strategy"
               >
-                {newStrategy.name === 'zzzzz' ? '전략 수정' : '전략 생성'}
+                {editingStrategyId ? '전략 수정' : '전략 생성'}
               </button>
               <button 
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2" 

@@ -43,7 +43,23 @@ import cookieParser from 'cookie-parser';
 // @ts-ignore
 import session from 'express-session';
 app.use(cookieParser());
+// CORS (동적 Origin + Credentials 허용)
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Vary', 'Origin');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+    if (req.method === 'OPTIONS')
+        return res.sendStatus(204);
+    next();
+});
 // 서버 세션(메모리 기반) 설정 - 개발용 최적화
+// 세션 TTL: 코드 상수(24시간)
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 app.use(session({
     secret: process.env.SESSION_SECRET || 'dev-session-secret-2024',
     resave: false,
@@ -52,7 +68,7 @@ app.use(session({
         httpOnly: true,
         sameSite: 'lax',
         secure: false, // 개발환경에서는 false
-        maxAge: 30 * 60 * 1000, // 30분 기본
+        maxAge: SESSION_TTL_MS,
         path: '/',
     },
     rolling: true, // 활동 시마다 세션 시간 갱신
@@ -77,9 +93,30 @@ app.use((req, res, next) => {
     if (user && isActivity) {
         console.log(`🔄 세션 갱신: ${method} ${path} - 사용자: ${user.id}`);
         req.session.touch();
-        // 세션 만료 시간을 다시 30분으로 설정
-        req.session.cookie.maxAge = 30 * 60 * 1000;
+        // 환경변수 기반 TTL로 갱신
+        req.session.cookie.maxAge = SESSION_TTL_MS;
     }
+    next();
+});
+// 교차 출처 요청 시 SameSite/secure 동적 설정
+app.use((req, _res, next) => {
+    try {
+        const origin = req.headers.origin;
+        if (origin && req.session) {
+            const originHost = new URL(origin).host;
+            const reqHost = (req.headers.host || '').split(',')[0].trim();
+            const isCrossSite = originHost && reqHost && originHost !== reqHost;
+            if (isCrossSite) {
+                req.session.cookie.sameSite = 'none';
+                req.session.cookie.secure = true;
+            }
+            else {
+                req.session.cookie.sameSite = 'lax';
+                req.session.cookie.secure = false;
+            }
+        }
+    }
+    catch { }
     next();
 });
 // ✅ 정적 파일 접근 로그 미들웨어 추가

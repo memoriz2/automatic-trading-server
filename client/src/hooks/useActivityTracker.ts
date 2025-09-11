@@ -41,8 +41,14 @@ export function useActivityTracker(options: ActivityTrackerOptions = {}) {
           type: 'user_activity',
           source: 'client_tracker'
         })
-      }).catch(() => {
-        // 실패해도 무시 (사용자 경험에 영향 없음)
+      }).catch((error) => {
+        // 인증 실패 시 전역 이벤트 발생
+        if (error.message === 'Unauthorized') {
+          window.dispatchEvent(new CustomEvent('auth-failed', { 
+            detail: { clearAuth: true } 
+          }));
+        }
+        // 그 외의 경우는 무시
       });
     }, debounceTime);
   }, [debounceTime]);
@@ -95,8 +101,14 @@ export function useActivityTracker(options: ActivityTrackerOptions = {}) {
             type: 'heartbeat',
             source: 'client_tracker'
           })
-        }).catch(() => {
-          // 실패해도 무시
+        }).catch((error) => {
+          // 인증 실패 시 전역 이벤트 발생
+          if (error.message === 'Unauthorized') {
+            window.dispatchEvent(new CustomEvent('auth-failed', { 
+              detail: { clearAuth: true } 
+            }));
+          }
+          // 그 외의 경우는 무시
         });
       }
     }, interval);

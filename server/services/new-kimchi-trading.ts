@@ -21,6 +21,12 @@ export class MultiStrategyTradingService {
   private isTrading: boolean = false;
   private lastKimchiRates: Map<string, number> = new Map();
   private activeStrategies: Map<number, TradingStrategy> = new Map();
+  // 최근 진입 시각(사용자-전략-심볼 단위). 재시작 시 메모리 리셋되며, DB 초기화는 선택
+  private lastEntryAtByKey: Map<string, number> = new Map();
+  private static readonly MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
+  private getCooldownKey(userId: string, strategyId: number | string, symbol = "BTC"): string {
+    return `${userId}:${strategyId}:${symbol}`;
+  }
 
   constructor() {
     this.upbitService = new UpbitService();
@@ -96,7 +102,7 @@ export class MultiStrategyTradingService {
             (p) => p.status === "open"
           );
 
-          const signal = this.analyzeStrategySignal(
+          const signal = await this.analyzeStrategySignal(
             btcData,
             strategy,
             activePositions,
@@ -155,12 +161,12 @@ export class MultiStrategyTradingService {
   }
 
   // BTC 단순 자동매매 신호 분석 (양수/음수 김프 구분 없음)
-  private analyzeStrategySignal(
+  private async analyzeStrategySignal(
     kimchiData: any,
     strategy: TradingStrategy,
     activePositions: Position[],
     hasActivePosition: boolean = false
-  ): StrategySignal | null {
+  ): Promise<StrategySignal | null> {
     const premiumRate = kimchiData.premiumRate;
     const symbol = "BTC"; // BTC 고정
 
@@ -180,6 +186,21 @@ export class MultiStrategyTradingService {
 
     // 진입 조건 체크 (포지션이 없을 때만)
     if (!hasActivePosition && !existingPosition) {
+      // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
+      const userId = String((strategy as any)?.userId ?? "");
+      const recentPosition = await storage.getRecentPositionByStrategy(userId, strategy.id, symbol);
+      
+      if (recentPosition) {
+        const lastEntryTime = recentPosition.entryTime.getTime();
+        const elapsed = Date.now() - lastEntryTime;
+        
+        if (elapsed < MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS) {
+          const remainSec = Math.ceil((MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+          console.log(`⏳ DB 기반 진입 쿨다운 진행중(${remainSec}s 남음) → 이번 진입 스킵`);
+          console.log(`📅 최근 진입: ${recentPosition.entryTime.toISOString()}`);
+          return null;
+        }
+      }
       // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
       const entryDifference = Math.abs(premiumRate - entryRate);
       const sameSign =
@@ -477,6 +498,7 @@ export class MultiStrategyTradingService {
       // 포지션 생성
       const position = await storage.createPosition({
         userId: parseInt(userId),
+        strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
         symbol,
         type: "HEDGE",
         side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
@@ -486,7 +508,6 @@ export class MultiStrategyTradingService {
         entryPremiumRate: String(signal.premiumRate),
         upbitOrderId: upbitResult.uuid,
         binanceOrderId: binanceResult.orderId,
-        strategyId: strategy.id,
       });
 
       console.log(`✅ 포지션 생성 완료:`, position);
@@ -523,6 +544,9 @@ export class MultiStrategyTradingService {
       });
 
       console.log(`🎉 ${symbol} 포지션 진입 완료!`);
+
+      // ✅ DB 기반 쿨다운으로 변경: Position 테이블의 entryTime이 자동으로 쿨다운 역할
+      console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
     } catch (error) {
       console.error(`새로운 김프 진입 실패 (${symbol}):`, error);
       throw error;
