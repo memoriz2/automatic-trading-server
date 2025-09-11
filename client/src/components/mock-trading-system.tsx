@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { TRADING_CONSTANTS } from "@/lib/utils";
+import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 
 // API 호출 함수
 const apiFetch = async (url: string, options: RequestInit = {}) => {
@@ -112,6 +113,7 @@ interface MockPosition {
   id: string;
   strategyId: string;
   symbol: string;
+  type?: string; // 포지션 타입 (force_entry 등)
   entryTime: Date;
   entryPremiumRate: number;
   upbitQuantity: number;
@@ -173,6 +175,9 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   
   // 유니크한 거래 ID 생성을 위한 카운터
   const [tradeCounter, setTradeCounter] = useState(0);
+  
+  // 강제진입 모달 상태
+  const [showForceEntryModal, setShowForceEntryModal] = useState(false);
   
   // 토글 방지용: 최소 보유시간
   const MIN_HOLD_MS = 30_000; // 진입 후 최소 보유 30초
@@ -529,6 +534,70 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     onStrategyStatsUpdate,
     lastToastMessage,
   ]);
+
+  // 강제진입 처리 함수 (DB 우선 저장)
+  const handleForceEntry = useCallback(async (forceSettings: { margin: string; leverage: string; investmentAmount: string }) => {
+    const currentKimp = currentKimchiData?.kimp || 0;
+    
+    try {
+      console.log('🧪 강제 진입 실행:', { 
+        kimp: currentKimp.toFixed(3) + '%',
+        settings: forceSettings
+      });
+      
+      // 1. 먼저 DB에 포지션 저장하여 실제 ID 받기
+      const response = await fetch('/api/force-entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          margin: forceSettings.margin,
+          leverage: forceSettings.leverage,
+          investmentAmount: forceSettings.investmentAmount,
+          currentKimp: currentKimp,
+          symbol: 'BTC'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('강제진입 API 호출 실패');
+      }
+      
+      const result = await response.json();
+      const dbPositionId = result.position.id;
+      const strategyName = result.strategyName; // "강제진입207" 형식
+      
+      console.log('✅ DB 포지션 생성 완료:', { dbPositionId, strategyName });
+      
+      // 2. DB ID를 사용한 강제진입 전략 생성
+      const forceStrategy = {
+        id: `force-entry-${dbPositionId}`,
+        name: strategyName, // "강제진입207" 형식
+        entryCondition: String(currentKimp),
+        takeProfitCondition: String(Math.max(0.1, currentKimp + 0.5)),
+        tolerance: '0.001',
+        investmentAmount: forceSettings.investmentAmount,
+        leverage: forceSettings.leverage,
+        isActive: true
+      };
+      
+      // 3. 실제 거래 진입 (DB ID 포함)
+      mockEntry(forceStrategy, currentKimp);
+      
+      toast({
+        title: '🧪 강제진입 완료',
+        description: `${strategyName} 포지션이 생성되었습니다.`,
+      });
+      
+    } catch (error) {
+      console.error('❌ 강제진입 실패:', error);
+      toast({
+        title: '강제진입 실패',
+        description: '강제진입 실행 중 오류가 발생했습니다.',
+        variant: 'destructive'
+      });
+    }
+  }, [currentKimchiData, mockEntry, toast]);
 
   // 모의 청산
   const mockExit = useCallback(async (position: MockPosition, premiumRate: number, ratio: number = 1.0) => {
@@ -1028,6 +1097,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   }, [rawOpenBinanceQty]);
 
   return (
+    <>
     <Card className="bg-slate-850 border-slate-700">
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
@@ -1043,25 +1113,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
             <Button 
               variant="secondary" 
               size="sm" 
-              onClick={() => {
-                const currentKimp = currentKimchiData?.kimp || 0;
-                console.log('🧪 강제 진입 실행: 김프', currentKimp.toFixed(3), '%');
-                
-                // 기본 강제진입 전략 생성
-                const forceStrategy = {
-                  id: 'force-entry',
-                  name: '강제진입',
-                  entryCondition: String(currentKimp),
-                  takeProfitCondition: String(Math.max(0.1, currentKimp + 0.5)), // 현재 김프 + 0.5%
-                  tolerance: '0.001',
-                  investmentAmount: '0.003',
-                  leverage: '3', // 기본 레버리지 3배
-                  isActive: true
-                };
-                
-                // 조건 없이 바로 진입
-                mockEntry(forceStrategy, currentKimp);
-              }}
+              onClick={() => setShowForceEntryModal(true)}
             >
               🧪 강제 진입
             </Button>
@@ -1205,7 +1257,22 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-white font-medium">
-                      {strategies.find(s => s.id === position.strategyId)?.name || 'Unknown'}
+                      {(() => {
+                        const strategy = strategies.find(s => s.id === position.strategyId);
+                        if (strategy?.name) {
+                          // 강제진입 번호 표시 (이미 번호가 포함된 이름)
+                          return strategy.name.includes('강제진입') ? `🧪 ${strategy.name}` : strategy.name;
+                        }
+                        // strategyId가 force-entry로 시작하면 강제진입으로 표시
+                        if (position.strategyId && String(position.strategyId).startsWith('force-entry')) {
+                          return '🧪 강제진입';
+                        }
+                        // 포지션 타입이 force_entry면 DB에서 가져온 포지션
+                        if (position.type === 'force_entry') {
+                          return `🧪 강제진입${position.id || position.strategyId}`;
+                        }
+                        return 'Unknown';
+                      })()}
                     </span>
                     <Badge 
                       variant="outline" 
@@ -1297,10 +1364,12 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
                           trade.type === 'sell' ? 'text-yellow-400' :
                           trade.type === 'short' ? 'text-red-400' :
                           'text-green-400'
-                        } font-bold`}>{trade.type?.toUpperCase() || 'UNKNOWN'}</span>
+                        } font-bold`}>
+                          {trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN')}
+                        </span>
                         {strategy && (
                           <span className="text-purple-400 ml-2">
-                            [{strategy.name}]
+                            [{strategy.name.includes('강제진입') ? `🧪 ${strategy.name}` : strategy.name}]
                           </span>
                         )}
                       </span>
@@ -1322,5 +1391,15 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         </div>
       </CardContent>
     </Card>
+
+    {/* 강제진입 모달 */}
+    <ForceEntryModal
+      isOpen={showForceEntryModal}
+      onClose={() => setShowForceEntryModal(false)}
+      currentKimp={currentKimchiData?.kimp || 0}
+      onForceEntry={handleForceEntry}
+      isLiveMode={isLiveMode}
+    />
+    </>
   );
 };

@@ -2138,6 +2138,57 @@ export async function registerRoutes(
     }
   });
 
+  // 강제진입 포지션 생성 API
+  app.post("/api/force-entry", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { 
+        margin, 
+        leverage, 
+        investmentAmount, 
+        currentKimp, 
+        symbol = 'BTC' 
+      } = req.body;
+      
+      console.log('🧪 강제진입 요청:', { userId, margin, leverage, investmentAmount, currentKimp });
+      
+      // 포지션 데이터 준비
+      const positionData = {
+        userId: parseInt(userId),
+        symbol,
+        type: 'force_entry',
+        entryPrice: parseFloat(margin) / parseFloat(investmentAmount), // 진입가격 계산
+        quantity: parseFloat(investmentAmount),
+        entryPremiumRate: parseFloat(currentKimp),
+        currentPremiumRate: parseFloat(currentKimp),
+        status: 'open',
+        side: 'long',
+        isMock: true, // 현재는 Mock 모드
+        leverage: parseInt(leverage)
+      };
+      
+      // DB에 포지션 저장하고 실제 ID 받기
+      const savedPosition = await storage.createPosition(positionData);
+      
+      console.log('✅ 강제진입 포지션 DB 저장 완료:', savedPosition.id);
+      
+      // 실제 DB ID를 포함한 응답
+      res.json({
+        success: true,
+        position: savedPosition,
+        strategyName: `강제진입${savedPosition.id}`,
+        message: `강제진입${savedPosition.id} 포지션이 생성되었습니다.`
+      });
+      
+    } catch (error) {
+      console.error('❌ 강제진입 실패:', error);
+      res.status(500).json({ 
+        error: "강제진입 실행 중 오류가 발생했습니다",
+        details: (error as any).message 
+      });
+    }
+  });
+
   // CORS preflight 처리
   app.options("/api/auth/*", (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
