@@ -14,6 +14,8 @@ interface PositionsTableProps {
 }
 
 export function PositionsTable({ positions, onRefresh, onClosePosition }: PositionsTableProps) {
+  // 🔍 활성 포지션만 표시 (closed 포지션 제외)
+  const activePositions = positions.filter(p => p.status !== 'closed');
   const [closingAll, setClosingAll] = useState(false);
   const getCoinIcon = (symbol: string) => {
     const colors: Record<string, string> = {
@@ -58,21 +60,33 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
               variant="destructive"
               size="sm"
               className="font-bold border-2 border-red-400"
-              disabled={closingAll || positions.length === 0}
+              disabled={closingAll || activePositions.length === 0}
               aria-busy={closingAll}
               onClick={async () => {
-                if (positions.length === 0) {
+                if (activePositions.length === 0) {
                   toast({ title: "청산 대상 없음", description: "활성 포지션이 없습니다." });
                   return;
                 }
-                if (!confirm(`활성 포지션 ${positions.length}개를 모두 청산할까요?`)) return;
+                if (!confirm(`활성 포지션 ${activePositions.length}개를 모두 청산할까요?`)) return;
                 setClosingAll(true);
                 try {
+                  // 🚀 UI 즉시 업데이트 (사용자 경험 개선)
+                  console.log(`🔴 전체 청산 시작: ${activePositions.length}개 포지션`);
+                  
                   const res = await apiRequest("POST", "/api/positions/close-all", {});
                   const json = await res.json();
-                  await queryClient.invalidateQueries({ queryKey: ['/api/positions', 1] });
+                  
+                  // 🔄 쿼리 무효화 및 즉시 새로고침
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['/api/positions', 1] }),
+                    queryClient.refetchQueries({ queryKey: ['/api/positions', 1] })
+                  ]);
                   onRefresh();
-                  toast({ title: "전체 청산 완료", description: `${json?.closed ?? 0}개 포지션 청산됨` });
+                  
+                  toast({ 
+                    title: "전체 청산 완료", 
+                    description: `${json?.closed ?? 0}개 포지션이 한 번에 청산되었습니다` 
+                  });
                 } catch (e: any) {
                   toast({ title: "전체 청산 실패", description: e?.message ?? String(e), variant: "destructive" });
                 } finally {
@@ -125,14 +139,14 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
               </tr>
             </thead>
             <tbody className="bg-slate-850 divide-y divide-slate-700">
-              {positions.length === 0 ? (
+              {activePositions.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-8 text-center text-slate-400">
                     활성 포지션이 없습니다.
                   </td>
                 </tr>
               ) : (
-                positions.map((position) => (
+                activePositions.map((position) => (
                   <tr key={position.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">

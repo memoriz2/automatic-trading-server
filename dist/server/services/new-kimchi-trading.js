@@ -10,6 +10,12 @@ export class MultiStrategyTradingService {
     isTrading = false;
     lastKimchiRates = new Map();
     activeStrategies = new Map();
+    // 최근 진입 시각(사용자-전략-심볼 단위). 재시작 시 메모리 리셋되며, DB 초기화는 선택
+    lastEntryAtByKey = new Map();
+    static MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
+    getCooldownKey(userId, strategyId, symbol = "BTC") {
+        return `${userId}:${strategyId}:${symbol}`;
+    }
     constructor() {
         this.upbitService = new UpbitService();
         this.binanceService = new BinanceService();
@@ -66,7 +72,7 @@ export class MultiStrategyTradingService {
                     this.lastKimchiRates.set("BTC", btcData.premiumRate);
                     // 활성 포지션이 이미 있는지 확인 (1개 제한)
                     const hasActivePosition = activePositions.some((p) => p.status === "open");
-                    const signal = this.analyzeStrategySignal(btcData, strategy, activePositions, hasActivePosition);
+                    const signal = await this.analyzeStrategySignal(btcData, strategy, activePositions, hasActivePosition);
                     if (signal) {
                         await this.executeStrategySignal(userId, signal);
                         // BTC 포지션 생성 후 루프 종료 (1개 포지션 제한)
@@ -111,7 +117,7 @@ export class MultiStrategyTradingService {
         }
     }
     // BTC 단순 자동매매 신호 분석 (양수/음수 김프 구분 없음)
-    analyzeStrategySignal(kimchiData, strategy, activePositions, hasActivePosition = false) {
+    async analyzeStrategySignal(kimchiData, strategy, activePositions, hasActivePosition = false) {
         const premiumRate = kimchiData.premiumRate;
         const symbol = "BTC"; // BTC 고정
         // BTC 활성 포지션 확인 (전략 상관없이 1개만 허용)
@@ -123,6 +129,19 @@ export class MultiStrategyTradingService {
         console.log(`🔍 BTC 자동매매 체크: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`);
         // 진입 조건 체크 (포지션이 없을 때만)
         if (!hasActivePosition && !existingPosition) {
+            // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
+            const userId = String(strategy?.userId ?? "");
+            const recentPosition = await storage.getRecentPositionByStrategy(userId, strategy.id, symbol);
+            if (recentPosition) {
+                const lastEntryTime = recentPosition.entryTime.getTime();
+                const elapsed = Date.now() - lastEntryTime;
+                if (elapsed < MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS) {
+                    const remainSec = Math.ceil((MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+                    console.log(`⏳ DB 기반 진입 쿨다운 진행중(${remainSec}s 남음) → 이번 진입 스킵`);
+                    console.log(`📅 최근 진입: ${recentPosition.entryTime.toISOString()}`);
+                    return null;
+                }
+            }
             // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
             const entryDifference = Math.abs(premiumRate - entryRate);
             const sameSign = (entryRate >= 0 && premiumRate >= 0) ||
@@ -310,8 +329,10 @@ export class MultiStrategyTradingService {
             console.log(`업비트:`, upbitResult);
             console.log(`바이낸스:`, binanceResult);
             // 포지션 생성
+            const entryTimeKST = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST 시간
             const position = await storage.createPosition({
                 userId: parseInt(userId),
+                strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
                 symbol,
                 type: "HEDGE",
                 side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
@@ -319,11 +340,12 @@ export class MultiStrategyTradingService {
                 entryPrice: String(currentPrice),
                 quantity: String(adjustedQuantity),
                 entryPremiumRate: String(signal.premiumRate),
+                entryTime: entryTimeKST, // ← KST 시간으로 명시적 설정
                 upbitOrderId: upbitResult.uuid,
                 binanceOrderId: binanceResult.orderId,
-                strategyId: strategy.id,
             });
             console.log(`✅ 포지션 생성 완료:`, position);
+            console.log(`🕒 진입 시간 (KST):`, entryTimeKST.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
             // 거래 기록 생성
             await Promise.all([
                 storage.createTrade({
@@ -354,6 +376,8 @@ export class MultiStrategyTradingService {
                 message: `${symbol} ${strategy.name} 전략 진입 완료. 김프율: ${signal.premiumRate}%, 수량: ${adjustedQuantity}`,
             });
             console.log(`🎉 ${symbol} 포지션 진입 완료!`);
+            // ✅ DB 기반 쿨다운으로 변경: Position 테이블의 entryTime이 자동으로 쿨다운 역할
+            console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS / 1000 / 60}분)`);
         }
         catch (error) {
             console.error(`새로운 김프 진입 실패 (${symbol}):`, error);

@@ -818,6 +818,30 @@ export async function registerRoutes(
     }
   });
 
+  // 포지션 생성 (Mock/실제 공용)
+  app.post("/api/positions", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = String(req.user.id);
+      const positionData = { ...req.body, userId: parseInt(userId) };
+      
+      console.log('🔍 포지션 생성 요청:', positionData);
+      
+      const position = await storage.createPosition(positionData);
+      
+      console.log('✅ 포지션 생성 성공:', position.id);
+      res.json({
+        message: "포지션이 생성되었습니다",
+        position
+      });
+    } catch (error: any) {
+      console.error("포지션 생성 오류:", error);
+      res.status(500).json({
+        error: "포지션 생성 중 오류가 발생했습니다",
+        details: error.message
+      });
+    }
+  });
+
   // 포지션 청산
   app.post("/api/positions/:id/close", async (req, res) => {
     try {

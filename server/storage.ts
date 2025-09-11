@@ -106,6 +106,7 @@ export type InsertPosition = {
   binanceOrderId?: string | null;
   side: string;
   exitPrice?: string | number | null;
+  isMock?: boolean;
 };
 
 export type InsertTrade = {
@@ -655,12 +656,13 @@ export class DatabaseStorage implements IStorage {
         entryPremiumRate: new Prisma.Decimal(insertPosition.entryPremiumRate as any),
         currentPremiumRate: insertPosition.currentPremiumRate != null ? new Prisma.Decimal(insertPosition.currentPremiumRate as any) : null,
         status: insertPosition.status ?? "open",
-        entryTime: insertPosition.entryTime ?? new Date(),
+        entryTime: insertPosition.entryTime ?? new Date(Date.now() + 9 * 60 * 60 * 1000), // KST 시간으로 저장
         exitTime: insertPosition.exitTime ?? null,
         upbitOrderId: insertPosition.upbitOrderId ?? null,
         binanceOrderId: insertPosition.binanceOrderId ?? null,
         side: insertPosition.side,
         exitPrice: insertPosition.exitPrice != null ? new Prisma.Decimal(insertPosition.exitPrice as any) : null,
+        isMock: insertPosition.isMock ?? true, // 기본값: Mock 거래
       },
     });
     return position as Position;

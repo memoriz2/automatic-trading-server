@@ -343,12 +343,23 @@ export async function registerRoutes(app, server) {
     });
     // 세션 인증 미들웨어 (단순화)
     function authenticateSession(req, res, next) {
+        console.log('🔍 세션 인증 시도:', {
+            sessionId: req.sessionID,
+            hasSession: !!req.session,
+            sessionUser: req.session?.user,
+            cookies: req.headers.cookie,
+            userAgent: req.headers['user-agent']?.substring(0, 50)
+        });
         const user = req.session?.user;
         if (!user) {
-            console.log('❌ 세션 인증 실패: 사용자 정보 없음');
+            console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
+                sessionExists: !!req.session,
+                sessionKeys: req.session ? Object.keys(req.session) : [],
+                sessionId: req.sessionID
+            });
             return res.status(401).json({ message: '로그인이 필요합니다' });
         }
-        console.log('✅ 세션 인증 성공:', user.username);
+        console.log('✅ 세션 인증 성공:', user.username, 'ID:', user.id);
         req.user = user;
         next();
     }
@@ -680,18 +691,7 @@ export async function registerRoutes(app, server) {
             });
         }
     });
-    // 활성 포지션 조회 (세션 인증)
-    app.get("/api/positions", authenticateSession, async (req, res) => {
-        try {
-            const userId = String(req.user.id);
-            const positions = await storage.getActivePositions(userId);
-            res.json(positions);
-        }
-        catch (error) {
-            console.error("포지션 조회 오류:", error);
-            res.status(500).json({ error: "Failed to fetch positions" });
-        }
-    });
+    // 활성 포지션 조회 (세션 인증) - 중복 제거됨
     // 활성 포지션 조회
     app.get("/api/positions/:userId", async (req, res) => {
         try {
@@ -717,6 +717,19 @@ export async function registerRoutes(app, server) {
         }
         catch (error) {
             res.status(500).json({ error: "Failed to close position" });
+        }
+    });
+    // 전체 포지션 청산 (세션 인증 필요)
+    app.post("/api/positions/close-all", authenticateSession, async (req, res) => {
+        try {
+            const userId = String(req.user.id);
+            const { symbol, strategyId, type } = (req.body || {});
+            const { count } = await storage.closeAllPositionsByUser(userId, { symbol, strategyId, type });
+            res.json({ closed: count });
+        }
+        catch (error) {
+            console.error("전체 포지션 청산 오류:", error);
+            res.status(500).json({ error: "Failed to close all positions" });
         }
     });
     // 거래 내역 조회 (세션 기반)
@@ -1203,8 +1216,17 @@ export async function registerRoutes(app, server) {
         try {
             const authenticatedUserId = req.user.id; // 인증된 사용자 ID 사용
             const strategyData = { ...req.body, userId: authenticatedUserId };
-            console.log(`거래 전략 생성/수정 요청: 인증된 사용자 ${authenticatedUserId}`, strategyData);
+            console.log(`🔍 [ROUTE] 거래 전략 생성/수정 요청: 인증된 사용자 ${authenticatedUserId}`);
+            console.log(`🔍 [ROUTE] 요청 바디:`, JSON.stringify(req.body, null, 2));
+            console.log(`🔍 [ROUTE] investmentAmount 타입:`, typeof req.body.investmentAmount);
+            console.log(`🔍 [ROUTE] investmentAmount 값:`, req.body.investmentAmount);
+            console.log(`🔍 [ROUTE] 최종 strategyData:`, JSON.stringify(strategyData, null, 2));
             const strategy = await storage.createOrUpdateTradingStrategy(strategyData);
+            console.log(`🔍 [ROUTE] 저장된 전략 결과:`, {
+                id: strategy?.id,
+                investmentAmount: strategy?.investmentAmount?.toString(),
+                investmentAmountType: typeof strategy?.investmentAmount
+            });
             res.json({
                 message: "거래 전략이 저장되었습니다",
                 strategy,

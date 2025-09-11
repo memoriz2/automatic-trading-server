@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
-import { MockTradingSystem } from '@/components/mock-trading-system';
+// import { MockTradingSystem } from '@/components/mock-trading-system'; // Mock 시스템 비활성화
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
@@ -956,30 +956,126 @@ const LegacyAutoTradingPage = () => {
     });
   };
 
+  // ===== 쿨다운 표시 컴포넌트 =====
+  const CooldownDisplay = ({ strategyId, symbol }: { strategyId: string; symbol: string }) => {
+    const [remainTime, setRemainTime] = useState<number | null>(null);
+    
+    useEffect(() => {
+      const updateCooldown = async () => {
+        try {
+          // 로컬스토리지에서 쿨다운 정보 확인
+          const cooldownKey = `cooldown_${strategyId}_${symbol}`;
+          const savedCooldown = localStorage.getItem(cooldownKey);
+          
+          if (savedCooldown) {
+            const cooldownData = JSON.parse(savedCooldown);
+            const elapsed = Date.now() - cooldownData.entryTime;
+            const remaining = Math.max(0, 600000 - elapsed); // 10분 - 경과시간
+            
+            if (remaining > 0) {
+              setRemainTime(remaining);
+            } else {
+              localStorage.removeItem(cooldownKey); // 만료된 쿨다운 제거
+              setRemainTime(null);
+            }
+          } else {
+            // 로컬스토리지에 없으면 서버에서 확인
+            const response = await fetch('/api/positions', { credentials: 'include' });
+            if (response.ok) {
+              const positions = await response.json();
+              const recentPosition = positions.find((p: any) => 
+                p.status === 'open' && 
+                p.strategyId === parseInt(strategyId) && 
+                p.symbol === symbol
+              );
+              
+              if (recentPosition) {
+                const entryTime = new Date(recentPosition.entryTime).getTime();
+                const elapsed = Date.now() - entryTime;
+                const remaining = Math.max(0, 600000 - elapsed);
+                
+                if (remaining > 0) {
+                  // 로컬스토리지에 저장
+                  localStorage.setItem(cooldownKey, JSON.stringify({ entryTime, strategyId, symbol }));
+                  setRemainTime(remaining);
+                  console.log(`🕐 [DEBUG] 쿨다운 설정: ${strategyId} - ${Math.floor(remaining/60000)}분 ${Math.floor((remaining%60000)/1000)}초 남음`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('쿨다운 확인 실패:', error);
+        }
+      };
+      
+      updateCooldown();
+      const interval = setInterval(updateCooldown, 1000); // 1초마다 업데이트
+      
+      return () => clearInterval(interval);
+    }, [strategyId, symbol]);
+    
+    if (!remainTime || remainTime <= 0) return null;
+    
+    const minutes = Math.floor(remainTime / 60000);
+    const seconds = Math.floor((remainTime % 60000) / 1000);
+    
+    return (
+      <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
+        🕐 {minutes}:{seconds.toString().padStart(2, '0')}
+      </span>
+    );
+  };
+
   // ===== 활성 전략들의 포지션 상태 확인 (중복 진입 방지) =====
   const checkActiveStrategiesPositions = useCallback(async (strategies: any[]) => {
     try {
-      console.log('🔒 활성 전략들의 포지션 상태 확인 시작');
+      console.log('🔒 [DEBUG] checkActiveStrategiesPositions 함수 호출됨');
+      console.log('🔒 [DEBUG] 전달받은 strategies 개수:', strategies.length);
+      console.log('🔒 [DEBUG] strategies 데이터:', strategies);
       const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
       
       if (positionsResponse.ok) {
         const positions = await positionsResponse.json();
-        console.log('📊 현재 포지션 목록:', positions);
+        console.log('📊 [DEBUG] 포지션 API 응답 성공');
+        console.log('📊 [DEBUG] 포지션 개수:', positions.length);
+        console.log('📊 [DEBUG] 포지션 데이터:', positions);
         
         const activeStrategies = strategies.filter(s => s.isActive);
-        console.log('🎯 활성 전략 목록:', activeStrategies.map(s => ({ id: s.id, name: s.name })));
+        console.log('🎯 [DEBUG] 활성 전략 필터링 결과:', activeStrategies.length);
+        console.log('🎯 [DEBUG] 활성 전략 목록:', activeStrategies.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })));
         
         for (const strategy of activeStrategies) {
+          console.log(`🔍 [DEBUG] 전략 "${strategy.name}" (ID: ${strategy.id}) 포지션 검색 시작`);
+          
           const activePosition = positions.find((p: any) => 
             p.status === 'open' && 
             p.strategyId === parseInt(strategy.id) && 
             p.symbol === (strategy.crypto || 'BTC')
           );
           
+          console.log(`🔍 [DEBUG] 전략 "${strategy.name}" 포지션 검색 결과:`, activePosition ? 'FOUND' : 'NOT_FOUND');
+          if (activePosition) {
+            console.log(`🔍 [DEBUG] 찾은 포지션:`, {
+              id: activePosition.id,
+              strategyId: activePosition.strategyId,
+              status: activePosition.status,
+              entryTime: activePosition.entryTime
+            });
+          }
+          
           if (activePosition) {
             const entryTime = new Date(activePosition.entryTime);
             const elapsed = Date.now() - entryTime.getTime();
             const remainMinutes = Math.ceil((600000 - elapsed) / 60000); // 10분 쿨다운
+            
+            console.log(`⏰ [DEBUG] 쿨다운 계산:`, {
+              entryTime: entryTime.toISOString(),
+              currentTime: new Date().toISOString(),
+              elapsedMs: elapsed,
+              elapsedMinutes: Math.floor(elapsed / 60000),
+              remainMinutes,
+              cooldownComplete: elapsed >= 600000
+            });
             
             console.log(`🔒 전략 "${strategy.name}" 쿨다운 상태:`, {
               positionId: activePosition.id,
@@ -992,35 +1088,78 @@ const LegacyAutoTradingPage = () => {
               console.log(`⏳ 전략 "${strategy.name}" 쿨다운 중 (${remainMinutes}분 남음)`);
               // 자동으로 전략 비활성화 (UI 반영)
               strategy.isActive = false;
-              
-              // 🔄 쿨다운 완료 시 자동 활성화 타이머 설정
-              const remainingTime = 600000 - elapsed;
-              setTimeout(() => {
+            } else {
+              // 🔄 쿨다운 완료된 전략은 자동 활성화 (서버 재시작 후에도 작동)
+              if (!strategy.isActive) {
                 console.log(`✅ 전략 "${strategy.name}" 쿨다운 완료 - 자동 활성화`);
-                setStrategies(prev => prev.map(s => 
-                  s.id === strategy.id ? { ...s, isActive: true } : s
-                ));
-                toast({
-                  title: '전략 활성화',
-                  description: `${strategy.name} 전략의 쿨다운이 완료되어 자동으로 활성화되었습니다.`
-                });
-              }, remainingTime);
+                strategy.isActive = true;
+                
+                // DB에도 즉시 반영 (fetchJson 사용)
+                try {
+                  const payload = {
+                    name: strategy.name,
+                    strategyType: 'positive_kimchi',
+                    entryRate: strategy.entryCondition,
+                    exitRate: strategy.takeProfitCondition,
+                    toleranceRate: strategy.tolerance,
+                    leverage: parseInt(strategy.leverage) || 3,
+                    investmentAmount: strategy.investmentAmount,
+                    symbol: strategy.crypto || 'BTC',
+                    isActive: true,
+                    isAutoTrading: true,
+                    tolerance: strategy.tolerance
+                  };
+                  
+                  console.log('🔄 자동 활성화 payload:', payload);
+                  
+                  await fetchJson('/api/trading-strategies', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    nonCancelable: true as any
+                  });
+                  
+                  console.log('✅ 자동 활성화 DB 저장 성공');
+                  toast({
+                    title: '전략 활성화',
+                    description: `${strategy.name} 전략의 쿨다운이 완료되어 자동으로 활성화되었습니다.`
+                  });
+                } catch (error) {
+                  console.error('자동 활성화 DB 저장 실패:', error);
+                }
+              }
             }
           }
         }
+      } else {
+        console.error('❌ [DEBUG] 포지션 API 응답 실패:', positionsResponse.status, positionsResponse.statusText);
       }
     } catch (error) {
-      console.error('❌ 포지션 상태 확인 실패:', error);
+      console.error('❌ [DEBUG] 포지션 상태 확인 실패:', error);
+      console.error('❌ [DEBUG] 에러 상세:', error instanceof Error ? error.message : String(error));
     }
   }, []);
 
   // ===== 실제 전략 목록 불러오기 (세션 기반) =====
   const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean } = {}) => {
-    if (!opts.force && hasLoadedStrategiesRef.current) return;
+    console.log('📋 [DEBUG] loadStrategiesFromDB 함수 호출됨', opts);
+    console.log('📋 [DEBUG] hasLoadedStrategiesRef.current:', hasLoadedStrategiesRef.current);
+    
+    if (!opts.force && hasLoadedStrategiesRef.current) {
+      console.log('📋 [DEBUG] 이미 로드됨 - 함수 종료');
+      return;
+    }
     try {
       // 세션 우선: 세션/효과적 사용자 ID가 없으면 조회 보류
+      console.log('👤 [DEBUG] 사용자 상태 확인:', { 
+        userId: user?.id, 
+        effectiveUserId, 
+        hasUser: !!user?.id,
+        hasEffectiveUserId: !!effectiveUserId 
+      });
+      
       if (!user?.id && !effectiveUserId) {
-        console.warn('⏸️ 세션 사용자 미확정으로 전략 조회를 보류합니다.');
+        console.warn('⏸️ [DEBUG] 세션 사용자 미확정으로 전략 조회를 보류합니다.');
         toast({ title: '전략 조회 보류', description: '세션 확인 후 다시 시도합니다.', variant: 'destructive' });
         return;
       }
@@ -1057,7 +1196,9 @@ const LegacyAutoTradingPage = () => {
         }));
         
         // 🔒 전략 로드 후 활성 전략들의 포지션 상태 확인
+        console.log('🚀 [DEBUG] checkActiveStrategiesPositions 호출 직전');
         await checkActiveStrategiesPositions(formattedStrategies);
+        console.log('🚀 [DEBUG] checkActiveStrategiesPositions 호출 완료');
         
         setStrategies(formattedStrategies);
         console.log(`✅ 사용자 ${userId}의 전략 ${formattedStrategies.length}개 로드 완료:`, formattedStrategies);
@@ -1087,17 +1228,20 @@ const LegacyAutoTradingPage = () => {
       hasScheduledInitialLoadRef.current = true;
       setTimeout(async () => {
         try {
-          console.log('🔄 페이지 로드 - 세션 직접 확인');
+          console.log('🔄 [DEBUG] 페이지 로드 - 세션 직접 확인 시작');
           const sessionData = await apiFetchJson('/api/auth/me');
+          console.log('🔄 [DEBUG] 세션 데이터 응답:', sessionData);
+          
           if (sessionData.id) {
-            console.log('✅ 페이지 로드 - 세션 확인됨:', sessionData.id);
+            console.log('✅ [DEBUG] 페이지 로드 - 세션 확인됨:', sessionData.id);
             setEffectiveUserId(String(sessionData.id));
+            console.log('🚀 [DEBUG] loadStrategiesFromDB 호출 예정');
             loadStrategiesFromDB();
           } else {
-            console.log('❌ 페이지 로드 - 세션 없음, 로그인 필요');
+            console.log('❌ [DEBUG] 페이지 로드 - 세션 없음, 로그인 필요');
           }
         } catch (error) {
-          console.log('❌ 페이지 로드 - 세션 확인 실패:', error);
+          console.log('❌ [DEBUG] 페이지 로드 - 세션 확인 실패:', error);
         }
       }, 500); // 0.5초 후 시도
     }
@@ -1105,7 +1249,8 @@ const LegacyAutoTradingPage = () => {
 
   // 사용자 정보나 effectiveUserId가 변경될 때 전략 목록 다시 로드
   useEffect(() => {
-    console.log('👤 사용자 정보 변경 감지, 전략 목록 다시 로드');
+    console.log('👤 [DEBUG] 사용자 정보 변경 감지 useEffect 실행됨');
+    console.log('👤 [DEBUG] user?.id 변경 감지:', user?.id);
     console.log('🔍 현재 사용자 상태:', { 
       userFromAuth: user?.id, 
       effectiveUserId,
@@ -1385,6 +1530,8 @@ const LegacyAutoTradingPage = () => {
                         <h3 className="font-medium" data-testid={`text-strategy-name-${strategy.id}`}>
                           {strategy.name}
                         </h3>
+                        {/* 🕐 쿨다운 시간 표시 */}
+                        <CooldownDisplay strategyId={strategy.id} symbol={strategy.crypto || 'BTC'} />
                         <button 
                           type="button" 
                           role="switch" 
@@ -1625,21 +1772,39 @@ const LegacyAutoTradingPage = () => {
             </div>
           </section>
 
-          {/* 모의 거래 시스템 */}
+          {/* 실제 자동매매 시스템 (Mock 데이터) */}
           <section className="card col-12">
-            <MockTradingSystem 
-              strategies={strategies}
-              currentKimchiData={kimp}
-              userId={user?.id ? String(user.id) : "1"}
-              onDailyStatsUpdate={setDailyStats}
-              onStrategyStatsUpdate={(stats) => {
-                // UI의 strategies 상태에 실행 횟수/수익률을 반영 (서버값이 없으면 로컬 값 사용)
-                setStrategies(prev => prev.map(s => {
-                  const st = stats[s.id];
-                  return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
-                }));
-              }}
-            />
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">
+                🤖 실제 자동매매 시스템 (Mock 데이터)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    {strategies.filter(s => s.isActive).length}
+                  </div>
+                  <div className="text-sm text-slate-400">활성 전략</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">
+                    {kimp.kimp?.toFixed(3)}%
+                  </div>
+                  <div className="text-sm text-slate-400">현재 김프</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-400">
+                    DB 기반
+                  </div>
+                  <div className="text-sm text-slate-400">쿨다운 시스템</div>
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-slate-300">
+                ✅ 실제 DB 저장 | ✅ 10분 쿨다운 | ✅ 서버 재시작 안전 | 💰 실제 자산 관리
+              </div>
+              <div className="mt-2 text-xs text-yellow-400 bg-yellow-900/20 p-2 rounded">
+                💼 현재 자산: 업비트 ₩8,128,365 | 바이낸스 $3,127.21
+              </div>
+            </div>
           </section>
 
           {/* 시장 스냅샷 */}

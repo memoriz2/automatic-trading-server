@@ -5,77 +5,71 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { TRADING_CONSTANTS } from "@/lib/utils";
 
-// API 호출 함수
+// API 호출 함수 (AbortError 처리 포함)
 const apiFetch = async (url: string, options: RequestInit = {}) => {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    // AbortError는 무시 (정상적인 요청 취소)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('📡 요청이 취소되었습니다 (정상)');
+      return null;
+    }
+    throw error;
   }
-  
-  return response.json();
 };
 
 // DB 저장 함수들
 const saveMockTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: boolean = false) => {
+  // 🔒 로컬스토리지에만 저장 (서버 부담 제거)
   try {
-    const apiEndpoint = isLiveMode ? '/api/live-trades' : '/api/mock-trades';
-    
-    await apiFetch(apiEndpoint, {
-      method: 'POST',
-      credentials: 'include', // 세션 쿠키 포함
-      body: JSON.stringify({
-        id: trade.id,
-        timestamp: trade.timestamp.toISOString(),
-        type: trade.type,
-        symbol: trade.symbol,
-        quantity: trade.quantity,
-        price: trade.price,
-        fee: trade.fee,
-        exchange: trade.exchange,
-        strategyId: trade.strategyId,
-        premiumRate: trade.premiumRate,
-        isMock: !isLiveMode, // 실거래 모드에 따라 결정
-        strategyName: trade.strategyName || 'Unknown',
-        mockSessionId: isLiveMode ? undefined : `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` // Mock 세션 ID
-      })
-    });
-    console.log(`✅ ${isLiveMode ? '실거래' : 'Mock 거래'} DB 저장 성공:`, trade.id);
+    const tradeKey = `trade_${trade.id}`;
+    localStorage.setItem(tradeKey, JSON.stringify({
+      ...trade,
+      userId: parseInt(userId),
+      timestamp: trade.timestamp.toISOString(),
+      isMock: !isLiveMode,
+      strategyName: trade.strategyName || 'Unknown'
+    }));
+    console.log(`✅ ${isLiveMode ? '실거래' : 'Mock 거래'} 로컬스토리지 저장 성공:`, trade.id);
   } catch (error) {
-    console.error(`❌ ${isLiveMode ? '실거래' : 'Mock 거래'} DB 저장 실패:`, error);
+    console.error(`❌ ${isLiveMode ? '실거래' : 'Mock 거래'} 로컬스토리지 저장 실패:`, error);
   }
 };
 
 const saveMockPositionToDB = async (position: MockPosition, userId: string) => {
+  // 🔒 로컬스토리지에만 저장 (서버 부담 제거)
   try {
-    await apiFetch(`/api/mock-positions/${userId}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        id: position.id,
-        strategyId: position.strategyId,
-        symbol: position.symbol,
-        entryTime: position.entryTime.toISOString(),
-        entryPremiumRate: position.entryPremiumRate,
-        upbitQuantity: position.upbitQuantity,
-        upbitPrice: position.upbitPrice,
-        binanceSpotQuantity: position.binanceSpotQuantity,
-        binanceQuantity: position.binanceQuantity,
-        binancePrice: position.binancePrice,
-        leverage: position.leverage,
-        status: position.status,
-        unrealizedPnl: position.unrealizedPnl,
-        realizedPnl: position.realizedPnl
-      })
-    });
-    console.log('✅ Mock 포지션 DB 저장 성공:', position.id);
+    const positionKey = `position_${position.id}`;
+    localStorage.setItem(positionKey, JSON.stringify({
+      ...position,
+      userId: parseInt(userId),
+      entryTime: position.entryTime.toISOString(),
+      isMock: true
+    }));
+    console.log('✅ Mock 포지션 로컬스토리지 저장 성공:', position.id);
+    
+    // 쿨다운 정보도 함께 저장
+    const cooldownKey = `cooldown_${position.strategyId}_${position.symbol}`;
+    localStorage.setItem(cooldownKey, JSON.stringify({
+      entryTime: position.entryTime.getTime(),
+      strategyId: position.strategyId,
+      symbol: position.symbol
+    }));
   } catch (error) {
-    console.error('❌ Mock 포지션 DB 저장 실패:', error);
+    console.error('❌ Mock 포지션 로컬스토리지 저장 실패:', error);
   }
 };
 
@@ -761,18 +755,21 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       if (now - lastAction < COOLDOWN_MS) return;
 
       // 10분 제한 가드: 진입 조건 평가 *전에* 먼저 확인
-      const restriction = entryRestrictionRef.current[String(strategy.id)];
-      if (restriction) {
-        const nowTs = Date.now();
-        const withinBand = Math.abs(currentPremium - restriction.anchor) <= restriction.tolerance;
-        if (nowTs < restriction.until && withinBand) {
-          console.log(`⏸️ 재진입 제한: 남은 ${(Math.ceil((restriction.until - nowTs) / 1000))}s, 앵커±tol 유지 (${restriction.anchor.toFixed(3)}% ± ${restriction.tolerance}%)`);
+      // 🔒 로컬스토리지 기반 쿨다운 체크 (서버 부담 없음)
+      const cooldownKey = `cooldown_${strategy.id}_${strategy.crypto || 'BTC'}`;
+      const savedCooldown = localStorage.getItem(cooldownKey);
+      
+      if (savedCooldown) {
+        const cooldownData = JSON.parse(savedCooldown);
+        const elapsed = Date.now() - cooldownData.entryTime;
+        
+        if (elapsed < 600000) { // 10분 미경과
+          const remainSeconds = Math.ceil((600000 - elapsed) / 1000);
+          console.log(`⏸️ 로컬스토리지 기반 재진입 제한: 남은 ${remainSeconds}s`);
           return; // 진입 로직 실행 차단
-        }
-        // 밴드를 이탈했거나 시간이 만료됐으면 제한 해제
-        if (!withinBand || nowTs >= restriction.until) {
-          delete entryRestrictionRef.current[String(strategy.id)];
-          console.log(`🚪 재진입 제한 해제: ${!withinBand ? '허용오차 밴드 이탈' : '시간 만료'}`);
+        } else {
+          localStorage.removeItem(cooldownKey); // 만료된 쿨다운 제거
+          console.log(`✅ 쿨다운 완료: 새 진입 허용`);
         }
       }
 
@@ -801,12 +798,14 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         addTradingLog(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
         await mockEntry(strategy, currentPremium);
         lastActionAtRef.current[strategy.id] = now;
-        // 진입 후 10분 제한 설정 (앵커=현재 김프, tol=전략 허용오차)
-        entryRestrictionRef.current[String(strategy.id)] = {
-          until: Date.now() + 10 * 60 * 1000,
-          anchor: currentPremium,
-          tolerance: tolerance
-        };
+        // 🔒 로컬스토리지에 쿨다운 정보 저장 (서버 부담 없음)
+        const cooldownKey = `cooldown_${strategy.id}_${strategy.crypto || 'BTC'}`;
+        localStorage.setItem(cooldownKey, JSON.stringify({
+          entryTime: Date.now(),
+          strategyId: strategy.id,
+          symbol: strategy.crypto || 'BTC'
+        }));
+        console.log(`🕐 쿨다운 시작: ${strategy.name} - 10분 타이머 설정`);
       } else if (exitOk) {
         // 최소 보유시간 가드
         const heldMs = now - new Date(existingPosition.entryTime).getTime();
