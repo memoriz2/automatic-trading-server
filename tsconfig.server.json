@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "allowJs": true,
@@ -13,8 +13,10 @@
     "isolatedModules": true,
     "noEmit": false,
     "rootDir": ".",
-    "outDir": "dist"
+    "outDir": "dist",
+    "downlevelIteration": true,
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["server/**/*.ts"],
-  "exclude": ["node_modules", "dist", "client"]
+  "exclude": ["node_modules", "dist", "client", "server/generated"]
 }

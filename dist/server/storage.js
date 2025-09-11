@@ -1,735 +1,752 @@
-import { prisma } from "./db.js";
-import { Prisma } from "../generated/prisma";
-import { hashPassword, verifyPassword } from "./utils/auth.js";
+import { Pool } from 'pg';
+import { hashPassword } from "./utils/auth.js";
 import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
+// PostgreSQL 연결 풀 설정
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+});
+// DatabaseStorage 클래스 - SQL 기반
 export class DatabaseStorage {
-    // Users
-    async getUser(id) {
-        const user = await prisma.user.findUnique({ where: { id: parseInt(id) } });
-        return user ?? undefined;
+    pool;
+    constructor() {
+        this.pool = pool;
+    }
+    // 연결 테스트
+    async testConnection() {
+        try {
+            const client = await this.pool.connect();
+            await client.query('SELECT 1');
+            client.release();
+            return true;
+        }
+        catch (error) {
+            console.error('Database connection failed:', error);
+            return false;
+        }
+    }
+    // === 사용자 관련 메서드들 ===
+    async getUserById(id) {
+        try {
+            const result = await this.pool.query('SELECT * FROM users WHERE id = $1', [parseInt(id.toString())]);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error getting user by ID:', error);
+            return undefined;
+        }
     }
     async getUserByUsername(username) {
-        const user = await prisma.user.findUnique({ where: { username } });
-        return user ?? undefined;
+        try {
+            const result = await this.pool.query('SELECT * FROM users WHERE username = $1', [username]);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error getting user by username:', error);
+            return undefined;
+        }
     }
     async createUser(insertUser) {
-        // 비밀번호 해시화
         if (!insertUser.password) {
             throw new Error("비밀번호가 필요합니다.");
         }
         const hashedPassword = await hashPassword(insertUser.password);
-        const user = await prisma.user.create({
-            data: {
-                username: insertUser.username,
-                passwordHash: hashedPassword,
-                password: hashedPassword,
-                role: insertUser.role ?? "user",
-                email: insertUser.email ?? null,
-                firstName: insertUser.firstName ?? null,
-                lastName: insertUser.lastName ?? null,
-                profileImageUrl: insertUser.profileImageUrl ?? null,
-            },
-        });
-        return user;
-    }
-    async authenticateUser(username, password) {
-        const user = await this.getUserByUsername(username);
-        if (!user)
-            return null;
-        const isValidPassword = await verifyPassword(password, user.password);
-        if (!isValidPassword)
-            return null;
-        return user;
-    }
-    // Exchanges
-    async getExchangesByUserId(userId) {
-        return prisma.exchange.findMany({ where: { userId: parseInt(userId) } });
-    }
-    async createExchange(insertExchange) {
         try {
-            console.log(`🔍 [${new Date().toISOString()}] DB 저장 시작 - 사용자: ${insertExchange.userId}, 거래소: ${insertExchange.exchange}`);
-            console.log(`🔑 [${new Date().toISOString()}] 입력 데이터:`, {
-                userId: insertExchange.userId,
-                exchange: insertExchange.exchange,
-                apiKeyLength: insertExchange.apiKey?.length || 0,
-                apiSecretLength: insertExchange.apiSecret?.length || 0,
-            });
-            // API 키와 시크릿 키 암호화
-            const encryptedApiKey = encryptApiKey(insertExchange.apiKey);
-            const encryptedSecretKey = encryptApiKey(insertExchange.apiSecret);
-            console.log(`🔐 [${new Date().toISOString()}] 암호화 완료:`, {
-                encryptedApiKeyLength: encryptedApiKey.length,
-                encryptedSecretKeyLength: encryptedSecretKey.length,
-            });
-            // 기존 거래소 설정이 있는지 확인
-            console.log(`🔍 [${new Date().toISOString()}] 기존 거래소 확인 중...`);
-            const existingExchange = await prisma.exchange.findFirst({
-                where: {
-                    userId: insertExchange.userId,
-                    exchange: insertExchange.exchange,
-                },
-            });
-            console.log(`🔍 [${new Date().toISOString()}] 기존 거래소 조회 결과:`, {
-                found: !!existingExchange,
-                existingId: existingExchange?.id,
-                existingUserId: existingExchange?.userId,
-                existingExchange: existingExchange?.exchange,
-            });
-            if (existingExchange) {
-                // 기존 데이터가 있으면 업데이트
-                console.log(`🔄 [${new Date().toISOString()}] 기존 거래소 업데이트 중... ID: ${existingExchange.id}`);
-                const updatedExchange = await prisma.exchange.update({
-                    where: { id: existingExchange.id },
-                    data: {
-                        apiKey: encryptedApiKey,
-                        apiSecret: encryptedSecretKey,
-                        isActive: true,
-                    },
-                });
-                console.log(`✅ [${new Date().toISOString()}] 업데이트 완료:`, {
-                    id: updatedExchange.id,
-                    userId: updatedExchange.userId,
-                    exchange: updatedExchange.exchange,
-                    isActive: updatedExchange.isActive,
-                    updatedAt: updatedExchange.updatedAt,
-                });
-                // 업데이트 직후 검증
-                const verifyUpdated = await prisma.exchange.findMany({
-                    where: {
-                        userId: insertExchange.userId,
-                        exchange: insertExchange.exchange,
-                    },
-                });
-                console.log(`🔎 [${new Date().toISOString()}] 업데이트 직후 재조회 결과:`, verifyUpdated);
-                const totalAfterUpdateRes = await prisma.exchange.count({
-                    where: { userId: insertExchange.userId },
-                });
-                console.log(`📊 [${new Date().toISOString()}] 사용자별 exchanges 총건수(업데이트 후):`, totalAfterUpdateRes);
-                return updatedExchange;
-            }
-            else {
-                // 새로운 데이터 삽입
-                console.log(`🆕 [${new Date().toISOString()}] 새로운 거래소 삽입 중...`);
-                const insertData = {
-                    userId: insertExchange.userId,
-                    exchange: insertExchange.exchange,
-                    apiKey: encryptedApiKey,
-                    apiSecret: encryptedSecretKey,
-                    isActive: true,
-                };
-                console.log(`📝 [${new Date().toISOString()}] 삽입할 데이터:`, {
-                    userId: insertData.userId,
-                    exchange: insertData.exchange,
-                    apiKeyLength: insertData.apiKey.length,
-                    apiSecretLength: insertData.apiSecret.length,
-                    isActive: insertData.isActive,
-                });
-                const newExchange = await prisma.exchange.create({ data: insertData });
-                console.log(`✅ [${new Date().toISOString()}] 삽입 완료:`, {
-                    id: newExchange.id,
-                    userId: newExchange.userId,
-                    exchange: newExchange.exchange,
-                    isActive: newExchange.isActive,
-                    createdAt: newExchange.createdAt,
-                });
-                // 삽입 직후 검증
-                const verifyInserted = await prisma.exchange.findMany({
-                    where: {
-                        userId: insertExchange.userId,
-                        exchange: insertExchange.exchange,
-                    },
-                });
-                console.log(`🔎 [${new Date().toISOString()}] 삽입 직후 재조회 결과:`, verifyInserted);
-                const totalAfterInsertRes = await prisma.exchange.count({
-                    where: { userId: insertExchange.userId },
-                });
-                console.log(`📊 [${new Date().toISOString()}] 사용자별 exchanges 총건수(삽입 후):`, totalAfterInsertRes);
-                return newExchange;
-            }
+            const result = await this.pool.query(`
+        INSERT INTO users (
+          username, 
+          password, 
+          role, 
+          email, 
+          first_name, 
+          last_name, 
+          profile_image_url,
+          created_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING *
+      `, [
+                insertUser.username,
+                hashedPassword,
+                insertUser.role || 'user',
+                insertUser.email || null,
+                insertUser.firstName || null,
+                insertUser.lastName || null,
+                insertUser.profileImageUrl || null
+            ]);
+            return result.rows[0];
         }
         catch (error) {
-            console.error(`💥 [${new Date().toISOString()}] DB 저장 중 에러 발생:`, error);
-            console.error(`🔍 [${new Date().toISOString()}] 에러 상세 정보:`, {
-                message: error.message,
-                stack: error.stack,
-                code: error.code,
-                detail: error.detail,
-                hint: error.hint,
-                inputData: {
-                    userId: insertExchange.userId,
-                    exchange: insertExchange.exchange,
-                    apiKeyLength: insertExchange.apiKey?.length || 0,
-                    apiSecretLength: insertExchange.apiSecret?.length || 0,
-                },
-            });
-            throw error; // 에러를 다시 던져서 routes.ts에서 처리
-        }
-    }
-    async createOrUpdateExchange(exchange) {
-        return this.createExchange(exchange);
-    }
-    // 암호화된 API 키 복호화 메서드
-    async getDecryptedExchange(userId, exchangeName) {
-        const exchange = await prisma.exchange.findFirst({
-            where: {
-                userId: parseInt(userId),
-                exchange: exchangeName,
-                isActive: true,
-            },
-        });
-        if (!exchange)
-            return null;
-        try {
-            return {
-                apiKey: decryptApiKey(exchange.apiKey),
-                apiSecret: decryptApiKey(exchange.apiSecret),
-            };
-        }
-        catch (error) {
-            console.error("API 키 복호화 실패:", error);
-            return null;
-        }
-    }
-    async updateExchange(id, updateData) {
-        const exchange = await prisma.exchange.update({
-            where: { id },
-            data: updateData,
-        });
-        return exchange ?? undefined;
-    }
-    // Cryptocurrencies
-    async getAllCryptocurrencies() {
-        return prisma.cryptocurrency.findMany();
-    }
-    async createCryptocurrency(insertCrypto) {
-        const crypto = await prisma.cryptocurrency.create({ data: insertCrypto });
-        return crypto;
-    }
-    // Kimchi Premiums
-    async getLatestKimchiPremiums() {
-        return prisma.kimchiPremium.findMany({
-            orderBy: { timestamp: "desc" },
-            take: 100,
-        });
-    }
-    async getKimchiPremiumBySymbol(symbol) {
-        const premium = await prisma.kimchiPremium.findFirst({
-            where: { symbol },
-            orderBy: { timestamp: "desc" },
-        });
-        return premium ?? undefined;
-    }
-    async createKimchiPremium(insertPremium) {
-        const premium = await prisma.kimchiPremium.create({
-            data: {
-                symbol: insertPremium.symbol,
-                upbitPrice: new Prisma.Decimal(insertPremium.upbitPrice),
-                binancePrice: new Prisma.Decimal(insertPremium.binancePrice),
-                premiumRate: new Prisma.Decimal(insertPremium.premiumRate),
-                exchangeRate: new Prisma.Decimal(insertPremium.exchangeRate),
-                premiumAmount: new Prisma.Decimal(insertPremium.premiumAmount),
-                timestamp: insertPremium.timestamp ?? new Date(),
-            },
-        });
-        return premium;
-    }
-    async getKimchiPremiumHistory(symbol, limit = 100) {
-        return prisma.kimchiPremium.findMany({
-            where: { symbol },
-            orderBy: { timestamp: "desc" },
-            take: limit,
-        });
-    }
-    // Trading Settings
-    async getTradingSettings(userId) {
-        const settings = await prisma.tradingSetting.findUnique({
-            where: { userId: parseInt(userId) },
-        });
-        return settings ?? undefined;
-    }
-    async saveTradingSettings(insertSettings) {
-        const data = {
-            userId: insertSettings.userId,
-            entryPremiumRate: new Prisma.Decimal((insertSettings.entryPremiumRate ?? "2.5")),
-            exitPremiumRate: new Prisma.Decimal((insertSettings.exitPremiumRate ?? "1.0")),
-            stopLossRate: new Prisma.Decimal((insertSettings.stopLossRate ?? "-1.5")),
-            maxPositions: insertSettings.maxPositions ?? 5,
-            isAutoTrading: insertSettings.isAutoTrading ?? false,
-            maxInvestmentAmount: new Prisma.Decimal((insertSettings.maxInvestmentAmount ?? "10000000")),
-            kimchiEntryRate: new Prisma.Decimal((insertSettings.kimchiEntryRate ?? "1.1")),
-            kimchiExitRate: new Prisma.Decimal((insertSettings.kimchiExitRate ?? "1.5")),
-            kimchiToleranceRate: new Prisma.Decimal((insertSettings.kimchiToleranceRate ?? "0.1")),
-            binanceLeverage: insertSettings.binanceLeverage ?? 3,
-            upbitEntryAmount: new Prisma.Decimal((insertSettings.upbitEntryAmount ?? "10000000")),
-            dailyLossLimit: new Prisma.Decimal((insertSettings.dailyLossLimit ?? "500000")),
-            maxPositionSize: new Prisma.Decimal((insertSettings.maxPositionSize ?? "2000000")),
-        };
-        const settings = await prisma.tradingSetting.upsert({
-            where: { userId: insertSettings.userId },
-            create: data,
-            update: data,
-        });
-        return settings;
-    }
-    async getTradingSettingsByUserId(userId) {
-        const settings = await prisma.tradingSetting.findUnique({
-            where: { userId: parseInt(userId) },
-        });
-        return settings ?? undefined;
-    }
-    async createTradingSettings(insertSettings) {
-        const settings = await this.saveTradingSettings(insertSettings);
-        return settings;
-    }
-    async updateTradingSettings(userId, updateData) {
-        const settings = await prisma.tradingSetting.update({
-            where: { userId: parseInt(userId) },
-            data: updateData,
-        });
-        return settings ?? undefined;
-    }
-    // Positions
-    async getActivePositions(userId) {
-        return prisma.position.findMany({
-            where: { userId: parseInt(userId), status: "open" },
-            orderBy: { entryTime: "desc" },
-        });
-    }
-    async getPositionById(id) {
-        const position = await prisma.position.findUnique({ where: { id } });
-        return position ?? undefined;
-    }
-    async createPosition(insertPosition) {
-        const position = await prisma.position.create({
-            data: {
-                userId: insertPosition.userId,
-                strategyId: insertPosition.strategyId ?? null,
-                symbol: insertPosition.symbol,
-                type: insertPosition.type ?? "kimchi_arbitrage",
-                entryPrice: new Prisma.Decimal(insertPosition.entryPrice),
-                currentPrice: insertPosition.currentPrice != null ? new Prisma.Decimal(insertPosition.currentPrice) : null,
-                quantity: new Prisma.Decimal(insertPosition.quantity),
-                entryPremiumRate: new Prisma.Decimal(insertPosition.entryPremiumRate),
-                currentPremiumRate: insertPosition.currentPremiumRate != null ? new Prisma.Decimal(insertPosition.currentPremiumRate) : null,
-                status: insertPosition.status ?? "open",
-                entryTime: insertPosition.entryTime ?? new Date(Date.now() + 9 * 60 * 60 * 1000), // KST 시간으로 저장
-                exitTime: insertPosition.exitTime ?? null,
-                upbitOrderId: insertPosition.upbitOrderId ?? null,
-                binanceOrderId: insertPosition.binanceOrderId ?? null,
-                side: insertPosition.side,
-                exitPrice: insertPosition.exitPrice != null ? new Prisma.Decimal(insertPosition.exitPrice) : null,
-            },
-        });
-        return position;
-    }
-    async updatePosition(id, updateData) {
-        const position = await prisma.position.update({
-            where: { id },
-            data: { ...updateData, updatedAt: new Date() },
-        });
-        return position ?? undefined;
-    }
-    async closePosition(id) {
-        const now = new Date();
-        const position = await prisma.position.update({
-            where: { id },
-            data: { status: "closed", exitTime: now, updatedAt: now },
-        });
-        return position ?? undefined;
-    }
-    /**
-     * 사용자의 활성 포지션을 조건에 따라 일괄 청산합니다.
-     * - symbol, strategyId, type 필터를 선택적으로 지원합니다.
-     */
-    async closeAllPositionsByUser(userId, filters) {
-        const where = {
-            userId: parseInt(userId),
-            status: "open",
-            ...(filters?.symbol ? { symbol: filters.symbol } : {}),
-            ...(filters?.strategyId ? { strategyId: filters.strategyId } : {}),
-            ...(filters?.type ? { type: filters.type } : {}),
-        };
-        const now = new Date();
-        const result = await prisma.position.updateMany({
-            where,
-            data: { status: "closed", exitTime: now, updatedAt: now },
-        });
-        return { count: result.count };
-    }
-    // Trades
-    async getTradesByUserId(userId, limit = 50) {
-        return prisma.trade.findMany({
-            where: { userId: parseInt(userId) },
-            orderBy: { executedAt: "desc" },
-            take: limit,
-        });
-    }
-    async getTradesByPositionId(positionId) {
-        return prisma.trade.findMany({
-            where: { positionId },
-            orderBy: { executedAt: "desc" },
-        });
-    }
-    async createTrade(insertTrade) {
-        const trade = await prisma.trade.create({
-            data: {
-                userId: insertTrade.userId,
-                positionId: insertTrade.positionId ?? null,
-                tradeLogId: insertTrade.tradeLogId ?? null,
-                symbol: insertTrade.symbol,
-                side: insertTrade.side,
-                exchange: insertTrade.exchange,
-                quantity: new Prisma.Decimal(insertTrade.quantity),
-                price: new Prisma.Decimal(insertTrade.price),
-                fee: new Prisma.Decimal((insertTrade.fee ?? "0")),
-                orderType: insertTrade.orderType ?? "market",
-                exchangeOrderId: insertTrade.exchangeOrderId ?? null,
-                exchangeTradeId: insertTrade.exchangeTradeId ?? null,
-                executedAt: insertTrade.executedAt ?? new Date(),
-            },
-        });
-        return trade;
-    }
-    // TradeLogs
-    async createTradeLog(tradeLog) {
-        const log = await prisma.tradeLog.create({
-            data: {
-                kimp: tradeLog.kimp,
-                action: tradeLog.action,
-                amount: tradeLog.amount,
-                result: tradeLog.result,
-            },
-        });
-        return log;
-    }
-    async getTradeLogs(limit = 50) {
-        return prisma.tradeLog.findMany({
-            orderBy: { timestamp: "desc" },
-            take: limit,
-        });
-    }
-    // Trading Strategies
-    async getTradingStrategies(userId) {
-        return prisma.tradingStrategy.findMany({
-            where: { userId: parseInt(userId) },
-            orderBy: { createdAt: "desc" },
-        });
-    }
-    async getTradingStrategiesByUserId(userId) {
-        console.log('🔍 거래 전략 조회 시작 - 사용자 ID:', userId);
-        try {
-            const strategies = await prisma.tradingStrategy.findMany({
-                where: { userId: parseInt(userId) },
-                orderBy: { createdAt: "desc" },
-            });
-            console.log('✅ 거래 전략 조회 성공:', strategies.length, '개');
-            return strategies;
-        }
-        catch (error) {
-            console.error('❌ 거래 전략 조회 오류:', error);
+            console.error('Error creating user:', error);
             throw error;
         }
     }
-    async createOrUpdateTradingStrategy(strategy) {
-        const userId = typeof strategy.userId === 'string' ? parseInt(strategy.userId) : strategy.userId;
-        const strategyName = strategy.name || "김치 프리미엄 전략";
-        const existing = await prisma.tradingStrategy.findFirst({
-            where: { userId, name: strategyName },
+    async updateUser(id, updates) {
+        const updateFields = [];
+        const values = [];
+        let paramIndex = 1;
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value !== undefined && key !== 'id') {
+                // camelCase를 snake_case로 변환
+                const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+                updateFields.push(`${dbField} = $${paramIndex}`);
+                values.push(value);
+                paramIndex++;
+            }
         });
-        const sanitizeInvestment = (val) => {
-            console.log('🔍 [DEBUG] sanitizeInvestment input (createOrUpdate):', val, 'type:', typeof val);
-            // null, undefined, 빈 문자열 처리
-            if (val == null || val === '') {
-                console.log('🔍 [DEBUG] sanitizeInvestment: null/empty input, returning default 0.003');
-                return 0.003;
-            }
-            const n = Number(val);
-            console.log('🔍 [DEBUG] sanitizeInvestment: converted to number:', n, 'isFinite:', Number.isFinite(n));
-            if (!Number.isFinite(n)) {
-                console.log('🔍 [DEBUG] sanitizeInvestment: not finite, returning default 0.003');
-                return 0.003;
-            }
-            if (n < 0) {
-                console.log('🔍 [DEBUG] sanitizeInvestment: negative value:', n, 'returning default 0.003');
-                return 0.003;
-            }
-            // 소수점 8자리로 제한 (더 정확한 방법)
-            const result = Math.round(n * 100000000) / 100000000;
-            console.log('🔍 [DEBUG] sanitizeInvestment result:', result, 'original:', n);
-            // 0이 되는 경우를 방지 (매우 작은 값은 최소값으로)
-            if (result === 0 && n > 0) {
-                console.log('🔍 [DEBUG] Result became 0 but original was positive, using original value');
-                return n;
-            }
-            return result;
-        };
-        const defaults = {
-            strategyType: strategy.strategyType || "positive_kimchi",
-            entryRate: new Prisma.Decimal((strategy.entryRate ?? "0.5")),
-            exitRate: new Prisma.Decimal((strategy.exitRate ?? "0.1")),
-            toleranceRate: new Prisma.Decimal((strategy.toleranceRate ?? "0.1")),
-            leverage: strategy.leverage ?? 3,
-            investmentAmount: (() => {
-                const rawValue = strategy.investmentAmount;
-                console.log('🔍 [DEBUG] Raw investmentAmount value:', rawValue, 'type:', typeof rawValue);
-                const sanitized = sanitizeInvestment(rawValue);
-                console.log('🔍 [DEBUG] Sanitized value:', sanitized, 'type:', typeof sanitized);
-                // 실제 값 사용 (테스트용 하드코딩 제거)
-                console.log('🔍 [PROD] Using sanitized value:', sanitized, 'type:', typeof sanitized);
-                const decimalValue = new Prisma.Decimal(sanitized);
-                console.log('🔍 [PROD] Prisma.Decimal result:', decimalValue.toString(), 'type:', typeof decimalValue);
-                console.log('🔍 [PROD] Decimal value check - isDecimal:', Prisma.Decimal.isDecimal(decimalValue));
-                return decimalValue;
-            })(),
-            isActive: strategy.isActive ?? true,
-            symbol: strategy.symbol ?? "BTC",
-            tolerance: new Prisma.Decimal((strategy.tolerance ?? "0.1")),
-            isAutoTrading: strategy.isAutoTrading ?? false,
-            totalTrades: strategy.totalTrades ?? 0,
-            successfulTrades: strategy.successfulTrades ?? 0,
-            totalProfit: new Prisma.Decimal((strategy.totalProfit ?? "0")),
-            updatedAt: new Date(),
-        };
-        console.log('🔍 [DB] Existing strategy found:', existing?.id);
-        if (existing) {
-            console.log('🔍 [DB] Updating existing strategy...');
-            const updated = await prisma.tradingStrategy.update({
-                where: { id: existing.id },
-                data: { ...defaults, name: strategyName },
-            });
-            console.log('🔍 [DB] Update result:', {
-                id: updated.id,
-                investmentAmount: updated.investmentAmount?.toString(),
-                name: updated.name
-            });
-            return updated;
+        if (updateFields.length === 0) {
+            return this.getUserById(id);
         }
-        console.log('🔍 [DB] Creating new strategy...');
-        const created = await prisma.tradingStrategy.create({
-            data: {
-                userId,
-                name: strategyName,
-                ...defaults,
-                createdAt: new Date(),
-            },
-        });
-        console.log('🔍 [DB] Create result:', {
-            id: created.id,
-            investmentAmount: created.investmentAmount?.toString(),
-            name: created.name
-        });
-        return created;
-    }
-    async getTradingStrategy(id) {
-        const strategy = await prisma.tradingStrategy.findUnique({ where: { id } });
-        return strategy ?? undefined;
-    }
-    async createTradingStrategy(insertStrategy) {
-        const sanitizeInvestment = (val) => {
-            console.log('🔍 [DEBUG] sanitizeInvestment input (create):', val, 'type:', typeof val);
-            // null, undefined, 빈 문자열 처리
-            if (val == null || val === '') {
-                console.log('🔍 [DEBUG] sanitizeInvestment: null/empty input, returning default 0.003');
-                return 0.003;
-            }
-            const n = Number(val);
-            console.log('🔍 [DEBUG] sanitizeInvestment: converted to number:', n, 'isFinite:', Number.isFinite(n));
-            if (!Number.isFinite(n)) {
-                console.log('🔍 [DEBUG] sanitizeInvestment: not finite, returning default 0.003');
-                return 0.003;
-            }
-            if (n < 0) {
-                console.log('🔍 [DEBUG] sanitizeInvestment: negative value:', n, 'returning default 0.003');
-                return 0.003;
-            }
-            // 소수점 8자리로 제한 (더 정확한 방법)
-            const result = Math.round(n * 100000000) / 100000000;
-            console.log('🔍 [DEBUG] sanitizeInvestment result:', result, 'original:', n);
-            // 0이 되는 경우를 방지 (매우 작은 값은 최소값으로)
-            if (result === 0 && n > 0) {
-                console.log('🔍 [DEBUG] Result became 0 but original was positive, using original value');
-                return n;
-            }
-            return result;
-        };
-        const strategy = await prisma.tradingStrategy.create({
-            data: {
-                userId: insertStrategy.userId,
-                name: insertStrategy.name ?? "김치 프리미엄 전략",
-                entryRate: new Prisma.Decimal((insertStrategy.entryRate ?? "0.5")),
-                exitRate: new Prisma.Decimal((insertStrategy.exitRate ?? "0.1")),
-                leverage: insertStrategy.leverage ?? 1,
-                investmentAmount: (() => {
-                    const rawValue = insertStrategy.investmentAmount;
-                    console.log('🔍 [DEBUG] Raw investmentAmount value (create):', rawValue, 'type:', typeof rawValue);
-                    const sanitized = sanitizeInvestment(rawValue);
-                    console.log('🔍 [DEBUG] Sanitized value (create):', sanitized, 'type:', typeof sanitized);
-                    // 실제 값 사용 (테스트용 하드코딩 제거)
-                    console.log('🔍 [PROD] Using sanitized value (create):', sanitized, 'type:', typeof sanitized);
-                    const decimalValue = new Prisma.Decimal(sanitized);
-                    console.log('🔍 [PROD] Prisma.Decimal result (create):', decimalValue.toString(), 'type:', typeof decimalValue);
-                    console.log('🔍 [PROD] Decimal value check (create) - isDecimal:', Prisma.Decimal.isDecimal(decimalValue));
-                    return decimalValue;
-                })(),
-                isActive: insertStrategy.isActive ?? true,
-                symbol: insertStrategy.symbol ?? "BTC",
-                tolerance: new Prisma.Decimal((insertStrategy.tolerance ?? "0.1")),
-                isAutoTrading: insertStrategy.isAutoTrading ?? false,
-                totalTrades: insertStrategy.totalTrades ?? 0,
-                successfulTrades: insertStrategy.successfulTrades ?? 0,
-                totalProfit: new Prisma.Decimal((insertStrategy.totalProfit ?? "0")),
-                strategyType: insertStrategy.strategyType ?? "positive_kimchi",
-                toleranceRate: new Prisma.Decimal((insertStrategy.toleranceRate ?? "0.1")),
-            },
-        });
-        return strategy;
-    }
-    async updateTradingStrategy(id, updateData) {
-        const strategy = await prisma.tradingStrategy.update({
-            where: { id },
-            data: { ...updateData, updatedAt: new Date() },
-        });
-        return strategy ?? undefined;
-    }
-    async deleteTradingStrategy(id) {
+        updateFields.push(`updated_at = NOW()`);
+        values.push(id);
         try {
-            const deleted = await prisma.tradingStrategy.delete({ where: { id } });
-            return deleted;
+            const result = await this.pool.query(`
+        UPDATE users 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `, values);
+            return result.rows[0] || undefined;
         }
-        catch {
+        catch (error) {
+            console.error('Error updating user:', error);
             return undefined;
         }
     }
-    // System Alerts
-    async getSystemAlerts(limit = 50) {
-        return prisma.systemAlert.findMany({
-            orderBy: { createdAt: "desc" },
-            take: limit,
-        });
-    }
-    async createSystemAlert(insertAlert) {
-        const alert = await prisma.systemAlert.create({
-            data: {
-                type: insertAlert.type,
-                title: insertAlert.title,
-                message: insertAlert.message,
-                isRead: insertAlert.isRead ?? false,
-                userId: insertAlert.userId ?? null,
-                data: insertAlert.data ?? null,
-                priority: insertAlert.priority ?? "normal",
-            },
-        });
-        return alert;
-    }
-    async markAlertAsRead(id) {
-        const alert = await prisma.systemAlert.update({
-            where: { id },
-            data: { isRead: true },
-        });
-        return alert ?? undefined;
-    }
-    // Admin methods
-    async updateUser(id, updates) {
-        if (updates.password) {
-            updates.password = await hashPassword(updates.password);
-        }
-        const user = await prisma.user.update({
-            where: { id: parseInt(id) },
-            data: { ...updates, updatedAt: new Date() },
-        });
-        return user ?? undefined;
-    }
-    async updateUserRole(id, role) {
-        const user = await prisma.user.update({
-            where: { id: parseInt(id) },
-            data: { role, updatedAt: new Date() },
-        });
-        return user ?? undefined;
-    }
-    async getAllUsers() {
-        return prisma.user.findMany();
-    }
     async deleteUser(id) {
-        const userId = parseInt(id);
-        // 연관 데이터 정리
-        await prisma.exchange.deleteMany({ where: { userId } });
-        await prisma.tradingSetting.deleteMany({ where: { userId } });
-        await prisma.position.deleteMany({ where: { userId } });
-        await prisma.trade.deleteMany({ where: { userId } });
         try {
-            await prisma.user.delete({ where: { id: userId } });
-            return true;
+            const result = await this.pool.query('DELETE FROM users WHERE id = $1', [id]);
+            return (result.rowCount ?? 0) > 0;
         }
-        catch {
+        catch (error) {
+            console.error('Error deleting user:', error);
             return false;
         }
     }
-    async getAllUsersWithStats() {
-        const allUsers = await prisma.user.findMany();
-        const usersWithStats = await Promise.all(allUsers.map(async (user) => {
-            const tradesCount = await prisma.trade.count({ where: { userId: user.id } });
-            const positionsCount = await prisma.position.count({ where: { userId: user.id } });
-            const exchangesCount = await prisma.exchange.count({ where: { userId: user.id } });
-            const { password, ...userWithoutPassword } = user;
-            return {
-                ...userWithoutPassword,
-                _count: {
-                    trades: tradesCount,
-                    positions: positionsCount,
-                    exchanges: exchangesCount,
-                },
-            };
-        }));
-        return usersWithStats;
-    }
-    async getAdminStats() {
-        const [totalUsers, activeUsers, totalTrades, activePositions] = await Promise.all([
-            prisma.user.count(),
-            prisma.user.count({ where: { isActive: true } }),
-            prisma.trade.count(),
-            prisma.position.count({ where: { status: "open" } }),
-        ]);
-        return {
-            totalUsers,
-            activeUsers,
-            totalTrades,
-            activePositions,
-            totalVolume: 0,
-        };
-    }
-    // 포지션 조회
-    async getPositions(whereClause) {
+    async getAllUsers() {
         try {
-            console.log('🔍 포지션 조회 시작:', whereClause);
-            const positions = await prisma.position.findMany({
-                where: whereClause,
-                orderBy: { entryTime: 'desc' }
-            });
-            console.log('✅ 포지션 조회 성공:', positions.length, '개');
-            return positions;
+            const result = await this.pool.query('SELECT * FROM users ORDER BY created_at DESC');
+            return result.rows;
         }
         catch (error) {
-            console.error('❌ 포지션 조회 오류:', error);
+            console.error('Error getting all users:', error);
+            return [];
+        }
+    }
+    // === 거래소 API 관련 메서드들 ===
+    async getExchangesByUserId(userId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM exchanges WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+            // API 키 복호화
+            return result.rows.map(exchange => ({
+                ...exchange,
+                apiKey: decryptApiKey(exchange.api_key),
+                apiSecret: decryptApiKey(exchange.api_secret)
+            }));
+        }
+        catch (error) {
+            console.error('Error getting exchanges:', error);
+            return [];
+        }
+    }
+    async createExchange(insertExchange) {
+        const encryptedApiKey = encryptApiKey(insertExchange.apiKey);
+        const encryptedApiSecret = encryptApiKey(insertExchange.apiSecret);
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO exchanges (
+          user_id, 
+          exchange, 
+          api_key, 
+          api_secret, 
+          passphrase, 
+          is_active,
+          created_at,
+          updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING *
+      `, [
+                insertExchange.userId,
+                insertExchange.exchange,
+                encryptedApiKey,
+                encryptedApiSecret,
+                insertExchange.passphrase || null,
+                insertExchange.isActive !== false
+            ]);
+            const exchange = result.rows[0];
+            return {
+                ...exchange,
+                apiKey: insertExchange.apiKey,
+                apiSecret: insertExchange.apiSecret
+            };
+        }
+        catch (error) {
+            console.error('Error creating exchange:', error);
             throw error;
         }
     }
-    // 특정 전략의 최근 포지션 조회 (쿨다운 체크용)
-    async getRecentPositionByStrategy(userId, strategyId, symbol = "BTC") {
+    // === 암호화폐 관련 메서드들 ===
+    async getAllCryptocurrencies() {
         try {
-            const position = await prisma.position.findFirst({
-                where: {
-                    userId: parseInt(userId),
-                    strategyId: strategyId,
-                    symbol: symbol
-                },
-                orderBy: { entryTime: 'desc' }
-            });
-            return position;
+            const result = await this.pool.query('SELECT * FROM cryptocurrencies ORDER BY priority DESC, symbol ASC');
+            return result.rows;
         }
         catch (error) {
-            console.error('❌ 최근 포지션 조회 오류:', error);
-            return null;
+            console.error('Error getting cryptocurrencies:', error);
+            return [];
         }
     }
+    async createCryptocurrency(insertCrypto) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO cryptocurrencies (
+          symbol, 
+          name, 
+          is_active, 
+          upbit_market, 
+          binance_symbol, 
+          priority,
+          created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING *
+      `, [
+                insertCrypto.symbol,
+                insertCrypto.name,
+                insertCrypto.isActive !== false,
+                insertCrypto.upbitMarket || null,
+                insertCrypto.binanceSymbol || null,
+                insertCrypto.priority || 0
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error creating cryptocurrency:', error);
+            throw error;
+        }
+    }
+    // === 김치 프리미엄 관련 메서드들 ===
+    async saveKimchiPremium(data) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO kimchi_premiums (
+          symbol, 
+          upbit_price, 
+          binance_price, 
+          premium_rate, 
+          exchange_rate, 
+          premium_amount,
+          timestamp
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `, [
+                data.symbol,
+                data.upbitPrice,
+                data.binancePrice,
+                data.premiumRate,
+                data.exchangeRate,
+                data.premiumAmount,
+                data.timestamp || new Date()
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error saving kimchi premium:', error);
+            throw error;
+        }
+    }
+    async getRecentKimchiPremiums(limit = 100) {
+        try {
+            const result = await this.pool.query('SELECT * FROM kimchi_premiums ORDER BY timestamp DESC LIMIT $1', [limit]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting recent kimchi premiums:', error);
+            return [];
+        }
+    }
+    // === 트레이딩 설정 관련 메서드들 ===
+    async getTradingStrategies(userId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM trading_strategies WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC', [userId]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting trading strategies:', error);
+            return [];
+        }
+    }
+    async getTradingStrategy(id) {
+        try {
+            const result = await this.pool.query('SELECT * FROM trading_strategies WHERE id = $1', [id]);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error getting trading strategy:', error);
+            return undefined;
+        }
+    }
+    // === 포지션 관련 메서드들 ===
+    async getActivePositions(userId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM positions WHERE user_id = $1 AND status = $2 ORDER BY entry_time DESC', [userId, 'open']);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting active positions:', error);
+            return [];
+        }
+    }
+    async getRecentPositionByStrategy(strategyId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM positions WHERE strategy_id = $1 ORDER BY entry_time DESC LIMIT 1', [strategyId]);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error getting recent position by strategy:', error);
+            return undefined;
+        }
+    }
+    async createPosition(data) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO positions (
+          user_id, strategy_id, symbol, type, entry_price, quantity,
+          entry_premium_rate, status, side, is_mock, created_at, updated_at, entry_time
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW())
+        RETURNING *
+      `, [
+                data.userId, data.strategyId, data.symbol, data.type || 'kimchi_arbitrage',
+                data.entryPrice, data.quantity, data.entryPremiumRate, data.status || 'open',
+                data.side, data.isMock !== false
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error creating position:', error);
+            throw error;
+        }
+    }
+    async updatePosition(id, updates) {
+        const updateFields = [];
+        const values = [];
+        let paramIndex = 1;
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value !== undefined && key !== 'id') {
+                const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+                updateFields.push(`${dbField} = $${paramIndex}`);
+                values.push(value);
+                paramIndex++;
+            }
+        });
+        if (updateFields.length === 0) {
+            return undefined;
+        }
+        updateFields.push(`updated_at = NOW()`);
+        values.push(id);
+        try {
+            const result = await this.pool.query(`
+        UPDATE positions 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `, values);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error updating position:', error);
+            return undefined;
+        }
+    }
+    // === 거래 관련 메서드들 ===
+    async createTrade(data) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO trades (
+          user_id, position_id, symbol, side, exchange, quantity, price, fee,
+          order_type, executed_at, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        RETURNING *
+      `, [
+                data.userId, data.positionId, data.symbol, data.side, data.exchange,
+                data.quantity, data.price, data.fee || 0, data.orderType || 'market'
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error creating trade:', error);
+            throw error;
+        }
+    }
+    // === 시스템 알림 관련 메서드들 ===
+    async createSystemAlert(data) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO system_alerts (
+          type, title, message, user_id, priority, data, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING *
+      `, [
+                data.type, data.title, data.message, data.userId || null,
+                data.priority || 'normal', data.data ? JSON.stringify(data.data) : null
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error creating system alert:', error);
+            throw error;
+        }
+    }
+    // === 트레이드 로그 관련 메서드들 ===
+    async createTradeLog(data) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO trade_logs (
+          timestamp, kimp, action, amount, result
+        ) VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `, [
+                data.timestamp || new Date(),
+                data.kimp,
+                data.action,
+                data.amount,
+                data.result
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error creating trade log:', error);
+            throw error;
+        }
+    }
+    // === 거래소 복호화 관련 메서드들 ===
+    async getDecryptedExchange(userId, exchangeName) {
+        try {
+            const result = await this.pool.query('SELECT * FROM exchanges WHERE user_id = $1 AND exchange = $2 AND is_active = true LIMIT 1', [typeof userId === 'string' ? parseInt(userId) : userId, exchangeName]);
+            if (result.rows.length === 0)
+                return undefined;
+            const exchange = result.rows[0];
+            return {
+                ...exchange,
+                apiKey: decryptApiKey(exchange.api_key),
+                apiSecret: decryptApiKey(exchange.api_secret)
+            };
+        }
+        catch (error) {
+            console.error('Error getting decrypted exchange:', error);
+            return undefined;
+        }
+    }
+    // === 김치 프리미엄 히스토리 관련 메서드들 ===
+    async getKimchiPremiumHistory(symbol, limit = 100) {
+        try {
+            const result = await this.pool.query('SELECT * FROM kimchi_premiums WHERE symbol = $1 ORDER BY timestamp DESC LIMIT $2', [symbol, limit]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting kimchi premium history:', error);
+            return [];
+        }
+    }
+    // === Routes.ts에서 필요한 추가 메서드들 ===
+    async getTradingSettings(userId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM trading_settings WHERE user_id = $1', [userId]);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error getting trading settings:', error);
+            return undefined;
+        }
+    }
+    async updateTradingSettings(userId, settings) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO trading_settings (
+          user_id, entry_premium_rate, exit_premium_rate, stop_loss_rate,
+          max_positions, is_auto_trading, max_investment_amount,
+          kimchi_entry_rate, kimchi_exit_rate, kimchi_tolerance_rate,
+          binance_leverage, upbit_entry_amount, daily_loss_limit,
+          max_position_size, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+          entry_premium_rate = EXCLUDED.entry_premium_rate,
+          exit_premium_rate = EXCLUDED.exit_premium_rate,
+          stop_loss_rate = EXCLUDED.stop_loss_rate,
+          max_positions = EXCLUDED.max_positions,
+          is_auto_trading = EXCLUDED.is_auto_trading,
+          max_investment_amount = EXCLUDED.max_investment_amount,
+          kimchi_entry_rate = EXCLUDED.kimchi_entry_rate,
+          kimchi_exit_rate = EXCLUDED.kimchi_exit_rate,
+          kimchi_tolerance_rate = EXCLUDED.kimchi_tolerance_rate,
+          binance_leverage = EXCLUDED.binance_leverage,
+          upbit_entry_amount = EXCLUDED.upbit_entry_amount,
+          daily_loss_limit = EXCLUDED.daily_loss_limit,
+          max_position_size = EXCLUDED.max_position_size,
+          updated_at = NOW()
+        RETURNING *
+      `, [
+                userId,
+                settings.entryPremiumRate || 2.5,
+                settings.exitPremiumRate || 1.0,
+                settings.stopLossRate || -1.5,
+                settings.maxPositions || 5,
+                settings.isAutoTrading || false,
+                settings.maxInvestmentAmount || 10000000,
+                settings.kimchiEntryRate || 1.1,
+                settings.kimchiExitRate || 1.5,
+                settings.kimchiToleranceRate || 0.1,
+                settings.binanceLeverage || 3,
+                settings.upbitEntryAmount || 10000000,
+                settings.dailyLossLimit || 500000,
+                settings.maxPositionSize || 2000000
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error updating trading settings:', error);
+            throw error;
+        }
+    }
+    async getAllPositions(userId) {
+        try {
+            let query = 'SELECT * FROM positions ORDER BY entry_time DESC';
+            let params = [];
+            if (userId) {
+                query = 'SELECT * FROM positions WHERE user_id = $1 ORDER BY entry_time DESC';
+                params = [userId];
+            }
+            const result = await this.pool.query(query, params);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting all positions:', error);
+            return [];
+        }
+    }
+    async getAllTrades(userId) {
+        try {
+            let query = 'SELECT * FROM trades ORDER BY executed_at DESC';
+            let params = [];
+            if (userId) {
+                query = 'SELECT * FROM trades WHERE user_id = $1 ORDER BY executed_at DESC';
+                params = [userId];
+            }
+            const result = await this.pool.query(query, params);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting all trades:', error);
+            return [];
+        }
+    }
+    async getTradeLogHistory(limit = 100) {
+        try {
+            const result = await this.pool.query('SELECT * FROM trade_logs ORDER BY timestamp DESC LIMIT $1', [limit]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting trade log history:', error);
+            return [];
+        }
+    }
+    async createTradingStrategy(data) {
+        try {
+            const result = await this.pool.query(`
+        INSERT INTO trading_strategies (
+          user_id, name, entry_rate, exit_rate, leverage, investment_amount,
+          symbol, tolerance, is_auto_trading, strategy_type, tolerance_rate,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        RETURNING *
+      `, [
+                data.userId, data.name, data.entryRate, data.exitRate, data.leverage || 1,
+                data.investmentAmount, data.symbol, data.tolerance || 0.1,
+                data.isAutoTrading || false, data.strategyType || 'positive_kimchi',
+                data.toleranceRate || 0.1
+            ]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error creating trading strategy:', error);
+            throw error;
+        }
+    }
+    async updateTradingStrategy(id, updates) {
+        const updateFields = [];
+        const values = [];
+        let paramIndex = 1;
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value !== undefined && key !== 'id') {
+                const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+                updateFields.push(`${dbField} = $${paramIndex}`);
+                values.push(value);
+                paramIndex++;
+            }
+        });
+        if (updateFields.length === 0) {
+            return undefined;
+        }
+        updateFields.push(`updated_at = NOW()`);
+        values.push(id);
+        try {
+            const result = await this.pool.query(`
+        UPDATE trading_strategies 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `, values);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error updating trading strategy:', error);
+            return undefined;
+        }
+    }
+    async deleteTradingStrategy(id) {
+        try {
+            const result = await this.pool.query('DELETE FROM trading_strategies WHERE id = $1', [id]);
+            return (result.rowCount ?? 0) > 0;
+        }
+        catch (error) {
+            console.error('Error deleting trading strategy:', error);
+            return false;
+        }
+    }
+    // === 추가 누락된 메서드들 ===
+    async getUser(id) {
+        return this.getUserById(id);
+    }
+    async getTradingSettingsByUserId(userId) {
+        return this.getTradingSettings(typeof userId === 'string' ? parseInt(userId) : userId);
+    }
+    async createTradingSettings(data) {
+        return this.updateTradingSettings(data.userId, data);
+    }
+    async getTradingStrategiesByUserId(userId) {
+        return this.getTradingStrategies(typeof userId === 'string' ? parseInt(userId) : userId);
+    }
+    async createOrUpdateTradingStrategy(data) {
+        if (data.id) {
+            return this.updateTradingStrategy(data.id, data);
+        }
+        else {
+            return this.createTradingStrategy(data);
+        }
+    }
+    async createOrUpdateExchange(data) {
+        if (data.id) {
+            // Update existing exchange
+            const updateFields = [];
+            const values = [];
+            let paramIndex = 1;
+            Object.entries(data).forEach(([key, value]) => {
+                if (value !== undefined && key !== 'id') {
+                    const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+                    updateFields.push(`${dbField} = $${paramIndex}`);
+                    values.push(value);
+                    paramIndex++;
+                }
+            });
+            if (updateFields.length === 0) {
+                return undefined;
+            }
+            updateFields.push(`updated_at = NOW()`);
+            values.push(data.id);
+            try {
+                const result = await this.pool.query(`
+          UPDATE exchanges 
+          SET ${updateFields.join(', ')}
+          WHERE id = $${paramIndex}
+          RETURNING *
+        `, values);
+                return result.rows[0] || undefined;
+            }
+            catch (error) {
+                console.error('Error updating exchange:', error);
+                return undefined;
+            }
+        }
+        else {
+            return this.createExchange(data);
+        }
+    }
+    async closePosition(id) {
+        return this.updatePosition(id, { status: 'closed', exitTime: new Date() });
+    }
+    async closeAllPositionsByUser(userId, filters = {}) {
+        try {
+            let whereClause = 'user_id = $1 AND status = $2';
+            let params = [typeof userId === 'string' ? parseInt(userId) : userId, 'open'];
+            let paramIndex = 3;
+            if (filters.symbol) {
+                whereClause += ` AND symbol = $${paramIndex}`;
+                params.push(filters.symbol);
+                paramIndex++;
+            }
+            if (filters.strategyId) {
+                whereClause += ` AND strategy_id = $${paramIndex}`;
+                params.push(filters.strategyId);
+                paramIndex++;
+            }
+            if (filters.type) {
+                whereClause += ` AND type = $${paramIndex}`;
+                params.push(filters.type);
+                paramIndex++;
+            }
+            const result = await this.pool.query(`
+        UPDATE positions 
+        SET status = 'closed', exit_time = NOW(), updated_at = NOW()
+        WHERE ${whereClause}
+      `, params);
+            return { count: result.rowCount ?? 0 };
+        }
+        catch (error) {
+            console.error('Error closing positions:', error);
+            return { count: 0 };
+        }
+    }
+    async getTradesByUserId(userId, limit = 100) {
+        try {
+            const result = await this.pool.query('SELECT * FROM trades WHERE user_id = $1 ORDER BY executed_at DESC LIMIT $2', [typeof userId === 'string' ? parseInt(userId) : userId, limit]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting trades by user:', error);
+            return [];
+        }
+    }
+    async getSystemAlerts(limit = 100) {
+        try {
+            const result = await this.pool.query('SELECT * FROM system_alerts ORDER BY created_at DESC LIMIT $1', [limit]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting system alerts:', error);
+            return [];
+        }
+    }
+    async markAlertAsRead(alertId) {
+        try {
+            const result = await this.pool.query('UPDATE system_alerts SET is_read = true WHERE id = $1 RETURNING *', [alertId]);
+            return result.rows[0] || undefined;
+        }
+        catch (error) {
+            console.error('Error marking alert as read:', error);
+            return undefined;
+        }
+    }
+    async updateUserRole(userId, role) {
+        return this.updateUser(userId, { role });
+    }
+    async getPositions(whereClause = {}) {
+        return this.getAllPositions(whereClause.userId);
+    }
+    // 연결 종료
+    async close() {
+        await this.pool.end();
+    }
 }
+// 싱글톤 인스턴스
 export const storage = new DatabaseStorage();

@@ -72,8 +72,11 @@ export const KimchiCards = React.memo<KimchiCardsProps>(({ kimchiData, positions
   const mainPremiumRate = stableBtcData ? stableBtcData.premiumRate : 0;
 
   // 총 투자금 계산
-  const totalInvestment = positions.reduce((sum, pos) => {
-    return sum + (parseFloat(pos.entryPrice.toString()) * parseFloat(pos.quantity.toString()));
+  const totalInvestment = (positions || []).reduce((sum, pos) => {
+    if (!pos) return sum;
+    const entryPrice = pos?.entryPrice ? parseFloat(pos.entryPrice.toString()) : 0;
+    const quantity = pos?.quantity ? parseFloat(pos.quantity.toString()) : 0;
+    return sum + (entryPrice * quantity);
   }, 0);
 
   // 성공률 계산 (임시)

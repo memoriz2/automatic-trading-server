@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
-// import { MockTradingSystem } from '@/components/mock-trading-system'; // Mock 시스템 비활성화
+import { MockTradingSystem } from '@/components/mock-trading-system';
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
@@ -134,7 +134,7 @@ const LegacyAutoTradingPage = () => {
     crypto: '',
     entryCondition: '3.0',
     takeProfitCondition: '2.0',
-    baseAmount: '500000',
+    baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))), // 현재 BTC 가격 사용
     investmentAmount: '0.003',
     leverage: '3',
     tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
@@ -170,29 +170,28 @@ const LegacyAutoTradingPage = () => {
     return limited;
   }, [sparkData, chartTimeframe]);
 
-  // 투자수량 변경 시 기본투자금액 자동 계산
+  // 투자수량 변경 시 기본투자금액 자동 계산 (비동기 처리로 깜박임 방지)
   useEffect(() => {
-    // 입력 중에는 계산하지 않고, 고정 소수점(최대 3자리) 형태로만 정상화
-    const raw = newStrategy.investmentAmount;
-    if (raw == null) return;
-    // 공백/빈 문자열은 건드리지 않음 → 포커스 유지
-    if (raw === '') return;
-    // 유효 숫자면 0.001 단위로 고정 (표시 영향 없음)
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return;
-    const fixed = n.toFixed(3);
-    if (fixed !== raw) {
-      setNewStrategy(prev => ({ ...prev, investmentAmount: fixed }));
-      return;
-    }
-    const btcAmount = n || 0.003;
-    const leverage = parseFloat(newStrategy.leverage) || 3;
-    const btcPrice = 156000000;
-    const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
-    if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
-      setNewStrategy(prev => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
-    }
-  }, [newStrategy.investmentAmount, newStrategy.leverage]);
+    const timeoutId = setTimeout(() => {
+      const raw = newStrategy.investmentAmount;
+      if (raw == null || raw === '') return;
+      
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return;
+      
+      // 기본투자금액만 업데이트 (투자수량은 건드리지 않음)
+      const btcAmount = n || 0.003;
+      const leverage = parseFloat(newStrategy.leverage) || 3;
+      const btcPrice = Number(kimp?.upbit_price) || 158000000;
+      const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
+      
+      if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
+        setNewStrategy(prev => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
+      }
+    }, 300); // 300ms 디바운스로 깜박임 방지
+
+    return () => clearTimeout(timeoutId);
+  }, [newStrategy.investmentAmount, newStrategy.leverage, kimp?.upbit_price]);
 
   // 전략 목록 상태 (카드 표시용)
   const [strategies, setStrategies] = useState<any[]>([]);
@@ -1184,15 +1183,15 @@ const LegacyAutoTradingPage = () => {
           id: String(s.id),
           name: s.name,
           crypto: s.symbol,
-          entryCondition: String(s.entryRate),
-          takeProfitCondition: String(s.exitRate),
-          investmentAmount: String(s.investmentAmount),
+          entryCondition: String(s.entry_rate || 3.0),
+          takeProfitCondition: String(s.exit_rate || 2.0),
+          investmentAmount: String(s.investment_amount),
           leverage: String(s.leverage),
-          tolerance: String(s.toleranceRate || TRADING_CONSTANTS.DEFAULT_TOLERANCE), // DB에서 로드하거나 기본값
+          tolerance: String(s.tolerance_rate || TRADING_CONSTANTS.DEFAULT_TOLERANCE),
           riskLevel: 'moderate',
-          isActive: s.isActive,
-          profitRate: s.totalProfit > 0 ? `+${s.totalProfit}` : String(s.totalProfit || '+0.00'),
-          executionCount: s.totalTrades || 0
+          isActive: s.is_active,
+          profitRate: s.total_profit > 0 ? `+${s.total_profit}` : String(s.total_profit || '+0.00'),
+          executionCount: s.total_trades || 0
         }));
         
         // 🔒 전략 로드 후 활성 전략들의 포지션 상태 확인
@@ -1505,7 +1504,7 @@ const LegacyAutoTradingPage = () => {
                         crypto: '',
                         entryCondition: '3.0',
                         takeProfitCondition: '2.0',
-                        baseAmount: '500000',
+                        baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))),
                         investmentAmount: '0.003',
                         leverage: '3',
                         tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
@@ -1772,39 +1771,26 @@ const LegacyAutoTradingPage = () => {
             </div>
           </section>
 
-          {/* 실제 자동매매 시스템 (Mock 데이터) */}
+          {/* 모의 거래 시스템 */}
           <section className="card col-12">
-            <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                🤖 실제 자동매매 시스템 (Mock 데이터)
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">
-                    {strategies.filter(s => s.isActive).length}
-                  </div>
-                  <div className="text-sm text-slate-400">활성 전략</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">
-                    {kimp.kimp?.toFixed(3)}%
-                  </div>
-                  <div className="text-sm text-slate-400">현재 김프</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-400">
-                    DB 기반
-                  </div>
-                  <div className="text-sm text-slate-400">쿨다운 시스템</div>
-                </div>
-              </div>
-              <div className="mt-4 text-sm text-slate-300">
-                ✅ 실제 DB 저장 | ✅ 10분 쿨다운 | ✅ 서버 재시작 안전 | 💰 실제 자산 관리
-              </div>
-              <div className="mt-2 text-xs text-yellow-400 bg-yellow-900/20 p-2 rounded">
-                💼 현재 자산: 업비트 ₩8,128,365 | 바이낸스 $3,127.21
-              </div>
-            </div>
+            <MockTradingSystem 
+              strategies={strategies}
+              currentKimchiData={{
+                kimp: Number(kimp?.kimp) || 0.5,
+                upbit_price: Number(kimp?.upbit_price) || 158000000,
+                binance_price: Number(kimp?.binance_price) || 114000,
+                usdkrw: Number(kimp?.usdkrw) || 1380
+              }}
+              userId={user?.id ? String(user.id) : "1"}
+              onDailyStatsUpdate={setDailyStats}
+              onStrategyStatsUpdate={(stats) => {
+                // UI의 strategies 상태에 실행 횟수/수익률을 반영 (서버값이 없으면 로컬 값 사용)
+                setStrategies(prev => prev.map(s => {
+                  const st = stats[s.id];
+                  return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
+                }));
+              }}
+            />
           </section>
 
           {/* 시장 스냅샷 */}
@@ -2220,8 +2206,8 @@ const LegacyAutoTradingPage = () => {
                 crypto: '',
                 entryCondition: '3.0',
                 takeProfitCondition: '2.0',
-                baseAmount: '500000',
-                investmentAmount: '0.001',
+                baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))),
+                investmentAmount: '0.003',
                 leverage: '3',
                 tolerance: TRADING_CONSTANTS.DEFAULT_TOLERANCE,
                 riskLevel: 'moderate',

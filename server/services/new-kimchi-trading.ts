@@ -2,8 +2,73 @@ import { UpbitService } from "./upbit.js";
 import { BinanceService } from "./binance.js";
 import { SimpleKimchiService } from "./simple-kimchi.js";
 import { storage } from "../storage.js";
-import { Prisma } from "../../generated/prisma";
-import type { TradingSetting as TradingSettings, Position, TradingStrategy } from "../../generated/prisma";
+// 타입들을 직접 정의 (Prisma 대신)
+export type TradingSettings = {
+  id: number;
+  userId: number;
+  entryPremiumRate: number;
+  exitPremiumRate: number;
+  stopLossRate: number;
+  maxPositions: number;
+  isAutoTrading: boolean;
+  maxInvestmentAmount: number;
+  kimchiEntryRate: number;
+  kimchiExitRate: number;
+  kimchiToleranceRate: number;
+  binanceLeverage: number;
+  upbitEntryAmount: number;
+  dailyLossLimit: number;
+  maxPositionSize: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Position = {
+  id: number;
+  userId: number;
+  strategyId?: number | null;
+  symbol: string;
+  type: string;
+  entryPrice: number;
+  currentPrice?: number | null;
+  quantity: number;
+  entryPremiumRate: number;
+  currentPremiumRate?: number | null;
+  status: string;
+  entryTime: Date;
+  exitTime?: Date | null;
+  upbitOrderId?: string | null;
+  binanceOrderId?: string | null;
+  side: string;
+  exitPrice?: number | null;
+  exitPremiumRate?: number | null;
+  unrealizedPnl?: number | null;
+  realizedPnl?: number | null;
+  isMock: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type TradingStrategy = {
+  id: number;
+  userId: number;
+  name: string;
+  entryRate: number;
+  exitRate: number;
+  leverage: number;
+  investmentAmount: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  symbol: string;
+  tolerance: number;
+  isAutoTrading: boolean;
+  totalTrades: number;
+  successfulTrades: number;
+  totalProfit: number;
+  strategyType: string;
+  toleranceRate: number;
+};
 
 export interface StrategySignal {
   symbol: string;
@@ -40,8 +105,8 @@ export class MultiStrategyTradingService {
     }
 
     // 활성 전략들 로드
-    const strategies = await storage.getTradingStrategies(userId);
-    const activeStrategies = strategies.filter((s) => s.isActive);
+    const strategies = await storage.getTradingStrategies(parseInt(userId));
+    const activeStrategies = strategies.filter((s: any) => s.isActive);
 
     if (activeStrategies.length === 0) {
       throw new Error("No active trading strategies found");
@@ -49,7 +114,7 @@ export class MultiStrategyTradingService {
 
     // 전략들을 맵에 저장
     this.activeStrategies.clear();
-    activeStrategies.forEach((strategy) => {
+    activeStrategies.forEach((strategy: any) => {
       this.activeStrategies.set(strategy.id, strategy);
     });
 
@@ -84,7 +149,7 @@ export class MultiStrategyTradingService {
         );
 
         // 활성 포지션 조회
-        const activePositions = await storage.getActivePositions(userId);
+        const activePositions = await storage.getActivePositions(parseInt(userId));
 
         // BTC 단일 전략 신호 분석
         for (const [strategyId, strategy] of Array.from(
@@ -99,7 +164,7 @@ export class MultiStrategyTradingService {
 
           // 활성 포지션이 이미 있는지 확인 (1개 제한)
           const hasActivePosition = activePositions.some(
-            (p) => p.status === "open"
+            (p: any) => p.status === "open"
           );
 
           const signal = await this.analyzeStrategySignal(
@@ -172,7 +237,7 @@ export class MultiStrategyTradingService {
 
     // BTC 활성 포지션 확인 (전략 상관없이 1개만 허용)
     const existingPosition = activePositions.find(
-      (p) => p.symbol === "BTC" && p.status === "open"
+      (p: any) => p.symbol === "BTC" && p.status === "open"
     );
 
     // 사용자 설정 값
@@ -188,7 +253,7 @@ export class MultiStrategyTradingService {
     if (!hasActivePosition && !existingPosition) {
       // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
       const userId = String((strategy as any)?.userId ?? "");
-      const recentPosition = await storage.getRecentPositionByStrategy(userId, strategy.id, symbol);
+      const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
       
       if (recentPosition) {
         const lastEntryTime = recentPosition.entryTime.getTime();
@@ -348,7 +413,7 @@ export class MultiStrategyTradingService {
     // 🚨 잔고 검증 추가
     try {
       // 직접 스토리지에서 잔고 확인 (더 안전)
-      const exchanges = await storage.getExchangesByUserId(userId);
+      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
       console.log(
         `🔍 잔고 확인: 투자금액 ${upbitEntryAmount.toLocaleString()}원, 진입조건: ${entryRate}%`
       );
@@ -358,7 +423,7 @@ export class MultiStrategyTradingService {
 
     try {
       // 사용자 API 키 로드
-      const exchanges = await storage.getExchangesByUserId(userId);
+      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
       const upbitExchange = exchanges.find(
         (e) => e.exchange === "upbit" && e.isActive
       );
@@ -574,9 +639,9 @@ export class MultiStrategyTradingService {
     userId: string,
     signal: StrategySignal
   ): Promise<void> {
-    const positions = await storage.getActivePositions(userId);
+    const positions = await storage.getActivePositions(parseInt(userId));
     const position = positions.find(
-      (p) => p.symbol === signal.symbol && p.strategyId === signal.strategyId
+      (p: any) => p.symbol === signal.symbol && p.strategyId === signal.strategyId
     );
 
     if (!position) {
@@ -592,7 +657,7 @@ export class MultiStrategyTradingService {
 
     try {
       // 사용자 API 키 로드
-      const exchanges = await storage.getExchangesByUserId(userId);
+      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
       const upbitExchange = exchanges.find(
         (e) => e.exchange === "upbit" && e.isActive
       );
@@ -634,7 +699,7 @@ export class MultiStrategyTradingService {
 
       // 3. 포지션 상태 업데이트
       await storage.updatePosition(position.id, {
-        currentPremiumRate: new Prisma.Decimal(signal.premiumRate),
+        currentPremiumRate: signal.premiumRate,
       });
 
       // 4. 거래 기록 생성
@@ -726,14 +791,14 @@ export class MultiStrategyTradingService {
 
           // 포지션 업데이트
           await storage.updatePosition(position.id, {
-            currentPrice: new Prisma.Decimal(currentData.upbitPrice ?? Number(position.currentPrice ?? 0)),
-            currentPremiumRate: new Prisma.Decimal(currentPremium),
+            currentPrice: currentData.upbitPrice ?? Number(position.currentPrice ?? 0),
+            currentPremiumRate: currentPremium,
           });
         } else {
           // 비정상 진입 포지션은 현재 김프율만 업데이트
           await storage.updatePosition(position.id, {
-            currentPrice: new Prisma.Decimal(currentData.upbitPrice ?? Number(position.currentPrice ?? 0)),
-            currentPremiumRate: new Prisma.Decimal(currentPremium),
+            currentPrice: currentData.upbitPrice ?? Number(position.currentPrice ?? 0),
+            currentPremiumRate: currentPremium,
           });
         }
       } catch (error) {

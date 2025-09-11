@@ -1,12 +1,18 @@
 // server/db.ts
 import 'dotenv/config';
-import { PrismaClient } from '../generated/prisma';
-// Prisma 클라이언트 (싱글톤)
-export const prisma = new PrismaClient();
+import { Pool } from 'pg';
+// PostgreSQL 연결 풀 (싱글톤)
+export const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+});
 export async function ping() {
     try {
-        // 간단한 ping 쿼리
-        await prisma.$queryRawUnsafe('select 1');
+        const client = await pool.connect();
+        await client.query('SELECT 1');
+        client.release();
         return true;
     }
     catch {
@@ -16,27 +22,27 @@ export async function ping() {
 export async function initializeTestData() {
     try {
         // 필수 데이터 준비: cryptocurrencies 기본 심볼이 없다면 생성
-        const btc = await prisma.cryptocurrency.findUnique({ where: { symbol: 'BTC' } });
-        if (!btc) {
-            await prisma.cryptocurrency.createMany({
-                data: [
-                    { symbol: 'BTC', name: 'Bitcoin', isActive: true },
-                    { symbol: 'ETH', name: 'Ethereum', isActive: true },
-                    { symbol: 'XRP', name: 'XRP', isActive: true },
-                    { symbol: 'ADA', name: 'Cardano', isActive: true },
-                    { symbol: 'DOT', name: 'Polkadot', isActive: true },
-                ],
-                skipDuplicates: true,
-            });
+        const result = await pool.query("SELECT COUNT(*) FROM cryptocurrencies WHERE symbol = 'BTC'");
+        const btcExists = parseInt(result.rows[0].count) > 0;
+        if (!btcExists) {
+            await pool.query(`
+        INSERT INTO cryptocurrencies (symbol, name, is_active, created_at) VALUES
+        ('BTC', 'Bitcoin', true, NOW()),
+        ('ETH', 'Ethereum', true, NOW()),
+        ('XRP', 'XRP', true, NOW()),
+        ('ADA', 'Cardano', true, NOW()),
+        ('DOT', 'Polkadot', true, NOW())
+        ON CONFLICT (symbol) DO NOTHING
+      `);
         }
     }
     catch (err) {
-        // 초기 데이터는 필수는 아니므로 조용히 진행
+        console.log('초기 데이터 설정 중 오류 (무시됨):', err);
     }
 }
 export async function closeDb() {
     try {
-        await prisma.$disconnect();
+        await pool.end();
     }
     catch {
         // noop

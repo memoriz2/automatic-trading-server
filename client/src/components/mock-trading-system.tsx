@@ -5,47 +5,50 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { TRADING_CONSTANTS } from "@/lib/utils";
 
-// API 호출 함수 (AbortError 처리 포함)
+// API 호출 함수
 const apiFetch = async (url: string, options: RequestInit = {}) => {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
-    
-    return response.json();
-  } catch (error) {
-    // AbortError는 무시 (정상적인 요청 취소)
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.log('📡 요청이 취소되었습니다 (정상)');
-      return null;
-    }
-    throw error;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status}`);
   }
+  
+  return response.json();
 };
 
 // DB 저장 함수들
 const saveMockTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: boolean = false) => {
-  // 🔒 로컬스토리지에만 저장 (서버 부담 제거)
   try {
-    const tradeKey = `trade_${trade.id}`;
-    localStorage.setItem(tradeKey, JSON.stringify({
-      ...trade,
-      userId: parseInt(userId),
-      timestamp: trade.timestamp.toISOString(),
-      isMock: !isLiveMode,
-      strategyName: trade.strategyName || 'Unknown'
-    }));
-    console.log(`✅ ${isLiveMode ? '실거래' : 'Mock 거래'} 로컬스토리지 저장 성공:`, trade.id);
+    const apiEndpoint = isLiveMode ? '/api/live-trades' : '/api/mock-trades';
+    
+    await apiFetch(apiEndpoint, {
+      method: 'POST',
+      credentials: 'include', // 세션 쿠키 포함
+      body: JSON.stringify({
+        id: trade.id,
+        timestamp: trade.timestamp.toISOString(),
+        type: trade.type,
+        symbol: trade.symbol,
+        quantity: trade.quantity,
+        price: trade.price,
+        fee: trade.fee,
+        exchange: trade.exchange,
+        strategyId: trade.strategyId,
+        premiumRate: trade.premiumRate,
+        isMock: !isLiveMode, // 실거래 모드에 따라 결정
+        strategyName: trade.strategyName || 'Unknown',
+        mockSessionId: isLiveMode ? undefined : `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` // Mock 세션 ID
+      })
+    });
+    console.log(`✅ ${isLiveMode ? '실거래' : 'Mock 거래'} DB 저장 성공:`, trade.id);
   } catch (error) {
-    console.error(`❌ ${isLiveMode ? '실거래' : 'Mock 거래'} 로컬스토리지 저장 실패:`, error);
+    console.error(`❌ ${isLiveMode ? '실거래' : 'Mock 거래'} DB 저장 실패:`, error);
   }
 };
 
@@ -381,8 +384,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         if (lastToastMessage !== errorMsg) {
           setLastToastMessage(errorMsg);
           toast({
-            title: "KRW 부족",
-            description: errorMsg,
+            title: "💸 원화 부족!",
+            description: `🏦 ${errorMsg} → 더 많은 자금이 필요해요!`,
             variant: "destructive"
           });
         }
@@ -404,8 +407,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         if (lastToastMessage !== errorMsg) {
           setLastToastMessage(errorMsg);
           toast({
-            title: "증거금 부족", 
-            description: errorMsg,
+            title: "💵 USDT 증거금 부족!", 
+            description: `⚠️ ${errorMsg} → 바이낸스 잔고를 확인해주세요!`,
             variant: "destructive"
           });
         }
@@ -502,8 +505,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       addTradingLog(`✅ ${strategy.name} 진입 완료! 김프 ${premiumRate.toFixed(3)}%`);
       
       toast({
-        title: "모의 진입 완료",
-        description: `${strategy.name} - 김프율 ${premiumRate.toFixed(3)}%에서 진입`,
+        title: "🚀 진입 신호 포착!",
+        description: `🎯 ${strategy.name} 전략 → 김프율 ${premiumRate.toFixed(3)}%에서 완벽 진입! 💎`,
       });
 
       console.log('✅ 모의 진입 완료:', {
@@ -671,8 +674,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       
       const profitColor = totalPnl >= 0 ? "" : "destructive";
       toast({
-        title: totalPnl >= 0 ? `+₩${Math.round(totalPnl).toLocaleString()}` : `-₩${Math.abs(Math.round(totalPnl)).toLocaleString()}`,
-        description: undefined,
+        title: totalPnl >= 0 ? `💰 수익 실현! +₩${Math.round(totalPnl).toLocaleString()}` : `📉 손실 확정 -₩${Math.abs(Math.round(totalPnl)).toLocaleString()}`,
+        description: totalPnl >= 0 ? "🎉 성공적인 거래였습니다! 축하드려요!" : "📊 다음 기회를 노려보세요!",
         variant: profitColor as any
       });
 
@@ -961,8 +964,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     console.log('🧹 모의거래 데이터 완전 초기화 완료');
     
     toast({
-      title: "모의 잔고 초기화 완료",
-      description: "모든 거래 데이터가 초기값으로 리셋되었습니다.",
+      title: "🧹 잔고 완전 초기화!",
+      description: "💸 모든 거래 기록이 깔끔하게 리셋되었습니다! 새 출발! ✨",
       variant: "destructive"
     });
   };
@@ -1090,7 +1093,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     <Card className="bg-slate-850 border-slate-700">
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
-          🎮 모의 거래 시스템
+          자동 매매 시스템
           <div className="flex gap-2">
             <Button 
               variant={isTrading ? "destructive" : strategies.some(s => s.isActive) ? "default" : "outline"}
@@ -1121,13 +1124,33 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
               variant="destructive" 
               size="sm" 
               onClick={() => {
-                // 활성 포지션 전체 청산
+                // 활성 포지션 전체 청산 (한 번에 모두 처리)
                 const activePositions = mockPositions.filter(p => p.status === 'open');
                 if (activePositions.length > 0) {
                   const currentKimp = currentKimchiData?.kimp || 0;
                   console.log('🔴 전체 청산 실행: 포지션', activePositions.length, '개');
-                  activePositions.forEach(position => {
-                    try { mockExit(position, currentKimp, 1.0); } catch {}
+                  
+                  // 모든 활성 포지션을 한 번에 청산 처리
+                  const closedPositions = activePositions.map(position => ({
+                    ...position,
+                    status: 'closed' as const,
+                    exitTime: new Date(),
+                    realizedPnl: position.unrealizedPnl || 0
+                  }));
+                  
+                  // 상태를 한 번에 업데이트
+                  setMockPositions(prev => 
+                    prev.map(p => 
+                      activePositions.find(ap => ap.id === p.id) 
+                        ? closedPositions.find(cp => cp.id === p.id)! 
+                        : p
+                    )
+                  );
+                  
+                  // 토스트 알림
+                  toast({
+                    title: "전체 청산 완료",
+                    description: `${activePositions.length}개 포지션이 모두 청산되었습니다.`
                   });
                 } else {
                   console.log('❌ 청산할 포지션이 없습니다');

@@ -21,7 +21,7 @@ export class SimpleKimchiService {
             if (!userId || userId === 'undefined' || userId === 'null') {
                 return {};
             }
-            const exchanges = await storage.getExchangesByUserId(userId);
+            const exchanges = await storage.getExchangesByUserId(parseInt(userId));
             const exchangeData = exchanges.find((ex) => ex.exchange === exchange && ex.isActive);
             if (exchangeData) {
                 return {

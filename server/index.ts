@@ -62,7 +62,7 @@ app.use(express.urlencoded({ extended: false }));
 import cookieParser from 'cookie-parser';
 // @ts-ignore
 import session from 'express-session';
-import { prisma } from './db.js';
+import { pool } from './db.js';
 app.use(cookieParser());
 
 // CORS (동적 Origin + Credentials 허용)

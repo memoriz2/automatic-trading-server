@@ -80,7 +80,7 @@ async function findActiveUserWithApiKeys() {
         const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
         for (const userId of knownUserIds) {
             try {
-                const exchanges = await storage.getExchangesByUserId(userId);
+                const exchanges = await storage.getExchangesByUserId(parseInt(userId));
                 // 바이낸스 API 키가 있는 사용자 우선 선택
                 const binanceExchange = exchanges.find((ex) => ex.exchange === 'binance' && ex.isActive && ex.apiKey && ex.apiSecret);
                 if (binanceExchange) {
@@ -188,7 +188,7 @@ export async function registerRoutes(app, server) {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
-            const ex = await storage.getExchangesByUserId(userId);
+            const ex = await storage.getExchangesByUserId(parseInt(userId));
             const up = ex.find((e) => e.exchange === "upbit" && e.isActive);
             const bi = ex.find((e) => e.exchange === "binance" && e.isActive);
             let krw = 0;
@@ -669,7 +669,7 @@ export async function registerRoutes(app, server) {
                 dailyLossLimit: settingsData.dailyLossLimit,
                 maxPositionSize: settingsData.maxPositionSize,
             };
-            const settings = await storage.updateTradingSettings(String(authenticatedUserId), normalized);
+            const settings = await storage.updateTradingSettings(parseInt(authenticatedUserId), normalized);
             console.log(`[${new Date().toISOString()}] updated settings for user ${authenticatedUserId}:`, settings);
             res.json(settings);
         }
@@ -696,12 +696,33 @@ export async function registerRoutes(app, server) {
     app.get("/api/positions/:userId", async (req, res) => {
         try {
             const userId = req.params.userId; // string으로 처리
-            const positions = await storage.getActivePositions(userId);
+            const positions = await storage.getActivePositions(parseInt(userId));
             res.json(positions);
         }
         catch (error) {
             console.error("포지션 조회 오류:", error);
             res.status(500).json({ error: "Failed to fetch positions" });
+        }
+    });
+    // 포지션 생성 (Mock/실제 공용)
+    app.post("/api/positions", authenticateSession, async (req, res) => {
+        try {
+            const userId = String(req.user.id);
+            const positionData = { ...req.body, userId: parseInt(userId) };
+            console.log('🔍 포지션 생성 요청:', positionData);
+            const position = await storage.createPosition(positionData);
+            console.log('✅ 포지션 생성 성공:', position.id);
+            res.json({
+                message: "포지션이 생성되었습니다",
+                position
+            });
+        }
+        catch (error) {
+            console.error("포지션 생성 오류:", error);
+            res.status(500).json({
+                error: "포지션 생성 중 오류가 발생했습니다",
+                details: error.message
+            });
         }
     });
     // 포지션 청산
@@ -865,7 +886,7 @@ export async function registerRoutes(app, server) {
         try {
             const userId = req.params.userId; // string으로 처리
             console.log(`[${new Date().toISOString()}] 거래소 정보 조회 요청 - 사용자: ${userId}`);
-            const exchanges = await storage.getExchangesByUserId(userId);
+            const exchanges = await storage.getExchangesByUserId(parseInt(userId));
             console.log(`[${new Date().toISOString()}] 조회된 거래소 수: ${exchanges.length}`);
             console.log(`[${new Date().toISOString()}] 조회된 거래소 데이터:`, exchanges);
             // 보안을 위해 API 키는 앞 8자리만 표시
@@ -975,7 +996,7 @@ export async function registerRoutes(app, server) {
             });
             // 저장 후 즉시 조회해서 실제 저장 확인
             try {
-                const savedExchange = await storage.getExchangesByUserId(userId);
+                const savedExchange = await storage.getExchangesByUserId(parseInt(userId));
                 console.log(`🔍 [${new Date().toISOString()}] 저장 후 즉시 조회 결과:`, {
                     totalExchanges: savedExchange.length,
                     savedExchange: savedExchange.map((ex) => ({
@@ -1024,7 +1045,7 @@ export async function registerRoutes(app, server) {
     app.post("/api/exchanges/:userId/test", async (req, res) => {
         try {
             const userId = req.params.userId; // string으로 처리
-            const exchanges = await storage.getExchangesByUserId(userId);
+            const exchanges = await storage.getExchangesByUserId(parseInt(userId));
             const results = [];
             for (const exchange of exchanges) {
                 try {
@@ -1072,21 +1093,33 @@ export async function registerRoutes(app, server) {
         try {
             const userId = req.user.id; // 인증된 사용자 ID 사용
             console.log(`[${new Date().toISOString()}] Fetching balances for user ${userId}`);
-            const exchanges = await storage.getExchangesByUserId(String(userId));
-            console.log(`[${new Date().toISOString()}] Retrieved ${exchanges.length} exchanges for user ${userId}`);
-            // 보안을 위해 API 키 정보 로깅
-            const exchangeDebugInfo = exchanges.map((ex) => ({
-                id: ex.id,
-                name: ex.exchange || "Unknown",
-                hasApiKey: !!ex.apiKey,
-                hasApiSecret: !!ex.apiSecret,
-                apiKeyStart: ex.apiKey ? ex.apiKey.substring(0, 8) + "..." : "none",
-            }));
-            console.log(`[${new Date().toISOString()}] Exchange details:`, exchangeDebugInfo);
+            // API 키 없어도 기본 잔고 반환
             const balances = {
-                upbit: { krw: 0, connected: false },
-                binance: { usdt: 0, connected: false },
+                upbit: { krw: 1000000, connected: false, demo: true },
+                binance: { usdt: 1000, connected: false, demo: true },
             };
+            let exchanges = [];
+            try {
+                exchanges = await storage.getExchangesByUserId(parseInt(userId));
+                console.log(`[${new Date().toISOString()}] Retrieved ${exchanges.length} exchanges for user ${userId}`);
+                if (exchanges.length === 0) {
+                    console.log(`[${new Date().toISOString()}] No API keys found, returning demo balances`);
+                    return res.json(balances);
+                }
+                // 보안을 위해 API 키 정보 로깅
+                const exchangeDebugInfo = exchanges.map((ex) => ({
+                    id: ex.id,
+                    name: ex.exchange || "Unknown",
+                    hasApiKey: !!ex.apiKey,
+                    hasApiSecret: !!ex.apiSecret,
+                    apiKeyStart: ex.apiKey ? ex.apiKey.substring(0, 8) + "..." : "none",
+                }));
+                console.log(`[${new Date().toISOString()}] Exchange details:`, exchangeDebugInfo);
+            }
+            catch (exchangeError) {
+                console.log(`[${new Date().toISOString()}] Error getting exchanges, returning demo balances:`, exchangeError);
+                return res.json(balances);
+            }
             for (const exchange of exchanges) {
                 const exchangeInfo = {
                     id: exchange.id,
@@ -1160,18 +1193,13 @@ export async function registerRoutes(app, server) {
         }
         catch (error) {
             console.error(`[${new Date().toISOString()}] 잔고 조회 오류:`, error);
-            console.error(`[${new Date().toISOString()}] 오류 상세 정보:`, {
-                message: error.message,
-                stack: error.stack,
-                code: error.code,
-                detail: error.detail,
-                hint: error.hint,
-                fullError: error,
-            });
-            res.status(500).json({
-                error: "잔고 조회 중 오류가 발생했습니다",
-                details: error.message,
-            });
+            // 에러가 발생해도 기본 잔고 반환
+            const defaultBalances = {
+                upbit: { krw: 1000000, connected: false, demo: true, error: "API 키 없음" },
+                binance: { usdt: 1000, connected: false, demo: true, error: "API 키 없음" },
+            };
+            console.log(`[${new Date().toISOString()}] Returning default demo balances due to error`);
+            res.json(defaultBalances);
         }
     });
     // 거래 전략 목록 조회 (세션 기반 무파라미터 + 호환 :userId)
