@@ -955,75 +955,6 @@ const LegacyAutoTradingPage = () => {
     });
   };
 
-  // ===== 쿨다운 표시 컴포넌트 =====
-  const CooldownDisplay = ({ strategyId, symbol }: { strategyId: string; symbol: string }) => {
-    const [remainTime, setRemainTime] = useState<number | null>(null);
-    
-    useEffect(() => {
-      const updateCooldown = async () => {
-        try {
-          // 로컬스토리지에서 쿨다운 정보 확인
-          const cooldownKey = `cooldown_${strategyId}_${symbol}`;
-          const savedCooldown = localStorage.getItem(cooldownKey);
-          
-          if (savedCooldown) {
-            const cooldownData = JSON.parse(savedCooldown);
-            const elapsed = Date.now() - cooldownData.entryTime;
-            const remaining = Math.max(0, 600000 - elapsed); // 10분 - 경과시간
-            
-            if (remaining > 0) {
-              setRemainTime(remaining);
-            } else {
-              localStorage.removeItem(cooldownKey); // 만료된 쿨다운 제거
-              setRemainTime(null);
-            }
-          } else {
-            // 로컬스토리지에 없으면 서버에서 확인
-            const response = await fetch('/api/positions', { credentials: 'include' });
-            if (response.ok) {
-              const positions = await response.json();
-              const recentPosition = positions.find((p: any) => 
-                p.status === 'open' && 
-                p.strategyId === parseInt(strategyId) && 
-                p.symbol === symbol
-              );
-              
-              if (recentPosition) {
-                const entryTime = new Date(recentPosition.entryTime).getTime();
-                const elapsed = Date.now() - entryTime;
-                const remaining = Math.max(0, 600000 - elapsed);
-                
-                if (remaining > 0) {
-                  // 로컬스토리지에 저장
-                  localStorage.setItem(cooldownKey, JSON.stringify({ entryTime, strategyId, symbol }));
-                  setRemainTime(remaining);
-                  console.log(`🕐 [DEBUG] 쿨다운 설정: ${strategyId} - ${Math.floor(remaining/60000)}분 ${Math.floor((remaining%60000)/1000)}초 남음`);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('쿨다운 확인 실패:', error);
-        }
-      };
-      
-      updateCooldown();
-      const interval = setInterval(updateCooldown, 1000); // 1초마다 업데이트
-      
-      return () => clearInterval(interval);
-    }, [strategyId, symbol]);
-    
-    if (!remainTime || remainTime <= 0) return null;
-    
-    const minutes = Math.floor(remainTime / 60000);
-    const seconds = Math.floor((remainTime % 60000) / 1000);
-    
-    return (
-      <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">
-        🕐 {minutes}:{seconds.toString().padStart(2, '0')}
-      </span>
-    );
-  };
 
   // ===== 활성 전략들의 포지션 상태 확인 (중복 진입 방지) =====
   const checkActiveStrategiesPositions = useCallback(async (strategies: any[]) => {
@@ -1083,14 +1014,15 @@ const LegacyAutoTradingPage = () => {
               remainMinutes: remainMinutes > 0 ? remainMinutes + 'min' : '완료'
             });
             
-            if (elapsed < 600000) { // 10분 미경과
-              console.log(`⏳ 전략 "${strategy.name}" 쿨다운 중 (${remainMinutes}분 남음)`);
+            // 활성 포지션이 있으면 전략 비활성화 (청산 전까지 재진입 방지)
+            if (activePosition.status === 'open') {
+              console.log(`🔒 전략 "${strategy.name}" 포지션 보유 중 - 재진입 제한`);
               // 자동으로 전략 비활성화 (UI 반영)
               strategy.isActive = false;
             } else {
-              // 🔄 쿨다운 완료된 전략은 자동 활성화 (서버 재시작 후에도 작동)
+              // 포지션이 닫혔으면 자동 활성화
               if (!strategy.isActive) {
-                console.log(`✅ 전략 "${strategy.name}" 쿨다운 완료 - 자동 활성화`);
+                console.log(`✅ 전략 "${strategy.name}" 포지션 없음 - 자동 활성화`);
                 strategy.isActive = true;
                 
                 // DB에도 즉시 반영 (fetchJson 사용)
@@ -1191,7 +1123,8 @@ const LegacyAutoTradingPage = () => {
           riskLevel: 'moderate',
           isActive: s.is_active,
           profitRate: s.total_profit > 0 ? `+${s.total_profit}` : String(s.total_profit || '+0.00'),
-          executionCount: s.total_trades || 0
+          executionCount: s.total_trades || 0,
+          created_at: s.created_at // 정렬을 위한 생성시간 추가
         }));
         
         // 🔒 전략 로드 후 활성 전략들의 포지션 상태 확인
@@ -1199,8 +1132,20 @@ const LegacyAutoTradingPage = () => {
         await checkActiveStrategiesPositions(formattedStrategies);
         console.log('🚀 [DEBUG] checkActiveStrategiesPositions 호출 완료');
         
-        setStrategies(formattedStrategies);
-        console.log(`✅ 사용자 ${userId}의 전략 ${formattedStrategies.length}개 로드 완료:`, formattedStrategies);
+        // 만든시간 기준 내림차순, 두 번째 기준은 ID 내림차순 정렬
+        const sortedStrategies = formattedStrategies.sort((a, b) => {
+          // 1차 정렬: created_at (최신순)
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          if (dateB !== dateA) {
+            return dateB - dateA;
+          }
+          // 2차 정렬: ID (큰 번호순)
+          return Number(b.id) - Number(a.id);
+        });
+        
+        setStrategies(sortedStrategies);
+        console.log(`✅ 사용자 ${userId}의 전략 ${sortedStrategies.length}개 로드 완료 (시간순 정렬):`, sortedStrategies);
         hasLoadedStrategiesRef.current = true;
         
         if (formattedStrategies.length === 0) {
@@ -1529,8 +1474,7 @@ const LegacyAutoTradingPage = () => {
                         <h3 className="font-medium" data-testid={`text-strategy-name-${strategy.id}`}>
                           {strategy.name}
                         </h3>
-                        {/* 🕐 쿨다운 시간 표시 */}
-                        <CooldownDisplay strategyId={strategy.id} symbol={strategy.crypto || 'BTC'} />
+                        
                         <button 
                           type="button" 
                           role="switch" 
@@ -1565,10 +1509,10 @@ const LegacyAutoTradingPage = () => {
                                     const elapsed = Date.now() - entryTime.getTime();
                                     const remainMinutes = Math.ceil((600000 - elapsed) / 60000); // 10분 쿨다운
                                     
-                                    if (elapsed < 600000) { // 10분 미경과
+                                    if (activePosition.status === 'open') {
                                       toast({ 
-                                        title: '쿨다운 진행중', 
-                                        description: `이 전략은 ${remainMinutes}분 후 다시 활성화할 수 있습니다.`,
+                                        title: '포지션 보유 중', 
+                                        description: `이 전략은 현재 포지션을 청산한 후 다시 활성화할 수 있습니다.`,
                                         variant: 'destructive' 
                                       });
                                       return;
@@ -1684,19 +1628,19 @@ const LegacyAutoTradingPage = () => {
                       <div>
                         <p className="text-muted-foreground">진입 조건 (정확한 일치)</p>
                         <p className="font-medium text-green-500" data-testid={`text-entry-${strategy.id}`}>
-                          {strategy.entryCondition}% ± {strategy.tolerance || '0.01'}%
+                          {parseFloat(Number(strategy.entryCondition).toFixed(3))}% ± {parseFloat(Number(strategy.tolerance || '0.01').toFixed(3))}%
                         </p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">익절 조건 (정확한 일치)</p>
+                        <p className="text-muted-foreground">익절 조건 (이상이면 청산)</p>
                         <p className="font-medium text-primary" data-testid={`text-take-profit-${strategy.id}`}>
-                          {strategy.takeProfitCondition}% ± {strategy.tolerance || '0.01'}%
+                          {parseFloat(Number(strategy.takeProfitCondition).toFixed(3))}% ≤ 김프율
                         </p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">투자 수량</p>
                         <p className="font-medium" data-testid={`text-amount-${strategy.id}`}>
-                          {Math.floor(Number(strategy.investmentAmount || 0) * 1000) / 1000} BTC
+                          {parseFloat(Number(strategy.investmentAmount || 0).toFixed(3))} BTC
                         </p>
                       </div>
                     </div>
@@ -2073,24 +2017,7 @@ const LegacyAutoTradingPage = () => {
               e.preventDefault();
               
               if (editingStrategyId) {
-                // 기존 전략 수정
-                setStrategies(prev => prev.map(strategy => 
-                  strategy.id === editingStrategyId 
-                    ? {
-                        ...strategy,
-                        name: newStrategy.name,
-                        crypto: newStrategy.crypto,
-                        entryCondition: newStrategy.entryCondition,
-                        takeProfitCondition: newStrategy.takeProfitCondition,
-                        investmentAmount: newStrategy.investmentAmount,
-                        leverage: newStrategy.leverage,
-                        riskLevel: newStrategy.riskLevel,
-                        isActive: newStrategy.activateImmediately
-                      }
-                    : strategy
-                ));
-                
-                // DB 저장 시도
+                // 기존 전략 수정 - 서버 우선 업데이트 후 UI 새로고침
                 try {
                   const normalizedInvestment = (() => {
                     const n = Number(newStrategy.investmentAmount);
@@ -2113,9 +2040,9 @@ const LegacyAutoTradingPage = () => {
                   
                   console.log('🔍 전략 수정 payload:', payload);
                   
-                  // 세션 기반: 서버에서 세션 사용자로 처리 (무파라미터 라우트 미구현이면 기존 경로 유지)
-                  await fetchJson(`/api/trading-strategies`, {
-                    method: 'POST',
+                  // 전략 수정: PUT 메서드로 기존 전략 업데이트
+                  await fetchJson(`/api/trading-strategies/${editingStrategyId}`, {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                     // 저장 요청은 취소되지 않도록 보장
@@ -2123,15 +2050,19 @@ const LegacyAutoTradingPage = () => {
                   });
                   
                   toast({
-                    title: '전략 수정 완료',
+                    title: '전략 수정 완료! 🎉',
                     description: `${newStrategy.name} 전략이 업데이트되었습니다.`,
                   });
-                  loadStrategiesFromDB();
+                  
+                  // 서버에서 최신 전략 목록 비동기 로드
+                  await loadStrategiesFromDB({ force: true });
                 } catch (error) {
-                  console.error('전략 상태 변경 실패:', error);
-                  // 서버 상태와 동기화
-                  loadStrategiesFromDB();
-                  toast({ title: '상태 변경 실패', description: '서버 저장에 실패했습니다.', variant: 'destructive' });
+                  console.error('전략 수정 실패:', error);
+                  toast({ 
+                    title: '전략 수정 실패', 
+                    description: '서버 저장에 실패했습니다.', 
+                    variant: 'destructive' 
+                  });
                 }
                 
                 setEditingStrategyId(null);
@@ -2345,7 +2276,7 @@ const LegacyAutoTradingPage = () => {
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   htmlFor=":r11:-form-item"
                 >
-                  익절 조건 (%) - 정확한 일치
+                  익절 조건 (%) - 이상이면 청산
                 </label>
                 <input
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
@@ -2388,12 +2319,12 @@ const LegacyAutoTradingPage = () => {
                     const baseAmount = parseFloat(e.target.value) || 500000;
                     const leverage = parseFloat(newStrategy.leverage) || 3;
                     const btcPrice = 156000000;
-                    const calculatedBTC = (baseAmount / leverage / btcPrice).toFixed(3);
+                    const calculatedBTC = parseFloat((baseAmount / leverage / btcPrice).toFixed(3));
                     
                     setNewStrategy(prev => ({
                       ...prev, 
                       baseAmount: e.target.value,
-                      investmentAmount: calculatedBTC,
+                      investmentAmount: String(calculatedBTC),
                       tolerance: prev.tolerance
                     }));
                   }}
@@ -2460,12 +2391,12 @@ const LegacyAutoTradingPage = () => {
                     const leverage = parseFloat(e.target.value) || 3;
                     const baseAmount = parseFloat(newStrategy.baseAmount) || 500000;
                     const btcPrice = 156000000; // 대략적인 BTC 가격
-                    const calculatedBTC = (baseAmount / leverage / btcPrice).toFixed(3);
+                    const calculatedBTC = parseFloat((baseAmount / leverage / btcPrice).toFixed(3));
                     
                     setNewStrategy(prev => ({
                       ...prev, 
                       leverage: e.target.value,
-                      investmentAmount: calculatedBTC
+                      investmentAmount: String(calculatedBTC)
                     }));
                   }}
                 />

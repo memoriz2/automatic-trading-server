@@ -398,7 +398,7 @@ export class DatabaseStorage {
   async getTradingStrategies(userId: number): Promise<any[]> {
     try {
       const result = await this.pool.query(
-        'SELECT * FROM trading_strategies WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC',
+        'SELECT * FROM trading_strategies WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC, id DESC',
         [userId]
       );
       return result.rows;

@@ -63,14 +63,6 @@ const saveMockPositionToDB = async (position: MockPosition, userId: string) => {
       isMock: true
     }));
     console.log('✅ Mock 포지션 로컬스토리지 저장 성공:', position.id);
-    
-    // 쿨다운 정보도 함께 저장
-    const cooldownKey = `cooldown_${position.strategyId}_${position.symbol}`;
-    localStorage.setItem(cooldownKey, JSON.stringify({
-      entryTime: position.entryTime.getTime(),
-      strategyId: position.strategyId,
-      symbol: position.symbol
-    }));
   } catch (error) {
     console.error('❌ Mock 포지션 로컬스토리지 저장 실패:', error);
   }
@@ -182,14 +174,12 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   // 유니크한 거래 ID 생성을 위한 카운터
   const [tradeCounter, setTradeCounter] = useState(0);
   
-  // 토글 방지용: 최소 보유시간/히스테리시스/쿨다운
+  // 토글 방지용: 최소 보유시간
   const MIN_HOLD_MS = 30_000; // 진입 후 최소 보유 30초
   const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격
   const COOLDOWN_MS = 800;    // 동일 전략 연속 액션 쿨다운(민감도 향상)
   const lastActionAtRef = useRef<Record<string, number>>({});
   const prevPremiumRef = useRef<number | null>(null); // 임계값 교차 감지용 이전 김프
-  // 전략별 진입 후 제한(10분) 관리: 앵커 김프 근처에서 큰 변동 없으면 재진입 제한
-  const entryRestrictionRef = useRef<Record<string, { until: number; anchor: number; tolerance: number }>>({});
   // 동시 진입 방지: 현재 처리 중인 전략 ID 집합
   const processingEntryRef = useRef<Set<string>>(new Set());
   
@@ -733,20 +723,12 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       const exitRate = parseFloat(strategy.takeProfitCondition);
 
       // 기존 포지션 확인
-      const existingPosition = mockPositions.find(p => 
+      const currentPosition: MockPosition | undefined = mockPositions.find(p => 
         p.strategyId === strategy.id && p.status === 'open'
       );
 
-      // 정확한 일치/허용오차 전략 설정값
+      // 허용오차 설정
       const tolerance = parseFloat(strategy.tolerance || TRADING_CONSTANTS.DEFAULT_TOLERANCE);
-      const strictExact = Boolean((strategy as any).strictExact);
-      const precision = Number((strategy as any).precision ?? 3); // 소수점 자리(%)
-      const epsilon = Number((strategy as any).epsilon ?? 0);     // 내부 버퍼(%)
-      const roundTo = (v: number, p: number) => {
-        const f = Math.pow(10, p);
-        return Math.round(v * f) / f;
-      };
-      const equalsRounded = (a: number, b: number) => Math.abs(roundTo(a, precision) - roundTo(b, precision)) <= epsilon;
       
       // 스크롤2 전략 특별 조건 (더 높은 진입조건)
       const isScroll2 = strategy.name === '스크롤2';
@@ -757,109 +739,65 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       const lastAction = lastActionAtRef.current[strategy.id] || 0;
       if (now - lastAction < COOLDOWN_MS) return;
 
-      // 10분 제한 가드: 진입 조건 평가 *전에* 먼저 확인
-      // 🔒 로컬스토리지 기반 쿨다운 체크 (서버 부담 없음)
-      const cooldownKey = `cooldown_${strategy.id}_${strategy.crypto || 'BTC'}`;
-      const savedCooldown = localStorage.getItem(cooldownKey);
-      
-      if (savedCooldown) {
-        const cooldownData = JSON.parse(savedCooldown);
-        const elapsed = Date.now() - cooldownData.entryTime;
-        
-        if (elapsed < 600000) { // 10분 미경과
-          const remainSeconds = Math.ceil((600000 - elapsed) / 1000);
-          console.log(`⏸️ 로컬스토리지 기반 재진입 제한: 남은 ${remainSeconds}s`);
-          return; // 진입 로직 실행 차단
-        } else {
-          localStorage.removeItem(cooldownKey); // 만료된 쿨다운 제거
-          console.log(`✅ 쿨다운 완료: 새 진입 허용`);
-        }
-      }
-
       const diffEntry = Math.abs(currentPremium - entryRate);
-      const diffExit  = Math.abs(currentPremium - exitRate);
       const crossedEntry = (prevPremium - entryRate) * (currentPremium - entryRate) <= 0 && Math.abs(prevPremium - entryRate) > tolerance;
-      const crossedExit  = (prevPremium - exitRate)  * (currentPremium - exitRate)  <= 0 && Math.abs(prevPremium - exitRate)  > Math.max(0, tolerance - EXIT_EXTRA);
-      // strictExact 모드에서도 이전값/현재값 중 하나라도 반올림 일치 시 진입/청산 허용 (교차 포착)
-      const strictEntryOk = equalsRounded(currentPremium, entryRate) || equalsRounded(prevPremium, entryRate);
-      const strictExitOk  = equalsRounded(currentPremium, exitRate)  || equalsRounded(prevPremium, exitRate);
-      // 기존 포지션이 있어도 진입 허용 (사용자 요청)
-      const entryOk = (
-        strictExact ? strictEntryOk : (diffEntry <= tolerance || crossedEntry)
-      );
-      const exitOk  =  existingPosition && (
-        strictExact ? strictExitOk : (diffExit <= Math.max(0, tolerance - EXIT_EXTRA) || crossedExit)
-      );
+      
+      // 진입 조건: 허용오차 범위 내 또는 교차점 통과 (포지션이 없을 때만)
+      const entryOk = !currentPosition && (diffEntry <= tolerance || crossedEntry);
+      
+      // 청산 조건: 익절조건 이상이면 청산 (포지션이 있을 때만)
+      const exitOk = currentPosition && (exitRate <= currentPremium);
 
       if (entryOk) {
-        // 진입 조건 정확히 일치 - 새 포지션 생성
-        if (strictExact) {
-          console.log(`🎯 정확 진입(반올림 ${precision}자리, 교차포착): prev=${roundTo(prevPremium, precision)}%, cur=${roundTo(currentPremium, precision)}%, target=${roundTo(entryRate, precision)}% (ε=${epsilon}%)`);
-        } else {
-          console.log(`🎯 정확 진입 조건: ${strategy.name} - 김프 ${currentPremium.toFixed(3)}% ≈ ${entryRate}% (오차: ${Math.abs(currentPremium - entryRate).toFixed(3)}%)`);
-        }
+        // 진입 조건 만족 - 새 포지션 생성
+        console.log(`🎯 진입 조건: ${strategy.name} - 김프 ${currentPremium.toFixed(3)}% ≈ ${entryRate}% (오차: ${Math.abs(currentPremium - entryRate).toFixed(3)}%)`);
         addTradingLog(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
         await mockEntry(strategy, currentPremium);
         lastActionAtRef.current[strategy.id] = now;
-        // 🔒 로컬스토리지에 쿨다운 정보 저장 (서버 부담 없음)
-        const cooldownKey = `cooldown_${strategy.id}_${strategy.crypto || 'BTC'}`;
-        localStorage.setItem(cooldownKey, JSON.stringify({
-          entryTime: Date.now(),
-          strategyId: strategy.id,
-          symbol: strategy.crypto || 'BTC'
-        }));
-        console.log(`🕐 쿨다운 시작: ${strategy.name} - 10분 타이머 설정`);
+        console.log(`✅ 진입 완료: ${strategy.name} - 청산 전까지 재진입 제한`);
       } else if (exitOk) {
+        // 청산 조건 만족 - 포지션 청산
+        console.log(`📊 청산 조건 체크: ${strategy.name}`);
+        console.log(`   현재 김프율: ${currentPremium.toFixed(3)}%`);
+        console.log(`   익절 조건: ${exitRate}%`);
+        console.log(`   청산 여부: true (${exitRate} <= ${currentPremium.toFixed(3)})`);
+        
         // 최소 보유시간 가드
-        const heldMs = now - new Date(existingPosition.entryTime).getTime();
-        if (heldMs < MIN_HOLD_MS) return;
-        // 청산 조건 정확히 일치 - 포지션 청산
-        if (strictExact) {
-          console.log(`🎯 정확 청산(반올림 ${precision}자리, 교차포착): prev=${roundTo(prevPremium, precision)}%, cur=${roundTo(currentPremium, precision)}%, target=${roundTo(exitRate, precision)}% (ε=${epsilon}%)`);
-        } else {
-          console.log(`🎯 정확 청산 조건: ${strategy.name} - 김프 ${currentPremium.toFixed(3)}% ≈ ${exitRate}% (오차: ${Math.abs(currentPremium - exitRate).toFixed(3)}%)`);
+        const heldMs = now - new Date((currentPosition as any).entryTime).getTime();
+        console.log(`   보유 시간: ${heldMs}ms (최소: ${MIN_HOLD_MS}ms)`);
+        
+        if (heldMs < MIN_HOLD_MS) {
+          console.log(`⏰ 최소 보유시간 미달로 청산 보류`);
+          return;
         }
+        
+        console.log(`✅ 청산 조건 만족! 청산 실행 중...`);
         addTradingLog(`🎯 ${strategy.name} 청산 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${exitRate}%`);
-        await mockExit(existingPosition, currentPremium);
+        await mockExit(currentPosition, currentPremium);
         lastActionAtRef.current[strategy.id] = now;
+      } else if (currentPosition) {
+        // 포지션이 있지만 청산 조건 불만족
+        console.log(`🔒 전략 "${strategy.name}" 포지션 보유 중 - 청산 대기 (익절${exitRate}% > 김프${currentPremium.toFixed(3)}%)`);
       }
       prevPremiumRef.current = currentPremium; // 마지막에 갱신
       
-      // 디버깅: 조건 확인 (더 명확한 로그)
+      // 디버깅: 조건 확인
       const entryDiff = Math.abs(currentPremium - entryRate);
       console.log(`\n🔍 ===== ${strategy.name} 조건 확인 =====`);
-      console.log(`📈 현재 김프율: ${currentPremium.toFixed(3)}% (strict=${strictExact ? 'Y' : 'N'}, p=${precision}, ε=${epsilon})`);
-      console.log(`🎯 진입 조건: ${entryRate}% (rounded: ${roundTo(currentPremium, precision)} vs ${roundTo(entryRate, precision)})`);
+      console.log(`📈 현재 김프율: ${currentPremium.toFixed(3)}%`);
+      console.log(`🎯 진입 조건: ${entryRate}%`);
       console.log(`📏 차이: ${entryDiff.toFixed(3)}%`);
       console.log(`⚖️ 허용 오차: ${tolerance}%`);
-      console.log(`🔍 조건: ${entryDiff.toFixed(3)}% <= ${tolerance}%`);
+      console.log(`🔍 진입 가능: ${entryDiff.toFixed(3)}% <= ${tolerance}% = ${entryDiff <= tolerance ? 'YES' : 'NO'}`);
       
       // 스크롤2 전략 특별 확인
       if (strategy.name === '스크롤2') {
-        console.log(`🚨 스크롤2 전략 특별 확인!`);
-        console.log(`🚨 스크롤2 진입 조건: ${entryRate}%`);
-        console.log(`🚨 스크롤2 허용 오차: ${tolerance}%`);
-        console.log(`🚨 스크롤2 현재 김프율: ${currentPremium.toFixed(3)}%`);
-        console.log(`🚨 스크롤2 차이: ${entryDiff.toFixed(3)}%`);
-        console.log(`🚨 스크롤2 진입 가능: ${entryDiff <= tolerance ? 'YES' : 'NO'}`);
+        console.log(`🚨 스크롤2 전략: 김프율 ${currentPremium.toFixed(3)}%, 조건 ${entryRate}%, 진입 ${entryDiff <= tolerance ? 'OK' : 'NO'}`);
       }
       
-      if (!existingPosition) {
-        if (entryDiff <= tolerance) {
-          console.log(`✅ 진입 조건 만족! 거래 실행 가능`);
-        } else {
-          console.log(`❌ 진입 조건 불만족 - 대기 중`);
-        }
-      } else {
-        // 기존 포지션이 있어도 진입을 허용하므로 안내 로그만 유지
-        console.log(`📋 기존 포지션 존재 - 추가 진입 허용 모드`);
+      if (currentPosition) {
         const exitDiff = Math.abs(currentPremium - exitRate);
-        console.log(`🎯 청산 조건: ${exitRate}% (차이: ${exitDiff.toFixed(3)}%)`);
-        if (exitDiff <= tolerance) {
-          console.log(`✅ 청산 조건 만족!`);
-        } else {
-          console.log(`❌ 청산 조건 불만족 - 대기 중`);
-        }
+        console.log(`💰 청산 조건: ${exitRate}% (현재: ${currentPremium.toFixed(3)}%, 청산가능: ${exitRate <= currentPremium ? 'YES' : 'NO'})`);
       }
       console.log(`===============================\n`);
       // 그 외에는 대기 (정확한 조건 만족 시에만 거래)
@@ -1106,19 +1044,31 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
               variant="secondary" 
               size="sm" 
               onClick={() => {
-                console.log('🧪 강제 진입 테스트');
-                if (strategies.length > 0) {
-                  const strategy = strategies[0];
-                  const currentKimp = currentKimchiData?.kimp || 0;
-                  console.log('🧪 강제 진입:', strategy.name, '현재 김프:', currentKimp);
-                  // 강제 진입이므로 executeMockTrade 대신 직접 mockEntry 호출
-                  mockEntry(strategy, currentKimp);
-                } else {
-                  console.log('❌ 전략이 없습니다');
+                console.log('🔍 === 현재 상태 확인 ===');
+                console.log('📊 활성 전략:', strategies.filter(s => s.isActive).length, '개');
+                console.log('📊 활성 포지션:', mockPositions.filter(p => p.status === 'open').length, '개');
+                console.log('📊 현재 김프율:', currentKimchiData?.kimp?.toFixed(3), '%');
+                
+                // 각 활성 포지션의 청산 조건 체크
+                const activePositions = mockPositions.filter(p => p.status === 'open');
+                activePositions.forEach(pos => {
+                  const strategy = strategies.find(s => s.id === pos.strategyId);
+                  if (strategy) {
+                    const exitRate = parseFloat(strategy.takeProfitCondition);
+                    const currentPremium = currentKimchiData?.kimp || 0;
+                    const shouldExit = exitRate <= currentPremium;
+                    console.log(`💰 포지션 ${pos.id}: 익절${exitRate}% ≤ 김프${currentPremium.toFixed(3)}% = ${shouldExit ? '청산가능' : '대기'}`);
+                  }
+                });
+                
+                // 강제 자동매매 체크 실행
+                if (strategies.filter(s => s.isActive).length > 0) {
+                  console.log('🚀 강제 자동매매 체크 실행');
+                  Promise.all(strategies.filter(s => s.isActive).map(strategy => executeMockTrade(strategy)));
                 }
               }}
             >
-              강제 진입
+              🔍 상태확인
             </Button>
             <Button 
               variant="destructive" 

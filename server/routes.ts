@@ -1539,6 +1539,34 @@ export async function registerRoutes(
     }
   });
 
+  // 거래 전략 수정 (PUT)
+  app.put("/api/trading-strategies/:id", authenticateSession, async (req: any, res) => {
+    try {
+      const authenticatedUserId = req.user.id; // 인증된 사용자 ID 사용
+      const strategyId = parseInt(req.params.id);
+      const strategyData = { ...req.body, userId: authenticatedUserId };
+
+      console.log('🔄 전략 수정 요청:', { strategyId, strategyData });
+
+      // 기존 전략이 해당 사용자 소유인지 확인
+      const existingStrategies = await storage.getTradingStrategiesByUserId(authenticatedUserId);
+      const existingStrategy = existingStrategies.find((s: any) => s.id === strategyId);
+      
+      if (!existingStrategy) {
+        return res.status(404).json({ error: '전략을 찾을 수 없거나 권한이 없습니다.' });
+      }
+
+      // 전략 업데이트
+      await storage.updateTradingStrategy(strategyId, strategyData);
+
+      console.log('✅ 전략 수정 완료:', strategyId);
+      res.json({ message: '전략이 성공적으로 수정되었습니다.', strategyId });
+    } catch (error) {
+      console.error('전략 수정 오류:', error);
+      res.status(500).json({ error: '전략 수정 중 오류가 발생했습니다.' });
+    }
+  });
+
   // 거래 전략 삭제
   app.delete("/api/trading-strategies/:id", authenticateSession, async (req: any, res) => {
     try {
