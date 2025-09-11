@@ -8,6 +8,7 @@ import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 import { MockPositionList } from '@/components/trading/MockPositionList';
 import { MockTradeHistory } from '@/components/trading/MockTradeHistory';
 import { MockBalanceDisplay } from '@/components/trading/MockBalanceDisplay';
+import { CLIENT_TRADING_CONFIG, isMockMode, logClientTradingMode } from '@/config/trading-config';
 
 // API 호출 함수
 const apiFetch = async (url: string, options: RequestInit = {}) => {
@@ -156,6 +157,15 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   onStrategyStatsUpdate
 }) => {
   const { toast } = useToast();
+  
+  // 환경별 거래 모드 설정
+  const actualTradingMode = isLiveMode && !isMockMode() ? 'real' : 'mock';
+  
+  // 컴포넌트 초기화 시 거래 모드 로그
+  useEffect(() => {
+    logClientTradingMode();
+    console.log(`🎯 MockTradingSystem 모드: ${actualTradingMode}`);
+  }, []);
   
   // 숫자 부드러운 변경용 유틸
   const animateNumber = useCallback((from: number, to: number, setter: (v: number) => void, durationMs: number = 300) => {
@@ -1111,7 +1121,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
               size="sm"
               disabled
             >
-              {isTrading ? `🔄 ${isLiveMode ? '실거래' : 'Mock 거래'} 실행 중...` : strategies.some(s => s.isActive) ? `✅ ${strategies.filter(s => s.isActive).length}개 전략 활성 (${isLiveMode ? '실거래' : 'Mock'})` : "❌ 활성 전략 없음"}
+              {isTrading ? `🔄 ${actualTradingMode === 'real' ? '실거래' : 'Mock 거래'} 실행 중...` : strategies.some(s => s.isActive) ? `✅ ${strategies.filter(s => s.isActive).length}개 전략 활성 (${actualTradingMode === 'real' ? '실거래' : 'Mock'})` : "❌ 활성 전략 없음"}
             </Button>
             <Button 
               variant="secondary" 
@@ -1206,7 +1216,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       onClose={() => setShowForceEntryModal(false)}
       currentKimp={currentKimchiData?.kimp || 0}
       onForceEntry={handleForceEntry}
-      isLiveMode={isLiveMode}
+      isLiveMode={actualTradingMode === 'real'}
     />
     </>
   );

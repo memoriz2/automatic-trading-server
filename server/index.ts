@@ -38,6 +38,10 @@ const logLevel = process.env.LOG_LEVEL || (isProduction ? "info" : "debug");
 
 console.log(`📊 [${new Date().toISOString()}] 로그 레벨: ${logLevel}`);
 
+// 거래 모드 설정 로그
+import { logTradingMode } from './config/trading-config.js';
+logTradingMode();
+
 // ✅ 로그 함수 정의 - 강제 출력
 const logInfo = (message: string, data?: any) => {
   // 강제로 항상 출력
