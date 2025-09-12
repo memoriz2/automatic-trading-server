@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatBTC } from '@/utils/trading/formatters';
 
 interface MockTrade {
   id: string;
@@ -97,7 +98,7 @@ export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
                       trade.type === 'short' ? 'text-red-400' :
                       'text-green-400'
                     }`}>
-                      {(Number(trade.quantity) || 0).toFixed(6)} BTC @ {(Number(trade.price) || 0).toLocaleString()}
+                      {formatBTC(Number(trade.quantity) || 0)} BTC @ {(Number(trade.price) || 0).toLocaleString()}
                       {trade.exchange === 'binance' && (trade.type === 'short' || trade.type === 'cover') && ' (선물)'}
                     </span>
                   </div>

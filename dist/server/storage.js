@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import { hashPassword } from "./utils/auth.js";
 import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
+import { normalizeLeverage } from "./utils/trading-constants.js";
 // PostgreSQL 연결 풀 설정
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -561,7 +562,7 @@ export class DatabaseStorage {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING *
       `, [
-                data.userId, data.name, data.entryRate, data.exitRate, data.leverage || 1,
+                data.userId, data.name, data.entryRate, data.exitRate, normalizeLeverage(data.leverage),
                 data.investmentAmount, data.symbol, data.tolerance || 0.1,
                 data.isAutoTrading || false, data.strategyType || 'positive_kimchi',
                 data.toleranceRate || 0.1
@@ -742,6 +743,23 @@ export class DatabaseStorage {
     }
     async getPositions(whereClause = {}) {
         return this.getAllPositions(whereClause.userId);
+    }
+    // 어드민 권한 확인
+    async checkAdminPermission(userId) {
+        try {
+            const adminQuery = await this.pool.query('SELECT admin_level FROM admins WHERE user_id = $1 AND is_active = true', [userId]);
+            if (adminQuery.rows.length > 0) {
+                return {
+                    isAdmin: true,
+                    adminLevel: adminQuery.rows[0].admin_level
+                };
+            }
+            return { isAdmin: false };
+        }
+        catch (error) {
+            console.error('어드민 권한 확인 오류:', error);
+            return { isAdmin: false };
+        }
     }
     // 연결 종료
     async close() {

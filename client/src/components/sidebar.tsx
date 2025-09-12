@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 const navigation = [
   { name: "대시보드", href: "/", icon: BarChart3 },
@@ -27,13 +28,27 @@ const navigation = [
   { name: "설정", href: "/settings", icon: Settings },
 ];
 
-const adminNavigation = [{ name: "관리자", href: "/admin", icon: User }];
+const adminNavigation = [
+  { name: "관리자", href: "/admin", icon: User }
+];
 
 export function Sidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // 어드민 권한 확인
+  const { data: adminCheck } = useQuery({
+    queryKey: ['/api/admin/check'],
+    queryFn: async () => {
+      const response = await fetch('/api/admin/check', { credentials: 'include' });
+      if (!response.ok) return { isAdmin: false };
+      return response.json();
+    },
+    enabled: !!user,
+    retry: false
+  });
 
   // 모바일 메뉴 토글
   const toggleMobileMenu = () => {
@@ -141,7 +156,7 @@ export function Sidebar() {
           })}
 
           {/* 관리자 메뉴 (관리자만 표시) */}
-          {(user as any)?.role === "admin" && (
+          {adminCheck?.isAdmin && (
             <>
               <div className="my-4 border-t border-slate-700"></div>
               {adminNavigation.map((item) => {

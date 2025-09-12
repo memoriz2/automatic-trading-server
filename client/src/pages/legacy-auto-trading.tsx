@@ -4,14 +4,20 @@ import { useWebSocket } from '@/hooks/use-websocket';
 import { MockTradingSystem } from '@/components/mock-trading-system';
 import { StrategyList } from '@/components/trading/StrategyList';
 import { KimchiChart } from '@/components/trading/KimchiChart';
+import { TradingHeader } from '@/components/trading/TradingHeader';
+import { SessionInfoPanel } from '@/components/trading/SessionInfoPanel';
+import { MarketSnapshot } from '@/components/trading/MarketSnapshot';
+import { useTradingMode } from '@/hooks/useTradingMode';
+import { useApiConnection } from '@/hooks/useApiConnection';
 import { TRADING_CONSTANTS } from '@/lib/utils';
-import { isNum, fx, loc, formatKRW, formatUSD, formatCompact, floorQty } from '@/utils/trading/formatters';
+import { isNum, fx, loc, formatKRW, formatUSD, formatCompact, floorQty, formatBTC, formatPercent } from '@/utils/trading/formatters';
 import { normalizeAmountBtc, mapStrategyToBand } from '@/utils/trading/calculations';
 import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
 import { LEVERAGE_CONFIG, parseLeverage, normalizeLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
+import { Badge } from '@/components/ui/badge';
 
 interface Band {
   name?: string;
@@ -99,12 +105,12 @@ const LegacyAutoTradingPage = () => {
   const [newStrategy, setNewStrategy] = useState<NewStrategyForm>({
     name: '',
     crypto: '',
-    entryCondition: '3.0',
-    takeProfitCondition: '2.0',
-    baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))), // 현재 BTC 가격 사용
-    investmentAmount: '0.003',
-    leverage: '3',
-    tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
+    entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
+    takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
+    baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
+    investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
+    leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
+    tolerance: '0.05',        // 허용오차 0.05 고정
     riskLevel: 'moderate',
     activateImmediately: false
   });
@@ -145,6 +151,21 @@ const LegacyAutoTradingPage = () => {
     totalFees: 0,
     realizedPnl: 0
   });
+
+  // 거래 모드 관리 (커스텀 훅)
+  const {
+    tradingMode,
+    setTradingMode,
+    isAdmin,
+    canUseMock,
+    realStrategies,
+    setRealStrategies
+  } = useTradingMode({ user });
+
+  // API 연결 상태 관리 (커스텀 훅)
+  const { apiConnected, isConnecting } = useApiConnection({ tradingMode });
+
+  // 중복 로직들이 커스텀 훅으로 이동됨
 
   // ===== Memoized maps for O(1) lookups =====
   const configuredByName = useMemo(() => {
@@ -1268,108 +1289,59 @@ const LegacyAutoTradingPage = () => {
   
   return (
     <>
-      <header>
-        <div className="nav">
-          <div className="brand">
-            <div className="logo" aria-hidden="true">₿</div>
-            <div>
-              김치프리미엄 자동매매<br/>
-              <span className="sub">Pro Dashboard+ · Multi-Band + Queue (강제진입 없음)</span>
-            </div>
-          </div>
-
-          <span id="run-badge" className={`chip ${serverState.running ? 'ok' : ''}`} title="전략 실행 상태">
-            <i className={`dot ${serverState.running ? 'ok' : ''}`}></i>
-            <span>{serverState.running ? '실행중' : '중지됨'}</span>
-          </span>
-          <span id="arm-badge" className="chip" title="진입 정책"><i className={`dot ${serverState.running ? 'ok' : 'danger'}`}></i><span>정확한 일치 시 자동 대기→진입</span></span>
-          <span className="chip" title="수수료 기준"><i className="dot ok"></i>추정 비용 ≈ 0.18%p</span>
-          <span id="net-badge" className="chip" title="네트워크 상태">
-            <i className={`dot ${netOk ? 'ok' : (errCount > 0 ? 'warn' : 'danger')}`}></i>
-            <span>{netMs != null ? `NET ${netMs}ms` : 'NET …'}</span>
-          </span>
-
-          <div className="grow"></div>
-          <button 
-            onClick={handleCheckSession}
-            className="chip"
-            style={{ cursor: 'pointer', marginRight: '10px' }}
-            title="현재 세션 정보 확인"
-          >
-            <i className="dot ok"></i>
-            <span>세션 확인</span>
-          </button>
-          <span id="kimp-brief" className="kimp-brief mono" aria-live="polite">
-            {`김프 ${fx(kimp.kimp, 3)}% · 업비트 ${loc(kimp.upbit_price)} KRW · 바이낸스 ${fx(kimp.binance_price, 2)} USDT · 환율 ${fx(kimp.usdkrw, 2)}`}
-          </span>
-        </div>
-      </header>
+      <TradingHeader
+        serverState={serverState}
+        netOk={netOk}
+        errCount={errCount}
+        netMs={netMs}
+        canUseMock={canUseMock}
+        tradingMode={tradingMode}
+        onModeChange={setTradingMode}
+        onCheckSession={handleCheckSession}
+        kimp={kimp}
+      />
       <div className="wrap">
         <div className="grid">
-          {/* 세션 정보 표시 */}
-          {showSessionInfo && (
-            <section style={{gridColumn: 'span 12', marginBottom: '20px'}}>
-              <div className="card" style={{padding: '15px', backgroundColor: sessionInfo ? '#e8f5e8' : '#ffe8e8'}}>
-                <h3 style={{margin: '0 0 10px 0', color: sessionInfo ? '#2d5a2d' : '#8b0000'}}>
-                  세션 정보
-                </h3>
-                {sessionInfo ? (
-                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '14px'}}>
-                    <div>
-                      <strong>로그인 상태:</strong> <span style={{color: '#2d5a2d'}}>활성</span>
-                    </div>
-                    <div>
-                      <strong>사용자명:</strong> {sessionInfo.username}
-                    </div>
-                    <div>
-                      <strong>권한:</strong> {sessionInfo.role}
-                    </div>
-                    <div>
-                      <strong>사용자 ID:</strong> {sessionInfo.id}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{textAlign: 'center', color: '#8b0000'}}>
-                    <strong>로그인 상태: 비활성</strong><br/>
-                    <small>로그인이 필요합니다</small>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
+          <SessionInfoPanel 
+            showSessionInfo={showSessionInfo} 
+            sessionInfo={sessionInfo} 
+          />
+          {/* 거래 모드별 다른 UI */}
+          {(tradingMode === 'mock' && canUseMock) ? (
+            /* Mock 모드: 전략 관리 + 차트 */
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
             <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
-              <StrategyList
-                strategies={strategies}
+                <StrategyList
+                strategies={strategies} // Mock 모드: 로컬 전략
                 isLoadingStrategies={isLoadingStrategies}
                 onStrategyUpdate={setStrategies}
                 onStrategyEdit={(strategy) => {
-                  setNewStrategy({
-                    name: strategy.name,
-                    crypto: strategy.crypto,
-                    entryCondition: strategy.entryCondition,
-                    takeProfitCondition: strategy.takeProfitCondition,
-                    baseAmount: '500000',
-                    investmentAmount: strategy.investmentAmount?.toString() || '0.003',
-                    leverage: strategy.leverage,
-                    tolerance: strategy.tolerance || '0.01',
-                    riskLevel: strategy.riskLevel,
-                    activateImmediately: strategy.isActive
-                  });
-                  setEditingStrategyId(strategy.id);
-                  setShowCreateModal(true);
-                }}
+                          setNewStrategy({
+                            name: strategy.name,
+                            crypto: strategy.crypto,
+                            entryCondition: strategy.entryCondition,
+                            takeProfitCondition: strategy.takeProfitCondition,
+                            baseAmount: '500000',
+                            investmentAmount: strategy.investmentAmount?.toString() || '0.003',
+                            leverage: strategy.leverage,
+                            tolerance: strategy.tolerance || '0.01',
+                            riskLevel: strategy.riskLevel,
+                            activateImmediately: strategy.isActive
+                          });
+                          setEditingStrategyId(strategy.id);
+                          setShowCreateModal(true);
+                        }}
                 onCreateNew={() => {
                   setEditingStrategyId(null);
                   setNewStrategy({
                     name: '',
                     crypto: '',
-                    entryCondition: '3.0',
-                    takeProfitCondition: '2.0',
-                    baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))),
-                    investmentAmount: '0.003',
-                    leverage: '3',
-                    tolerance: String(TRADING_CONSTANTS.DEFAULT_TOLERANCE),
+                    entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
+                    takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
+                    baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
+                    investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
+                    leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
+                    tolerance: '0.05',        // 허용오차 0.05 고정
                     riskLevel: 'moderate',
                     activateImmediately: false
                   });
@@ -1419,11 +1391,88 @@ const LegacyAutoTradingPage = () => {
               </div>
             </div>
           </section>
+          ) : (
+            /* 실거래 모드: DB 조회 기반 전략 표시 */
+            <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
+              <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
+                <StrategyList
+                strategies={realStrategies} // 실거래 모드: DB 조회 전략
+                isLoadingStrategies={isLoadingStrategies}
+                onStrategyUpdate={setRealStrategies} // 실거래에서는 realStrategies 업데이트
+                onStrategyEdit={(strategy: any) => {
+                  setNewStrategy({
+                    name: strategy.name || '',
+                    crypto: strategy.crypto || '',
+                    entryCondition: strategy.entryCondition || '0',
+                    takeProfitCondition: strategy.takeProfitCondition || '0',
+                    baseAmount: strategy.baseAmount || '0',
+                    investmentAmount: strategy.investmentAmount || '0',
+                    leverage: strategy.leverage || '0',
+                    tolerance: '0.05', // 허용오차 고정
+                    riskLevel: strategy.riskLevel || 'moderate',
+                    activateImmediately: strategy.isActive || false
+                  });
+                  setEditingStrategyId(strategy.id);
+                  setShowCreateModal(true);
+                }} // 실거래에서도 편집 가능
+                onCreateNew={() => {
+                  setEditingStrategyId(null);
+                  setNewStrategy({
+                    name: '',
+                    crypto: '',
+                    entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
+                    takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
+                    baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
+                    investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
+                    leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
+                    tolerance: '0.05',        // 허용오차 0.05 고정
+                    riskLevel: 'moderate',
+                    activateImmediately: false
+                  });
+                  setShowCreateModal(true);
+                }} // 실거래에서도 생성 가능
+                fetchJson={fetchJson}
+                loadStrategiesFromDB={loadStrategiesFromDB}
+                user={user || undefined}
+                effectiveUserId={effectiveUserId}
+                isAuthenticated={isAuthenticated}
+                checkSession={checkSession}
+                isLoading={isLoading}
+              />
+              </div>
 
-          {/* 모의 거래 시스템 */}
+              <div className="space-y-6">
+                <div className="mt-4 pt-4 border-t border-slate-600">
+                  <h4 className="text-slate-400 text-sm mb-3">오늘의 실거래 통계</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-green-400">{dailyStats.totalTrades}</p>
+                      <p className="text-xs text-slate-400">총 거래</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-blue-400">{dailyStats.upbitTrades}</p>
+                      <p className="text-xs text-slate-400">업비트 거래</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-orange-400">{dailyStats.binanceTrades}</p>
+                      <p className="text-xs text-slate-400">바이낸스 거래</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-purple-400">{dailyStats.activePositions}</p>
+                      <p className="text-xs text-slate-400">활성 포지션</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 거래 시스템 섹션 */}
           <section className="card col-12">
+            {(tradingMode === 'mock' && canUseMock) ? (
+              /* Mock 매매시스템 */
             <MockTradingSystem 
-              strategies={strategies}
+                strategies={strategies} // Mock 모드: 로컬 전략
               currentKimchiData={{
                 kimp: Number(kimp?.kimp) || 0.5,
                 upbit_price: Number(kimp?.upbit_price) || 158000000,
@@ -1432,85 +1481,48 @@ const LegacyAutoTradingPage = () => {
               }}
               userId={user?.id ? String(user.id) : "1"}
               onDailyStatsUpdate={setDailyStats}
+                isLiveMode={false}
               onStrategyStatsUpdate={(stats) => {
-                // UI의 strategies 상태에 실행 횟수/수익률을 반영 (서버값이 없으면 로컬 값 사용)
                 setStrategies(prev => prev.map(s => {
                   const st = stats[s.id];
                   return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
                 }));
               }}
             />
+            ) : (
+              /* 실거래 모드 */
+              (apiConnected || window.location.hostname === 'localhost') ? (
+                /* API 연결 완료 - 실거래 시스템 */
+                <MockTradingSystem 
+                  strategies={realStrategies} // 실거래 모드: DB 조회 전략
+                  currentKimchiData={{
+                    kimp: Number(kimp?.kimp) || 0.5,
+                    upbit_price: Number(kimp?.upbit_price) || 158000000,
+                    binance_price: Number(kimp?.binance_price) || 114000,
+                    usdkrw: Number(kimp?.usdkrw) || 1380
+                  }}
+                  userId={user?.id ? String(user.id) : "1"}
+                  onDailyStatsUpdate={setDailyStats}
+                  isLiveMode={true} // 실거래 모드
+                  onStrategyStatsUpdate={(stats) => {
+                    setRealStrategies(prev => prev.map(s => {
+                      const st = stats[s.id];
+                      return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
+                    }));
+                  }}
+                />
+              ) : (
+                /* API 연결 대기 중 */
+                <div className="p-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                  <h3 className="text-xl font-semibold text-white mb-2">실거래 API 연결 중</h3>
+                  <p className="text-slate-400">업비트 및 바이낸스 API에 연결하고 있습니다...</p>
+                  </div>
+              )
+            )}
           </section>
 
-          {/* 시장 스냅샷 */}
-          <section className="card col-6">
-            <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border">
-              <h3 className="text-xl font-semibold mb-6 text-slate-200 flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                시장 스냅샷
-              </h3>
-              
-              {/* 김프율 - 하이라이트 */}
-              <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-slate-800 to-slate-700 border border-slate-600">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">김치프리미엄</span>
-                  <div className="flex items-center gap-3">
-                    <span id="kimp" className="text-2xl font-bold text-white" style={{fontWeight: 800}}>
-                      {fx(kimp.kimp, 3)}%
-                    </span>
-                    <span id="kimp-sign" className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      kimp.kimp < 0 
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
-                        : 'bg-green-500/20 text-green-400 border border-green-500/30'
-                    }`}>
-                      {kimp.kimp < 0 ? '역프' : '정프'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 가격 정보 */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-                    <span className="text-sm text-slate-400">업비트</span>
-                    <span className="text-lg font-bold text-green-400" id="upbit_price">{loc(kimp.upbit_price)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-                    <span className="text-sm text-slate-400">바이낸스</span>
-                    <span className="text-lg font-bold text-orange-400" id="binance_price">{loc(kimp.binance_price)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-                    <span className="text-sm text-slate-400">환율</span>
-                    <span className="text-lg font-bold text-blue-400" id="usdkrw">{loc(kimp.usdkrw)}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-                    <span className="text-sm text-slate-400">Upbit KRW</span>
-                    <span className="text-lg font-bold text-yellow-400" id="bal-krw">{loc(balances.real.krw)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-                    <span className="text-sm text-slate-400">Upbit BTC</span>
-                    <span className="text-lg font-bold text-purple-400" id="bal-btc">{fx(balances.real.btc_upbit, 6)}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-                    <span className="text-sm text-slate-400">Binance USDT</span>
-                    <span className="text-lg font-bold text-cyan-400" id="bal-usdt">{loc(balances.real.usdt)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 진입 증거금 (KRW) */}
-              <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-slate-400">진입 증거금(KRW)</span>
-                  <span className="text-lg font-bold text-pink-400" id="used-krw">-</span>
-                </div>
-              </div>
-            </div>
-          </section>
+          <MarketSnapshot kimp={kimp} balances={balances} />
 
           {/* 김치프리미엄 차트 */}
           <KimchiChart sparkData={sparkData} />
@@ -1689,12 +1701,12 @@ const LegacyAutoTradingPage = () => {
               setNewStrategy({
                 name: '',
                 crypto: '',
-                entryCondition: '3.0',
-                takeProfitCondition: '2.0',
-                baseAmount: String(Math.round(0.003 * 3 * (kimp?.upbit_price || 158000000))),
-                investmentAmount: '0.003',
-                leverage: '3',
-                tolerance: TRADING_CONSTANTS.DEFAULT_TOLERANCE,
+                entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
+                takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
+                baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
+                investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
+                leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
+                tolerance: '0.05',        // 허용오차 0.05 고정
                 riskLevel: 'moderate',
                 activateImmediately: false
               });
@@ -1821,8 +1833,12 @@ const LegacyAutoTradingPage = () => {
                   id=":r10:-form-item"
                   aria-describedby=":r10:-form-item-description"
                   aria-invalid="false"
-                  value={newStrategy.entryCondition}
-                  onChange={(e) => setNewStrategy(prev => ({...prev, entryCondition: e.target.value}))}
+                  value={formatPercent(parseFloat(newStrategy.entryCondition || '0'))}
+                  onChange={(e) => {
+                    const rawValue = parseFloat(e.target.value) || 0;
+                    const formattedValue = formatPercent(rawValue);
+                    setNewStrategy(prev => ({...prev, entryCondition: formattedValue}));
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -1840,8 +1856,12 @@ const LegacyAutoTradingPage = () => {
                   id=":r11:-form-item"
                   aria-describedby=":r11:-form-item-description"
                   aria-invalid="false"
-                  value={newStrategy.takeProfitCondition}
-                  onChange={(e) => setNewStrategy(prev => ({...prev, takeProfitCondition: e.target.value}))}
+                  value={formatPercent(parseFloat(newStrategy.takeProfitCondition || '0'))}
+                  onChange={(e) => {
+                    const rawValue = parseFloat(e.target.value) || 0;
+                    const formattedValue = formatPercent(rawValue);
+                    setNewStrategy(prev => ({...prev, takeProfitCondition: formattedValue}));
+                  }}
                 />
               </div>
             </div>
@@ -1901,17 +1921,21 @@ const LegacyAutoTradingPage = () => {
                   }}
                   name="tolerance"
                   type="number"
-                  step={TRADING_CONSTANTS.TOLERANCE_STEP}
-                  min={TRADING_CONSTANTS.MIN_TOLERANCE}
-                  max={TRADING_CONSTANTS.MAX_TOLERANCE}
-                  placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
+                  step="0.01"
+                  min="0.01"
+                  max="1.0"
+                  placeholder="0.05"
                   data-testid="input-tolerance"
                   id="tolerance-input"
-                  value={newStrategy.tolerance}
-                  onChange={(e) => setNewStrategy(prev => ({...prev, tolerance: e.target.value}))}
+                  value={formatPercent(parseFloat(newStrategy.tolerance || '0.05'))}
+                  onChange={(e) => {
+                    const rawValue = parseFloat(e.target.value) || 0.05;
+                    const formattedValue = formatPercent(rawValue);
+                    setNewStrategy(prev => ({...prev, tolerance: formattedValue}));
+                  }}
                 />
                 <p className="text-xs text-muted-foreground">
-                  예: 3.0% ± {TRADING_CONSTANTS.DEFAULT_TOLERANCE}% → 2.999% ~ 3.001% 범위에서만 정확한 매매 (기본값: {TRADING_CONSTANTS.DEFAULT_TOLERANCE}%)
+                  기본값: 0.05% (수정 가능) - 예: 3.0% ± 0.05% → 2.95% ~ 3.05% 범위에서 매매
                 </p>
               </div>
             </div>
@@ -1981,12 +2005,14 @@ const LegacyAutoTradingPage = () => {
                   placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
                   data-testid="input-investment-amount"
                   id=":r12:-form-item"
-                  value={newStrategy.investmentAmount}
+                  value={formatBTC(parseFloat(newStrategy.investmentAmount || '0'))}
                   inputMode="decimal"
                   pattern="^\\d*(\\.\\d{0,3})?$"
                   onChange={(e) => {
-                    // 문자열 그대로 유지하여 입력 중 포커스/커서 보존
-                    setNewStrategy(prev => ({ ...prev, investmentAmount: e.target.value }));
+                    // 입력값을 formatBTC로 포맷팅해서 저장
+                    const rawValue = parseFloat(e.target.value) || 0;
+                    const formattedValue = formatBTC(rawValue);
+                    setNewStrategy(prev => ({ ...prev, investmentAmount: formattedValue }));
                   }}
                 />
                 <div className="text-xs text-muted-foreground">

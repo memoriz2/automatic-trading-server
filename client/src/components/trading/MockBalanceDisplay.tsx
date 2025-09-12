@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatBTC } from '@/utils/trading/formatters';
 
 interface MockBalance {
   krw: number;
@@ -37,13 +38,13 @@ export const MockBalanceDisplay: React.FC<MockBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 BTC</h4>
           <p className="text-xl font-bold text-yellow-400">
-            {(openUpbitQty || 0).toFixed(6)} BTC
+            {formatBTC(openUpbitQty || 0)} BTC
           </p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>
           <p className="text-xl font-bold text-orange-400">
-            {(openBinanceQty || 0).toFixed(6)} BTC
+            {formatBTC(openBinanceQty || 0)} BTC
           </p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">

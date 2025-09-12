@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatBTC } from '@/utils/trading/formatters';
 
 interface MockPosition {
   id: string;
@@ -130,12 +131,12 @@ export const MockPositionList: React.FC<MockPositionListProps> = ({
                   <p className={`font-bold ${pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {pnlData.unrealizedPnl >= 0 ? '+' : ''}₩{pnlData.unrealizedPnl.toLocaleString()}
                   </p>
-                  <p className="text-xs text-slate-400">
-                    업비트: {position.upbitQuantity.toFixed(6)} BTC
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    바이낸스 선물: {position.binanceQuantity.toFixed(6)} BTC (숏) × {position.leverage}배
-                  </p>
+                      <p className="text-xs text-slate-400">
+                        업비트: {formatBTC(position.upbitQuantity)} BTC
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC (숏) × {position.leverage}배
+                      </p>
                 </div>
                 <div className="flex flex-col gap-1">
                   <Button 

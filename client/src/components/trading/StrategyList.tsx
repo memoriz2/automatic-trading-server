@@ -2,6 +2,7 @@ import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import { LEVERAGE_CONFIG, parseLeverage } from '@/utils/trading/leverage';
+import { formatBTC } from '@/utils/trading/formatters';
 
 interface Strategy {
   id: string;
@@ -264,7 +265,7 @@ export const StrategyList: React.FC<StrategyListProps> = ({
                 <div>
                   <p className="text-muted-foreground">투자 수량</p>
                   <p className="font-medium" data-testid={`text-amount-${strategy.id}`}>
-                    {parseFloat(Number(strategy.investmentAmount || 0).toFixed(3))} BTC
+                    {formatBTC(Number(strategy.investmentAmount || 0))} BTC
                   </p>
                 </div>
               </div>

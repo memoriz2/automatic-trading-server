@@ -27,14 +27,19 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
   return response.json();
 };
 
-// DB 저장 함수들
-const saveMockTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: boolean = false) => {
+// 거래 저장 함수들
+const saveTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: boolean = false) => {
+  if (!isLiveMode) {
+    // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
+    console.log(`🧪 Mock 거래 - 로컬스토리지만 사용:`, trade.id);
+    return;
+  }
+  
+  // 실거래 모드: DB에 저장
   try {
-    const apiEndpoint = isLiveMode ? '/api/live-trades' : '/api/mock-trades';
-    
-    await apiFetch(apiEndpoint, {
+    await apiFetch('/api/live-trades', {
       method: 'POST',
-      credentials: 'include', // 세션 쿠키 포함
+      credentials: 'include',
       body: JSON.stringify({
         id: trade.id,
         timestamp: trade.timestamp.toISOString(),
@@ -46,46 +51,62 @@ const saveMockTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: b
         exchange: trade.exchange,
         strategyId: trade.strategyId,
         premiumRate: trade.premiumRate,
-        isMock: !isLiveMode, // 실거래 모드에 따라 결정
-        strategyName: trade.strategyName || 'Unknown',
-        mockSessionId: isLiveMode ? undefined : `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` // Mock 세션 ID
+        isMock: false, // 실거래는 항상 false
+        strategyName: trade.strategyName || 'Unknown'
       })
     });
-    console.log(`✅ ${isLiveMode ? '실거래' : 'Mock 거래'} DB 저장 성공:`, trade.id);
+    console.log(`✅ 실거래 DB 저장 성공:`, trade.id);
   } catch (error) {
-    console.error(`❌ ${isLiveMode ? '실거래' : 'Mock 거래'} DB 저장 실패:`, error);
+    console.error(`❌ 실거래 DB 저장 실패:`, error);
   }
 };
 
-const saveMockPositionToDB = async (position: MockPosition, userId: string) => {
-  // 🔒 로컬스토리지에만 저장 (서버 부담 제거)
+const savePositionToDB = async (position: MockPosition, userId: string, isLiveMode: boolean = false) => {
+  if (!isLiveMode) {
+    // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
+    console.log(`🧪 Mock 포지션 - 로컬스토리지만 사용:`, position.id);
+    return;
+  }
+  
+  // 실거래 모드: DB에 저장
   try {
-    const positionKey = `position_${position.id}`;
-    localStorage.setItem(positionKey, JSON.stringify({
-      ...position,
-      userId: parseInt(userId),
-      entryTime: position.entryTime.toISOString(),
-      isMock: true
-    }));
-    console.log('✅ Mock 포지션 로컬스토리지 저장 성공:', position.id);
+    await apiFetch('/api/live-positions', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({
+        ...position,
+        userId: parseInt(userId),
+        entryTime: position.entryTime.toISOString(),
+        isMock: false // 실거래는 항상 false
+      })
+    });
+    console.log('✅ 실거래 포지션 DB 저장 성공:', position.id);
   } catch (error) {
-    console.error('❌ Mock 포지션 로컬스토리지 저장 실패:', error);
+    console.error('❌ 실거래 포지션 DB 저장 실패:', error);
   }
 };
 
-const updateMockPositionInDB = async (position: MockPosition, userId: string) => {
+const updatePositionInDB = async (position: MockPosition, userId: string, isLiveMode: boolean = false) => {
+  if (!isLiveMode) {
+    // Mock 모드: DB 업데이트 안함
+    console.log(`🧪 Mock 포지션 업데이트 - 로컬스토리지만 사용:`, position.id);
+    return;
+  }
+  
+  // 실거래 모드: DB 업데이트
   try {
-    await apiFetch(`/api/mock-positions/${position.id}`, {
+    await apiFetch(`/api/live-positions/${position.id}`, {
       method: 'PUT',
+      credentials: 'include',
       body: JSON.stringify({
         status: position.status,
         unrealizedPnl: position.unrealizedPnl,
         realizedPnl: position.realizedPnl
       })
     });
-    console.log('✅ Mock 포지션 DB 업데이트 성공:', position.id);
+    console.log('✅ 실거래 포지션 DB 업데이트 성공:', position.id);
   } catch (error) {
-    console.error('❌ Mock 포지션 DB 업데이트 실패:', error);
+    console.error('❌ 실거래 포지션 DB 업데이트 실패:', error);
   }
 };
 
@@ -372,19 +393,33 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       const binancePrice = currentKimchiData?.binance_price || 112000;
       const entryUsdKrw = currentKimchiData?.usdkrw || 1390;
 
-      // 1. 바이낸스 선물 숏 포지션 (기준 수량)
-      const binanceShortAmount = baseAmount; // 기준 수량 (숏)
-      const binanceMargin = (binanceShortAmount * binancePrice) / leverage; // 증거금
-      const binanceFee = binanceShortAmount * binancePrice * 0.0004; // 0.04% 수수료
+      // 1단계: 바이낸스 선물 숏 포지션 먼저 결정 (기준 수량)
+      const binanceShortAmountBTC = baseAmount; // 바이낸스 BTC 숏 수량 (기준)
+      const binanceShortValueUSD = binanceShortAmountBTC * binancePrice; // USD 가치
+      const binanceMargin = binanceShortValueUSD / leverage; // 필요 증거금 (USDT)
+      const binanceFee = binanceShortValueUSD * 0.0004; // 바이낸스 진입 수수료 (0.04%)
 
-      // 2. 업비트 현물 매수 (바이낸스 USD 수량 × 레버리지 × 환율을 원화로)
-      const usdKrwRate = currentKimchiData?.usdkrw || 1390; // 환율
-      const upbitBuyAmountKRW = binanceShortAmount * binancePrice * leverage * usdKrwRate; // 원화 금액
-      const upbitBuyAmountBTC = upbitBuyAmountKRW / upbitPrice; // BTC 수량으로 변환
-      
-      const upbitCost = upbitBuyAmountKRW;
-      const upbitFee = upbitCost * 0.0005; // 0.05% 수수료
-      const totalUpbitCost = upbitCost + upbitFee;
+      console.log('🔥 1단계 - 바이낸스 선물 숏:', {
+        binanceShortAmountBTC,
+        binancePrice,
+        binanceShortValueUSD,
+        binanceMargin,
+        binanceFee
+      });
+
+      // 2단계: 바이낸스 숏 수량에 맞춰 업비트에서 동일한 BTC 수량 매수
+      const upbitBuyAmountBTC = binanceShortAmountBTC; // 바이낸스와 동일한 BTC 수량
+      const upbitBuyAmountKRW = upbitBuyAmountBTC * upbitPrice; // 업비트 매수 금액 (KRW)
+      const upbitFee = upbitBuyAmountKRW * 0.0005; // 업비트 매수 수수료 (0.05%)
+      const totalUpbitCost = upbitBuyAmountKRW + upbitFee; // 총 업비트 비용
+
+      console.log('📈 2단계 - 업비트 현물 매수:', {
+        upbitBuyAmountBTC,
+        upbitPrice,
+        upbitBuyAmountKRW,
+        upbitFee,
+        totalUpbitCost
+      });
 
       // 잔고 확인
       if (mockBalance.krw < totalUpbitCost) {
@@ -401,7 +436,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       }
 
       console.log('💰 증거금 계산:', {
-        binanceShortAmount,
+        binanceShortAmountBTC,
         binancePrice,
         leverage,
         binanceMargin,
@@ -423,16 +458,23 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         return;
       }
 
-      // 잔고 변경
+      // 잔고 변경 (수수료 포함한 정확한 차감)
       setMockBalance(prev => ({
         ...prev,
-        krw: prev.krw - totalUpbitCost, // 업비트 매수로 KRW 감소
+        krw: prev.krw - totalUpbitCost, // 업비트 매수 + 수수료로 KRW 감소
         // btc: 현금/중립 전략에서는 보유량 0 유지
-        usdt: prev.usdt - binanceMargin - binanceFee, // 바이낸스 증거금 차감 (총 USDT)
+        usdt: prev.usdt - binanceMargin - binanceFee, // 바이낸스 증거금 + 수수료 차감
         binanceUsdt: (prev.binanceUsdt || 0) - binanceMargin - binanceFee, // 표시용 바이낸스 USDT도 동기화
         // 선물 숏 진입 시 선물 BTC 익스포저 감소(음수 방향)
-        binanceBtc: (prev.binanceBtc || 0) - binanceShortAmount
+        binanceBtc: (prev.binanceBtc || 0) - binanceShortAmountBTC
       }));
+
+      console.log('💰 진입 시 잔고 변화:', {
+        upbitCost: totalUpbitCost,
+        binanceMargin,
+        binanceFee,
+        totalCost: totalUpbitCost + (binanceMargin + binanceFee) * entryUsdKrw
+      });
 
       // 거래 기록 추가
       const currentCounter = tradeCounter + 1;
@@ -445,7 +487,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
           timestamp: new Date(),
           type: 'short', // SHORT 포지션 진입
           symbol: 'BTC',
-          quantity: binanceShortAmount,
+          quantity: binanceShortAmountBTC,
           price: binancePrice,
           fee: binanceFee,
           exchange: 'binance',
@@ -470,9 +512,9 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
       setMockTrades(prev => [...prev, ...newTrades]);
       
-      // DB에 거래 기록 저장
+      // 거래 기록 저장 (실거래만 DB, Mock은 로컬스토리지만)
       newTrades.forEach(trade => {
-        saveMockTradeToDB(trade, userId, isLiveMode);
+        saveTradeToDB(trade, userId, isLiveMode);
       });
 
       // 포지션 생성
@@ -486,7 +528,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         upbitPrice,
         entryUsdKrw,
         binanceSpotQuantity: 0, // 바이낸스 현물 수량 (기본값 0)
-        binanceQuantity: binanceShortAmount, // 숏 수량
+        binanceQuantity: binanceShortAmountBTC, // 숏 수량
         binancePrice,
         leverage,
         status: 'open',
@@ -495,20 +537,23 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       };
 
       setMockPositions(prev => [...prev, newPosition]);
-      // 전략별 집계: 실행 횟수 + 투자원금 합산
-      const investedKRW = newPosition.upbitQuantity * newPosition.upbitPrice;
+      // 전략별 집계: 실행 횟수 + 총 투자원금 합산 (업비트 + 바이낸스)
+      const upbitInvestedKRW = newPosition.upbitQuantity * newPosition.upbitPrice;
+      const binanceInvestedKRW = ((newPosition.binanceQuantity * newPosition.binancePrice) / newPosition.leverage) * entryUsdKrw;
+      const totalInvestedKRW = upbitInvestedKRW + binanceInvestedKRW;
+      
       const cur = strategyStatsRef.current[strategy.id] || { executionCount: 0, realizedPnlKRW: 0, investedKRW: 0, profitRate: 0 };
       const updated = { 
         executionCount: cur.executionCount + 1,
         realizedPnlKRW: cur.realizedPnlKRW,
-        investedKRW: cur.investedKRW + investedKRW,
-        profitRate: cur.investedKRW + investedKRW > 0 ? (cur.realizedPnlKRW / (cur.investedKRW + investedKRW)) * 100 : 0
+        investedKRW: cur.investedKRW + totalInvestedKRW,
+        profitRate: cur.investedKRW + totalInvestedKRW > 0 ? (cur.realizedPnlKRW / (cur.investedKRW + totalInvestedKRW)) * 100 : 0
       };
       strategyStatsRef.current[strategy.id] = updated;
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
       
-      // DB에 포지션 저장
-      saveMockPositionToDB(newPosition, userId);
+      // 포지션 저장 (실거래만 DB, Mock은 로컬스토리지만)
+      savePositionToDB(newPosition, userId, isLiveMode);
 
       addTradingLog(`✅ ${strategy.name} 진입 완료! 김프 ${premiumRate.toFixed(3)}%`);
       
@@ -641,19 +686,35 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       const binanceFee = binanceCoverCost * 0.0004;
       const binanceMarginReturn = (binanceCloseQuantity * position.binancePrice) / position.leverage;
 
-      // PnL 계산 (김치프리미엄 기반 근사: 상승일수록 +) - 진입가 기준 노출로 고정
-      const entryPremium = position.entryPremiumRate;
-      const exitPremium = premiumRate;
-      const premiumDelta = (exitPremium - entryPremium); // 상승 시 +
-      const baseNotionalKRW = position.upbitQuantity * position.upbitPrice; // 진입 시 원화 노출 기준
+      // 실제 잔고 변화 기준 PnL 계산 (정확한 계산)
       const usdKrwRate = (currentKimchiData?.usdkrw ?? 1390);
-      const premiumPnlKRW = (premiumDelta / 100) * baseNotionalKRW;
       const entryUsdKrw = position.entryUsdKrw || usdKrwRate;
-      const entryUpbitBuyFee = (position.upbitQuantity * position.upbitPrice) * 0.0005; // 진입 매수 수수료
-      const entryBinanceShortFeeKRW = (position.binanceQuantity * position.binancePrice * 0.0004) * entryUsdKrw; // 진입 숏 수수료 KRW 환산
-      const exitFeeKRW = upbitFee + (binanceFee * usdKrwRate);
-      const totalFeesKRW = entryUpbitBuyFee + entryBinanceShortFeeKRW + exitFeeKRW;
-      const totalPnl = premiumPnlKRW - totalFeesKRW;
+      
+      // 진입 시 총 비용 (KRW 기준)
+      const entryUpbitCost = position.upbitQuantity * position.upbitPrice; // 업비트 매수 원금
+      const entryUpbitFee = entryUpbitCost * 0.0005; // 진입 매수 수수료
+      const entryBinanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 바이낸스 증거금
+      const entryBinanceFee = position.binanceQuantity * position.binancePrice * 0.0004; // 바이낸스 진입 수수료
+      const totalEntryCostKRW = (entryUpbitCost + entryUpbitFee) + ((entryBinanceMargin + entryBinanceFee) * entryUsdKrw);
+      
+      // 바이낸스 순 회수액 먼저 계산
+      const binanceNetReturn = binanceMarginReturn - binanceCoverCost - binanceFee;
+      
+      // 청산 시 총 회수액 (KRW 기준)
+      const exitUpbitRevenue = upbitSellQuantity * currentUpbitPrice; // 업비트 매도 총액
+      const exitUpbitNet = exitUpbitRevenue - upbitFee; // 업비트 순수익
+      const exitBinanceNet = binanceNetReturn * usdKrwRate; // 바이낸스 순회수액 (KRW 환산)
+      const totalExitRevenueKRW = exitUpbitNet + exitBinanceNet;
+      
+      // 실제 손익 = 회수액 - 투입액
+      const totalPnl = totalExitRevenueKRW - totalEntryCostKRW;
+      
+      console.log('📊 PnL 계산 상세:', {
+        totalEntryCostKRW: Math.round(totalEntryCostKRW),
+        totalExitRevenueKRW: Math.round(totalExitRevenueKRW),
+        totalPnl: Math.round(totalPnl),
+        profitRate: ((totalPnl / totalEntryCostKRW) * 100).toFixed(2) + '%'
+      });
 
       console.log('💰 청산 시 잔고 변화:', {
         binanceCloseQuantity,
@@ -661,16 +722,31 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         newBinanceBtc: (mockBalance.binanceBtc || 5.0) + binanceCloseQuantity
       });
 
-      // 잔고 업데이트
+      // 청산 시 정확한 잔고 업데이트
+      const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice; // 업비트 매도 총액
+      const upbitNetRevenue = upbitSellRevenue - upbitFee; // 업비트 매도 수수료 차감
+      const binanceNetReturnForBalance = binanceNetReturn; // 바이낸스 순 회수액 (이미 계산됨)
+      
       setMockBalance(prev => ({
         ...prev,
-        krw: prev.krw + netUpbitRevenue, // 업비트 매도 수익 추가
+        krw: prev.krw + upbitNetRevenue, // 업비트 매도 순수익 (수수료 차감 후)
         // btc: 보유량 0 유지
-        usdt: prev.usdt + binanceMarginReturn - binanceCoverCost - binanceFee, // 증거금 회수 - 청산 비용
-        binanceUsdt: (prev.binanceUsdt || 0) + binanceMarginReturn - binanceCoverCost - binanceFee, // 표시용 바이낸스 USDT도 동기화
+        usdt: prev.usdt + binanceNetReturnForBalance, // 바이낸스 순 회수액
+        binanceUsdt: (prev.binanceUsdt || 0) + binanceNetReturnForBalance, // 표시용 바이낸스 USDT도 동기화
         // 선물 커버(청산) 시 선물 BTC 익스포저를 줄여 0에 수렴
         binanceBtc: (prev.binanceBtc || 0) + binanceCloseQuantity
       }));
+
+      console.log('💰 청산 시 잔고 변화:', {
+        upbitSellRevenue,
+        upbitFee,
+        upbitNetRevenue,
+        binanceMarginReturn,
+        binanceCoverCost,
+        binanceFee,
+        binanceNetReturn: binanceNetReturnForBalance,
+        totalNetPnL: upbitNetRevenue + (binanceNetReturn * (currentKimchiData?.usdkrw || 1390))
+      });
 
       // 거래 기록 추가
       const currentCounter = tradeCounter + 1;
@@ -708,9 +784,9 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
       setMockTrades(prev => [...prev, ...exitTrades]);
       
-      // DB에 청산 거래 기록 저장
+      // 청산 거래 기록 저장 (실거래만 DB, Mock은 로컬스토리지만)
       exitTrades.forEach(trade => {
-        saveMockTradeToDB(trade, userId, isLiveMode);
+        saveTradeToDB(trade, userId, isLiveMode);
       });
 
       // 포지션 업데이트 (비율에 따라 부분/전체 청산)
@@ -727,21 +803,28 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       );
       
       setMockPositions(updatedPositions);
-      // 전략별 집계: 실현손익 반영 및 수익률 갱신
+      // 전략별 집계: 실현손익 반영 및 수익률 갱신 (정확한 계산)
       const curStats = strategyStatsRef.current[position.strategyId] || { executionCount: 0, realizedPnlKRW: 0, investedKRW: 0, profitRate: 0 };
-      const realized = (curStats.realizedPnlKRW || 0) + totalPnl;
-      const profitRate = curStats.investedKRW > 0 ? (realized / curStats.investedKRW) * 100 : 0;
-      strategyStatsRef.current[position.strategyId] = { ...curStats, realizedPnlKRW: realized, profitRate };
+      const updatedRealizedPnl = (curStats.realizedPnlKRW || 0) + totalPnl;
+      const updatedProfitRate = curStats.investedKRW > 0 ? (updatedRealizedPnl / curStats.investedKRW) * 100 : 0;
+      
+      strategyStatsRef.current[position.strategyId] = { 
+        ...curStats, 
+        realizedPnlKRW: updatedRealizedPnl, 
+        profitRate: updatedProfitRate 
+      };
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
       
-      // DB에 포지션 업데이트 저장
+      // 포지션 업데이트 저장 (실거래만 DB, Mock은 로컬스토리지만)
       const updatedPosition = updatedPositions.find(p => p.id === position.id);
       if (updatedPosition) {
-        updateMockPositionInDB(updatedPosition, userId);
+        updatePositionInDB(updatedPosition, userId, isLiveMode);
       }
 
+      const totalFeesKRW = (entryUpbitFee + upbitFee) + ((entryBinanceFee + binanceFee) * usdKrwRate);
+      
       addTradingLog(
-        `✅ 청산 | 김프PnL: ${(premiumPnlKRW>=0?'+':'')}${Math.round(premiumPnlKRW).toLocaleString()}원, 총수수료: -${Math.round(totalFeesKRW).toLocaleString()}원, 합계: ${(totalPnl>=0?'+':'')}${Math.round(totalPnl).toLocaleString()}원`
+        `✅ 청산 | 투입액: ${Math.round(totalEntryCostKRW).toLocaleString()}원, 회수액: ${Math.round(totalExitRevenueKRW).toLocaleString()}원, 손익: ${(totalPnl>=0?'+':'')}${Math.round(totalPnl).toLocaleString()}원`
       );
       
       const profitColor = totalPnl >= 0 ? "" : "destructive";
@@ -952,69 +1035,103 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     }
   }, [strategies, currentKimchiData, executeMockTrade]);
 
-  // 잔고 초기화 (안전한 확인 다이얼로그 포함)
+  // 잔고 초기화 (모든 Mock 데이터 완전 초기화)
   const resetBalance = () => {
     const currentBalance = mockBalance;
     const activePositions = mockPositions.filter(p => p.status === 'open').length;
+    const totalTrades = mockTrades.length;
+    const totalFees = dailyStats.totalFees;
+    const currentPnL = totalPnl;
     
-    const confirmMessage = `⚠️ 정말로 잔고를 초기화하시겠습니까?\n\n현재 상태:\n• KRW: ₩${(currentBalance.krw || 0).toLocaleString()}\n• 업비트 BTC: ${(currentBalance.btc || 0).toFixed(6)} BTC\n• 바이낸스 USDT: $${(currentBalance.binanceUsdt || 0).toLocaleString()}\n• 활성 포지션: ${activePositions}개\n\n이 작업은 되돌릴 수 없습니다!`;
+    const confirmMessage = `⚠️ 정말로 모든 Mock 데이터를 초기화하시겠습니까?\n\n현재 상태:\n• KRW: ₩${(currentBalance.krw || 0).toLocaleString()}\n• 업비트 BTC: ${(currentBalance.btc || 0).toFixed(6)} BTC\n• 바이낸스 USDT: $${(currentBalance.binanceUsdt || 0).toLocaleString()}\n• 활성 포지션: ${activePositions}개\n• 총 거래: ${totalTrades}회\n• 총 수수료: ₩${Math.round(totalFees).toLocaleString()}\n• 현재 손익: ${currentPnL >= 0 ? '+' : ''}₩${Math.round(currentPnL).toLocaleString()}\n\n모든 거래 기록, 포지션, 통계가 삭제됩니다!\n이 작업은 되돌릴 수 없습니다!`;
     
     if (!confirm(confirmMessage)) {
       return; // 사용자가 취소한 경우
     }
     
+    // 1. 잔고 초기화
     const initialBalance = {
       krw: 100000000, // 1억원
-      btc: 10.0, // 10 BTC (업비트)
-      usdt: 100000, // 10만 USDT (업비트)
-      binanceBtc: 5.0, // 5 BTC (바이낸스 선물)
-      binanceSpotBtc: 3.0, // 3 BTC (바이낸스 현물)
+      btc: 0, // 0 BTC (업비트)
+      usdt: 100000, // 10만 USDT
+      binanceBtc: 0, // 0 BTC (바이낸스 선물)
+      binanceSpotBtc: 0, // 0 BTC (바이낸스 현물)
       binanceUsdt: 100000 // 10만 USDT (바이낸스)
     };
     setMockBalance(initialBalance);
-    setMockTrades([]);
-    setMockPositions([]);
-    setTradeCounter(0); // 카운터도 초기화
     
-    // 로컬스토리지 완전 초기화 (사용자별 키 사용)
+    // 2. 거래 기록 초기화
+    setMockTrades([]);
+    
+    // 3. 포지션 초기화
+    setMockPositions([]);
+    
+    // 4. 카운터 초기화
+    setTradeCounter(0);
+    
+    // 5. 거래 로그 초기화
+    setTradingLogs([]);
+    
+    // 6. 전략별 통계 초기화
+    strategyStatsRef.current = {};
+    onStrategyStatsUpdate?.({});
+    
+    // 7. 토스트 메시지 상태 초기화
+    setLastToastMessage('');
+    
+    // 8. 로컬스토리지 완전 초기화 (사용자별 키 사용)
     localStorage.removeItem(`mock-balance-${userId}`);
     localStorage.removeItem(`mock-trades-${userId}`);
     localStorage.removeItem(`mock-positions-${userId}`);
     
-    console.log('🧹 모의거래 데이터 완전 초기화 완료');
+    // 9. 강제진입 관련 로컬스토리지도 초기화
+    localStorage.removeItem('forceEntrySettings');
+    
+    console.log('🧹 모든 Mock 데이터 완전 초기화 완료:', {
+      잔고: '초기화',
+      거래기록: '삭제',
+      포지션: '삭제', 
+      통계: '초기화',
+      로그: '삭제',
+      로컬스토리지: '완전삭제'
+    });
     
     toast({
-      title: "🧹 잔고 완전 초기화!",
-      description: "💸 모든 거래 기록이 깔끔하게 리셋되었습니다! 새 출발! ✨",
+      title: "🧹 Mock 데이터 완전 초기화!",
+      description: "💸 잔고, 거래기록, 포지션, 수수료, 통계 등 모든 데이터가 깔끔하게 리셋되었습니다! 새 출발! ✨",
       variant: "destructive"
     });
   };
 
-  // 총 수익률 계산 (실제 잔고 기준)
-  const initialBalance = {
-    krw: 100000000, // 1억원
-    btc: 0, // 업비트 BTC 0 고정
-    usdt: 100000, // 10만 USDT
-    binanceBtc: 0, // 바이낸스 선물 BTC 0 고정
-    binanceSpotBtc: 0 // 바이낸스 현물 BTC 0 고정
-  };
+  // 수익률 계산 - 초기 잔고 대비 변화율
+  const initialTotalValue = 100000000 + (100000 * (currentKimchiData?.usdkrw || 1390)); // 1억원 + 10만USDT
   
   // 현재 잔고의 총 가치 계산 (원화 기준)
   const currentBtcPrice = currentKimchiData?.upbit_price || 156000000;
-  const currentBinancePrice = currentKimchiData?.binance_price || 112000;
   const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
   
   const currentTotalValue = mockBalance.krw + 
-                           (0 * currentBtcPrice) + 
+                           (mockBalance.btc * currentBtcPrice) + 
                            (mockBalance.usdt * currentUsdKrw);
-  
-  const initialTotalValue = initialBalance.krw + 
-                           (0 * currentBtcPrice) + 
-                           (initialBalance.usdt * currentUsdKrw);
   
   const totalPnl = currentTotalValue - initialTotalValue;
   const profitRate = isFinite(initialTotalValue) && initialTotalValue > 0 
     ? ((totalPnl / initialTotalValue) * 100) 
+    : 0;
+
+  // 실제 투자 기준 수익률도 계산 (청산된 포지션들의 투자액 대비)
+  const realizedTrades = mockTrades.filter(t => t.type === 'sell' || t.type === 'cover');
+  const totalInvestedAmount = realizedTrades.reduce((sum, trade) => {
+    // 각 거래의 원금 계산 (수수료 제외)
+    if (trade.exchange === 'upbit') {
+      return sum + (trade.quantity * trade.price); // 업비트 매도 원금
+    } else {
+      return sum + ((trade.quantity * trade.price) * currentUsdKrw); // 바이낸스 원금 (KRW 환산)
+    }
+  }, 0);
+  
+  const investmentBasedProfitRate = totalInvestedAmount > 0 
+    ? ((totalPnl / totalInvestedAmount) * 100) 
     : 0;
 
   // 일일 통계 계산 (useMemo로 최적화)
@@ -1039,12 +1156,12 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     const upbitTrades = todayTrades.filter(t => t.exchange === 'upbit').length;
     const binanceTrades = todayTrades.filter(t => t.exchange === 'binance').length;
     
-    // 수수료 통계
+    // 수수료 통계 (정확한 계산)
     const totalFees = todayTrades.reduce((sum, trade) => {
       if (trade.exchange === 'upbit') {
-        return sum + trade.fee; // KRW
+        return sum + trade.fee; // 업비트 수수료 (KRW)
       } else {
-        return sum + (trade.fee * (currentUsdKrw || 1390)); // USDT를 KRW로 변환
+        return sum + (trade.fee * (currentUsdKrw || 1390)); // 바이낸스 수수료 (USDT → KRW)
       }
     }, 0);
 
@@ -1170,14 +1287,17 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
             >
               전체 청산
             </Button>
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={resetBalance}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              ⚠️ 잔고 초기화
-            </Button>
+            {/* 잔고 초기화는 Mock 모드에서만 */}
+            {!isLiveMode && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={resetBalance}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                ⚠️ 잔고 초기화
+              </Button>
+            )}
           </div>
         </CardTitle>
       </CardHeader>
@@ -1186,7 +1306,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         {/* 잔고 및 수익률 표시 */}
         <MockBalanceDisplay
           mockBalance={mockBalance}
-          openUpbitQty={openUpbitQty}
+          openUpbitQty={mockBalance.btc}
           openBinanceQty={openBinanceQty}
           profitRate={profitRate}
           totalPnl={totalPnl}

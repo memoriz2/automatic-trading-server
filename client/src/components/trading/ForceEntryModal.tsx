@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, TrendingUp, AlertTriangle } from 'lucide-react';
 import { LEVERAGE_CONFIG, parseLeverage, validateLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
+import { formatBTC } from '@/utils/trading/formatters';
 import { useToast } from '@/hooks/use-toast';
 
 interface ForceEntrySettings {
@@ -49,7 +50,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
         return {
           margin: String(calculatedMargin),
           leverage: leverage,
-          investmentAmount: investment
+          investmentAmount: formatBTC(parseFloat(investment))
         };
       }
     } catch (error) {
@@ -65,7 +66,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
     return {
       margin: String(calculatedMargin),
       leverage: String(defaultLeverage),
-      investmentAmount: defaultInvestment
+      investmentAmount: formatBTC(parseFloat(defaultInvestment))
     };
   });
 
@@ -85,9 +86,12 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
     const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000; // 김프에 따른 BTC 가격
     const calculatedMargin = Math.round(investment * leverage * btcPrice);
     
+    // 입력값을 formatBTC로 정리해서 저장
+    const formattedInvestment = formatBTC(investment);
+    
     setSettings(prev => ({
       ...prev,
-      investmentAmount: investmentValue,
+      investmentAmount: formattedInvestment,
       margin: String(calculatedMargin)
     }));
   };
@@ -99,9 +103,13 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
     const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000;
     const calculatedMargin = Math.round(investment * leverage * btcPrice);
     
+    // 투자수량도 다시 포맷팅해서 정리
+    const formattedInvestment = formatBTC(investment);
+    
     setSettings(prev => ({
       ...prev,
       leverage: leverageValue,
+      investmentAmount: formattedInvestment,
       margin: String(calculatedMargin)
     }));
   };
@@ -206,7 +214,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {parseFloat(settings.investmentAmount || '0').toFixed(3)} BTC
+                {formatBTC(parseFloat(settings.investmentAmount || '0'))} BTC
               </p>
             </div>
 
@@ -263,7 +271,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
               </div>
               <div>
                 <p className="text-muted-foreground">투자 수량</p>
-                <p className="font-medium text-blue-500">{parseFloat(settings.investmentAmount || '0').toFixed(3)} BTC</p>
+                <p className="font-medium text-blue-500">{formatBTC(parseFloat(settings.investmentAmount || '0'))} BTC</p>
               </div>
               <div>
                 <p className="text-muted-foreground">실효 레버리지</p>

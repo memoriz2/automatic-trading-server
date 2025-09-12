@@ -944,6 +944,28 @@ export class DatabaseStorage {
     return this.getAllPositions(whereClause.userId);
   }
 
+  // 어드민 권한 확인
+  async checkAdminPermission(userId: number): Promise<{ isAdmin: boolean; adminLevel?: string }> {
+    try {
+      const adminQuery = await this.pool.query(
+        'SELECT admin_level FROM admins WHERE user_id = $1 AND is_active = true',
+        [userId]
+      );
+      
+      if (adminQuery.rows.length > 0) {
+        return {
+          isAdmin: true,
+          adminLevel: adminQuery.rows[0].admin_level
+        };
+      }
+      
+      return { isAdmin: false };
+    } catch (error) {
+      console.error('어드민 권한 확인 오류:', error);
+      return { isAdmin: false };
+    }
+  }
+
   // 연결 종료
   async close(): Promise<void> {
     await this.pool.end();
