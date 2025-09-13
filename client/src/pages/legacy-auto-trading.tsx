@@ -87,6 +87,64 @@ const LegacyAutoTradingPage = () => {
   const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
   const [isLoadingStrategies, setIsLoadingStrategies] = useState(false); // 전략 로딩 상태 추가
   const [strategies, setStrategies] = useState<any[]>([]); // 전략 목록 상태 추가
+
+  // 거래 기록 복원 (포지션에서)
+  useEffect(() => {
+    const positionKey = `mock-positions-17`;
+    const tradeKey = `mock-trades-17`;
+    
+    const savedPositions = localStorage.getItem(positionKey);
+    const savedTrades = localStorage.getItem(tradeKey);
+    
+    // 포지션은 있는데 거래 기록이 없으면 복원
+    if (savedPositions && (!savedTrades || savedTrades === '[]')) {
+      try {
+        const positions = JSON.parse(savedPositions);
+        if (positions.length > 0) {
+          const restoredTrades: any[] = [];
+          
+          positions.forEach((position: any) => {
+            // 포지션에서 거래 기록 생성
+            const tradeId = `trade-${position.id}`;
+            
+            restoredTrades.push({
+              id: `${tradeId}-upbit`,
+              timestamp: position.entryTime,
+              type: 'buy',
+              symbol: 'BTC',
+              quantity: position.upbitQuantity,
+              price: position.upbitPrice,
+              fee: position.upbitQuantity * position.upbitPrice * 0.0005,
+              exchange: 'upbit',
+              strategyId: position.strategyId,
+              strategyName: '복원된 거래',
+              premiumRate: position.entryPremiumRate
+            });
+            
+            restoredTrades.push({
+              id: `${tradeId}-binance`,
+              timestamp: position.entryTime,
+              type: 'short',
+              symbol: 'BTC',
+              quantity: position.binanceQuantity,
+              price: position.binancePrice,
+              fee: position.binanceQuantity * position.binancePrice * 0.0004,
+              exchange: 'binance',
+              strategyId: position.strategyId,
+              strategyName: '복원된 거래',
+              premiumRate: position.entryPremiumRate
+            });
+          });
+          
+          // Local Storage에 거래 기록 저장
+          localStorage.setItem(tradeKey, JSON.stringify(restoredTrades));
+          console.log('🔄 포지션에서 거래 기록 복원:', restoredTrades.length, '개');
+        }
+      } catch (error) {
+        console.error('거래 기록 복원 실패:', error);
+      }
+    }
+  }, []); // 마운트 시 한 번만 실행
   
   // 새 전략 모달 상태
   type NewStrategyForm = {
@@ -1649,9 +1707,24 @@ const LegacyAutoTradingPage = () => {
                   executionCount: 0
                 };
                 
-                setStrategies(prev => [...prev, newStrategyData]);
+                setStrategies(prev => {
+                  const updated = [...prev, newStrategyData];
+                  // Mock 모드에서 Local Storage에 저장
+                  localStorage.setItem('mock-strategies-17', JSON.stringify(updated));
+                  console.log('💾 Mock 전략 생성 후 Local Storage 저장:', updated.length, '개');
+                  return updated;
+                });
                 
-                // DB 저장 시도
+                // Mock/실거래 모드 구분
+                if (tradingMode === 'mock') {
+                  // Mock 모드: 로컬 저장만
+                  console.log('🧪 Mock 모드 - 전략 로컬 저장만:', newStrategyData);
+                  toast({ 
+                    title: '전략 생성 완료 (Mock)', 
+                    description: 'Mock 전략이 생성되었습니다.' 
+                  });
+                } else {
+                  // 실거래 모드: DB 저장 시도
                 try {
                   const normalizedInvestment = (() => {
                     const n = Number(newStrategy.investmentAmount);
@@ -1694,6 +1767,7 @@ const LegacyAutoTradingPage = () => {
                   console.error('❌ 전략 생성 실패:', error);
                   toast({ title: '전략 생성 실패', description: `서버 저장 실패: ${error.message}`, variant: 'destructive' });
                 }
+                } // 실거래 모드 끝
               }
               
               // 모달 닫기 및 폼 초기화
@@ -1833,8 +1907,13 @@ const LegacyAutoTradingPage = () => {
                   id=":r10:-form-item"
                   aria-describedby=":r10:-form-item-description"
                   aria-invalid="false"
-                  value={formatPercent(parseFloat(newStrategy.entryCondition || '0'))}
+                  value={newStrategy.entryCondition}
                   onChange={(e) => {
+                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
+                    setNewStrategy(prev => ({...prev, entryCondition: e.target.value}));
+                  }}
+                  onBlur={(e) => {
+                    // 입력 완료 시에만 포맷팅 적용
                     const rawValue = parseFloat(e.target.value) || 0;
                     const formattedValue = formatPercent(rawValue);
                     setNewStrategy(prev => ({...prev, entryCondition: formattedValue}));
@@ -1856,8 +1935,13 @@ const LegacyAutoTradingPage = () => {
                   id=":r11:-form-item"
                   aria-describedby=":r11:-form-item-description"
                   aria-invalid="false"
-                  value={formatPercent(parseFloat(newStrategy.takeProfitCondition || '0'))}
+                  value={newStrategy.takeProfitCondition}
                   onChange={(e) => {
+                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
+                    setNewStrategy(prev => ({...prev, takeProfitCondition: e.target.value}));
+                  }}
+                  onBlur={(e) => {
+                    // 입력 완료 시에만 포맷팅 적용
                     const rawValue = parseFloat(e.target.value) || 0;
                     const formattedValue = formatPercent(rawValue);
                     setNewStrategy(prev => ({...prev, takeProfitCondition: formattedValue}));
@@ -1927,8 +2011,13 @@ const LegacyAutoTradingPage = () => {
                   placeholder="0.05"
                   data-testid="input-tolerance"
                   id="tolerance-input"
-                  value={formatPercent(parseFloat(newStrategy.tolerance || '0.05'))}
+                  value={newStrategy.tolerance}
                   onChange={(e) => {
+                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
+                    setNewStrategy(prev => ({...prev, tolerance: e.target.value}));
+                  }}
+                  onBlur={(e) => {
+                    // 입력 완료 시에만 포맷팅 적용
                     const rawValue = parseFloat(e.target.value) || 0.05;
                     const formattedValue = formatPercent(rawValue);
                     setNewStrategy(prev => ({...prev, tolerance: formattedValue}));
@@ -2005,11 +2094,15 @@ const LegacyAutoTradingPage = () => {
                   placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
                   data-testid="input-investment-amount"
                   id=":r12:-form-item"
-                  value={formatBTC(parseFloat(newStrategy.investmentAmount || '0'))}
+                  value={newStrategy.investmentAmount}
                   inputMode="decimal"
                   pattern="^\\d*(\\.\\d{0,3})?$"
                   onChange={(e) => {
-                    // 입력값을 formatBTC로 포맷팅해서 저장
+                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
+                    setNewStrategy(prev => ({ ...prev, investmentAmount: e.target.value }));
+                  }}
+                  onBlur={(e) => {
+                    // 입력 완료 시에만 포맷팅 적용
                     const rawValue = parseFloat(e.target.value) || 0;
                     const formattedValue = formatBTC(rawValue);
                     setNewStrategy(prev => ({ ...prev, investmentAmount: formattedValue }));
