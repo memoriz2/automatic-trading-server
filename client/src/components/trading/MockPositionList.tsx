@@ -74,20 +74,16 @@ export const MockPositionList: React.FC<MockPositionListProps> = ({
   const calculatePnL = (position: MockPosition) => {
     const currentPremium = lastKimchiData?.kimp ?? position.entryPremiumRate;
     
-    // 김프 상승 시 수익이 +로 보이도록: 김프 차이 기반 근사 PnL (진입가 기준 노출)
-    const premiumDelta = (currentPremium - position.entryPremiumRate); // 상승(+)
-    const baseNotionalKRW = position.upbitQuantity * position.upbitPrice; // 진입 시 원화 노출 기준
+    // 김치 프리미엄 변동에 따른 실제 수익금 계산
+    const premiumDelta = (currentPremium - position.entryPremiumRate);
     
-    // 진입 수수료 + (예상) 청산 수수료까지 반영
-    const currentUpbitPriceEst = lastKimchiData?.upbit_price || position.upbitPrice;
-    const currentBinancePriceEst = lastKimchiData?.binance_price || position.binancePrice;
-    const usdKrwEst = lastKimchiData?.usdkrw || position.entryUsdKrw || 1390;
-    const entryUpbitBuyFee = (position.upbitQuantity * position.upbitPrice) * 0.0005;
-    const entryBinanceShortFeeKRW = (position.binanceQuantity * position.binancePrice * 0.0004) * usdKrwEst;
-    const estUpbitSellFee = (position.upbitQuantity * currentUpbitPriceEst) * 0.0005;
-    const estBinanceCoverFeeKRW = (position.binanceQuantity * currentBinancePriceEst * 0.0004) * usdKrwEst;
-    const unrealizedGross = (premiumDelta / 100) * baseNotionalKRW;
-    const unrealizedPnl = unrealizedGross - (entryUpbitBuyFee + entryBinanceShortFeeKRW + estUpbitSellFee + estBinanceCoverFeeKRW);
+    // 실제 투자금 계산
+    const upbitInvestment = position.upbitQuantity * position.upbitPrice; // 진입 시 가격
+    const binanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 진입 시 증거금
+    const totalInvestment = upbitInvestment + binanceMargin;
+    
+    // 김치 프리미엄 변화에 따른 수익금
+    const unrealizedPnl = (premiumDelta / 100) * totalInvestment;
     
     return {
       currentPremium,
@@ -135,6 +131,18 @@ export const MockPositionList: React.FC<MockPositionListProps> = ({
                 <div className="text-right">
                   <p className={`font-bold ${pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {pnlData.unrealizedPnl >= 0 ? '+' : ''}₩{pnlData.unrealizedPnl.toLocaleString()}
+                  </p>
+                  <p className={`text-xs ${pnlData.premiumDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(() => {
+                      // 김치 프리미엄 변화로 인한 원화 손익 (진입 시 가격 기준)
+                      const upbitInvestment = position.upbitQuantity * position.upbitPrice;
+                      const binanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage;
+                      const totalInvestment = upbitInvestment + binanceMargin;
+                      const premiumPnlKRW = (pnlData.premiumDelta / 100) * totalInvestment;
+                      const premiumPnlPercent = totalInvestment > 0 ? (premiumPnlKRW / totalInvestment * 100) : 0;
+                      
+                      return `${premiumPnlKRW >= 0 ? '+' : ''}₩${Math.abs(premiumPnlKRW).toLocaleString()} (${premiumPnlPercent >= 0 ? '+' : ''}${premiumPnlPercent.toFixed(2)}%)`;
+                    })()}
                   </p>
                       <p className="text-xs text-slate-400">
                         업비트: {formatBTC(position.upbitQuantity)} BTC

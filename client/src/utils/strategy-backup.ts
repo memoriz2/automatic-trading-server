@@ -44,7 +44,7 @@ class StrategyBackupManager {
   }
 
   /**
-   * 현재 전략 데이터 수집
+   * 현재 전략 데이터 수집 (삭제된 전략 제외)
    */
   private collectCurrentData(userId: string): Omit<StrategyBackup, 'metadata'> {
     const strategies = this.getLocalStorageData(`mock-strategies-${userId}`);
@@ -52,8 +52,23 @@ class StrategyBackupManager {
     const trades = this.getLocalStorageData(`mock-trades-${userId}`);
     const balances = this.getLocalStorageData(`mock-balance-${userId}`);
     
+    // 삭제된 전략 목록 가져오기
+    const deletedStrategies = this.getLocalStorageData(`deleted-strategies-${userId}`) || [];
+    
+    // 삭제된 전략 제외
+    const filteredStrategies = (strategies || []).filter((strategy: any) => 
+      !deletedStrategies.includes(strategy.id)
+    );
+    
+    console.log('📝 백업 데이터 수집:', {
+      전체전략: (strategies || []).length,
+      삭제된전략: deletedStrategies.length,
+      필터된전략: filteredStrategies.length,
+      삭제목록: deletedStrategies
+    });
+    
     return {
-      strategies: strategies || [],
+      strategies: filteredStrategies,
       positions: positions || [],
       trades: trades || [],
       balances: balances || {}

@@ -8,7 +8,7 @@ export const useMockTrading = (
   userId: string,
   isLiveMode: boolean,
   mockBalance: any,
-  setMockBalance: any,
+  setMockBalance: any, // 잔고 업데이트는 MockTradingSystem에서만 처리
   currentKimchiData: any,
   onStrategyStatsUpdate?: any
 ) => {
@@ -241,18 +241,28 @@ export const useMockTrading = (
         return;
       }
 
-      // 잔고 업데이트
-      setMockBalance((prev: any) => ({
-        ...prev,
-        // 업비트 현물: KRW로 BTC 매수
-        krw: prev.krw - calculation.totalUpbitCost,
-        btc: (prev.btc || 0) + calculation.upbitBuyAmountBTC,
-        // 바이낸스 선물: USDT 증거금만 차감 (BTC 잔고는 변경 없음)
-        usdt: prev.usdt - calculation.binanceMargin - calculation.binanceFee,
-        binanceUsdt: (prev.binanceUsdt || 0) - calculation.binanceMargin - calculation.binanceFee,
-        // 바이낸스 BTC는 선물이므로 실제 BTC 보유량과 별도 (변경 없음)
-        binanceBtc: prev.binanceBtc || 0
-      }));
+      // 잔고 변화량 계산 (실제 업데이트는 MockTradingSystem에서 처리)
+      const balanceChanges = {
+        krw: -calculation.totalUpbitCost,
+        btc: +calculation.upbitBuyAmountBTC,
+        usdt: -(calculation.binanceMargin + calculation.binanceFee),
+        binanceUsdt: -(calculation.binanceMargin + calculation.binanceFee),
+        binanceBtc: +calculation.binanceShortAmountBTC
+      };
+      
+      console.log('💰 useMockTrading 진입 잔고 변화량:', balanceChanges);
+      
+      // MockTradingSystem에서 잔고 업데이트 처리하도록 콜백 호출
+      if (typeof setMockBalance === 'function') {
+        setMockBalance((prev: any) => ({
+          ...prev,
+          krw: Math.max(0, prev.krw + balanceChanges.krw),
+          btc: Math.max(0, (prev.btc || 0) + balanceChanges.btc),
+          usdt: Math.max(0, prev.usdt + balanceChanges.usdt),
+          binanceUsdt: Math.max(0, (prev.binanceUsdt || 0) + balanceChanges.binanceUsdt),
+          binanceBtc: Math.max(0, (prev.binanceBtc || 0) + balanceChanges.binanceBtc)
+        }));
+      }
 
       // 거래 기록 생성
       const currentCounter = tradeCounter + 1;
@@ -374,18 +384,28 @@ export const useMockTrading = (
         ratio
       );
 
-      // 잔고 업데이트
-      setMockBalance((prev: any) => ({
-        ...prev,
-        // 업비트 현물: BTC 매도하여 KRW 획득
-        krw: prev.krw + exitCalc.upbitNetRevenue,
-        btc: (prev.btc || 0) - exitCalc.upbitSellQuantity,
-        // 바이낸스 선물: 숏 포지션 청산으로 증거금 반환
-        usdt: prev.usdt + exitCalc.binanceNetReturn,
-        binanceUsdt: (prev.binanceUsdt || 0) + exitCalc.binanceNetReturn,
-        // 바이낸스 BTC는 선물이므로 실제 BTC 보유량과 별도 (변경 없음)
-        binanceBtc: prev.binanceBtc || 0
-      }));
+      // 잔고 변화량 계산 (실제 업데이트는 MockTradingSystem에서 처리)
+      const balanceChanges = {
+        krw: +exitCalc.upbitNetRevenue,
+        btc: -exitCalc.upbitSellQuantity,
+        usdt: +exitCalc.binanceNetReturn,
+        binanceUsdt: +exitCalc.binanceNetReturn,
+        binanceBtc: -exitCalc.binanceCloseQuantity
+      };
+      
+      console.log('💰 useMockTrading 청산 잔고 변화량:', balanceChanges);
+      
+      // MockTradingSystem에서 잔고 업데이트 처리하도록 콜백 호출
+      if (typeof setMockBalance === 'function') {
+        setMockBalance((prev: any) => ({
+          ...prev,
+          krw: Math.max(0, prev.krw + balanceChanges.krw),
+          btc: Math.max(0, (prev.btc || 0) + balanceChanges.btc),
+          usdt: Math.max(0, prev.usdt + balanceChanges.usdt),
+          binanceUsdt: Math.max(0, (prev.binanceUsdt || 0) + balanceChanges.binanceUsdt),
+          binanceBtc: Math.max(0, (prev.binanceBtc || 0) + balanceChanges.binanceBtc)
+        }));
+      }
 
       // 청산 거래 기록 생성
       const currentCounter = tradeCounter + 1;

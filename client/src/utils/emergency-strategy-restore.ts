@@ -40,25 +40,43 @@ const isStrategyDeleted = (userId: string, strategyId: string): boolean => {
 export const markStrategyAsDeleted = (userId: string, strategyId: string) => {
   addDeletedStrategy(userId, strategyId);
   
-  // 백업에서도 해당 전략 제거
+  // 모든 사용자 ID에서 해당 전략 제거 (데이터 일관성 보장)
   try {
+    // 1. 모든 전략 목록에서 제거
+    const allStrategyKeys = Object.keys(localStorage)
+      .filter(key => key.startsWith('mock-strategies-'));
+    
+    allStrategyKeys.forEach(strategyKey => {
+      const strategies = JSON.parse(localStorage.getItem(strategyKey) || '[]');
+      const filtered = strategies.filter((s: any) => s.id !== strategyId);
+      if (filtered.length !== strategies.length) {
+        localStorage.setItem(strategyKey, JSON.stringify(filtered));
+        console.log(`🗑️ ${strategyKey}에서 전략 제거: ${strategyId}`);
+      }
+    });
+    
+    // 2. 모든 백업에서 제거
     const backupKeys = Object.keys(localStorage)
-      .filter(key => key.startsWith(`strategy-backup-`) && key.endsWith(`-${userId}`));
+      .filter(key => key.startsWith('strategy-backup-'));
     
     backupKeys.forEach(backupKey => {
       const backupData = localStorage.getItem(backupKey);
       if (backupData) {
         const backup = JSON.parse(backupData);
         if (backup.strategies) {
+          const originalCount = backup.strategies.length;
           backup.strategies = backup.strategies.filter((s: any) => s.id !== strategyId);
-          localStorage.setItem(backupKey, JSON.stringify(backup));
+          if (backup.strategies.length !== originalCount) {
+            localStorage.setItem(backupKey, JSON.stringify(backup));
+            console.log(`🗑️ ${backupKey}에서 전략 제거: ${strategyId}`);
+          }
         }
       }
     });
     
-    console.log(`🗑️ 백업에서도 전략 제거 완료: ${strategyId}`);
+    console.log(`🗑️ 모든 저장소에서 전략 완전 제거 완료: ${strategyId}`);
   } catch (error) {
-    console.error('❌ 백업에서 전략 제거 실패:', error);
+    console.error('❌ 전략 완전 제거 실패:', error);
   }
 };
 

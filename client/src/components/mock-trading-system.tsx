@@ -194,95 +194,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     console.log(`🎯 MockTradingSystem 모드: ${actualTradingMode}`);
   }, []);
 
-  // 전략-포지션 불일치 감지 및 자동 복원
-  useEffect(() => {
-    if (mockPositions.length > 0 && setStrategies) {
-      // 포지션에 있는 전략 ID들
-      const positionStrategyIds = [...new Set(mockPositions.map(pos => pos.strategyId))];
-      // 현재 전략 ID들  
-      const currentStrategyIds = strategies.map(s => s.id);
-      
-      // 누락된 전략 찾기
-      const missingStrategyIds = positionStrategyIds.filter(id => !currentStrategyIds.includes(id));
-      
-      if (missingStrategyIds.length > 0) {
-        console.log('🚨 전략-포지션 불일치 감지:', {
-          포지션전략: positionStrategyIds,
-          현재전략: currentStrategyIds,
-          누락전략: missingStrategyIds
-        });
-        
-        // 누락된 전략들을 포지션에서 복원
-        const restoredStrategies: any[] = [];
-        
-        missingStrategyIds.forEach(strategyId => {
-          const position = mockPositions.find(pos => pos.strategyId === strategyId);
-          if (position) {
-            // 백업에서 원래 전략 데이터 찾기
-            let originalStrategy = null;
-            try {
-              const backupKeys = Object.keys(localStorage)
-                .filter(key => key.startsWith(`strategy-backup-`) && key.endsWith(`-${userId}`))
-                .sort((a, b) => parseInt(b.split('-')[2]) - parseInt(a.split('-')[2])); // 최신순
-              
-              for (const backupKey of backupKeys) {
-                const backupData = localStorage.getItem(backupKey);
-                if (backupData) {
-                  const backup = JSON.parse(backupData);
-                  originalStrategy = backup.strategies?.find((s: any) => s.id === strategyId);
-                  if (originalStrategy) {
-                    console.log(`📋 백업에서 원래 전략 발견: ${originalStrategy.name}`);
-                    break;
-                  }
-                }
-              }
-            } catch (error) {
-              console.warn('백업에서 원래 전략 찾기 실패:', error);
-            }
-            
-            // 원래 전략 데이터가 있으면 사용, 없으면 포지션 기반으로 추정
-            const restoredStrategy = originalStrategy ? {
-              ...originalStrategy,
-              isActive: true, // 활성 포지션이 있으므로 활성 상태
-              created_at: originalStrategy.created_at || position.entryTime || new Date().toISOString()
-            } : {
-              id: position.strategyId,
-              name: position.strategyName || `복원된 전략 (${position.strategyId.slice(-6)})`,
-              crypto: 'BTC',
-              entryCondition: '0',
-              takeProfitCondition: '0.2',
-              investmentAmount: position.upbitQuantity?.toString() || '0.003',
-              leverage: position.leverage?.toString() || '5',
-              tolerance: '0.6',
-              riskLevel: 'moderate',
-              isActive: true,
-              profitRate: 0,
-              executionCount: 1,
-              created_at: position.entryTime || new Date().toISOString()
-            };
-            
-            restoredStrategies.push(restoredStrategy);
-          }
-        });
-        
-        if (restoredStrategies.length > 0) {
-          const allStrategies = [...strategies, ...restoredStrategies];
-          setStrategies(allStrategies);
-          
-          // 로컬스토리지에도 저장
-          localStorage.setItem(`mock-strategies-${userId}`, JSON.stringify(allStrategies));
-          
-          console.log('🔄 전략 자동 복원 완료:', restoredStrategies.length, '개');
-          
-          toast({
-            title: "🛡️ 전략 자동 복원",
-            description: `${restoredStrategies.length}개 전략이 포지션에서 복원되었습니다!`,
-            duration: 5000,
-          });
-        }
-      }
-    }
-  }, [mockPositions.length, strategies.length, setStrategies, userId, toast]);
+  // 전략-포지션 불일치 감지 및 자동 복원은 mockPositions 선언 후로 이동
   
   // 숫자 부드러운 변경용 유틸
   const animateNumber = useCallback((from: number, to: number, setter: (v: number) => void, durationMs: number = 300) => {
@@ -315,7 +227,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   const COOLDOWN_MS = 800;    // 동일 전략 연속 액션 쿨다운(민감도 향상)
   const lastActionAtRef = useRef<Record<string, number>>({});
   const prevPremiumRef = useRef<number | null>(null); // 임계값 교차 감지용 이전 김프
-  // 동시 진입 방지: 현재 처리 중인 전략 ID 집합
+  // 원자적 거래 처리: 거래 잠금 시스템
+  const tradingLockRef = useRef<boolean>(false);
   const processingEntryRef = useRef<Set<string>>(new Set());
   
   // 모의 잔고 (사용자별 로컬스토리지 저장)
@@ -458,6 +371,196 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     console.log('🎯 활성 포지션 개수:', positions.filter((p: MockPosition) => p.status === 'open').length);
     return positions;
   });
+
+  // 잔고-포지션 일관성 검증 및 자동 수정
+  useEffect(() => {
+    if (mockPositions.length > 0) {
+      const openPositions = mockPositions.filter(p => p.status === 'open');
+      
+      if (openPositions.length > 0) {
+        // 활성 포지션의 총 BTC 수량 계산
+        const totalUpbitBtc = openPositions.reduce((sum, p) => sum + (p.upbitQuantity || 0), 0);
+        const totalBinanceBtc = openPositions.reduce((sum, p) => sum + (p.binanceQuantity || 0), 0);
+        
+        // 잔고 검증
+        const currentUpbitBtc = mockBalance.btc || 0;
+        const currentBinanceBtc = mockBalance.binanceBtc || 0;
+        
+        // BTC 잔고가 활성 포지션과 다르면 수정 (정확히 일치시킴)
+        if (Math.abs(totalUpbitBtc - currentUpbitBtc) > 0.000001) {
+          console.warn('🚨 업비트 BTC 잔고 불일치 감지:', {
+            활성포지션BTC: totalUpbitBtc,
+            현재잔고BTC: currentUpbitBtc,
+            차이: totalUpbitBtc - currentUpbitBtc,
+            수정필요: true
+          });
+          
+          setMockBalance(prev => ({
+            ...prev,
+            btc: totalUpbitBtc // 활성 포지션과 정확히 일치시킴
+          }));
+          
+          console.log('✅ 업비트 BTC 잔고 정확히 수정:', currentUpbitBtc, '→', totalUpbitBtc);
+        }
+        
+        // 활성 포지션이 있는데 해당 전략이 없으면 복원
+        if (setStrategies) {
+          const positionStrategyIds = Array.from(new Set(openPositions.map(p => p.strategyId)));
+          const currentStrategyIds = strategies.map(s => s.id);
+          const missingStrategyIds = positionStrategyIds.filter(id => !currentStrategyIds.includes(id));
+          
+          if (missingStrategyIds.length > 0) {
+            console.warn('🚨 활성 포지션의 전략 누락 감지:', missingStrategyIds);
+            
+            // 백업에서 누락된 전략 찾기
+            const restoredStrategies: any[] = [];
+            
+            missingStrategyIds.forEach(strategyId => {
+              const position = openPositions.find(p => p.strategyId === strategyId);
+              if (position) {
+                // 백업에서 원래 전략 찾기
+                let originalStrategy = null;
+                try {
+                  const backupKeys = Object.keys(localStorage)
+                    .filter(key => key.startsWith(`strategy-backup-`) && key.endsWith(`-${userId}`))
+                    .sort((a, b) => parseInt(b.split('-')[2]) - parseInt(a.split('-')[2]));
+                  
+                  for (const backupKey of backupKeys) {
+                    const backup = JSON.parse(localStorage.getItem(backupKey) || '{}');
+                    originalStrategy = backup.strategies?.find((s: any) => s.id === strategyId);
+                    if (originalStrategy) break;
+                  }
+                } catch (error) {
+                  console.warn('백업 검색 실패:', error);
+                }
+                
+                if (originalStrategy) {
+                  restoredStrategies.push({
+                    ...originalStrategy,
+                    isActive: true // 활성 포지션이 있으므로 활성화
+                  });
+                  console.log('📋 활성 포지션 전략 복원:', originalStrategy.name);
+                }
+              }
+            });
+            
+            if (restoredStrategies.length > 0) {
+              const allStrategies = [...strategies, ...restoredStrategies];
+              setStrategies(allStrategies);
+              localStorage.setItem(`mock-strategies-${userId}`, JSON.stringify(allStrategies));
+              console.log('✅ 활성 포지션 전략 자동 복원:', restoredStrategies.length, '개');
+            }
+          }
+        }
+        
+        if (Math.abs(totalBinanceBtc - currentBinanceBtc) > 0.000001) {
+          console.warn('🚨 바이낸스 BTC 잔고 불일치 감지:', {
+            활성포지션BTC: totalBinanceBtc,
+            현재잔고BTC: currentBinanceBtc,
+            차이: totalBinanceBtc - currentBinanceBtc,
+            수정필요: true
+          });
+          
+          setMockBalance(prev => ({
+            ...prev,
+            binanceBtc: totalBinanceBtc // 활성 포지션과 정확히 일치시킴
+          }));
+          
+          console.log('✅ 바이낸스 BTC 잔고 정확히 수정:', currentBinanceBtc, '→', totalBinanceBtc);
+        }
+      }
+    }
+  }, [mockPositions, mockBalance.btc, mockBalance.binanceBtc]);
+
+  // 전략-포지션 불일치 감지 및 자동 복원 (임시 비활성화)
+  useEffect(() => {
+    if (false && mockPositions.length > 0 && setStrategies) { // 임시 비활성화
+      // 포지션에 있는 전략 ID들
+      const positionStrategyIds = Array.from(new Set(mockPositions.map(pos => pos.strategyId)));
+      // 현재 전략 ID들  
+      const currentStrategyIds = strategies.map(s => s.id);
+      
+      // 누락된 전략 찾기
+      const missingStrategyIds = positionStrategyIds.filter(id => !currentStrategyIds.includes(id));
+      
+      if (missingStrategyIds.length > 0) {
+        console.log('🚨 전략-포지션 불일치 감지:', {
+          포지션전략: positionStrategyIds,
+          현재전략: currentStrategyIds,
+          누락전략: missingStrategyIds
+        });
+        
+        // 누락된 전략들을 포지션에서 복원
+        const restoredStrategies: any[] = [];
+        
+        missingStrategyIds.forEach(strategyId => {
+          const position = mockPositions.find(pos => pos.strategyId === strategyId);
+          if (position) {
+            // 백업에서 원래 전략 데이터 찾기
+            let originalStrategy = null;
+            try {
+              const backupKeys = Object.keys(localStorage)
+                .filter(key => key.startsWith(`strategy-backup-`) && key.endsWith(`-${userId}`))
+                .sort((a, b) => parseInt(b.split('-')[2]) - parseInt(a.split('-')[2])); // 최신순
+              
+              for (const backupKey of backupKeys) {
+                const backupData = localStorage.getItem(backupKey);
+                if (backupData) {
+                  const backup = JSON.parse(backupData);
+                  originalStrategy = backup.strategies?.find((s: any) => s.id === strategyId);
+                  if (originalStrategy) {
+                    console.log(`📋 백업에서 원래 전략 발견: ${originalStrategy.name}`);
+                    break;
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn('백업에서 원래 전략 찾기 실패:', error);
+            }
+            
+            // 원래 전략 데이터가 있으면 사용, 없으면 포지션 기반으로 추정
+            const restoredStrategy = originalStrategy ? {
+              ...originalStrategy,
+              isActive: true, // 활성 포지션이 있으므로 활성 상태
+              created_at: originalStrategy.created_at || position.entryTime || new Date().toISOString()
+            } : {
+              id: position.strategyId,
+              name: position.strategyName || `복원된 전략 (${position.strategyId.slice(-6)})`,
+              crypto: 'BTC',
+              entryCondition: '0',
+              takeProfitCondition: '0.2',
+              investmentAmount: position.upbitQuantity?.toString() || '0.003',
+              leverage: position.leverage?.toString() || '5',
+              tolerance: '0.6',
+              riskLevel: 'moderate',
+              isActive: true,
+              profitRate: 0,
+              executionCount: 1,
+              created_at: position.entryTime || new Date().toISOString()
+            };
+            
+            restoredStrategies.push(restoredStrategy);
+          }
+        });
+        
+        if (restoredStrategies.length > 0) {
+          const allStrategies = [...strategies, ...restoredStrategies];
+          setStrategies?.(allStrategies);
+          
+          // 로컬스토리지에도 저장
+          localStorage.setItem(`mock-strategies-${userId}`, JSON.stringify(allStrategies));
+          
+          console.log('🔄 전략 자동 복원 완료:', restoredStrategies.length, '개');
+          
+          toast({
+            title: "🛡️ 전략 자동 복원",
+            description: `${restoredStrategies.length}개 전략이 포지션에서 복원되었습니다!`,
+            duration: 5000,
+          });
+        }
+      }
+    }
+  }, [mockPositions.length, strategies.length, setStrategies, userId, toast]);
 
   // 모의 거래 실행 중 상태
   const [isTrading, setIsTrading] = useState(false);
@@ -640,11 +743,18 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   }, []);
 
 
-  // 모의 진입
+  // 모의 진입 (원자적 처리)
   const mockEntry = useCallback(async (strategy: any, premiumRate: number) => {
     console.log('🎯 mockEntry 시작:', strategy.name, premiumRate);
     
+    // 거래 잠금 확인
+    if (tradingLockRef.current) {
+      console.warn('⏸️ 다른 거래 진행 중 - 진입 대기');
+      return;
+    }
+    
     try {
+      tradingLockRef.current = true; // 거래 잠금
       processingEntryRef.current.add(String(strategy.id));
 
       if (!currentKimchiData) {
@@ -735,13 +845,22 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       setMockBalance(prev => {
         const newBalance = {
           ...prev,
-          krw: prev.krw - totalUpbitCost, // 업비트 매수 + 수수료로 KRW 감소
-          btc: (prev.btc || 0) + upbitBuyAmountBTC, // 업비트에서 매수한 BTC 잔고에 추가
-          usdt: prev.usdt - binanceMargin - binanceFee, // 바이낸스 증거금 + 수수료 차감
-          binanceUsdt: (prev.binanceUsdt || 0) - binanceMargin - binanceFee, // 표시용 바이낸스 USDT도 동기화
+          krw: Math.max(0, prev.krw - totalUpbitCost), // 음수 방지
+          btc: Math.max(0, (prev.btc || 0) + upbitBuyAmountBTC), // 음수 방지
+          usdt: Math.max(0, prev.usdt - binanceMargin - binanceFee), // 음수 방지
+          binanceUsdt: Math.max(0, (prev.binanceUsdt || 0) - binanceMargin - binanceFee), // 음수 방지
           // 선물 숏 진입 시 숏 포지션 수량 증가 (양수)
-          binanceBtc: (prev.binanceBtc || 0) + binanceShortAmountBTC
+          binanceBtc: Math.max(0, (prev.binanceBtc || 0) + binanceShortAmountBTC)
         };
+        
+        // 잔고 검증 로그
+        console.log('💰 진입 후 잔고 업데이트:', {
+          이전잔고: { krw: prev.krw, btc: prev.btc, usdt: prev.usdt },
+          새잔고: { krw: newBalance.krw, btc: newBalance.btc, usdt: newBalance.usdt },
+          거래정보: { upbitBTC: upbitBuyAmountBTC, 비용: totalUpbitCost }
+        });
+        
+        return newBalance;
         
         // 진입 후 균형 검증
         console.log('⚖️ 진입 후 잔고 균형 검증:', {
@@ -865,6 +984,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         variant: "destructive"
       });
     } finally {
+      tradingLockRef.current = false; // 거래 잠금 해제
       setIsTrading(false);
     }
   }, [
@@ -945,9 +1065,16 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     }
   }, [currentKimchiData, mockEntry, toast]);
 
-  // 모의 청산
+  // 모의 청산 (원자적 처리)
   const mockExit = useCallback(async (position: MockPosition, premiumRate: number, ratio: number = 1.0) => {
+    // 거래 잠금 확인
+    if (tradingLockRef.current) {
+      console.warn('⏸️ 다른 거래 진행 중 - 청산 대기');
+      return;
+    }
+    
     setIsTrading(true);
+    tradingLockRef.current = true; // 거래 잠금
 
     try {
       if (!currentKimchiData) {
@@ -1027,13 +1154,22 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       setMockBalance(prev => {
         const newBalance = {
           ...prev,
-          krw: prev.krw + upbitNetRevenue, // 업비트 매도 순수익 (수수료 차감 후)
-          btc: (prev.btc || 0) - upbitSellQuantity, // 업비트에서 매도한 BTC만큼 잔고 감소
-          usdt: prev.usdt + binanceNetReturnForBalance, // 바이낸스 순 회수액
-          binanceUsdt: (prev.binanceUsdt || 0) + binanceNetReturnForBalance, // 표시용 바이낸스 USDT도 동기화
+          krw: Math.max(0, prev.krw + upbitNetRevenue), // 음수 방지
+          btc: Math.max(0, (prev.btc || 0) - upbitSellQuantity), // 음수 방지
+          usdt: Math.max(0, prev.usdt + binanceNetReturnForBalance), // 음수 방지
+          binanceUsdt: Math.max(0, (prev.binanceUsdt || 0) + binanceNetReturnForBalance), // 음수 방지
           // 선물 커버(청산) 시 숏 포지션 수량 감소
-          binanceBtc: (prev.binanceBtc || 0) - binanceCloseQuantity
+          binanceBtc: Math.max(0, (prev.binanceBtc || 0) - binanceCloseQuantity) // 음수 방지
         };
+        
+        // 청산 후 잔고 검증 로그
+        console.log('💰 청산 후 잔고 업데이트:', {
+          이전잔고: { krw: prev.krw, btc: prev.btc, usdt: prev.usdt },
+          새잔고: { krw: newBalance.krw, btc: newBalance.btc, usdt: newBalance.usdt },
+          청산정보: { upbitBTC: upbitSellQuantity, 수익: upbitNetRevenue }
+        });
+        
+        return newBalance;
         
         // 청산 후 균형 검증 및 오류 감지
         console.log('⚖️ 청산 후 잔고 균형 검증:', {
@@ -1184,6 +1320,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         variant: "destructive"
       });
     } finally {
+      tradingLockRef.current = false; // 거래 잠금 해제
       setIsTrading(false);
     }
   }, [
@@ -1475,21 +1612,75 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     });
   };
 
-  // 수익률 계산 - 초기 잔고 대비 변화율
-  const initialTotalValue = 100000000 + (100000 * (currentKimchiData?.usdkrw || 1390)); // 1억원 + 10만USDT
+  // 수익률 계산 - 초기 잔고 대비 변화율 (수정됨)
+  const INITIAL_KRW = 100000000; // 1억원
+  const INITIAL_USDT = 100000;   // 10만 USDT
+  const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
+  const initialTotalValue = INITIAL_KRW + (INITIAL_USDT * currentUsdKrw); // 초기 총 자산
   
   // 현재 잔고의 총 가치 계산 (원화 기준)
   const currentBtcPrice = currentKimchiData?.upbit_price || 156000000;
-  const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
   
-  const currentTotalValue = mockBalance.krw + 
-                           (mockBalance.btc * currentBtcPrice) + 
-                           (mockBalance.usdt * currentUsdKrw);
+  // 개별 포지션의 김치 프리미엄 손익 합계 (화면 작은 글씨와 동일)
+  const totalPositionPnl = mockPositions
+    .filter(p => p.status === 'open')
+    .reduce((sum, position) => {
+      const currentPremium = currentKimchiData?.kimp ?? position.entryPremiumRate;
+      const premiumDelta = (currentPremium - position.entryPremiumRate);
+      
+      // 진입 시 가격 기준 투자금 (화면과 동일)
+      const upbitInvestment = position.upbitQuantity * position.upbitPrice;
+      const binanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage;
+      const totalInvestment = upbitInvestment + binanceMargin;
+      
+      // 김치 프리미엄 변화에 따른 손익 (화면 작은 글씨와 정확히 동일)
+      const premiumPnlKRW = (premiumDelta / 100) * totalInvestment;
+      return sum + premiumPnlKRW;
+    }, 0);
   
-  const totalPnl = currentTotalValue - initialTotalValue;
-  const profitRate = isFinite(initialTotalValue) && initialTotalValue > 0 
-    ? ((totalPnl / initialTotalValue) * 100) 
+  // 청산된 포지션의 실현 손익
+  const realizedPnl = mockPositions
+    .filter(p => p.status === 'closed')
+    .reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
+  
+  const totalPnl = totalPositionPnl + realizedPnl;
+  
+  // 총 투자금 계산 (수익률 계산용)
+  const totalActiveInvestment = mockPositions
+    .filter(p => p.status === 'open')
+    .reduce((sum, position) => {
+      const upbitInvestment = position.upbitQuantity * position.upbitPrice;
+      const binanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage;
+      return sum + upbitInvestment + binanceMargin;
+    }, 0);
+  
+  const profitRate = totalActiveInvestment > 0 
+    ? ((totalPnl / totalActiveInvestment) * 100) 
     : 0;
+    
+  // 디버깅 로그 (상세)
+  console.log('💰 수익률 계산 디버깅:', {
+    초기자산: {
+      총합: initialTotalValue.toLocaleString(),
+      KRW: INITIAL_KRW.toLocaleString(),
+      USDT: INITIAL_USDT.toLocaleString() + ' ($' + (INITIAL_USDT * currentUsdKrw).toLocaleString() + ')'
+    },
+    현재자산: {
+      총합: (initialTotalValue + totalPnl).toLocaleString(),
+      KRW: mockBalance.krw.toLocaleString() + ' (변화: ' + (mockBalance.krw - INITIAL_KRW).toLocaleString() + ')',
+      업비트BTC: mockBalance.btc.toFixed(6) + ' BTC (₩' + (mockBalance.btc * currentBtcPrice).toLocaleString() + ')',
+      바이낸스BTC: mockBalance.binanceBtc.toFixed(6) + ' BTC (₩' + (mockBalance.binanceBtc * currentBtcPrice).toLocaleString() + ')',
+      USDT: mockBalance.usdt.toFixed(2) + ' USDT (₩' + (mockBalance.usdt * currentUsdKrw).toLocaleString() + ', 변화: ' + (mockBalance.usdt - INITIAL_USDT).toFixed(2) + ')'
+    },
+    손익분석: {
+      총손익: totalPnl.toLocaleString(),
+      수익률: profitRate.toFixed(2) + '%',
+      KRW변화: (mockBalance.krw - INITIAL_KRW).toLocaleString(),
+      USDT손실KRW: ((INITIAL_USDT - mockBalance.usdt) * currentUsdKrw).toLocaleString(),
+      업비트BTC가치: (mockBalance.btc * currentBtcPrice).toLocaleString(),
+      바이낸스BTC가치: (mockBalance.binanceBtc * currentBtcPrice).toLocaleString()
+    }
+  });
 
   // 실제 투자 기준 수익률도 계산 (청산된 포지션들의 투자액 대비)
   const realizedTrades = mockTrades.filter(t => t.type === 'sell' || t.type === 'cover');

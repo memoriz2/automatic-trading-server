@@ -42,6 +42,21 @@ const logError = (message, error) => {
 const app = express();
 // 리버스 프록시(HTTPS) 뒤에서 secure 쿠키 신뢰
 app.set('trust proxy', 1);
+// CORS 설정 추가 - 쿠키 전송 허용
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    }
+    else {
+        next();
+    }
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // 쿠키 파싱 (JWT 쿠키 사용)
@@ -85,7 +100,7 @@ async function setupSession() {
             maxAge: SESSION_TTL_MS,
             httpOnly: false, // ✅ 클라이언트에서도 접근 가능하도록
             secure: false, // ✅ HTTP에서도 작동
-            sameSite: 'none', // ✅ 크로스 사이트 요청 허용
+            sameSite: 'lax', // ✅ HTTP 환경에서 호환되는 설정
             path: '/' // ✅ 모든 경로에서 사용
         },
         name: 'connect.sid' // ✅ 명시적 세션 이름
@@ -126,27 +141,7 @@ app.use((req, res, next) => {
     }
     next();
 });
-// 교차 출처 요청 시 SameSite/secure 동적 설정
-app.use((req, _res, next) => {
-    try {
-        const origin = req.headers.origin;
-        if (origin && req.session) {
-            const originHost = new URL(origin).host;
-            const reqHost = (req.headers.host || '').split(',')[0].trim();
-            const isCrossSite = originHost && reqHost && originHost !== reqHost;
-            if (isCrossSite) {
-                req.session.cookie.sameSite = 'none';
-                req.session.cookie.secure = true;
-            }
-            else {
-                req.session.cookie.sameSite = 'lax';
-                req.session.cookie.secure = false;
-            }
-        }
-    }
-    catch { }
-    next();
-});
+// 동적 쿠키 설정 제거 - 고정 설정 사용
 // ✅ 정적 파일 접근 로그 미들웨어 추가
 app.use((req, res, next) => {
     const start = Date.now();

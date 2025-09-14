@@ -56,25 +56,49 @@ const LegacyAutoTradingPage = () => {
       return user?.id != null ? String(user.id) : null;
     }
   })();
-  // 🔒 안정적인 사용자 ID 관리 (전략 데이터 손실 방지)
-  const { userId: effectiveUserId, setUserId: setEffectiveUserId, stableUserId, recoverLostData } = useStableUserId();
+  // 🔒 인증된 사용자 ID 우선 사용 (데이터 일관성 보장)
+  const effectiveUserId = user?.id ? String(user.id) : userIdManager.getCurrentUserId();
   
-  // 세션 사용자 ID 변경 감지 및 동기화
+  // 사용자 ID 통일 및 데이터 마이그레이션
   useEffect(() => {
     if (user?.id) {
-      const sessionUserId = String(user.id);
-      if (sessionUserId !== effectiveUserId) {
-        console.log('🔄 세션 사용자 ID 동기화:', effectiveUserId, '→', sessionUserId);
-        setEffectiveUserId(sessionUserId);
+      const authUserId = String(user.id);
+      const stableUserId = userIdManager.getStableUserId();
+      
+      // 인증된 사용자 ID와 안정 사용자 ID가 다르면 데이터 마이그레이션
+      if (authUserId !== stableUserId) {
+        console.log('🔄 사용자 ID 통일 및 데이터 마이그레이션:', stableUserId, '→', authUserId);
+        
+        // 안정 사용자 ID의 데이터를 인증 사용자 ID로 마이그레이션
+        const stableStrategies = localStorage.getItem(`mock-strategies-${stableUserId}`);
+        if (stableStrategies && stableStrategies !== '[]') {
+          const authStrategies = localStorage.getItem(`mock-strategies-${authUserId}`) || '[]';
+          const stableParsed = JSON.parse(stableStrategies);
+          const authParsed = JSON.parse(authStrategies);
+          
+          // 중복 제거하며 병합
+          const merged = [...authParsed];
+          stableParsed.forEach((strategy: any) => {
+            if (!merged.find(s => s.id === strategy.id)) {
+              merged.push(strategy);
+            }
+          });
+          
+          localStorage.setItem(`mock-strategies-${authUserId}`, JSON.stringify(merged));
+          console.log('✅ 전략 데이터 마이그레이션 완료:', merged.length, '개');
+        }
+        
+        // 안정 사용자 ID 업데이트
+        userIdManager.setUserId(authUserId);
       }
     }
-  }, [user?.id, effectiveUserId, setEffectiveUserId]);
+  }, [user?.id]);
   
   // 🔍 컴포넌트 마운트 시 사라진 전략 데이터 자동 복구
   useEffect(() => {
     const recoverStrategies = async () => {
       try {
-        const { recovered, allFound } = recoverLostData();
+        const recovered: any[] = []; // recoverLostData 제거
         
         if (recovered.length > 0) {
           console.log('🎯 사라진 전략 데이터 발견:', recovered.length, '개');
@@ -142,7 +166,7 @@ const LegacyAutoTradingPage = () => {
     // 컴포넌트 마운트 후 1초 뒤에 복구 시도 (초기화 완료 후)
     const timer = setTimeout(recoverStrategies, 1000);
     return () => clearTimeout(timer);
-  }, [effectiveUserId, recoverLostData, toast]);
+  }, [effectiveUserId, toast]);
   
   
   // 상태 관리 (useState)
@@ -512,9 +536,9 @@ const LegacyAutoTradingPage = () => {
   // 전략 복원 완료 추적
   const hasRestoredRef = useRef(false);
 
-  // 전략 손실 감지 및 자동 복원 (한 번만)
+  // 전략 손실 감지 및 자동 복원 (임시 비활성화)
   useEffect(() => {
-    if (strategies.length === 0 && effectiveUserId && !hasRestoredRef.current) {
+    if (false && strategies.length === 0 && effectiveUserId && !hasRestoredRef.current) { // 임시 비활성화
       console.log('🚨 전략 손실 감지, 자동 복원 시도...');
       
       const restoreResult = monitorAndRestoreStrategies(effectiveUserId, strategies, setStrategies);
@@ -1612,7 +1636,7 @@ const LegacyAutoTradingPage = () => {
           
           if (sessionData.id) {
             console.log('✅ [DEBUG] 페이지 로드 - 세션 확인됨:', sessionData.id);
-            setEffectiveUserId(String(sessionData.id));
+            // effectiveUserId는 이미 sessionData.id를 사용하므로 별도 설정 불필요
             
             // Mock 모드에서는 DB 로드하지 않음
             if (tradingMode !== 'mock') {
@@ -1646,7 +1670,7 @@ const LegacyAutoTradingPage = () => {
     // 세션에서 사용자 정보가 있을 때만 전략 로드 (실거래 모드에서만)
     if (user?.id) {
       console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
-      setEffectiveUserId(String(user.id)); // 세션 사용자 ID로 설정
+      // effectiveUserId는 이미 user.id를 사용하므로 별도 설정 불필요
       
       // Mock 모드에서는 DB 로드하지 않음 (로컬 데이터만 사용)
       if (tradingMode !== 'mock') {
