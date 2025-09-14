@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { Trade, SystemAlert } from "@/types/trading";
+import { formatKoreanTime } from '@/utils/datetime';
 
 interface RecentActivityProps {
   recentTrades: Trade[];
@@ -9,11 +10,7 @@ interface RecentActivityProps {
 
 export function RecentActivity({ recentTrades, alerts }: RecentActivityProps) {
   const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    return formatKoreanTime(date);
   };
 
   const getAlertIcon = (type: string) => {
@@ -55,14 +52,14 @@ export function RecentActivity({ recentTrades, alerts }: RecentActivityProps) {
                       <p className="text-sm font-medium text-white">
                         {trade.symbol} {trade.side === 'buy' ? '김프 진입' : '포지션 청산'}
                       </p>
-                      <p className="text-xs text-slate-400">{formatTime(trade.timestamp)}</p>
+                      <p className="text-xs text-slate-400">{formatTime(new Date(trade.executedAt))}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={`text-sm font-medium ${
                       trade.side === 'buy' ? 'text-success' : 'text-danger'
                     }`}>
-                      {trade.side === 'buy' ? '+' : '-'}₩{trade.amount.toLocaleString()}
+                      {trade.side === 'buy' ? '+' : '-'}₩{(trade.amount || 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-slate-400">
                       {((Math.random() - 0.5) * 2).toFixed(2)}%

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Download, Edit, X } from "lucide-react";
 import type { Position } from "@/types/trading";
+import { formatKoreanHourMinute } from '@/utils/datetime';
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
@@ -157,10 +158,7 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-white">매수 + 숏</div>
                       <div className="text-xs text-slate-400">
-                        진입시간: {new Date(position.entryTime).toLocaleTimeString('ko-KR', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                        진입시간: {formatKoreanHourMinute(position.entryTime)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

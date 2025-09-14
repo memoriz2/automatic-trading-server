@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from "express";
+import session from 'express-session';
+import { RedisStore } from 'connect-redis';
+import { createClient } from 'redis';
 import { registerRoutes } from "./routes.js";
 import { createServer } from "http"; // ✅ 추가
 import path from 'path';
@@ -43,39 +46,61 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // 쿠키 파싱 (JWT 쿠키 사용)
 import cookieParser from 'cookie-parser';
-// @ts-ignore
-import session from 'express-session';
 app.use(cookieParser());
-// CORS (동적 Origin + Credentials 허용)
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin) {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Vary', 'Origin');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+// Session TTL 상수 정의
+const SESSION_TTL_MS = process.env.SESSION_TTL_MS ? parseInt(process.env.SESSION_TTL_MS, 10) : 1000 * 60 * 60 * 24 * 7; // 7 days default
+// Initialize Redis client and session setup
+async function setupSession() {
+    let redisStore = null;
+    try {
+        if (process.env.REDIS_URL) {
+            const redisClient = createClient({
+                url: process.env.REDIS_URL,
+                socket: {
+                    connectTimeout: 5000
+                }
+            });
+            redisClient.on('error', (err) => {
+                console.log('⚠️ Redis Client Error (fallback to memory session):', err.message);
+            });
+            try {
+                await redisClient.connect();
+                console.log('✅ Redis client connected');
+                redisStore = new RedisStore({ client: redisClient });
+            }
+            catch (connectError) {
+                console.log('⚠️ Redis 연결 실패:', connectError.message);
+            }
+        }
     }
-    if (req.method === 'OPTIONS')
-        return res.sendStatus(204);
-    next();
-});
-// 서버 세션(메모리 기반) 설정 - 개발용 최적화
-// 세션 TTL: 코드 상수(24시간)
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'dev-session-secret-2024',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: false, // 개발환경에서는 false
-        maxAge: SESSION_TTL_MS,
-        path: '/',
-    },
-    rolling: true, // 활동 시마다 세션 시간 갱신
-}));
+    catch (error) {
+        console.log('⚠️ Redis 연결 실패, 메모리 세션으로 폴백:', error.message);
+    }
+    // Session middleware setup
+    const sessionConfig = {
+        secret: process.env.SESSION_SECRET || 'a_default_secret_key_for_development',
+        resave: true, // ✅ 세션 항상 저장
+        saveUninitialized: true, // ✅ 세션 생성을 허용
+        cookie: {
+            maxAge: SESSION_TTL_MS,
+            httpOnly: false, // ✅ 클라이언트에서도 접근 가능하도록
+            secure: false, // ✅ HTTP에서도 작동
+            sameSite: 'none', // ✅ 크로스 사이트 요청 허용
+            path: '/' // ✅ 모든 경로에서 사용
+        },
+        name: 'connect.sid' // ✅ 명시적 세션 이름
+    };
+    // Redis store 설정
+    if (redisStore) {
+        sessionConfig.store = redisStore;
+        console.log('✅ Using Redis session store');
+    }
+    else {
+        console.log('⚠️ Using memory session store (fallback)');
+    }
+    app.use(session(sessionConfig));
+    return redisStore;
+}
 // 세션 갱신 미들웨어 (개선된 활동 감지)
 app.use((req, res, next) => {
     const user = req.session?.user;
@@ -160,6 +185,10 @@ app.get("/healthz", (_req, res) => {
 (async () => {
     console.log(`🔧 [${new Date().toISOString()}] HTTP 서버 생성 중...`);
     const server = createServer(app); // ✅ 1) app으로 http.Server 생성
+    // ✅ 세션 설정 먼저 실행
+    logInfo(`🔧 세션 설정 중...`);
+    await setupSession();
+    logInfo(`✅ 세션 설정 완료`);
     logInfo(`🛣️ 라우트 등록 중...`);
     console.log(`🔍 [${new Date().toISOString()}] 라우트 등록 시작 - registerRoutes 함수 호출`);
     try {

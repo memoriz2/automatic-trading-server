@@ -6,6 +6,7 @@ import { formatBTC } from '@/utils/trading/formatters';
 interface MockPosition {
   id: string;
   strategyId: string;
+  strategyName?: string; // 전략 이름 추가
   symbol: string;
   type?: string;
   entryTime: Date;
@@ -32,6 +33,8 @@ interface KimchiData {
   upbit_price: number;
   binance_price: number;
   usdkrw: number;
+  isRealTimeValid?: boolean;
+  dataAge?: number;
 }
 
 interface MockPositionListProps {
@@ -50,20 +53,22 @@ export const MockPositionList: React.FC<MockPositionListProps> = ({
   const activePositions = mockPositions.filter(p => p.status === 'open');
 
   const getStrategyName = (position: MockPosition): string => {
+    // 1. 포지션에 저장된 이름 우선 사용
+    if (position.strategyName) {
+      return position.strategyName;
+    }
+    
+    // 2. strategies 배열에서 찾기
     const strategy = strategies.find(s => s.id === position.strategyId);
     if (strategy?.name) {
-      // 강제진입 번호 표시 (이미 번호가 포함된 이름)
-      return strategy.name.includes('강제진입') ? `🧪 ${strategy.name}` : strategy.name;
+      return strategy.name;
     }
-    // strategyId가 force-entry로 시작하면 강제진입으로 표시
-    if (position.strategyId && String(position.strategyId).startsWith('force-entry')) {
+    
+    // 3. 폴백
+    if (String(position.strategyId).startsWith('force-entry')) {
       return '🧪 강제진입';
     }
-    // 포지션 타입이 force_entry면 DB에서 가져온 포지션
-    if (position.type === 'force_entry') {
-      return `🧪 강제진입${position.id || position.strategyId}`;
-    }
-    return 'Unknown';
+    return `전략 #${String(position.strategyId).slice(-4)}`; // ID 기반으로 표시
   };
 
   const calculatePnL = (position: MockPosition) => {

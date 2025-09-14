@@ -14,9 +14,13 @@ import { isNum, fx, loc, formatKRW, formatUSD, formatCompact, floorQty, formatBT
 import { normalizeAmountBtc, mapStrategyToBand } from '@/utils/trading/calculations';
 import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
 import { LEVERAGE_CONFIG, parseLeverage, normalizeLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
+import { STRATEGY_DEFAULTS, getInitialStrategy, getSafeLeverage, getSafeStrategy } from '@/config/strategy-defaults';
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
+import { emergencyRestoreStrategies, monitorAndRestoreStrategies, restoreStrategiesFromPositionsAndTrades, markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
+import { userIdManager, useStableUserId } from '@/utils/user-id-manager';
+import { strategyBackupManager, useStrategyBackup } from '@/utils/strategy-backup';
 import { Badge } from '@/components/ui/badge';
 
 interface Band {
@@ -34,7 +38,7 @@ interface Band {
 const LegacyAutoTradingPage = () => {
   // 인증 정보
   const { user, isAuthenticated, isLoading, checkSession } = useAuth();
-  const { isConnected, subscribe } = useWebSocket();
+  const { isConnected, isConnecting: wsConnecting, connectionAttempts, lastHeartbeat, subscribe } = useWebSocket();
   const { toast } = useToast();
   
   // 세션 조회 관련 상태
@@ -52,25 +56,115 @@ const LegacyAutoTradingPage = () => {
       return user?.id != null ? String(user.id) : null;
     }
   })();
-  const [effectiveUserId, setEffectiveUserId] = useState<string>(initialUserId || '6');
+  // 🔒 안정적인 사용자 ID 관리 (전략 데이터 손실 방지)
+  const { userId: effectiveUserId, setUserId: setEffectiveUserId, stableUserId, recoverLostData } = useStableUserId();
+  
+  // 세션 사용자 ID 변경 감지 및 동기화
   useEffect(() => {
-    try {
-      const search = new URLSearchParams(window.location.search);
-      const fromAuth = user?.id != null ? String(user.id) : undefined;
-      const fromQuery = search.get('userId') || search.get('uid') || undefined;
-      const fromStorage = localStorage.getItem('x-user-id') || undefined;
-      const id = fromAuth || fromQuery || fromStorage || effectiveUserId;
-      if (id && id !== effectiveUserId) {
-        setEffectiveUserId(id);
-        localStorage.setItem('x-user-id', id);
+    if (user?.id) {
+      const sessionUserId = String(user.id);
+      if (sessionUserId !== effectiveUserId) {
+        console.log('🔄 세션 사용자 ID 동기화:', effectiveUserId, '→', sessionUserId);
+        setEffectiveUserId(sessionUserId);
       }
-    } catch {}
-  }, [user?.id]);
+    }
+  }, [user?.id, effectiveUserId, setEffectiveUserId]);
+  
+  // 🔍 컴포넌트 마운트 시 사라진 전략 데이터 자동 복구
+  useEffect(() => {
+    const recoverStrategies = async () => {
+      try {
+        const { recovered, allFound } = recoverLostData();
+        
+        if (recovered.length > 0) {
+          console.log('🎯 사라진 전략 데이터 발견:', recovered.length, '개');
+          
+          // 현재 전략 목록과 병합
+          const currentKey = `mock-strategies-${effectiveUserId}`;
+          const currentData = localStorage.getItem(currentKey);
+          const currentStrategies = currentData ? JSON.parse(currentData) : [];
+          
+          // 중복 제거하며 병합
+          const mergedStrategies = [...currentStrategies];
+          for (const strategy of recovered) {
+            if (!mergedStrategies.some(existing => existing.id === strategy.id)) {
+              mergedStrategies.push(strategy);
+            }
+          }
+          
+          // 복구된 데이터 저장
+          localStorage.setItem(currentKey, JSON.stringify(mergedStrategies));
+          
+          console.log('✅ 전략 데이터 복구 완료:', mergedStrategies.length, '개 전략');
+          
+          // UI 알림 (토스트 메시지)
+          if (typeof toast === 'function') {
+            toast({
+              title: '전략 데이터 복구 완료',
+              description: `${recovered.length}개의 전략을 복구했습니다.`,
+              variant: 'default'
+            });
+          }
+          
+          // 복구 후 즉시 백업 생성
+          setTimeout(() => {
+            const backupKey = strategyBackupManager.createBackup();
+            if (backupKey) {
+              console.log('💾 복구 후 백업 생성 완료:', backupKey);
+            }
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('❌ 전략 데이터 복구 실패:', error);
+        
+        // 복구 실패 시 긴급 복구 시도
+        try {
+          console.log('🚨 긴급 복구 시도...');
+          const restored = strategyBackupManager.emergencyRestore();
+          if (restored) {
+            toast({
+              title: '긴급 복구 성공',
+              description: '백업에서 전략 데이터를 복구했습니다.',
+              variant: 'default'
+            });
+          }
+        } catch (emergencyError) {
+          console.error('❌ 긴급 복구도 실패:', emergencyError);
+          toast({
+            title: '데이터 복구 실패',
+            description: '전략 데이터를 복구할 수 없습니다. 새로 시작해주세요.',
+            variant: 'destructive'
+          });
+        }
+      }
+    };
+    
+    // 컴포넌트 마운트 후 1초 뒤에 복구 시도 (초기화 완료 후)
+    const timer = setTimeout(recoverStrategies, 1000);
+    return () => clearTimeout(timer);
+  }, [effectiveUserId, recoverLostData, toast]);
+  
   
   // 상태 관리 (useState)
   const [bands, setBands] = useState<Band[]>([]);
   type SparkPoint = { t: number; v: number };
-  const [sparkData, setSparkData] = useState<SparkPoint[]>([]);
+  const [sparkData, setSparkData] = useState<SparkPoint[]>(() => {
+    // 로컬스토리지에서 차트 데이터 복원
+    try {
+      const saved = localStorage.getItem(`kimchi-chart-data-${effectiveUserId}`);
+      if (saved) {
+        const data = JSON.parse(saved);
+        // 24시간 이내 데이터만 유지
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+        const filtered = data.filter((point: SparkPoint) => point.t > oneDayAgo);
+        console.log('📊 김치프리미엄 차트 데이터 복원:', filtered.length, '개 포인트');
+        return filtered;
+      }
+    } catch (error) {
+      console.error('차트 데이터 복원 실패:', error);
+    }
+    return [];
+  });
   const [logs, setLogs] = useState('Loading...');
   const [kimp, setKimp] = useState<any>({});
   const [balances, setBalances] = useState<any>({ real: {}, connected: {} });
@@ -87,63 +181,244 @@ const LegacyAutoTradingPage = () => {
   const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
   const [isLoadingStrategies, setIsLoadingStrategies] = useState(false); // 전략 로딩 상태 추가
   const [strategies, setStrategies] = useState<any[]>([]); // 전략 목록 상태 추가
+  
+  // 🛡️ 전략 데이터 백업 시스템
+  const { 
+    isAutoBackupEnabled, 
+    createBackup, 
+    getAllBackups, 
+    restoreFromBackup, 
+    emergencyRestore,
+    exportBackup,
+    importBackup 
+  } = useStrategyBackup();
 
-  // 거래 기록 복원 (포지션에서)
-  useEffect(() => {
-    const positionKey = `mock-positions-17`;
-    const tradeKey = `mock-trades-17`;
+  // 로딩 상태 안정화 (Mock 모드에서는 항상 true)
+  const [loadingState, setLoadingState] = useState<'stable' | 'loading'>('stable');
+  const lastStateChangeRef = useRef<number>(Date.now());
+  
+  // 실시간 데이터 유효성 검증
+  const isRealTimeDataValid = (kimchiData: any) => {
+    // Mock 모드에서는 항상 유효
+    if (tradingMode === 'mock') return true;
     
-    const savedPositions = localStorage.getItem(positionKey);
-    const savedTrades = localStorage.getItem(tradeKey);
+    const now = Date.now();
+    const dataAge = kimchiData?.timestamp ? now - new Date(kimchiData.timestamp).getTime() : Infinity;
     
-    // 포지션은 있는데 거래 기록이 없으면 복원
-    if (savedPositions && (!savedTrades || savedTrades === '[]')) {
-      try {
+    return !!(
+      kimchiData?.upbit_price && 
+      kimchiData?.binance_price && 
+      kimchiData?.usdkrw &&
+      kimchiData.upbit_price > 0 &&
+      kimchiData.binance_price > 0 &&
+      kimchiData.usdkrw > 1000 &&
+      kimchiData.usdkrw < 2000 &&
+      dataAge < 60000 // 1분 이내 데이터만 유효
+    );
+  };
+
+
+  const hasValidRealTimeData = loadingState === 'stable';
+  const dataAge = kimp?.timestamp ? Date.now() - new Date(kimp.timestamp).getTime() : Infinity;
+
+  // 거래 기록 및 전략 복원 함수
+  const restoreTradesFromPositions = useCallback(() => {
+    const positionKey = `mock-positions-${effectiveUserId}`;
+    const tradeKey = `mock-trades-${effectiveUserId}`;
+    
+    try {
+      const savedPositions = localStorage.getItem(positionKey);
+      const savedTrades = localStorage.getItem(tradeKey);
+      
+      console.log('🔍 복원 체크 - 포지션:', savedPositions ? 'exists' : 'none');
+      console.log('🔍 복원 체크 - 거래기록:', savedTrades || 'none');
+      
+      // 포지션은 있는데 거래 기록이 없거나 빈 배열이면 복원
+      if (savedPositions && (!savedTrades || savedTrades === '[]' || savedTrades === 'null')) {
         const positions = JSON.parse(savedPositions);
+        console.log('📦 복원할 포지션 개수:', positions.length);
+        
         if (positions.length > 0) {
           const restoredTrades: any[] = [];
           
           positions.forEach((position: any) => {
-            // 포지션에서 거래 기록 생성
+            console.log('🔄 포지션 복원 중:', position.id);
             const tradeId = `trade-${position.id}`;
             
-            restoredTrades.push({
-              id: `${tradeId}-upbit`,
-              timestamp: position.entryTime,
-              type: 'buy',
-              symbol: 'BTC',
-              quantity: position.upbitQuantity,
-              price: position.upbitPrice,
-              fee: position.upbitQuantity * position.upbitPrice * 0.0005,
-              exchange: 'upbit',
-              strategyId: position.strategyId,
-              strategyName: '복원된 거래',
-              premiumRate: position.entryPremiumRate
-            });
+            // 업비트 매수 거래
+            if (position.upbitQuantity > 0) {
+              restoredTrades.push({
+                id: `${tradeId}-upbit`,
+                timestamp: new Date(position.entryTime),
+                type: 'buy',
+                symbol: position.symbol || 'BTC',
+                quantity: position.upbitQuantity,
+                price: position.upbitPrice,
+                fee: (position.upbitQuantity * position.upbitPrice * 0.0005) || 0,
+                exchange: 'upbit',
+                strategyId: position.strategyId,
+                strategyName: '복원된 거래',
+                premiumRate: position.entryPremiumRate || 0
+              });
+            }
             
-            restoredTrades.push({
-              id: `${tradeId}-binance`,
-              timestamp: position.entryTime,
-              type: 'short',
-              symbol: 'BTC',
-              quantity: position.binanceQuantity,
-              price: position.binancePrice,
-              fee: position.binanceQuantity * position.binancePrice * 0.0004,
-              exchange: 'binance',
-              strategyId: position.strategyId,
-              strategyName: '복원된 거래',
-              premiumRate: position.entryPremiumRate
-            });
+            // 바이낸스 선물 매도 거래
+            if (position.binanceQuantity > 0) {
+              restoredTrades.push({
+                id: `${tradeId}-binance`,
+                timestamp: new Date(position.entryTime),
+                type: 'short',
+                symbol: position.symbol || 'BTC',
+                quantity: position.binanceQuantity,
+                price: position.binancePrice,
+                fee: (position.binanceQuantity * position.binancePrice * 0.0004) || 0,
+                exchange: 'binance',
+                strategyId: position.strategyId,
+                strategyName: '복원된 거래',
+                premiumRate: position.entryPremiumRate || 0
+              });
+            }
           });
           
           // Local Storage에 거래 기록 저장
           localStorage.setItem(tradeKey, JSON.stringify(restoredTrades));
-          console.log('🔄 포지션에서 거래 기록 복원:', restoredTrades.length, '개');
+          console.log('✅ 포지션에서 거래 기록 복원 완료:', restoredTrades.length, '개');
+          console.log('📋 복원된 거래 목록:', restoredTrades);
+          
+          return restoredTrades;
         }
-      } catch (error) {
-        console.error('거래 기록 복원 실패:', error);
       }
+      
+      // 기존 거래 기록이 있다면 반환
+      if (savedTrades && savedTrades !== '[]') {
+        const existingTrades = JSON.parse(savedTrades);
+        console.log('📋 기존 거래 기록 사용:', existingTrades.length, '개');
+        return existingTrades;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('❌ 거래 기록 복원 실패:', error);
+      return [];
     }
+  }, [effectiveUserId]);
+
+  // 전략 목록 저장/복원 함수
+  const saveStrategiesToLocal = useCallback((strategiesToSave: any[]) => {
+    try {
+      const strategyKey = `mock-strategies-${effectiveUserId}`;
+      localStorage.setItem(strategyKey, JSON.stringify(strategiesToSave));
+      console.log('💾 전략 목록 로컬 저장 완료:', strategiesToSave.length, '개');
+    } catch (error) {
+      console.error('❌ 전략 목록 저장 실패:', error);
+    }
+  }, []);
+
+  const loadStrategiesFromLocal = useCallback(() => {
+    try {
+      console.log('📋 loadStrategiesFromLocal 시작 - effectiveUserId:', effectiveUserId);
+      
+      const strategyKey = `mock-strategies-${effectiveUserId}`;
+      const savedStrategies = localStorage.getItem(strategyKey);
+      
+      console.log('전략 키:', strategyKey);
+      console.log('저장된 전략 원본:', savedStrategies);
+      
+      if (savedStrategies && savedStrategies !== '[]') {
+        const strategies = JSON.parse(savedStrategies);
+        console.log('📋 로컬 전략 목록 복원:', strategies.length, '개');
+        return strategies;
+      }
+      
+      console.log('📋 저장된 전략 없음, 백업에서 긴급 복원 시도...');
+      
+      // 긴급 복원 시도
+      let restoredStrategies = emergencyRestoreStrategies(effectiveUserId);
+      
+      // 포지션과 거래 기록에서 누락된 전략 추가 복원
+      const missingStrategies = restoreStrategiesFromPositionsAndTrades(effectiveUserId, restoredStrategies);
+      
+      if (missingStrategies.length > 0) {
+        restoredStrategies = [...restoredStrategies, ...missingStrategies];
+        // 중복 제거
+        restoredStrategies = restoredStrategies.filter((strategy, index, self) => 
+          index === self.findIndex(s => s.id === strategy.id)
+        );
+        
+        // 업데이트된 전략 목록 저장
+        localStorage.setItem(`mock-strategies-${effectiveUserId}`, JSON.stringify(restoredStrategies));
+        console.log(`🔄 포지션/거래에서 추가 복원: ${missingStrategies.length}개`);
+      }
+      
+      if (restoredStrategies.length > 0) {
+        console.log('🚨 전략 긴급 복원 성공:', restoredStrategies.length, '개');
+        toast({
+          title: "🛡️ 전략 자동 복원",
+          description: `백업과 포지션에서 ${restoredStrategies.length}개 전략이 복원되었습니다!`,
+          duration: 5000,
+        });
+        return restoredStrategies;
+      }
+      
+      console.log('📋 백업에도 전략 없음, 빈 배열 반환');
+      return [];
+    } catch (error) {
+      console.error('❌ 전략 목록 복원 실패:', error);
+      return [];
+    }
+  }, [effectiveUserId, toast]);
+
+  // 로컬스토리지 변경 감지 (디버깅용)
+  useEffect(() => {
+    const originalSetItem = localStorage.setItem;
+    const originalRemoveItem = localStorage.removeItem;
+    const originalClear = localStorage.clear;
+    
+    localStorage.setItem = function(key, value) {
+      console.log('📝 localStorage.setItem:', key, value?.slice(0, 100) + '...');
+      return originalSetItem.call(this, key, value);
+    };
+    
+    localStorage.removeItem = function(key) {
+      console.log('🗑️ localStorage.removeItem:', key);
+      return originalRemoveItem.call(this, key);
+    };
+    
+    localStorage.clear = function() {
+      console.log('💥 localStorage.clear() 호출됨!');
+      return originalClear.call(this);
+    };
+    
+    return () => {
+      localStorage.setItem = originalSetItem;
+      localStorage.removeItem = originalRemoveItem;
+      localStorage.clear = originalClear;
+    };
+  }, []);
+
+  // 컴포넌트 마운트 시 거래 기록 및 전략 복원
+  useEffect(() => {
+    console.log('🚀 컴포넌트 마운트 - 데이터 복원 시작');
+    
+    // 거래 기록 복원 (즉시 + 1초 후 한번 더)
+    const restoredTrades = restoreTradesFromPositions();
+    
+    // 1초 후 한번 더 시도 (컴포넌트가 완전히 로드된 후)
+    const retryTimeout = setTimeout(() => {
+      console.log('🔄 거래 기록 복원 재시도');
+      restoreTradesFromPositions();
+    }, 1000);
+    
+    // 전략 목록 복원
+    const restoredStrategies = loadStrategiesFromLocal();
+    if (restoredStrategies.length > 0) {
+      setStrategies(restoredStrategies);
+      console.log('📋 전략 목록 복원 완료:', restoredStrategies.length, '개');
+    }
+    
+    console.log('✅ 데이터 복원 완료');
+    
+    return () => clearTimeout(retryTimeout);
   }, []); // 마운트 시 한 번만 실행
   
   // 새 전략 모달 상태
@@ -160,20 +435,12 @@ const LegacyAutoTradingPage = () => {
     activateImmediately: boolean;
   };
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newStrategy, setNewStrategy] = useState<NewStrategyForm>({
-    name: '',
-    crypto: '',
-    entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
-    takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
-    baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
-    investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
-    leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
-    tolerance: '0.05',        // 허용오차 0.05 고정
-    riskLevel: 'moderate',
-    activateImmediately: false
-  });
+  const [newStrategy, setNewStrategy] = useState<NewStrategyForm>(
+    getInitialStrategy()
+  );
 
   // 차트 관련 상태는 KimchiChart 컴포넌트로 이동됨
+
 
   // 투자수량 변경 시 기본투자금액 자동 계산 (비동기 처리로 깜박임 방지)
   useEffect(() => {
@@ -185,15 +452,15 @@ const LegacyAutoTradingPage = () => {
       if (!Number.isFinite(n)) return;
       
       // 기본투자금액만 업데이트 (투자수량은 건드리지 않음)
-      const btcAmount = n || 0.003;
-      const leverage = parseFloat(newStrategy.leverage) || 3;
-      const btcPrice = Number(kimp?.upbit_price) || 158000000;
+      const btcAmount = n || parseFloat(STRATEGY_DEFAULTS.INVESTMENT_AMOUNT);
+      const leverage = getSafeLeverage(newStrategy.leverage);
+                    const btcPrice = Number(kimp?.upbit_price) || 0;
       const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
       
       if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
         setNewStrategy(prev => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
       }
-    }, 300); // 300ms 디바운스로 깜박임 방지
+    }, 800); // 800ms 디바운스로 깜박임 방지
 
     return () => clearTimeout(timeoutId);
   }, [newStrategy.investmentAmount, newStrategy.leverage, kimp?.upbit_price]);
@@ -220,8 +487,78 @@ const LegacyAutoTradingPage = () => {
     setRealStrategies
   } = useTradingMode({ user });
 
+
+  // Mock 모드에서 strategies 상태가 변경될 때마다 localStorage에 저장 + 백업
+  useEffect(() => {
+    if (tradingMode === 'mock' && effectiveUserId) {
+      const storageKey = `mock-strategies-${effectiveUserId}`;
+      console.log('💾 Mock 전략 저장:', { storageKey, count: strategies.length });
+      localStorage.setItem(storageKey, JSON.stringify(strategies));
+      
+      // 전략 변경 시 자동 백업 (5초 디바운스)
+      const backupTimer = setTimeout(() => {
+        if (strategies.length > 0) {
+          const backupKey = createBackup();
+          if (backupKey) {
+            console.log('🛡️ 전략 변경 후 자동 백업:', backupKey);
+          }
+        }
+      }, 5000);
+      
+      return () => clearTimeout(backupTimer);
+    }
+  }, [strategies, tradingMode, effectiveUserId, createBackup]);
+
+  // 전략 복원 완료 추적
+  const hasRestoredRef = useRef(false);
+
+  // 전략 손실 감지 및 자동 복원 (한 번만)
+  useEffect(() => {
+    if (strategies.length === 0 && effectiveUserId && !hasRestoredRef.current) {
+      console.log('🚨 전략 손실 감지, 자동 복원 시도...');
+      
+      const restoreResult = monitorAndRestoreStrategies(effectiveUserId, strategies, setStrategies);
+      
+      if (restoreResult.success) {
+        hasRestoredRef.current = true; // 복원 완료 표시
+        toast({
+          title: "🛡️ 전략 자동 복원",
+          description: `${restoreResult.count}개 전략이 백업에서 자동 복원되었습니다!`,
+          duration: 5000,
+        });
+      }
+    }
+    
+    // 전략이 있으면 복원 플래그 리셋
+    if (strategies.length > 0) {
+      hasRestoredRef.current = false;
+    }
+  }, [strategies.length, effectiveUserId, toast]);
+
   // API 연결 상태 관리 (커스텀 훅)
   const { apiConnected, isConnecting } = useApiConnection({ tradingMode });
+
+  // 로딩 상태 관리 (10초 이상 안정 후에만 변경)
+  useEffect(() => {
+    const now = Date.now();
+    const isDataValid = isRealTimeDataValid(kimp);
+    const shouldLoad = tradingMode === 'real' && (!isDataValid || !apiConnected);
+    
+    // 상태 변경이 필요한 경우에만 처리
+    if (shouldLoad && loadingState === 'stable') {
+      // 로딩으로 변경하기 전 10초 대기
+      if (now - lastStateChangeRef.current > 10000) {
+        setLoadingState('loading');
+        lastStateChangeRef.current = now;
+      }
+    } else if (!shouldLoad && loadingState === 'loading') {
+      // 안정으로 변경하기 전 3초 대기
+      if (now - lastStateChangeRef.current > 3000) {
+        setLoadingState('stable');
+        lastStateChangeRef.current = now;
+      }
+    }
+  }, [kimp, apiConnected, tradingMode, loadingState]);
 
   // 중복 로직들이 커스텀 훅으로 이동됨
 
@@ -261,7 +598,21 @@ const LegacyAutoTradingPage = () => {
   const hasScheduledInitialLoadRef = useRef<boolean>(false);
 
   const cancelInflight = useCallback(() => {
-    try { abortersRef.current.forEach((a) => { try { a.abort(); } catch {} }); } finally { abortersRef.current = []; }
+    try { 
+      abortersRef.current.forEach((a) => { 
+        try { 
+          if (a && !a.signal.aborted) {
+            a.abort(); 
+          }
+        } catch (e) {
+          console.warn('AbortController 정리 중 오류:', e);
+        }
+      }); 
+    } catch (e) {
+      console.warn('cancelInflight 오류:', e);
+    } finally { 
+      abortersRef.current = []; 
+    }
   }, []);
 
   // useEffect를 사용하여 초기화 및 폴링 로직을 설정합니다.
@@ -383,8 +734,13 @@ const LegacyAutoTradingPage = () => {
       }
       setServerBands(serverData || []);
       // NOTE: 게이트는 실제 전략 목록 로드에서만 설정합니다
-    } catch (e) {
-      console.error('Failed to fetch server bands', e);
+    } catch (e: any) {
+      // AbortError는 정상적인 취소이므로 오류 로그 생략
+      if (e?.name === 'AbortError' || /aborted/i.test(String(e?.message))) {
+        console.log('📋 서버 밴드 조회가 취소됨 (정상)');
+      } else {
+        console.error('❌ 서버 밴드 조회 실패:', e);
+      }
     }
   }, [fetchJson, effectiveUserId]);
 
@@ -471,8 +827,22 @@ const LegacyAutoTradingPage = () => {
         setSparkData(prev => {
           const next = { t: Date.now(), v: Number(k.kimp) };
           const newData = [...prev, next];
-          // 최대 5000 포인트 유지 (메모리 보호)
-          return newData.slice(-5000);
+          
+          // 24시간 이내 데이터만 유지 + 최대 5000 포인트
+          const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+          const filtered = newData.filter(point => point.t > oneDayAgo).slice(-5000);
+          
+          // 로컬스토리지에 저장 (5분마다 또는 100개 포인트마다)
+          if (filtered.length % 100 === 0 || Date.now() % 300000 < 1000) {
+            try {
+              localStorage.setItem(`kimchi-chart-data-${effectiveUserId}`, JSON.stringify(filtered));
+              console.log('📊 김치프리미엄 차트 데이터 저장:', filtered.length, '개 포인트');
+            } catch (error) {
+              console.error('차트 데이터 저장 실패:', error);
+            }
+          }
+          
+          return filtered;
         });
       }
       
@@ -485,8 +855,11 @@ const LegacyAutoTradingPage = () => {
           }
         });
       }, 0);
-    } catch (e) { 
-      console.error('tickLight 오류:', e); 
+    } catch (e: any) { 
+      // AbortError는 정상적인 취소이므로 오류 로그 생략
+      if (e?.name !== 'AbortError' && !/aborted/i.test(String(e?.message))) {
+        console.error('❌ tickLight 오류:', e); 
+      }
     }
   }, [fetchJson, updatePreviewForRow]);
 
@@ -506,7 +879,7 @@ const LegacyAutoTradingPage = () => {
       const fallbackPrice = isNum(kimp.binance_price) ? Number(kimp.binance_price) : 0;
       let total = 0;
       for (const p of open) {
-        const lev = Math.max(1, parseInt(p?.leverage ?? 3, 10));
+        const lev = getSafeLeverage(p?.leverage);
         const qty = Number(p?.binanceQuantity || 0);
         const price = Number(p?.binancePrice || fallbackPrice || 0);
         if (qty > 0 && price > 0 && isFinite(lev)) total += (qty * price) / lev;
@@ -539,7 +912,7 @@ const LegacyAutoTradingPage = () => {
       for (const band of bands) {
         const state = band?.state;
         const qty = Number(band?.filled_qty || 0);
-        const leverage = Math.max(1, parseInt(band?.leverage ?? 3, 10));
+        const leverage = getSafeLeverage(band?.leverage);
         
         if (includeStates.has(state) && qty > 0 && isFinite(leverage)) {
           // 증거금 = 명목가치 / 레버리지
@@ -631,7 +1004,12 @@ const LegacyAutoTradingPage = () => {
 
       // 진입 증거금 업데이트(런타임 상태 사용)
       if (kgaStat) updateUsedMarginFromStatus(kgaStat);
-    } catch (e) { console.error(e); }
+    } catch (e: any) { 
+      // AbortError는 정상적인 취소이므로 오류 로그 생략
+      if (e?.name !== 'AbortError' && !/aborted/i.test(String(e?.message))) {
+        console.error('❌ tickHeavy 오류:', e); 
+      }
+    }
   }, [fetchJson, updateUsedMarginFromStatus, effectiveUserId]);
 
 
@@ -639,7 +1017,14 @@ const LegacyAutoTradingPage = () => {
   const handleAddBand = useCallback(() => {
     setBands(prevBands => {
       const idx = prevBands.length + 1;
-      return [...prevBands, { name: `B${idx}`, target_kimp: 0, exit_kimp: 0.2, tolerance: 0.1, leverage: 3, amount_btc: 0.001 }];
+      return [...prevBands, { 
+        name: `B${idx}`, 
+        target_kimp: 0.0, 
+        exit_kimp: 0.0, 
+        tolerance: 0.05, 
+        leverage: 1, 
+        amount_btc: 0.000 
+      }];
     });
   }, []);
 
@@ -694,22 +1079,15 @@ const LegacyAutoTradingPage = () => {
         toast({ title: '불러오기 완료', description: '세션 사용자 전략을 적용했습니다.' });
         return;
       }
-      // 2) 폴백: 6 → 1 순서로 시도
-      const candidates = Array.from(new Set([effectiveUserId, '6', '1'])).filter(Boolean);
-      for (const uid of candidates) {
-        if (uid === effectiveUserId) continue;
-        const alt = await fetchJson(`/api/trading-strategies/${uid}`);
-        if (Array.isArray(alt) && alt.length > 0) {
-          const next = alt.map(mapStrategyToBand);
-          setBands(next);
-          try {
-            localStorage.setItem('x-user-id', uid);
-            localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: next }));
-          } catch {}
-          setEffectiveUserId(uid);
-          toast({ title: '불러오기 완료', description: `DB 전략을 userId=${uid}에서 불러와 적용했습니다.` });
-          return;
-        }
+      // 세션 사용자 ID가 없으면 에러 표시 (폴백 제거)
+      if (!user?.id) {
+        console.error('❌ 세션에서 사용자 ID를 받을 수 없어 전략을 불러올 수 없습니다');
+        toast({
+          title: '세션 필요',
+          description: '전략을 불러오려면 로그인이 필요합니다. 다시 로그인해주세요.',
+          variant: 'destructive'
+        });
+        return;
       }
       // 3) 최종 폴백: 로컬 저장
       const raw = localStorage.getItem('kimp_cfg_bands_v2');
@@ -741,7 +1119,7 @@ const LegacyAutoTradingPage = () => {
         entryRate: String(band.target_kimp ?? 0),
         exitRate: String(band.exit_kimp ?? 0),
         toleranceRate: String(band.tolerance ?? 0.1),
-        leverage: Number(band.leverage ?? 3),
+        leverage: getSafeLeverage(band.leverage),
         // 서버는 KRW 금액을 기대하므로 BTC 수량 → KRW로 변환하여 저장
         investmentAmount: (() => {
           const qty = Number(band.amount_btc ?? 0) || 0;
@@ -835,6 +1213,8 @@ const LegacyAutoTradingPage = () => {
       console.log(`[레거시 클라이언트] 서버에 청산 요청 전송: DELETE /api/trading-strategies/${id}`);
       // 서버에서 전략 삭제
       await fetchJson(`/api/trading-strategies/${id}`, { method: 'DELETE' });
+      // 삭제된 전략 기록 (복원 방지)
+      markStrategyAsDeleted(effectiveUserId, String(id));
       // 낙관적 제거
       removeBoardRowOptimistic(id);
       console.log(`[레거시 클라이언트] 서버 요청 성공 후 UI에서 해당 전략 제거됨.`);
@@ -855,6 +1235,8 @@ const LegacyAutoTradingPage = () => {
     try {
       setBoardActingId(id);
       await fetchJson(`/api/trading-strategies/${id}`, { method: 'DELETE' });
+      // 삭제된 전략 기록 (복원 방지)
+      markStrategyAsDeleted(effectiveUserId, String(id));
       removeBoardRowOptimistic(id);
       toast({ title: '대기 취소', description: `전략 #${id}가 삭제되었습니다.` });
     } catch (e) {
@@ -1050,13 +1432,13 @@ const LegacyAutoTradingPage = () => {
                     strategyType: 'positive_kimchi',
                     entryRate: strategy.entryCondition,
                     exitRate: strategy.takeProfitCondition,
-                    toleranceRate: strategy.tolerance,
-                    leverage: parseInt(strategy.leverage) || 3,
+                    toleranceRate: strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
+                    leverage: getSafeLeverage(strategy.leverage),
                     investmentAmount: strategy.investmentAmount,
                     symbol: strategy.crypto || 'BTC',
                     isActive: true,
                     isAutoTrading: true,
-                    tolerance: strategy.tolerance
+                    tolerance: strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
                   };
                   
                   console.log('🔄 자동 활성화 payload:', payload);
@@ -1111,12 +1493,13 @@ const LegacyAutoTradingPage = () => {
         hasEffectiveUserId: !!effectiveUserId 
       });
       
-      if (!user?.id && !effectiveUserId) {
-        console.warn('⏸️ [DEBUG] 세션 사용자 미확정으로 전략 조회를 보류합니다.');
+      // 세션 기반 사용자 ID 필수 (Mock 모드에서도)
+      if (!user?.id) {
+        console.warn('⏸️ 세션 없음: 로그인 필요');
         toast({ 
-          title: '전략 조회 보류', 
-          description: '로그인 후 다시 시도해주세요.', 
-          variant: 'destructive' 
+          title: '로그인 필요', 
+          description: '전략을 사용하려면 먼저 로그인해주세요.', 
+          variant: 'destructive'
         });
         return;
       }
@@ -1142,7 +1525,7 @@ const LegacyAutoTradingPage = () => {
           takeProfitCondition: String(s.exit_rate || 2.0),
           investmentAmount: String(s.investment_amount),
           leverage: String(s.leverage),
-          tolerance: String(s.tolerance_rate || TRADING_CONSTANTS.DEFAULT_TOLERANCE),
+          tolerance: String(s.tolerance_rate || s.tolerance || TRADING_CONSTANTS.DEFAULT_TOLERANCE),
           riskLevel: 'moderate',
           isActive: s.is_active,
           profitRate: s.total_profit > 0 ? `+${s.total_profit}` : String(s.total_profit || '+0.00'),
@@ -1230,8 +1613,14 @@ const LegacyAutoTradingPage = () => {
           if (sessionData.id) {
             console.log('✅ [DEBUG] 페이지 로드 - 세션 확인됨:', sessionData.id);
             setEffectiveUserId(String(sessionData.id));
-            console.log('🚀 [DEBUG] loadStrategiesFromDB 호출 예정');
-            loadStrategiesFromDB();
+            
+            // Mock 모드에서는 DB 로드하지 않음
+            if (tradingMode !== 'mock') {
+              console.log('🚀 [DEBUG] 실거래 모드 - loadStrategiesFromDB 호출');
+              loadStrategiesFromDB();
+            } else {
+              console.log('🧪 [DEBUG] Mock 모드 - DB 로드 건너뜀, 로컬 데이터 사용');
+            }
           } else {
             console.log('❌ [DEBUG] 페이지 로드 - 세션 없음, 로그인 필요');
           }
@@ -1254,16 +1643,23 @@ const LegacyAutoTradingPage = () => {
       userLoading: !user && effectiveUserId
     });
     
-    // 세션에서 사용자 정보가 있을 때만 전략 로드
+    // 세션에서 사용자 정보가 있을 때만 전략 로드 (실거래 모드에서만)
     if (user?.id) {
       console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
       setEffectiveUserId(String(user.id)); // 세션 사용자 ID로 설정
-      hasLoadedStrategiesRef.current = false; // 사용자 변경 시 한 번 더 허용
-      loadStrategiesFromDB();
+      
+      // Mock 모드에서는 DB 로드하지 않음 (로컬 데이터만 사용)
+      if (tradingMode !== 'mock') {
+        hasLoadedStrategiesRef.current = false; // 사용자 변경 시 한 번 더 허용
+        loadStrategiesFromDB();
+        console.log('🔄 실거래 모드 - DB에서 전략 로드');
+      } else {
+        console.log('🧪 Mock 모드 - 로컬 데이터만 사용, DB 로드 건너뜀');
+      }
     } else {
       console.log('⚠️ 세션에 사용자 정보가 없습니다. 조회 보류');
     }
-  }, [user?.id]);
+  }, [user?.id, tradingMode]);
 
   // 웹소켓 메시지 핸들러 등록
   useEffect(() => {
@@ -1273,12 +1669,39 @@ const LegacyAutoTradingPage = () => {
       if (data && data.length > 0) {
         const btcData = data.find(item => item.symbol === 'BTC');
         if (btcData) {
-          setKimp({
+          const newKimpData = {
             kimp: btcData.premiumRate,
             upbit_price: btcData.upbitPrice,
             binance_price: btcData.binanceFuturesPrice,
-            usdkrw: btcData.usdKrwRate || btcData.exchangeRate
-          });
+            usdkrw: btcData.usdKrwRate || btcData.exchangeRate,
+            timestamp: new Date().toISOString()
+          };
+          
+          setKimp(newKimpData);
+          
+          // 웹소켓 데이터도 차트에 추가
+          if (isNum(btcData.premiumRate)) {
+            setSparkData(prev => {
+              const next = { t: Date.now(), v: Number(btcData.premiumRate) };
+              const newData = [...prev, next];
+              
+              // 24시간 이내 데이터만 유지 + 최대 5000 포인트
+              const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+              const filtered = newData.filter(point => point.t > oneDayAgo).slice(-5000);
+              
+              // 로컬스토리지에 저장 (100개 포인트마다)
+              if (filtered.length % 100 === 0) {
+                try {
+                  localStorage.setItem(`kimchi-chart-data-${effectiveUserId}`, JSON.stringify(filtered));
+                  console.log('📊 웹소켓 김프 데이터 저장:', filtered.length, '개 포인트');
+                } catch (error) {
+                  console.error('웹소켓 차트 데이터 저장 실패:', error);
+                }
+              }
+              
+              return filtered;
+            });
+          }
         }
       }
     });
@@ -1292,8 +1715,8 @@ const LegacyAutoTradingPage = () => {
     const intervals: NodeJS.Timeout[] = [];
     const startPolling = () => {
       stopPolling();
-      intervals.push(setInterval(tickLight, 900));
-      intervals.push(setInterval(tickHeavy, 2500));
+      intervals.push(setInterval(tickLight, 3000));  // 0.9초 → 3초
+      intervals.push(setInterval(tickHeavy, 10000)); // 2.5초 → 10초
       tickLight();
       tickHeavy();
     };
@@ -1304,8 +1727,21 @@ const LegacyAutoTradingPage = () => {
     startPolling();
     const onVis = () => { if (document.hidden) { stopPolling(); } else { startPolling(); } };
     document.addEventListener('visibilitychange', onVis);
-    return () => { document.removeEventListener('visibilitychange', onVis); stopPolling(); };
-  }, [tickLight, tickHeavy, cancelInflight]);
+    return () => { 
+      document.removeEventListener('visibilitychange', onVis); 
+      stopPolling(); 
+      
+      // 페이지 종료 시 차트 데이터 저장
+      try {
+        const currentSparkData = JSON.parse(localStorage.getItem(`kimchi-chart-data-${effectiveUserId}`) || '[]');
+        if (currentSparkData.length > 0) {
+          console.log('📊 페이지 종료 시 차트 데이터 유지:', currentSparkData.length, '개 포인트');
+        }
+      } catch (error) {
+        console.error('페이지 종료 시 차트 데이터 확인 실패:', error);
+      }
+    };
+  }, [tickLight, tickHeavy, cancelInflight, effectiveUserId]); // sparkData 제거 - 무한 렌더링 방지
 
 
   // 차트 그리기 로직은 KimchiChart 컴포넌트로 이동됨
@@ -1344,6 +1780,35 @@ const LegacyAutoTradingPage = () => {
 
   console.log('✅ 정상 렌더링 시작');
 
+  // 실시간 데이터 상태 (자동매매 섹션에서 사용) - 임시 비활성화
+  const needsLoading = false; // 임시로 로딩 비활성화
+  const realTimeDataStatus = needsLoading ? (
+    <div className="p-8 text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mx-auto mb-4"></div>
+      <h3 className="text-xl font-semibold text-white mb-2">
+        {!apiConnected ? '거래소 API 연결 중' : '실시간 데이터 연결 중'}
+      </h3>
+      <div className="space-y-1 text-slate-400 text-sm">
+        <p>🔄 WebSocket: {isConnected ? '✅ 연결됨' : wsConnecting ? '🔄 연결 중...' : '❌ 연결 끊김'}</p>
+        <p>🔌 API 연결: {apiConnected ? '✅ 연결됨' : isConnecting ? '🔄 연결 중...' : '❌ 연결 끊김'}</p>
+        <p>📡 연결 시도: {connectionAttempts}회</p>
+        {lastHeartbeat && (
+          <p>💓 마지막 Heartbeat: {Math.round((Date.now() - (lastHeartbeat?.getTime() || 0)) / 1000)}초 전</p>
+        )}
+        {dataAge < Infinity && (
+          <p>📊 데이터 나이: {Math.round(dataAge / 1000)}초</p>
+        )}
+      </div>
+      <div className="mt-4 p-3 bg-slate-800 rounded-lg">
+        <p className="text-sm text-yellow-400">
+          🚨 실거래 모드에서는 안정적인 연결이 필요합니다
+        </p>
+        <p className="text-xs text-slate-500 mt-1">
+          {!apiConnected ? '업비트 및 바이낸스 API 연결 중...' : '실시간 가격 데이터 수신 중...'}
+        </p>
+      </div>
+    </div>
+  ) : null;
   
   return (
     <>
@@ -1372,17 +1837,21 @@ const LegacyAutoTradingPage = () => {
                 <StrategyList
                 strategies={strategies} // Mock 모드: 로컬 전략
                 isLoadingStrategies={isLoadingStrategies}
-                onStrategyUpdate={setStrategies}
+                onStrategyUpdate={(updatedStrategies) => {
+                  setStrategies(updatedStrategies);
+                  // 전략 업데이트 시 자동 저장
+                  saveStrategiesToLocal(updatedStrategies);
+                }}
                 onStrategyEdit={(strategy) => {
                           setNewStrategy({
                             name: strategy.name,
                             crypto: strategy.crypto,
                             entryCondition: strategy.entryCondition,
                             takeProfitCondition: strategy.takeProfitCondition,
-                            baseAmount: '500000',
-                            investmentAmount: strategy.investmentAmount?.toString() || '0.003',
+                            baseAmount: (strategy as any).baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT,
+                            investmentAmount: strategy.investmentAmount?.toString() || STRATEGY_DEFAULTS.INVESTMENT_AMOUNT,
                             leverage: strategy.leverage,
-                            tolerance: strategy.tolerance || '0.01',
+                            tolerance: strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
                             riskLevel: strategy.riskLevel,
                             activateImmediately: strategy.isActive
                           });
@@ -1391,18 +1860,7 @@ const LegacyAutoTradingPage = () => {
                         }}
                 onCreateNew={() => {
                   setEditingStrategyId(null);
-                  setNewStrategy({
-                    name: '',
-                    crypto: '',
-                    entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
-                    takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
-                    baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
-                    investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
-                    leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
-                    tolerance: '0.05',        // 허용오차 0.05 고정
-                    riskLevel: 'moderate',
-                    activateImmediately: false
-                  });
+                  setNewStrategy(getInitialStrategy());
                   setShowCreateModal(true);
                 }}
                 fetchJson={fetchJson}
@@ -1416,7 +1874,12 @@ const LegacyAutoTradingPage = () => {
             </div>
             {/* 일일 거래 통계 */}
             <div className="mt-4 pt-4 border-t border-slate-600">
-              <h4 className="text-slate-400 text-sm mb-3">오늘의 거래 통계</h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-slate-400 text-sm">오늘의 거래 통계</h4>
+                <div className="flex gap-1">
+                  
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
                   <p className="text-xl font-bold text-blue-400">{dailyStats.totalTrades}</p>
@@ -1465,8 +1928,8 @@ const LegacyAutoTradingPage = () => {
                     takeProfitCondition: strategy.takeProfitCondition || '0',
                     baseAmount: strategy.baseAmount || '0',
                     investmentAmount: strategy.investmentAmount || '0',
-                    leverage: strategy.leverage || '0',
-                    tolerance: '0.05', // 허용오차 고정
+                    leverage: strategy.leverage || '1',
+                    tolerance: strategy.tolerance || '0.05', // 허용오차 복원 (기본값 0.05%)
                     riskLevel: strategy.riskLevel || 'moderate',
                     activateImmediately: strategy.isActive || false
                   });
@@ -1475,18 +1938,7 @@ const LegacyAutoTradingPage = () => {
                 }} // 실거래에서도 편집 가능
                 onCreateNew={() => {
                   setEditingStrategyId(null);
-                  setNewStrategy({
-                    name: '',
-                    crypto: '',
-                    entryCondition: '0',      // 0으로 초기화 (사용자 직접 입력)
-                    takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
-                    baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
-                    investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
-                    leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
-                    tolerance: '0.05',        // 허용오차 0.05 고정
-                    riskLevel: 'moderate',
-                    activateImmediately: false
-                  });
+                  setNewStrategy(getInitialStrategy());
                   setShowCreateModal(true);
                 }} // 실거래에서도 생성 가능
                 fetchJson={fetchJson}
@@ -1527,24 +1979,32 @@ const LegacyAutoTradingPage = () => {
 
           {/* 거래 시스템 섹션 */}
           <section className="card col-12">
-            {(tradingMode === 'mock' && canUseMock) ? (
+            {realTimeDataStatus ? realTimeDataStatus : (tradingMode === 'mock' && canUseMock) ? (
               /* Mock 매매시스템 */
             <MockTradingSystem 
                 strategies={strategies} // Mock 모드: 로컬 전략
+                setStrategies={setStrategies} // 전략 복원을 위해 추가
               currentKimchiData={{
                 kimp: Number(kimp?.kimp) || 0.5,
-                upbit_price: Number(kimp?.upbit_price) || 158000000,
-                binance_price: Number(kimp?.binance_price) || 114000,
-                usdkrw: Number(kimp?.usdkrw) || 1380
+                upbit_price: Number(kimp?.upbit_price) || 0, // 실시간 데이터만 사용
+                binance_price: Number(kimp?.binance_price) || 0, // 실시간 데이터만 사용
+                usdkrw: Number(kimp?.usdkrw) || 0, // 실시간 데이터만 사용
+                isRealTimeValid: hasValidRealTimeData,
+                dataAge: Math.round(dataAge / 1000)
               }}
               userId={user?.id ? String(user.id) : "1"}
               onDailyStatsUpdate={setDailyStats}
                 isLiveMode={false}
               onStrategyStatsUpdate={(stats) => {
-                setStrategies(prev => prev.map(s => {
-                  const st = stats[s.id];
-                  return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
-                }));
+                setStrategies(prev => {
+                  const updated = prev.map(s => {
+                    const st = stats[s.id];
+                    return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
+                  });
+                  // 통계 업데이트 시에도 자동 저장
+                  saveStrategiesToLocal(updated);
+                  return updated;
+                });
               }}
             />
             ) : (
@@ -1555,9 +2015,11 @@ const LegacyAutoTradingPage = () => {
                   strategies={realStrategies} // 실거래 모드: DB 조회 전략
                   currentKimchiData={{
                     kimp: Number(kimp?.kimp) || 0.5,
-                    upbit_price: Number(kimp?.upbit_price) || 158000000,
-                    binance_price: Number(kimp?.binance_price) || 114000,
-                    usdkrw: Number(kimp?.usdkrw) || 1380
+                    upbit_price: Number(kimp?.upbit_price) || 0, // 실시간 데이터만 사용
+                    binance_price: Number(kimp?.binance_price) || 0, // 실시간 데이터만 사용
+                    usdkrw: Number(kimp?.usdkrw) || 0, // 실시간 데이터만 사용
+                    isRealTimeValid: hasValidRealTimeData,
+                    dataAge: Math.round(dataAge / 1000)
                   }}
                   userId={user?.id ? String(user.id) : "1"}
                   onDailyStatsUpdate={setDailyStats}
@@ -1641,25 +2103,57 @@ const LegacyAutoTradingPage = () => {
               e.preventDefault();
               
               if (editingStrategyId) {
-                // 기존 전략 수정 - 서버 우선 업데이트 후 UI 새로고침
+                // 기존 전략 수정
+                if (tradingMode === 'mock') {
+                  // Mock 모드: 로컬 저장만
+                  setStrategies(prev => {
+                    const updated = prev.map(strategy => 
+                      strategy.id === editingStrategyId 
+                        ? {
+                            ...strategy,
+                            name: newStrategy.name,
+                            crypto: newStrategy.crypto,
+                            entryCondition: newStrategy.entryCondition,
+                            takeProfitCondition: newStrategy.takeProfitCondition,
+                            investmentAmount: newStrategy.investmentAmount,
+                            leverage: newStrategy.leverage,
+                            tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
+                            riskLevel: newStrategy.riskLevel,
+                            isActive: newStrategy.activateImmediately
+                          }
+                        : strategy
+                    );
+                    // Mock 모드에서 Local Storage에 자동 저장
+                    saveStrategiesToLocal(updated);
+                    return updated;
+                  });
+                  
+                  toast({
+                    title: '전략 수정 완료 (Mock)! 🎉',
+                    description: `${newStrategy.name} Mock 전략이 업데이트되었습니다.`,
+                  });
+                  
+                  setEditingStrategyId(null);
+                } else {
+                  // 실거래 모드: 서버 우선 업데이트 후 UI 새로고침
                 try {
                   const normalizedInvestment = (() => {
                     const n = Number(newStrategy.investmentAmount);
-                    return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : '0.003';
+                    return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : STRATEGY_DEFAULTS.INVESTMENT_AMOUNT;
                   })();
                   const payload = {
                     name: newStrategy.name,
                     strategyType: 'positive_kimchi',
                     entryRate: newStrategy.entryCondition,
                     exitRate: newStrategy.takeProfitCondition,
-                    toleranceRate: newStrategy.tolerance || "0.01",
+                    toleranceRate: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
                     leverage: parseInt(newStrategy.leverage) || 3,
                     // 서버에는 투자수량(BTC) 저장
                     investmentAmount: normalizedInvestment,
                     symbol: newStrategy.crypto || 'BTC',
                     isActive: newStrategy.activateImmediately,
                     isAutoTrading: newStrategy.activateImmediately,
-                    tolerance: newStrategy.tolerance || "0.01"
+                    tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
                   };
                   
                   console.log('🔍 전략 수정 payload:', payload);
@@ -1688,19 +2182,31 @@ const LegacyAutoTradingPage = () => {
                     variant: 'destructive' 
                   });
                 }
-                
-                setEditingStrategyId(null);
+                  
+                  setEditingStrategyId(null);
+                }
               } else {
                 // 새 전략 생성
                 const newId = `strategy-${Date.now()}`;
+
+                // 전략 이름 자동 생성 (중복 방지)
+                const existingNames = strategies.map(s => s.name);
+                let newName = newStrategy.name || `전략 #${newId.slice(-4)}`;
+                let counter = 1;
+                while (existingNames.includes(newName)) {
+                  newName = `${newName.split(' ')[0]} #${newId.slice(-4)}-${counter}`;
+                  counter++;
+                }
+
                 const newStrategyData = {
                   id: newId,
-                  name: newStrategy.name,
+                  name: newName,
                   crypto: newStrategy.crypto,
                   entryCondition: newStrategy.entryCondition,
                   takeProfitCondition: newStrategy.takeProfitCondition,
                   investmentAmount: newStrategy.investmentAmount,
                   leverage: newStrategy.leverage,
+                  tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
                   riskLevel: newStrategy.riskLevel,
                   isActive: newStrategy.activateImmediately,
                   profitRate: '+0.00',
@@ -1709,9 +2215,8 @@ const LegacyAutoTradingPage = () => {
                 
                 setStrategies(prev => {
                   const updated = [...prev, newStrategyData];
-                  // Mock 모드에서 Local Storage에 저장
-                  localStorage.setItem('mock-strategies-17', JSON.stringify(updated));
-                  console.log('💾 Mock 전략 생성 후 Local Storage 저장:', updated.length, '개');
+                  // Mock 모드에서 Local Storage에 자동 저장
+                  saveStrategiesToLocal(updated);
                   return updated;
                 });
                 
@@ -1728,21 +2233,21 @@ const LegacyAutoTradingPage = () => {
                 try {
                   const normalizedInvestment = (() => {
                     const n = Number(newStrategy.investmentAmount);
-                    return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : '0.003';
+                    return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : STRATEGY_DEFAULTS.INVESTMENT_AMOUNT;
                   })();
                   const payload = {
-                    name: newStrategy.name || '새 전략',
+                    name: newName, // 자동 생성된 이름 사용
                     strategyType: 'positive_kimchi',
                     entryRate: newStrategy.entryCondition,
                     exitRate: newStrategy.takeProfitCondition,
-                    toleranceRate: newStrategy.tolerance || "0.01",
+                    toleranceRate: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
                     leverage: parseInt(newStrategy.leverage) || 3,
                     // 서버는 투자수량(BTC)을 그대로 저장
                     investmentAmount: normalizedInvestment,
                     symbol: newStrategy.crypto || 'BTC',
                     isActive: newStrategy.activateImmediately,
                     isAutoTrading: newStrategy.activateImmediately,
-                    tolerance: newStrategy.tolerance || "0.01"
+                    tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
                   };
                   
                   console.log('🔍 전략 생성 payload:', payload);
@@ -1779,8 +2284,8 @@ const LegacyAutoTradingPage = () => {
                 takeProfitCondition: '0', // 0으로 초기화 (사용자 직접 입력)
                 baseAmount: '0',          // 0으로 초기화 (사용자 직접 입력)
                 investmentAmount: '0',    // 0으로 초기화 (사용자 직접 입력)
-                leverage: '0',            // 0으로 초기화 (사용자 직접 입력)
-                tolerance: '0.05',        // 허용오차 0.05 고정
+                leverage: '1',            // 1배 레버리지 기본값
+                tolerance: '0.05',        // 허용오차 0.05% 기본값 (수정 가능)
                 riskLevel: 'moderate',
                 activateImmediately: false
               });
@@ -1968,21 +2473,25 @@ const LegacyAutoTradingPage = () => {
                     borderRadius: '10px'
                   }}
                   name="baseAmount"
-                  placeholder="500000"
+                  placeholder="0"
                   data-testid="input-base-amount"
                   id=":r12a:-form-item"
                   key={`base-amount-${newStrategy.baseAmount}`}
                   value={newStrategy.baseAmount}
                   onChange={(e) => {
-                    const baseAmount = parseFloat(e.target.value) || 500000;
-                    const leverage = parseFloat(newStrategy.leverage) || 3;
-                    const btcPrice = 156000000;
-                    const calculatedBTC = parseFloat((baseAmount / leverage / btcPrice).toFixed(3));
+                    const baseAmount = parseFloat(e.target.value) || 0;
+                    const leverage = getSafeLeverage(newStrategy.leverage);
+                    const btcPrice = Number(kimp?.upbit_price) || 0;
+                    
+                    // BTC 가격이 없으면 계산하지 않음
+                    const calculatedBTC = btcPrice > 0 && baseAmount > 0 
+                      ? parseFloat((baseAmount / leverage / btcPrice).toFixed(3))
+                      : 0;
                     
                     setNewStrategy(prev => ({
                       ...prev, 
                       baseAmount: e.target.value,
-                      investmentAmount: String(calculatedBTC),
+                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.000',
                       tolerance: prev.tolerance
                     }));
                   }}
@@ -2007,7 +2516,7 @@ const LegacyAutoTradingPage = () => {
                   type="number"
                   step="0.01"
                   min="0.01"
-                  max="1.0"
+                  max="2.0"
                   placeholder="0.05"
                   data-testid="input-tolerance"
                   id="tolerance-input"
@@ -2018,7 +2527,7 @@ const LegacyAutoTradingPage = () => {
                   }}
                   onBlur={(e) => {
                     // 입력 완료 시에만 포맷팅 적용
-                    const rawValue = parseFloat(e.target.value) || 0.05;
+                    const rawValue = parseFloat(e.target.value) || parseFloat(STRATEGY_DEFAULTS.TOLERANCE);
                     const formattedValue = formatPercent(rawValue);
                     setNewStrategy(prev => ({...prev, tolerance: formattedValue}));
                   }}
@@ -2056,14 +2565,18 @@ const LegacyAutoTradingPage = () => {
                   value={newStrategy.leverage}
                   onChange={(e) => {
                     const leverage = parseLeverage(e.target.value);
-                    const baseAmount = parseFloat(newStrategy.baseAmount) || 500000;
-                    const btcPrice = 156000000; // 대략적인 BTC 가격
-                    const calculatedBTC = calculateInvestmentWithLeverage(baseAmount, leverage, btcPrice);
+                    const baseAmount = parseFloat(newStrategy.baseAmount) || 0;
+                    const btcPrice = Number(kimp?.upbit_price) || 0;
+                    
+                    // BTC 가격이 없으면 계산하지 않음
+                    const calculatedBTC = btcPrice > 0 && baseAmount > 0 
+                      ? calculateInvestmentWithLeverage(baseAmount, leverage, btcPrice)
+                      : 0;
                     
                     setNewStrategy(prev => ({
                       ...prev, 
                       leverage: e.target.value,
-                      investmentAmount: String(calculatedBTC)
+                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.000'
                     }));
                   }}
                 />
@@ -2109,7 +2622,7 @@ const LegacyAutoTradingPage = () => {
                   }}
                 />
                 <div className="text-xs text-muted-foreground">
-                  ₩{parseInt(newStrategy.baseAmount || '500000').toLocaleString()} ÷ {newStrategy.leverage}배 = {(parseInt(newStrategy.baseAmount || '500000') / parseInt(newStrategy.leverage || '3')).toLocaleString()}원 증거금
+                  ₩{parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0').toLocaleString()} ÷ {newStrategy.leverage}배 = {(parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0') / getSafeLeverage(newStrategy.leverage)).toLocaleString()}원 증거금
                 </div>
               </div>
             </div>

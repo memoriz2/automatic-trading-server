@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatBTC } from '@/utils/trading/formatters';
+import { formatKoreanTime } from '@/utils/datetime';
 
 interface MockTrade {
   id: string;
@@ -31,6 +32,20 @@ export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
   recentTrades,
   strategies
 }) => {
+  // 디버깅: recentTrades 변화 추적
+  React.useEffect(() => {
+    console.log('🎯 MockTradeHistory recentTrades 업데이트:', {
+      count: recentTrades.length,
+      trades: recentTrades,
+      isEmpty: recentTrades.length === 0,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 거래 기록이 비어있으면 경고
+    if (recentTrades.length === 0) {
+      console.warn('⚠️ MockTradeHistory: 거래 기록이 비어있습니다!');
+    }
+  }, [recentTrades]);
   const getTradeTypeDisplay = (trade: MockTrade, strategy?: Strategy) => {
     return trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN');
   };
@@ -78,7 +93,7 @@ export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
                 <div key={trade.id} className="bg-slate-700 p-2 rounded mb-1 text-xs border border-slate-600">
                   <div className="flex items-center justify-between">
                     <span className="text-white">
-                      {new Date(trade.timestamp).toLocaleTimeString()} | <span className="font-bold">{trade.exchange}</span> | <span className={`${
+                      {formatKoreanTime(trade.timestamp)} | <span className="font-bold">{trade.exchange}</span> | <span className={`${
                         trade.type === 'buy' ? 'text-blue-400' : 
                         trade.type === 'sell' ? 'text-yellow-400' :
                         trade.type === 'short' ? 'text-red-400' :

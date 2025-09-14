@@ -28,14 +28,18 @@ export function useAuth() {
         try {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
-                setUser(JSON.parse(storedUser));
+                const parsedUser = JSON.parse(storedUser);
+                console.log('📱 useAuth: 세션스토리지에서 사용자 복원', parsedUser);
+                setUser(parsedUser);
             } else {
+                console.log('❌ useAuth: 세션스토리지에도 사용자 없음 - null로 설정');
                 setUser(null);
                 if (window.location.pathname !== '/login') {
                     window.dispatchEvent(new CustomEvent('auth-failed'));
                 }
             }
         } catch (e) {
+            console.log('❌ useAuth: 세션스토리지 파싱 실패 - null로 설정');
             setUser(null);
         }
     } finally {
@@ -51,13 +55,17 @@ export function useAuth() {
   // 주기적 재검사는 전역 Provider나 사용자 동작 이벤트에서만 수행하도록 변경
   
   const login = (userData: User, token?: string) => {
+    console.log('🔐 useAuth: login() 호출됨', userData);
     if (token) {
       sessionStorage.setItem('authToken', token);
     } else {
       sessionStorage.removeItem('authToken');
     }
     sessionStorage.setItem('user', JSON.stringify(userData));
-    setUser(token ? { ...userData, token } : userData);
+    const finalUser = token ? { ...userData, token } : userData;
+    setUser(finalUser);
+    setIsLoading(false); // 로딩 상태도 완료로 설정
+    console.log('✅ useAuth: 사용자 상태 업데이트 완료', finalUser);
   };
 
   const logout = async () => {

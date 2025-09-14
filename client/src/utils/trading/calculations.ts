@@ -24,3 +24,91 @@ export const mapStrategyToBand = (s: any) => ({
   amount_btc: Number(s?.investmentAmount ?? 0) || 0,
   serverId: s?.id,
 });
+
+// 진입 거래 계산
+export const calculateEntryTrade = (
+  baseAmount: number,
+  leverage: number,
+  upbitPrice: number,
+  binancePrice: number,
+  entryUsdKrw: number
+) => {
+  // 1단계: 바이낸스 선물 숏 포지션 (기준 수량)
+  const binanceShortAmountBTC = baseAmount;
+  const binanceShortValueUSD = binanceShortAmountBTC * binancePrice;
+  const binanceMargin = binanceShortValueUSD / leverage;
+  const binanceFee = binanceShortValueUSD * 0.0004;
+
+  // 2단계: 업비트 현물 매수 (동일 수량)
+  const upbitBuyAmountBTC = binanceShortAmountBTC;
+  const upbitBuyAmountKRW = upbitBuyAmountBTC * upbitPrice;
+  const upbitFee = upbitBuyAmountKRW * 0.0005;
+  const totalUpbitCost = upbitBuyAmountKRW + upbitFee;
+
+  // 총 투자 원금 (KRW 기준)
+  const totalInvestedKRW = totalUpbitCost + (binanceMargin + binanceFee) * entryUsdKrw;
+
+  return {
+    binanceShortAmountBTC,
+    binanceShortValueUSD,
+    binanceMargin,
+    binanceFee,
+    upbitBuyAmountBTC,
+    upbitBuyAmountKRW,
+    upbitFee,
+    totalUpbitCost,
+    totalInvestedKRW
+  };
+};
+
+// 청산 거래 계산
+export const calculateExitTrade = (
+  position: any,
+  currentUpbitPrice: number,
+  currentBinancePrice: number,
+  currentUsdKrw: number,
+  ratio: number = 1.0
+) => {
+  // 청산할 수량 계산
+  const upbitSellQuantity = position.upbitQuantity * ratio;
+  const binanceCloseQuantity = position.binanceQuantity * ratio;
+
+  // 업비트 매도 계산
+  const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice;
+  const upbitFee = upbitSellRevenue * 0.0005;
+  const upbitNetRevenue = upbitSellRevenue - upbitFee;
+
+  // 바이낸스 선물 커버 계산
+  const binanceCoverCost = binanceCloseQuantity * currentBinancePrice;
+  const binanceFee = binanceCoverCost * 0.0004;
+  const binanceMarginReturn = (position.binanceQuantity * position.binancePrice / position.leverage) * ratio;
+  const binanceNetReturn = binanceMarginReturn - binanceCoverCost - binanceFee;
+
+  // 진입 시 총 비용 (KRW 기준)
+  const entryUpbitCost = position.upbitQuantity * position.upbitPrice;
+  const entryUpbitFee = entryUpbitCost * 0.0005;
+  const entryBinanceMargin = (position.binanceQuantity * position.binancePrice / position.leverage);
+  const entryBinanceFee = position.binanceQuantity * position.binancePrice * 0.0004;
+  const totalEntryCostKRW = (entryUpbitCost + entryUpbitFee) + ((entryBinanceMargin + entryBinanceFee) * position.entryUsdKrw);
+
+  // 청산 시 총 회수액 (KRW 기준)
+  const totalExitRevenueKRW = upbitNetRevenue + (binanceNetReturn * currentUsdKrw);
+
+  // 총 손익 (KRW 기준)
+  const totalPnl = totalExitRevenueKRW - (totalEntryCostKRW * ratio);
+
+  return {
+    upbitSellQuantity,
+    binanceCloseQuantity,
+    upbitSellRevenue,
+    upbitFee,
+    upbitNetRevenue,
+    binanceCoverCost,
+    binanceFee,
+    binanceMarginReturn,
+    binanceNetReturn,
+    totalEntryCostKRW,
+    totalExitRevenueKRW,
+    totalPnl
+  };
+};

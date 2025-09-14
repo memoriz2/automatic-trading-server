@@ -35,8 +35,11 @@ export function Sidebar() {
   const handleLogout = () => {
     console.log("로그아웃 버튼 클릭됨");
 
-    // 강제로 localStorage 정리
-    localStorage.clear();
+    // 인증 관련 localStorage만 정리 (Mock 데이터는 보존)
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('x-user-id');
+    // Mock 데이터는 보존: mock-trades-*, mock-positions-*, mock-balance-*, mock-strategies-*
 
     logout();
 

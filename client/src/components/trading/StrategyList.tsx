@@ -3,6 +3,9 @@ import { useToast } from '@/hooks/use-toast';
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import { LEVERAGE_CONFIG, parseLeverage } from '@/utils/trading/leverage';
 import { formatBTC } from '@/utils/trading/formatters';
+import { STRATEGY_DEFAULTS } from '@/config/strategy-defaults';
+import { userIdManager } from '@/utils/user-id-manager';
+import { markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
 
 interface Strategy {
   id: string;
@@ -53,15 +56,15 @@ export const StrategyList: React.FC<StrategyListProps> = ({
   const { toast } = useToast();
 
   const handleStrategyToggle = async (strategy: Strategy) => {
-    const newActiveState = !strategy.isActive;
-    
-    // 세션 우선: 세션/효과적 사용자 ID가 없으면 중단
-    if (!user?.id && !effectiveUserId) {
-      console.warn('⏸️ 세션 미확정: 전략 상태 변경 요청을 보류합니다.');
-      toast({ title: '세션 확인 필요', description: '로그인/세션 확인 후 다시 시도하세요.', variant: 'destructive' });
+    // 1. 사용자 ID 확립 (localStorage 우선)
+    const userId = localStorage.getItem('x-user-id') || effectiveUserId || user?.id;
+    if (!userId) {
+      toast({ title: '오류', description: '사용자 ID를 확인할 수 없습니다.', variant: 'destructive' });
       return;
     }
 
+    const newActiveState = !strategy.isActive;
+    
     // 🔒 활성화 시 기존 포지션 확인 (중복 진입 방지)
     if (newActiveState) {
       try {
@@ -88,72 +91,119 @@ export const StrategyList: React.FC<StrategyListProps> = ({
       }
     }
 
-    // UI 즉시 업데이트
-    const updatedStrategies = strategies.map(s => 
-      s.id === strategy.id 
-        ? {...s, isActive: newActiveState}
-        : s
+    // 2. 부모 컴포넌트에 상태 변경 요청 (가장 중요!)
+    // 전체 전략 목록을 만들어서 전달하면 부모가 알아서 처리합니다.
+    const updatedStrategies = strategies.map(s =>
+      s.id === strategy.id ? { ...s, isActive: newActiveState } : s
     );
     onStrategyUpdate(updatedStrategies);
-    
-    // DB에 저장 (기존 허용오차/설정값 보존)
-    try {
-      const payload = {
-        name: strategy.name,
-        strategyType: strategy.strategyType || 'positive_kimchi',
-        entryRate: strategy.entryCondition,
-        exitRate: strategy.takeProfitCondition,
-        toleranceRate: String(strategy.tolerance ?? strategy.toleranceRate ?? TRADING_CONSTANTS.DEFAULT_TOLERANCE),
-        leverage: parseLeverage(strategy.leverage),
-        investmentAmount: strategy.investmentAmount?.toString() || '0.003',
-        symbol: strategy.crypto || 'BTC',
-        isActive: newActiveState,
-        isAutoTrading: newActiveState,
-        tolerance: String(strategy.tolerance ?? strategy.toleranceRate ?? TRADING_CONSTANTS.DEFAULT_TOLERANCE)
-      };
-      
-      // 세션 기반: 서버에서 세션 사용자로 처리
-      await fetchJson(`/api/trading-strategies/${user?.id ? String(user.id) : String(effectiveUserId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      
-      toast({
-        title: `전략 ${newActiveState ? '활성화' : '비활성화'}`,
-        description: `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`,
-      });
-      loadStrategiesFromDB();
-    } catch (error) {
-      console.error('전략 상태 변경 실패:', error);
-      // 실패 시 롤백
-      onStrategyUpdate(strategies);
-      toast({ title: '상태 변경 실패', description: '서버 저장에 실패했습니다.', variant: 'destructive' });
-    }
   };
 
   const handleStrategyDelete = async (strategy: Strategy) => {
-    if (!confirm(`"${strategy.name}" 전략을 정말 삭제하시겠습니까?`)) {
+    // 사용자 ID 확립 (localStorage 우선)
+    const userId = localStorage.getItem('x-user-id') || effectiveUserId || user?.id;
+    if (!userId) {
+      toast({ title: '사용자 ID 확인 불가', variant: 'destructive' });
+      return;
+    }
+
+    // 1. 활성 포지션 확인 (삭제 방지)
+    try {
+      const positionKey = `mock-positions-${userId}`;
+      const savedPositions = localStorage.getItem(positionKey);
+      
+      if (savedPositions) {
+        const positions = JSON.parse(savedPositions);
+        const activePosition = positions.find((p: any) => 
+          p.status === 'open' && 
+          p.strategyId === strategy.id
+        );
+        
+        if (activePosition) {
+          toast({
+            title: '전략 삭제 불가',
+            description: `이 전략은 활성 포지션이 있어 삭제할 수 없습니다. 먼저 포지션을 청산해주세요.`,
+            variant: 'destructive'
+          });
+          console.warn('⚠️ 활성 포지션으로 인한 전략 삭제 방지:', {
+            strategyId: strategy.id,
+            strategyName: strategy.name,
+            activePositionId: activePosition.id,
+            positionStatus: activePosition.status
+          });
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('포지션 확인 실패:', error);
+    }
+
+    // 2. 삭제 확인
+    if (!confirm(`"${strategy.name || '이름 없는 전략'}" 전략을 정말 삭제하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다!`)) {
       return;
     }
     
-    // UI에서 즉시 제거
+    // 3. UI에서 즉시 제거
     const updatedStrategies = strategies.filter(s => s.id !== strategy.id);
     onStrategyUpdate(updatedStrategies);
     
-    // DB에서 삭제 시도
-    try {
-      await fetchJson(`/api/trading-strategies/${strategy.id}`, {
-        method: 'DELETE'
-      });
-      
-      console.log('✅ 전략 삭제 성공:', strategy.id);
-      toast({ title: '전략 삭제 완료', description: `${strategy.name} 전략이 삭제되었습니다.` });
-    } catch (error) {
-      console.error('❌ 전략 삭제 실패:', error);
-      // 실패 시 UI에 다시 추가 (롤백)
-      onStrategyUpdate([...updatedStrategies, strategy]);
-      toast({ title: '전략 삭제 실패', description: '서버에서 삭제에 실패했습니다.', variant: 'destructive' });
+    // Mock 모드와 실거래 모드 구분 처리
+    const isMockMode = window.location.hostname === 'localhost' || 
+                       window.location.hostname.includes('localhost') ||
+                       localStorage.getItem('trading-mode') === 'mock' ||
+                       !isAuthenticated;
+    
+    if (isMockMode) {
+      // Mock 모드: 로컬스토리지에서 삭제
+      try {
+        // 🔒 안정적인 사용자 ID 사용 (전략 데이터 손실 방지)
+        const stableUserId = userIdManager.getCurrentUserId();
+        const storageKey = `mock-strategies-${stableUserId}`;
+        // 전략 이름 자동 생성 (빈 이름 방지)
+        const strategiesWithNames = updatedStrategies.map(s => ({
+          ...s,
+          name: s.name || `전략 #${s.id.slice(-4)}`
+        }));
+        localStorage.setItem(storageKey, JSON.stringify(strategiesWithNames));
+        
+        // 삭제된 전략 기록 (복원 방지)
+        markStrategyAsDeleted(stableUserId, strategy.id);
+        
+        console.log('🧪 Mock 모드 - 전략 로컬 삭제:', {
+          userId,
+          storageKey,
+          deletedStrategy: strategy.name || `전략 #${strategy.id.slice(-4)}`,
+          remainingCount: strategiesWithNames.length
+        });
+        
+        toast({ 
+          title: '전략 삭제 완료 (Mock)', 
+          description: `${strategy.name || '이름 없는 전략'} 전략이 삭제되었습니다.` 
+        });
+      } catch (error) {
+        console.error('Mock 전략 삭제 실패:', error);
+        // 실패 시 롤백
+        onStrategyUpdate(strategies);
+        toast({ title: '전략 삭제 실패', description: '로컬 저장에 실패했습니다.', variant: 'destructive' });
+      }
+    } else {
+      // 실거래 모드: DB에서 삭제
+      try {
+        await fetchJson(`/api/trading-strategies/${strategy.id}`, {
+          method: 'DELETE'
+        });
+        
+        // 삭제된 전략 기록 (복원 방지)
+        markStrategyAsDeleted(effectiveUserId, strategy.id);
+        
+        console.log('✅ 전략 삭제 성공:', strategy.id);
+        toast({ title: '전략 삭제 완료', description: `${strategy.name} 전략이 삭제되었습니다.` });
+      } catch (error) {
+        console.error('❌ 전략 삭제 실패:', error);
+        // 실패 시 UI에 다시 추가 (롤백)
+        onStrategyUpdate([...updatedStrategies, strategy]);
+        toast({ title: '전략 삭제 실패', description: '서버에서 삭제에 실패했습니다.', variant: 'destructive' });
+      }
     }
   };
 
@@ -200,13 +250,41 @@ export const StrategyList: React.FC<StrategyListProps> = ({
             </div>
           </div>
         ) : (
-          strategies.map((strategy) => (
-            <div key={strategy.id} className="border border-border rounded-lg p-4 hover:border-primary transition-colors" data-testid={`card-strategy-${strategy.id}`}>
+          strategies.map((strategy) => {
+            // 각 전략의 활성 포지션 확인
+            const hasActivePosition = (() => {
+              try {
+                const userId = localStorage.getItem('x-user-id') || effectiveUserId;
+                const positionKey = `mock-positions-${userId}`;
+                const savedPositions = localStorage.getItem(positionKey);
+                if (savedPositions) {
+                  const positions = JSON.parse(savedPositions);
+                  return positions.some((p: any) => 
+                    p.status === 'open' && p.strategyId === strategy.id
+                  );
+                }
+              } catch (error) {
+                console.error('포지션 확인 실패:', error);
+              }
+              return false;
+            })();
+
+            return (
+            <div key={strategy.id} className={`border rounded-lg p-4 transition-colors ${
+              hasActivePosition 
+                ? 'border-yellow-500 bg-yellow-50/5' // 활성 포지션 있는 전략
+                : 'border-border hover:border-primary' // 일반 전략
+            }`} data-testid={`card-strategy-${strategy.id}`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
                   <div className={`w-3 h-3 rounded-full ${strategy.isActive ? 'bg-green-500' : 'bg-gray-500'}`}></div>
                   <h3 className="font-medium" data-testid={`text-strategy-name-${strategy.id}`}>
                     {strategy.name}
+                    {hasActivePosition && (
+                      <span className="ml-2 text-xs bg-yellow-500 text-black px-2 py-1 rounded-full">
+                        포지션 보유
+                      </span>
+                    )}
                   </h3>
                   
                   <button 
@@ -229,13 +307,14 @@ export const StrategyList: React.FC<StrategyListProps> = ({
                 </div>
                 <div className="flex items-center space-x-2">
                   <button 
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-red-600 text-white hover:bg-red-700 h-9 rounded-md px-3" 
+                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
+                      hasActivePosition 
+                        ? 'bg-gray-400 text-gray-600 cursor-not-allowed' // 비활성화
+                        : 'bg-red-600 text-white hover:bg-red-700' // 활성화
+                    }`}
                     data-testid={`button-delete-${strategy.id}`}
-                    style={{
-                      backgroundColor: '#dc2626',
-                      color: '#ffffff',
-                      border: 'none'
-                    }}
+                    disabled={hasActivePosition}
+                    title={hasActivePosition ? '활성 포지션이 있어 삭제할 수 없습니다' : '전략 삭제'}
                     onClick={() => handleStrategyDelete(strategy)}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x">
@@ -253,7 +332,7 @@ export const StrategyList: React.FC<StrategyListProps> = ({
                 <div>
                   <p className="text-muted-foreground">진입 조건 (정확한 일치)</p>
                   <p className="font-medium text-green-500" data-testid={`text-entry-${strategy.id}`}>
-                    {parseFloat(Number(strategy.entryCondition).toFixed(3))}% ± {parseFloat(Number(strategy.tolerance || '0.01').toFixed(3))}%
+                    {parseFloat(Number(strategy.entryCondition).toFixed(3))}% ± {parseFloat(Number(strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE).toFixed(3))}%
                   </p>
                 </div>
                 <div>
@@ -285,7 +364,8 @@ export const StrategyList: React.FC<StrategyListProps> = ({
                 </button>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

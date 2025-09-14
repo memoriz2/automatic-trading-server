@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,10 +19,19 @@ interface AuthForm {
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [loginForm, setLoginForm] = useState<AuthForm>({ username: '', password: '' });
   const [registerForm, setRegisterForm] = useState<AuthForm>({ username: '', password: '' });
+  
+  // 인증 상태가 변경되면 홈페이지로 이동
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('🎉 인증 상태 확인됨 - 홈페이지로 이동', user);
+      // 페이지 새로고침으로 useAuth 상태 동기화 강제 수행
+      window.location.href = '/';
+    }
+  }, [isAuthenticated, user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +48,7 @@ export default function LoginPage() {
 
       const data = await response.json();
       console.log('로그인 응답:', data);
+      console.log('응답 상태:', response.ok, response.status);
 
       if (!response.ok) {
         throw new Error(data.message || '로그인에 실패했습니다');
@@ -46,15 +56,18 @@ export default function LoginPage() {
 
       // 쿠키 기반 인증: 서버가 HttpOnly 쿠키를 설정하므로 토큰 없이 사용자만 갱신
       if (data.user) {
+        console.log('🔑 로그인 성공 - login() 함수 호출 예정', data.user);
         login(data.user, undefined as any);
+        
         toast({
           title: "로그인 성공",
           description: `${data.user.username}님, 환영합니다!`,
         });
-        setTimeout(() => {
-          setLocation('/');
-          window.location.reload();
-        }, 100);
+        
+        // useEffect에서 인증 상태 변경을 감지하여 자동으로 페이지 이동
+        console.log('🔄 로그인 완료 - useEffect에서 페이지 이동 처리 예정');
+      } else {
+        console.error('❌ 로그인 응답에 사용자 데이터 없음:', data);
       }
     } catch (error: any) {
       console.error('로그인 오류:', error);

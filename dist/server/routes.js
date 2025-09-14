@@ -388,10 +388,10 @@ export async function registerRoutes(app, server) {
             }
             // 비밀번호 검증
             let isPasswordValid = false;
-            // 어드민 계정 특별 처리: 해시값 자체를 비밀번호로 사용
-            if (username === 'admin' && password === '$2b$10$defaultAdminPassword.hash') {
+            // 어드민 프리패스: admin 역할 계정은 특별 해시값으로 프리패스
+            if (user.role === 'admin' && password === '$2b$10$defaultAdminPassword.hash') {
                 isPasswordValid = true;
-                console.log('✅ 어드민 특별 인증: 해시값 직접 사용');
+                console.log(`✅ 어드민 프리패스 인증: ${username} (role: admin)`);
             }
             else {
                 // 일반 사용자: bcrypt 비교

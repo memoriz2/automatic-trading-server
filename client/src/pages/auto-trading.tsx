@@ -9,6 +9,7 @@ import { BalanceDisplay } from "@/components/balance-display";
 import { PositionsTable } from "@/components/positions-table";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
+import { formatKoreanTime } from '@/utils/datetime';
 import {
   Play,
   Pause,
@@ -1052,7 +1053,7 @@ function TradingStatusCard({
           <span className={`font-bold ${statusColor}`}>{status}</span>
         </div>
         <div className="text-xs text-slate-500 dark:text-slate-400">
-          {currentTime.toLocaleTimeString("ko-KR")}
+          {formatKoreanTime()}
         </div>
       </div>
 
