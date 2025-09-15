@@ -1519,12 +1519,8 @@ const LegacyAutoTradingPage = () => {
       
       // 세션 기반 사용자 ID 필수 (Mock 모드에서도)
       if (!user?.id) {
-        console.warn('⏸️ 세션 없음: 로그인 필요');
-        toast({ 
-          title: '로그인 필요', 
-          description: '전략을 사용하려면 먼저 로그인해주세요.', 
-          variant: 'destructive'
-        });
+        console.warn('⏸️ 세션 없음: 전략 로드 대기 중...');
+        // 토스트 제거 - 로그인 상태 로딩 중일 수 있음
         return;
       }
 
@@ -1822,17 +1818,7 @@ const LegacyAutoTradingPage = () => {
   const apiConnectedSafe = apiConnected === true;
   const liveConnected = apiConnectedSafe || upbitLinked || binanceLinked;
   
-  // 🔍 연결 상태 디버그 로그
-  console.log('🔍 연결 상태 디버그 (수정됨):', { 
-    tradingMode, 
-    apiConnected,
-    apiConnectedSafe,
-    realBalances,
-    connectedStatus,
-    upbitLinked, 
-    binanceLinked,
-    liveConnected
-  });
+  // 연결 상태 판정 완료
   const realTimeDataStatus = needsLoading ? (
     <div className="p-8 text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mx-auto mb-4"></div>

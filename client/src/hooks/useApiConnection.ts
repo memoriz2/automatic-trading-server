@@ -7,8 +7,6 @@ interface UseApiConnectionProps {
 export const useApiConnection = ({ tradingMode }: UseApiConnectionProps) => {
   const [apiConnected, setApiConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  
-  console.log('🔗 useApiConnection 상태:', { tradingMode, apiConnected, isConnecting });
 
   // 실거래 모드에서 API 연결 확인
   useEffect(() => {
