@@ -1806,6 +1806,33 @@ const LegacyAutoTradingPage = () => {
 
   // 실시간 데이터 상태 (자동매매 섹션에서 사용) - 임시 비활성화
   const needsLoading = false; // 임시로 로딩 비활성화
+  // 연결 상태 보정: API 훅 플래그 + 잔고 값 존재 여부로 연동 판단
+  // balances 구조: { real: { krw, btc_upbit, usdt }, connected: { upbit, binance } }
+  const realBalances = balances?.real || {};
+  const connectedStatus = balances?.connected || {};
+  
+  const upbitLinked = connectedStatus.upbit === true || (
+    realBalances.krw != null || realBalances.btc_upbit != null
+  );
+  const binanceLinked = connectedStatus.binance === true || (
+    realBalances.usdt != null
+  );
+  
+  // apiConnected가 undefined인 경우 false로 처리
+  const apiConnectedSafe = apiConnected === true;
+  const liveConnected = apiConnectedSafe || upbitLinked || binanceLinked;
+  
+  // 🔍 연결 상태 디버그 로그
+  console.log('🔍 연결 상태 디버그 (수정됨):', { 
+    tradingMode, 
+    apiConnected,
+    apiConnectedSafe,
+    realBalances,
+    connectedStatus,
+    upbitLinked, 
+    binanceLinked,
+    liveConnected
+  });
   const realTimeDataStatus = needsLoading ? (
     <div className="p-8 text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mx-auto mb-4"></div>
@@ -2033,7 +2060,7 @@ const LegacyAutoTradingPage = () => {
             />
             ) : (
               /* 실거래 모드 */
-              (apiConnected || window.location.hostname === 'localhost') ? (
+              (liveConnected || window.location.hostname === 'localhost') ? (
                 /* API 연결 완료 - 실거래 시스템 */
                 <MockTradingSystem 
                   strategies={realStrategies} // 실거래 모드: DB 조회 전략
