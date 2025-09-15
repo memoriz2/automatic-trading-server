@@ -70,6 +70,7 @@ export default function Settings() {
   // 연동 테스트 상태 관리
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+  const [overrideConnected, setOverrideConnected] = useState<Record<'upbit'|'binance', boolean>>({ upbit: false, binance: false });
 
   // 인증된 사용자의 ID 사용
   const userId = user?.id;
@@ -106,6 +107,29 @@ export default function Settings() {
     queryKey: ["/api/server-info"],
   });
 
+  // Live status: 서버의 실연동 상태 조회 (연결 뱃지 전용)
+  const fetchLiveStatus = async () => {
+    const res = await fetch('/api/exchanges/status', {
+      credentials: 'include',
+      headers: { Accept: 'application/json' }
+    });
+    if (!res.ok) throw new Error('status fetch failed');
+    return res.json();
+  };
+  const { data: liveStatus, isLoading: isStatusLoading, refetch: refetchLiveStatus } = useQuery({
+    queryKey: ['liveStatus', userId],
+    queryFn: fetchLiveStatus,
+    staleTime: 15000,
+    refetchOnWindowFocus: false,
+    enabled: !!userId,
+  });
+
+  const isExchangeConnected = (exchangeName: 'upbit' | 'binance') => {
+    const map: any = liveStatus?.exchanges ?? liveStatus;
+    const serverConnected = map?.[exchangeName]?.connected === true;
+    return !!(serverConnected || overrideConnected[exchangeName]);
+  };
+
   // 연동 테스트 함수 (DB에서 기존 API 키 조회)
   const testExchangeConnection = async (exchangeName: string) => {
     console.log('🔍 연동테스트 시작:', exchangeName);
@@ -138,12 +162,15 @@ export default function Settings() {
       setConnectionTestResult(response);
 
       if (response.success) {
+        setOverrideConnected((prev) => ({ ...prev, [exchangeName]: true }));
         toast({
           title: "연동 테스트 성공! 🎉",
           description: response.message,
           variant: "default"
         });
+        await refetchLiveStatus();
       } else {
+        setOverrideConnected((prev) => ({ ...prev, [exchangeName]: false }));
         toast({
           title: "연동 테스트 실패 ❌",
           description: `${response.message}: ${response.error}`,
@@ -520,28 +547,26 @@ export default function Settings() {
                       </span>
                     </div>
                     <Badge
-                      variant={
-                        status === "connected" ? "default" : "destructive"
-                      }
+                      variant={isExchangeConnected(exchangeName as 'upbit' | 'binance') ? "default" : "destructive"}
                     >
-                      {status === "connected" ? "연결됨" : "연결 안됨"}
+                      {isStatusLoading ? "확인 중…" : isExchangeConnected(exchangeName as 'upbit' | 'binance') ? "연결됨" : "연결 안됨"}
                     </Badge>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {balance?.connected && (
+                    {balance && (
                       <div className="text-sm text-gray-600">
-                        {balance.krw && (
-                          <span>KRW: {balance.krw.toLocaleString()}원</span>
+                        {balance.krw != null && (
+                          <span>KRW: {Number(balance.krw).toLocaleString()}원</span>
                         )}
-                        {balance.usdt && (
+                        {balance.usdt != null && (
                           <span className="ml-2">
-                            USDT: {balance.usdt.toFixed(2)}
+                            USDT: {Number(balance.usdt).toFixed(2)}
                           </span>
                         )}
-                        {balance.btc && (
+                        {balance.btc != null && (
                           <span className="ml-2">
-                            BTC: {balance.btc.toFixed(6)}
+                            BTC: {Number(balance.btc).toFixed(6)}
                           </span>
                         )}
                       </div>
@@ -549,7 +574,7 @@ export default function Settings() {
                     
                     {/* 연동테스트 버튼 */}
                     <Button
-                      onClick={() => testExchangeConnection(exchangeName)}
+                      onClick={async () => { await testExchangeConnection(exchangeName); await refetchLiveStatus(); }}
                       disabled={isTestingConnection}
                       variant="outline"
                       size="sm"
