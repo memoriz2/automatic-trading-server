@@ -67,7 +67,7 @@ const LegacyAutoTradingPage = () => {
       
       // 인증된 사용자 ID와 안정 사용자 ID가 다르면 데이터 마이그레이션
       if (authUserId !== stableUserId) {
-        console.log('🔄 사용자 ID 통일 및 데이터 마이그레이션:', stableUserId, '→', authUserId);
+        // 사용자 ID 통일 및 데이터 마이그레이션
         
         // 안정 사용자 ID의 데이터를 인증 사용자 ID로 마이그레이션
         const stableStrategies = localStorage.getItem(`mock-strategies-${stableUserId}`);
@@ -85,7 +85,7 @@ const LegacyAutoTradingPage = () => {
           });
           
           localStorage.setItem(`mock-strategies-${authUserId}`, JSON.stringify(merged));
-          console.log('✅ 전략 데이터 마이그레이션 완료:', merged.length, '개');
+          // 전략 데이터 마이그레이션 완료
         }
         
         // 안정 사용자 ID 업데이트
@@ -101,7 +101,7 @@ const LegacyAutoTradingPage = () => {
         const recovered: any[] = []; // recoverLostData 제거
         
         if (recovered.length > 0) {
-          console.log('🎯 사라진 전략 데이터 발견:', recovered.length, '개');
+          // 사라진 전략 데이터 발견
           
           // 현재 전략 목록과 병합
           const currentKey = `mock-strategies-${effectiveUserId}`;
@@ -119,7 +119,7 @@ const LegacyAutoTradingPage = () => {
           // 복구된 데이터 저장
           localStorage.setItem(currentKey, JSON.stringify(mergedStrategies));
           
-          console.log('✅ 전략 데이터 복구 완료:', mergedStrategies.length, '개 전략');
+          // 전략 데이터 복구 완료
           
           // UI 알림 (토스트 메시지)
           if (typeof toast === 'function') {
@@ -134,7 +134,7 @@ const LegacyAutoTradingPage = () => {
           setTimeout(() => {
             const backupKey = strategyBackupManager.createBackup();
             if (backupKey) {
-              console.log('💾 복구 후 백업 생성 완료:', backupKey);
+              // 복구 후 백업 생성 완료
             }
           }, 1000);
         }
@@ -143,7 +143,7 @@ const LegacyAutoTradingPage = () => {
         
         // 복구 실패 시 긴급 복구 시도
         try {
-          console.log('🚨 긴급 복구 시도...');
+          // 긴급 복구 시도
           const restored = strategyBackupManager.emergencyRestore();
           if (restored) {
             toast({
@@ -181,7 +181,7 @@ const LegacyAutoTradingPage = () => {
         // 24시간 이내 데이터만 유지
         const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
         const filtered = data.filter((point: SparkPoint) => point.t > oneDayAgo);
-        console.log('📊 김치프리미엄 차트 데이터 복원:', filtered.length, '개 포인트');
+        // 김치프리미엄 차트 데이터 복원
         return filtered;
       }
     } catch (error) {
@@ -254,13 +254,12 @@ const LegacyAutoTradingPage = () => {
       const savedPositions = localStorage.getItem(positionKey);
       const savedTrades = localStorage.getItem(tradeKey);
       
-      console.log('🔍 복원 체크 - 포지션:', savedPositions ? 'exists' : 'none');
-      console.log('🔍 복원 체크 - 거래기록:', savedTrades || 'none');
+      // 복원 체크
       
       // 포지션은 있는데 거래 기록이 없거나 빈 배열이면 복원
       if (savedPositions && (!savedTrades || savedTrades === '[]' || savedTrades === 'null')) {
         const positions = JSON.parse(savedPositions);
-        console.log('📦 복원할 포지션 개수:', positions.length);
+        // 포지션 복원 진행
         
         if (positions.length > 0) {
           const restoredTrades: any[] = [];
@@ -1519,7 +1518,7 @@ const LegacyAutoTradingPage = () => {
       
       // 세션 기반 사용자 ID 필수 (Mock 모드에서도)
       if (!user?.id) {
-        console.warn('⏸️ 세션 없음: 전략 로드 대기 중...');
+        // 세션 로드 대기 중
         // 토스트 제거 - 로그인 상태 로딩 중일 수 있음
         return;
       }
@@ -1798,7 +1797,7 @@ const LegacyAutoTradingPage = () => {
     );
   }
 
-  console.log('✅ 정상 렌더링 시작');
+  // 정상 렌더링 시작
 
   // 실시간 데이터 상태 (자동매매 섹션에서 사용) - 임시 비활성화
   const needsLoading = false; // 임시로 로딩 비활성화
