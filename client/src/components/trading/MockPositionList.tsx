@@ -72,25 +72,45 @@ export const MockPositionList: React.FC<MockPositionListProps> = ({
   };
 
   const calculatePnL = (position: MockPosition) => {
-    const currentPremium = lastKimchiData?.kimp ?? position.entryPremiumRate;
+    // === 현재 시장 데이터 ===
+    const currentPremium = lastKimchiData?.kimp ?? position.entryPremiumRate; // 현재 김치프리미엄 (%)
     
-    // 김치 프리미엄 변동에 따른 실제 수익금 계산
-    const premiumDelta = (currentPremium - position.entryPremiumRate);
+    // === 김치 프리미엄 변화량 계산 ===
+    const premiumDelta = (currentPremium - position.entryPremiumRate);        // 김프 변화량 (현재김프 - 진입김프)
     
-    // 실제 투자금 계산
-    const upbitInvestment = position.upbitQuantity * position.upbitPrice; // 진입 시 가격
-    const binanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 진입 시 증거금
-    const totalInvestment = upbitInvestment + binanceMargin;
+    // === 실제 투자금 계산 (진입 수수료로 마이너스 시작) ===
+    const upbitInvestment = position.upbitQuantity * position.upbitPrice;     // 업비트 실제 투자금액 (KRW)
+    const binanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 바이낸스 실제 증거금 (USD)
     
-    // 김치 프리미엄 변화에 따른 수익금
-    const unrealizedPnl = (premiumDelta / 100) * totalInvestment;
+    // USD를 KRW로 환산
+    const currentUsdKrw = lastKimchiData?.usdkrw || 1390;
+    const binanceMarginKRW = binanceMargin * currentUsdKrw;                   // 바이낸스 증거금 (KRW)
+    const totalInvestment = upbitInvestment + binanceMarginKRW;               // 총 실제 투자금 (KRW)
+    
+    // === 김치 프리미엄 변화에 따른 손익 계산 ===
+    const premiumPnl = (premiumDelta / 100) * totalInvestment;               // 김프 변화 손익
+    
+    // === 총 매매 수수료 (진입+청산) ===
+    const upbitEntryFee = upbitInvestment * 0.0005;                          // 업비트 진입 수수료 (매수 0.05%)
+    const upbitExitFee = upbitInvestment * 0.0005;                           // 업비트 청산 수수료 (매도 0.05%)
+    const upbitTotalFee = upbitEntryFee + upbitExitFee;                      // 업비트 총 수수료 (0.1%)
+    
+    const binanceEntryFee = (position.binanceQuantity * position.binancePrice * 0.0004) * currentUsdKrw; // 바이낸스 진입 수수료 (KRW)
+    const binanceExitFee = (position.binanceQuantity * position.binancePrice * 0.0004) * currentUsdKrw;  // 바이낸스 청산 수수료 (KRW)
+    const binanceTotalFee = binanceEntryFee + binanceExitFee;                // 바이낸스 총 수수료 (0.08%)
+    
+    const totalFee = upbitTotalFee + binanceTotalFee;                        // 총 매매 수수료
+    
+    // === 순투자금 기준 미실현 손익 ===
+    const netInvestment = totalInvestment - totalFee;                        // 순투자금 = 총투자금 - 총수수료
+    const unrealizedPnl = (premiumDelta / 100) * netInvestment;              // 김프 변화율 × 순투자금 = 미실현 손익
     
     return {
-      currentPremium,
-      premiumDelta,
-      unrealizedPnl,
-      isRising: premiumDelta > 0,
-      isFalling: premiumDelta < 0
+      currentPremium,      // 현재 김치프리미엄 (%)
+      premiumDelta,        // 김프 변화량 (%)  
+      unrealizedPnl,       // 미실현 손익 (KRW)
+      isRising: premiumDelta > 0,   // 김프 상승 여부
+      isFalling: premiumDelta < 0   // 김프 하락 여부
     };
   };
 
