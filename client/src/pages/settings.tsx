@@ -163,9 +163,16 @@ export default function Settings() {
 
       if (response.success) {
         setOverrideConnected((prev) => ({ ...prev, [exchangeName]: true }));
+        
+        // 바이낸스 연동 성공 시 잔고 데이터 새로고침
+        if (exchangeName === 'binance' && response.balance) {
+          console.log(`🔄 바이낸스 잔고 새로고침: USDT ${response.balance.usdt}`);
+          await refetchBalances(); // 잔고 데이터 새로고침
+        }
+        
         toast({
           title: "연동 테스트 성공! 🎉",
-          description: response.message,
+          description: response.message + (response.balance ? ` (USDT: ${response.balance.usdt})` : ""),
           variant: "default"
         });
         await refetchLiveStatus();
@@ -559,14 +566,16 @@ export default function Settings() {
                         {balance.krw != null && (
                           <span>KRW: {Number(balance.krw).toLocaleString()}원</span>
                         )}
-                        {balance.usdt != null && (
+                        {(balance.usdt != null || (exchangeName === 'binance' && connectionTestResult?.balance?.usdt)) && (
                           <span className="ml-2">
-                            USDT: {Number(balance.usdt).toFixed(2)}
+                            USDT: {Math.floor(Number(
+                              (exchangeName === 'binance' && connectionTestResult?.balance?.usdt) || balance.usdt || 0
+                            ))}
                           </span>
                         )}
                         {balance.btc != null && (
                           <span className="ml-2">
-                            BTC: {Number(balance.btc).toFixed(6)}
+                            BTC: {Math.floor(Number(balance.btc) * 1000) / 1000}
                           </span>
                         )}
                       </div>
@@ -597,16 +606,23 @@ export default function Settings() {
                 <div className="font-medium">
                   {connectionTestResult.success ? '✅' : '❌'} {connectionTestResult.message}
                 </div>
+
                 {connectionTestResult.error && (
                   <div className="text-sm mt-1 opacity-80">
                     오류: {connectionTestResult.error}
                   </div>
                 )}
-                {connectionTestResult.details && (
-                  <div className="text-sm mt-1 opacity-80">
-                    상세: {JSON.stringify(connectionTestResult.details)}
-                  </div>
-                )}
+
+                  {connectionTestResult.details && (
+                    <div className="text-sm mt-1 opacity-80">
+                      상세: {JSON.stringify(connectionTestResult.details)}
+                      {connectionTestResult.balance && (
+                        <span className="ml-2 text-blue-300">
+                          USDT: {Math.floor(Number(connectionTestResult.balance.usdt))}
+                        </span>
+                      )}
+                    </div>
+                  )}
               </div>
             )}
           </CardContent>

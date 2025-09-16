@@ -1605,7 +1605,30 @@ export async function registerRoutes(app, server) {
                 success: testResult.success,
                 message: testResult.message
             });
-            res.json(testResult);
+            // 연결 성공 시 잔고도 조회해서 함께 반환
+            if (testResult.success && exchange === 'binance') {
+                try {
+                    console.log(`💰 [연동테스트] ${exchange} 잔고 조회 시작...`);
+                    const balanceService = new BalanceService();
+                    const balanceData = await balanceService.getUserBalances(authenticatedUserId);
+                    const binanceBalance = balanceData.real.usdt || 0;
+                    console.log(`💰 [연동테스트] ${exchange} USDT 잔고: ${binanceBalance}`);
+                    res.json({
+                        ...testResult,
+                        balance: {
+                            usdt: binanceBalance,
+                            connected: balanceData.connected.binance
+                        }
+                    });
+                }
+                catch (balanceError) {
+                    console.warn(`⚠️ [연동테스트] 잔고 조회 실패:`, balanceError);
+                    res.json(testResult); // 연결 테스트 결과만 반환
+                }
+            }
+            else {
+                res.json(testResult);
+            }
         }
         catch (error) {
             console.error(`💥 [${new Date().toISOString()}] 연동 테스트 중 에러:`, error);
