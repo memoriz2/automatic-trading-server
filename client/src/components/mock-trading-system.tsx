@@ -1391,15 +1391,10 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   const executeMockTrade = useCallback(async (strategy: any, forceEntry = false) => {
     if (!currentKimchiData) return;
     
-    // 실거래 모드에서는 실시간 데이터 검증
-    if (isLiveMode && !currentKimchiData.isRealTimeValid) {
-      console.warn('⚠️ 실거래 모드: 실시간 데이터가 유효하지 않아 거래를 중단합니다');
-      toast({
-        title: "실시간 데이터 없음",
-        description: `데이터가 ${currentKimchiData.dataAge || 0}초 지났습니다. 실시간 연결을 확인해주세요.`,
-        variant: "destructive"
-      });
-      return;
+    // 실거래 모드에서는 기본적인 데이터만 검증
+    if (isLiveMode && (!currentKimchiData.upbit_price || !currentKimchiData.binance_price)) {
+      console.warn('⚠️ 실거래 모드: 가격 데이터가 없어 거래를 중단합니다');
+      return; // 토스트 알림 제거 - 너무 자주 뜸
     }
 
     const strategyId = String(strategy.id);

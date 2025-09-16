@@ -18,7 +18,7 @@ import { STRATEGY_DEFAULTS, getInitialStrategy, getSafeLeverage, getSafeStrategy
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
-import { emergencyRestoreStrategies, monitorAndRestoreStrategies, restoreStrategiesFromPositionsAndTrades, markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
+import { markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
 import { userIdManager, useStableUserId } from '@/utils/user-id-manager';
 import { strategyBackupManager, useStrategyBackup } from '@/utils/strategy-backup';
 import { Badge } from '@/components/ui/badge';
@@ -217,9 +217,8 @@ const LegacyAutoTradingPage = () => {
     importBackup 
   } = useStrategyBackup();
 
-  // 로딩 상태 안정화 (Mock 모드에서는 항상 true)
+  // 실시간 거래 모드: 로딩 상태 단순화
   const [loadingState, setLoadingState] = useState<'stable' | 'loading'>('stable');
-  const lastStateChangeRef = useRef<number>(Date.now());
   
   // 실시간 데이터 유효성 검증 (단순화)
   const isRealTimeDataValid = (kimchiData: any) => {
@@ -233,8 +232,9 @@ const LegacyAutoTradingPage = () => {
   };
 
 
-  const hasValidRealTimeData = loadingState === 'stable';
-  const dataAge = kimp?.timestamp ? Date.now() - new Date(kimp.timestamp).getTime() : Infinity;
+  // 실시간 데이터 유효성을 단순하게 판단
+  const hasValidRealTimeData = isRealTimeDataValid(kimp);
+  const dataAge = kimp?.timestamp ? Date.now() - new Date(kimp.timestamp).getTime() : 0;
 
   // 거래 기록 및 전략 복원 함수
   const restoreTradesFromPositions = useCallback(() => {
@@ -344,37 +344,7 @@ const LegacyAutoTradingPage = () => {
         return strategies;
       }
       
-      console.log('📋 저장된 전략 없음, 백업에서 긴급 복원 시도...');
-      
-      // 긴급 복원 시도
-      let restoredStrategies = emergencyRestoreStrategies(effectiveUserId);
-      
-      // 포지션과 거래 기록에서 누락된 전략 추가 복원
-      const missingStrategies = restoreStrategiesFromPositionsAndTrades(effectiveUserId, restoredStrategies);
-      
-      if (missingStrategies.length > 0) {
-        restoredStrategies = [...restoredStrategies, ...missingStrategies];
-        // 중복 제거
-        restoredStrategies = restoredStrategies.filter((strategy, index, self) => 
-          index === self.findIndex(s => s.id === strategy.id)
-        );
-        
-        // 업데이트된 전략 목록 저장
-        localStorage.setItem(`mock-strategies-${effectiveUserId}`, JSON.stringify(restoredStrategies));
-        console.log(`🔄 포지션/거래에서 추가 복원: ${missingStrategies.length}개`);
-      }
-      
-      if (restoredStrategies.length > 0) {
-        console.log('🚨 전략 긴급 복원 성공:', restoredStrategies.length, '개');
-        toast({
-          title: "🛡️ 전략 자동 복원",
-          description: `백업과 포지션에서 ${restoredStrategies.length}개 전략이 복원되었습니다!`,
-          duration: 5000,
-        });
-        return restoredStrategies;
-      }
-      
-      console.log('📋 백업에도 전략 없음, 빈 배열 반환');
+      console.log('📋 실시간 거래 모드: DB에서 전략 조회, 복원 로직 건너뜀');
       return [];
     } catch (error) {
       console.error('❌ 전략 목록 복원 실패:', error);
@@ -513,53 +483,16 @@ const LegacyAutoTradingPage = () => {
   // 전략 복원 완료 추적
   const hasRestoredRef = useRef(false);
 
-  // 전략 손실 감지 및 자동 복원 (임시 비활성화)
-  useEffect(() => {
-    if (false && strategies.length === 0 && effectiveUserId && !hasRestoredRef.current) { // 임시 비활성화
-      console.log('🚨 전략 손실 감지, 자동 복원 시도...');
-      
-      const restoreResult = monitorAndRestoreStrategies(effectiveUserId, strategies, setStrategies);
-      
-      if (restoreResult.success) {
-        hasRestoredRef.current = true; // 복원 완료 표시
-        toast({
-          title: "🛡️ 전략 자동 복원",
-          description: `${restoreResult.count}개 전략이 백업에서 자동 복원되었습니다!`,
-          duration: 5000,
-        });
-      }
-    }
-    
-    // 전략이 있으면 복원 플래그 리셋
-    if (strategies.length > 0) {
-      hasRestoredRef.current = false;
-    }
-  }, [strategies.length, effectiveUserId, toast]);
+  // 실시간 거래 모드: DB가 단일 진실 소스이므로 복원 로직 불필요
 
   // API 연결 상태 관리 (커스텀 훅)
   const { apiConnected, isConnecting } = useApiConnection({ tradingMode });
 
-  // 로딩 상태 관리 (10초 이상 안정 후에만 변경)
+  // 실시간 거래 모드: 데이터 유효성만 체크
   useEffect(() => {
-    const now = Date.now();
     const isDataValid = isRealTimeDataValid(kimp);
-    const shouldLoad = tradingMode === 'real' && (!isDataValid || !apiConnected);
-    
-    // 상태 변경이 필요한 경우에만 처리
-    if (shouldLoad && loadingState === 'stable') {
-      // 로딩으로 변경하기 전 10초 대기
-      if (now - lastStateChangeRef.current > 10000) {
-        setLoadingState('loading');
-        lastStateChangeRef.current = now;
-      }
-    } else if (!shouldLoad && loadingState === 'loading') {
-      // 안정으로 변경하기 전 3초 대기
-      if (now - lastStateChangeRef.current > 3000) {
-        setLoadingState('stable');
-        lastStateChangeRef.current = now;
-      }
-    }
-  }, [kimp, apiConnected, tradingMode, loadingState]);
+    setLoadingState(isDataValid ? 'stable' : 'loading');
+  }, [kimp]);
 
   // 중복 로직들이 커스텀 훅으로 이동됨
 
@@ -1567,24 +1500,42 @@ const LegacyAutoTradingPage = () => {
         });
       }
     } catch (error) {
-      console.error('❌ 전략 목록 로드 실패:', error);
+      const userId = user?.id ? String(user.id) : String(effectiveUserId);
+      console.error('❌ 전략 목록 로드 실패:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        userId,
+        url: `/api/trading-strategies/${userId}`,
+        userInfo: { id: user?.id, username: user?.username }
+      });
       
       // 401 Unauthorized 에러 처리
       if (error instanceof Error && error.message.includes('401')) {
+        console.error('🔐 인증 실패 - 세션 만료 또는 로그인 필요');
         toast({
           title: '인증 필요',
           description: '로그인이 필요합니다. 로그인 페이지로 이동합니다.',
           variant: 'destructive'
         });
-        // 로그인 페이지로 리다이렉트 (필요시)
-        // window.location.href = '/login';
+        return;
+      }
+      
+      // 500 서버 오류 처리
+      if (error instanceof Error && error.message.includes('500')) {
+        console.error('🔧 서버 내부 오류 - DB 연결 또는 쿼리 문제');
+        toast({
+          title: '서버 오류',
+          description: 'DB 연결 문제가 발생했습니다. 관리자에게 문의하세요.',
+          variant: 'destructive'
+        });
         return;
       }
       
       // 네트워크 오류 등 기타 에러 처리
+      console.error('🌐 기타 네트워크 오류');
       toast({
         title: '전략 조회 실패',
-        description: '전략을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        description: `전략을 불러오는 중 오류가 발생했습니다: ${error instanceof Error ? error.message : String(error)}`,
         variant: 'destructive'
       });
     } finally {
