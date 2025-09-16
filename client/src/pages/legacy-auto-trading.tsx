@@ -959,7 +959,7 @@ const LegacyAutoTradingPage = () => {
       const minutesKstToday = Math.max(1, Math.floor((now.getTime() - kstMidnightUtc) / 60000));
 
       const [bal, met, kgaStat, trStat] = await Promise.all([
-        fetchJson('/balance'),
+        fetchJson('/api/v2/balance'), // 새로운 잔고 API 사용
         fetchJson(`/metrics?minutes=${minutesKstToday}`),
         fetchJson('/status?only=trade&group=type'), // 중요 로그만 + 타입별 그룹화
         fetchJson(`/api/trading/status/${effectiveUserId}`),
@@ -2060,6 +2060,7 @@ const LegacyAutoTradingPage = () => {
                   userId={user?.id ? String(user.id) : "1"}
                   onDailyStatsUpdate={setDailyStats}
                   isLiveMode={true} // 실거래 모드
+                  realBalances={balances} // 실제 잔고 데이터 전달
                   onStrategyStatsUpdate={(stats) => {
                     setRealStrategies(prev => prev.map(s => {
                       const st = stats[s.id];
@@ -2078,7 +2079,7 @@ const LegacyAutoTradingPage = () => {
             )}
           </section>
 
-          <MarketSnapshot kimp={kimp} balances={balances} />
+          <MarketSnapshot kimp={kimp} balances={balances} isLoadingBalances={isConnecting} />
 
           {/* 김치프리미엄 차트 */}
           <KimchiChart sparkData={sparkData} />

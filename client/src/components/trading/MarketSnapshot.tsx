@@ -1,14 +1,17 @@
 import React from 'react';
 import { fx, loc } from '@/utils/trading/formatters';
+import { Loader2 } from 'lucide-react';
 
 interface MarketSnapshotProps {
   kimp: any;
   balances: any;
+  isLoadingBalances?: boolean;
 }
 
 export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
   kimp,
-  balances
+  balances,
+  isLoadingBalances = false
 }) => {
   return (
     <section className="card col-6">
@@ -56,16 +59,49 @@ export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
           
           <div className="space-y-3">
             <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-              <span className="text-sm text-slate-400">Upbit KRW</span>
-              <span className="text-lg font-bold text-yellow-400" id="bal-krw">{loc(balances.real.krw)}</span>
+              <span className="text-sm text-slate-400 flex items-center gap-2">
+                Upbit KRW
+                {isLoadingBalances && !balances?.connected?.upbit && (
+                  <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                )}
+              </span>
+              <span className="text-lg font-bold text-yellow-400" id="bal-krw">
+                {isLoadingBalances && !balances?.connected?.upbit ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  loc(balances.real.krw)
+                )}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-              <span className="text-sm text-slate-400">Upbit BTC</span>
-              <span className="text-lg font-bold text-purple-400" id="bal-btc">{fx(balances.real.btc_upbit, 6)}</span>
+              <span className="text-sm text-slate-400 flex items-center gap-2">
+                Upbit BTC
+                {isLoadingBalances && !balances?.connected?.upbit && (
+                  <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                )}
+              </span>
+              <span className="text-lg font-bold text-purple-400" id="bal-btc">
+                {isLoadingBalances && !balances?.connected?.upbit ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  fx(balances.real.btc_upbit, 6)
+                )}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
-              <span className="text-sm text-slate-400">Binance USDT</span>
-              <span className="text-lg font-bold text-cyan-400" id="bal-usdt">{loc(balances.real.usdt)}</span>
+              <span className="text-sm text-slate-400 flex items-center gap-2">
+                Binance USDT
+                {isLoadingBalances && !balances?.connected?.binance && (
+                  <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                )}
+              </span>
+              <span className="text-lg font-bold text-cyan-400" id="bal-usdt">
+                {isLoadingBalances && !balances?.connected?.binance ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  loc(balances.real.usdt)
+                )}
+              </span>
             </div>
           </div>
         </div>

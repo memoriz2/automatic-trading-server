@@ -171,6 +171,7 @@ interface MockTradingSystemProps {
   userId?: string;
   onDailyStatsUpdate?: (stats: any) => void;
   isLiveMode?: boolean; // 실거래 모드 여부
+  realBalances?: any; // 실제 잔고 데이터 (실거래 모드용)
   onStrategyStatsUpdate?: (stats: Record<string, { executionCount: number; realizedPnlKRW: number; investedKRW: number; profitRate: number; }>) => void;
 }
 
@@ -181,6 +182,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   userId = "1", // 기본 사용자 ID
   onDailyStatsUpdate,
   isLiveMode = false, // 기본값은 Mock 모드
+  realBalances, // 실제 잔고 데이터
   onStrategyStatsUpdate
 }) => {
   const { toast } = useToast();
@@ -193,6 +195,19 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     logClientTradingMode();
     console.log(`🎯 MockTradingSystem 모드: ${actualTradingMode}`);
   }, []);
+
+  // 실거래 모드일 때 실제 잔고 적용
+  useEffect(() => {
+    if (isLiveMode && realBalances) {
+      const convertedBalance = convertRealBalanceToMock(realBalances);
+      console.log('💰 실제 잔고 적용:', {
+        krw: convertedBalance.krw.toLocaleString(),
+        btc: convertedBalance.btc,
+        usdt: convertedBalance.usdt
+      });
+      setMockBalance(convertedBalance);
+    }
+  }, [isLiveMode, realBalances]);
 
   // 전략-포지션 불일치 감지 및 자동 복원은 mockPositions 선언 후로 이동
   
@@ -231,6 +246,38 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   const tradingLockRef = useRef<boolean>(false);
   const processingEntryRef = useRef<Set<string>>(new Set());
   
+  // 실제 잔고를 Mock 형태로 변환하는 함수
+  const convertRealBalanceToMock = (realBalances: any): MockBalance => {
+    if (!realBalances?.real) {
+      return {
+        krw: isLiveMode ? 0 : 100000000,
+        btc: 0,
+        usdt: isLiveMode ? 0 : 100000,
+        binanceBtc: 0,
+        binanceSpotBtc: 0,
+        binanceUsdt: isLiveMode ? 0 : 100000
+      };
+    }
+
+    // 실제 잔고에서 주요 통화 추출
+    const upbitBalances = realBalances.balances?.upbit || [];
+    const binanceBalances = realBalances.balances?.binance || [];
+
+    const krwBalance = upbitBalances.find((b: any) => b.currency === 'KRW');
+    const btcBalance = upbitBalances.find((b: any) => b.currency === 'BTC');
+    // 바이낸스 선물 증거금: USDT만 집계
+    const usdtBalance = binanceBalances.find((b: any) => b.currency === 'USDT');
+
+    return {
+      krw: krwBalance?.total || realBalances.real.krw || 0,
+      btc: btcBalance?.total || realBalances.real.btc_upbit || 0,
+      usdt: usdtBalance?.total || realBalances.real.usdt || 0,
+      binanceBtc: 0, // 선물 포지션은 별도 관리
+      binanceSpotBtc: 0,
+      binanceUsdt: usdtBalance?.total || realBalances.real.usdt || 0
+    };
+  };
+
   // 모의 잔고 (사용자별 로컬스토리지 저장)
   const [mockBalance, setMockBalance] = useState<MockBalance>(() => {
     const storageKey = `mock-balance-${userId}`;

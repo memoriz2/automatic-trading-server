@@ -87,8 +87,11 @@ import cookieParser from 'cookie-parser';
 import { pool } from './db.js';
 app.use(cookieParser());
 
-// Session TTL 상수 정의
-const SESSION_TTL_MS = process.env.SESSION_TTL_MS ? parseInt(process.env.SESSION_TTL_MS, 10) : 1000 * 60 * 60 * 24 * 7; // 7 days default
+// Session TTL 상수 정의 (24시간)
+const SESSION_TTL_MS = process.env.SESSION_TTL_MS ? parseInt(process.env.SESSION_TTL_MS, 10) : 1000 * 60 * 60 * 24; // 24 hours default
+
+// Redis store를 전역에서 접근 가능하도록 선언
+let globalRedisStore: any = null;
 
 // Initialize Redis client and session setup
 async function setupSession() {
@@ -137,6 +140,7 @@ async function setupSession() {
   // Redis store 설정
   if (redisStore) {
     sessionConfig.store = redisStore;
+    globalRedisStore = redisStore; // 전역 변수에 저장
     console.log('✅ Using Redis session store');
   } else {
     console.log('⚠️ Using memory session store (fallback)');
@@ -171,6 +175,8 @@ app.use((req, res, next) => {
     (req as any).session.touch();
     // 환경변수 기반 TTL로 갱신
     (req as any).session.cookie.maxAge = SESSION_TTL_MS;
+    // 마지막 활동 시간 기록 (세션 정리용)
+    (req as any).session.lastActivity = Date.now();
   }
   
   next();
@@ -343,4 +349,61 @@ app.get("/healthz", (_req: Request, res: Response) => {
   server.on("error", (error) => {
     logError(`서버 에러 발생:`, error);
   });
+
+  // 24시간 이상 비활성 세션 정리 함수
+  async function cleanupInactiveSessions() {
+    try {
+      const now = Date.now();
+      const cutoffTime = now - SESSION_TTL_MS;
+      
+      if (globalRedisStore) {
+        // Redis 세션 정리
+        const redisClient = (globalRedisStore as any).client;
+        if (redisClient) {
+          const keys = await redisClient.keys('sess:*');
+          let cleanedCount = 0;
+          
+          for (const key of keys) {
+            try {
+              const sessionData = await redisClient.get(key);
+              if (sessionData) {
+                const session = JSON.parse(sessionData);
+                const lastActivity = session.lastActivity || session.cookie?.expires || 0;
+                
+                // 마지막 활동이 24시간 이전이면 삭제
+                if (typeof lastActivity === 'string') {
+                  const lastActivityTime = new Date(lastActivity).getTime();
+                  if (lastActivityTime < cutoffTime) {
+                    await redisClient.del(key);
+                    cleanedCount++;
+                  }
+                } else if (typeof lastActivity === 'number' && lastActivity < cutoffTime) {
+                  await redisClient.del(key);
+                  cleanedCount++;
+                }
+              }
+            } catch (sessionError) {
+              // 개별 세션 처리 실패는 무시하고 계속
+              console.warn(`⚠️ 세션 정리 중 개별 오류 (${key}):`, (sessionError as Error).message);
+            }
+          }
+          
+          if (cleanedCount > 0) {
+            console.log(`🧹 비활성 세션 정리 완료: ${cleanedCount}개 세션 삭제 (24시간 이상 미사용)`);
+          }
+        }
+      } else {
+        // 메모리 세션은 express-session이 자동으로 만료된 것들을 정리함
+        console.log(`📝 메모리 세션 사용 중 - 자동 만료 처리됨 (TTL: ${SESSION_TTL_MS / 1000 / 60 / 60}시간)`);
+      }
+    } catch (error) {
+      console.error('❌ 세션 정리 중 오류:', error);
+    }
+  }
+
+  // 세션 정리 스케줄러 설정
+  setInterval(cleanupInactiveSessions, 60 * 60 * 1000); // 1시간마다 실행
+  setTimeout(cleanupInactiveSessions, 10000); // 서버 시작 10초 후 첫 실행
+
+  console.log(`⏰ 세션 자동 정리 스케줄러 시작: 24시간 이상 미사용 세션 1시간마다 정리`);
 })();

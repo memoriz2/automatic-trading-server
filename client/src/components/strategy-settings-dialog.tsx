@@ -23,7 +23,7 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
   // 자동매매 상태 조회
   const { data: tradingStatus } = useQuery({
     queryKey: ['/api/trading/status'],
-    refetchInterval: 1000,
+    refetchInterval: 10000, // 10초마다 상태 확인 (API 제한으로 인한 조정)
   });
 
   const isNewKimchiActive = tradingStatus?.newKimchiActive || false;

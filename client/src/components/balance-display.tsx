@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Wallet, DollarSign, AlertTriangle } from 'lucide-react';
+import { Wallet, DollarSign, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 // 숫자만 갱신하는 컴포넌트
@@ -43,7 +43,7 @@ export const BalanceDisplay = React.memo(() => {
   
   const { data: balances, isLoading, error } = useQuery<BalanceData>({
     queryKey: [`/api/balances/${userId}`],
-    refetchInterval: 10000, // 10초마다 잔고 조회 (API 제한 고려)
+    refetchInterval: 60000, // 60초마다 잔고 조회 (API 제한으로 인한 조정)
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화
     enabled: !!userId, // 로그인한 경우에만 API 호출
@@ -91,7 +91,12 @@ export const BalanceDisplay = React.memo(() => {
           <Wallet className="h-4 w-4 text-blue-500" />
           <span className="font-medium">업비트</span>
         </div>
-        {stableBalances?.upbit.connected ? (
+        {isLoading && !stableBalances?.upbit.connected ? (
+          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            로딩중
+          </Badge>
+        ) : stableBalances?.upbit.connected ? (
           <Badge variant="outline" className="text-xs">
             <NumberDisplay 
               value={Math.floor(stableBalances.upbit.krw)}
@@ -112,7 +117,12 @@ export const BalanceDisplay = React.memo(() => {
           <DollarSign className="h-4 w-4 text-yellow-500" />
           <span className="font-medium">바이낸스 선물</span>
         </div>
-        {stableBalances?.binance.connected ? (
+        {isLoading && !stableBalances?.binance.connected ? (
+          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            로딩중
+          </Badge>
+        ) : stableBalances?.binance.connected ? (
           <>
             {(stableBalances.binance.usdt || 0) === 0 ? (
               <>

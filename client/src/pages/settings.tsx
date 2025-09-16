@@ -109,7 +109,7 @@ export default function Settings() {
 
   // Live status: 서버의 실연동 상태 조회 (연결 뱃지 전용)
   const fetchLiveStatus = async () => {
-    const res = await fetch('/api/exchanges/status', {
+    const res = await fetch('/api/v2/exchanges/status', {
       credentials: 'include',
       headers: { Accept: 'application/json' }
     });

@@ -21,7 +21,7 @@ export function AutoTradingControl() {
   // 자동매매 상태 조회
   const { data: tradingStatus, isLoading: statusLoading } = useQuery<TradingStatus>({
     queryKey: ['/api/trading/status'],
-    refetchInterval: 2000, // 2초마다 상태 확인
+    refetchInterval: 10000, // 10초마다 상태 확인 (API 제한으로 인한 조정)
   });
 
   // 자동매매 시작

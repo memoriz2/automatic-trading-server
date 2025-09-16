@@ -77,3 +77,53 @@ export interface WebSocketMessage {
   type: 'kimchi-premium' | 'trading-status' | 'alerts' | 'ping' | 'pong';
   data?: any;
 }
+
+// ===== Mock Trading 관련 타입 (기존 Mock 시스템용) =====
+
+export interface MockPosition {
+  id: string;
+  strategyId: string;
+  symbol: string;
+  status: 'open' | 'closed';
+  
+  // 업비트 정보
+  upbitQuantity: number;
+  upbitPrice: number;
+  
+  // 바이낸스 정보  
+  binanceQuantity: number;
+  binancePrice: number;
+  leverage: number;
+  
+  // 김치 프리미엄
+  entryPremiumRate: number;
+  
+  // 시간
+  entryTime: number;
+  exitTime?: number;
+  
+  // 메타데이터
+  userId: string;
+}
+
+export interface MockBalance {
+  krw: number;
+  btc: number;
+  usdt: number;
+  binanceBtc: number;
+  binanceSpotBtc: number;
+  binanceUsdt: number;
+}
+
+export interface MockTrade {
+  id: string;
+  positionId: string;
+  type: 'entry' | 'exit';
+  exchange: 'upbit' | 'binance';
+  side: 'buy' | 'sell' | 'short' | 'cover';
+  quantity: number;
+  price: number;
+  timestamp: number;
+  fee: number;
+  userId: string;
+}

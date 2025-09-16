@@ -28,7 +28,7 @@ export default function UltraTrading() {
   // 자동매매 상태
   const { data: status } = useQuery<{isActive: boolean, newKimchiActive: boolean}>({
     queryKey: ['/api/trading/status'],
-    refetchInterval: 1000,
+    refetchInterval: 10000, // 10초마다 상태 확인 (API 제한으로 인한 조정)
   });
 
   const isActive = status?.newKimchiActive || false;

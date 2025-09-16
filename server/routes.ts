@@ -16,6 +16,10 @@ import { BinanceService } from "./services/binance.js";
 import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
 import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
+import { BalanceService } from "./services/BalanceService.js";
+import { globalRateLimiter } from "./utils/rate-limiter.js";
+import { proxyManager } from "./utils/proxy-manager.js";
+import { ipBanDetector } from "./utils/ip-ban-detector.js";
 import { z } from "zod";
 const insertTradingSettingsSchema = z.object({
   entryPremiumRate: z.string().optional(),
@@ -955,6 +959,19 @@ export async function registerRoutes(
       const strategies = await storage.getTradingStrategiesByUserId(userId);
       const activeCount = strategies.filter((s) => s.isActive).length;
 
+      // 자동매매 시작 후 잔고 즉시 갱신
+      try {
+        const balanceService = new BalanceService();
+        await balanceService.refreshBalanceAfterTrade(Number(userId), {
+          exchange: 'auto-trading',
+          side: 'buy',
+          symbol: 'start'
+        });
+        console.log(`✅ [자동매매 시작] 잔고 갱신 완료 (사용자: ${userId})`);
+      } catch (balanceError) {
+        console.warn(`⚠️ [자동매매 시작] 잔고 갱신 실패:`, balanceError);
+      }
+
       res.json({
         message: "자동매매가 시작되었습니다",
         activeStrategies: activeCount,
@@ -974,6 +991,20 @@ export async function registerRoutes(
       const userId = req.params.userId; // string으로 처리
       console.log(`[자동매매 중지] 사용자: ${userId}`);
       await multiStrategyTradingService.stopMultiStrategyTrading();
+
+      // 자동매매 중지 후 잔고 즉시 갱신
+      try {
+        const balanceService = new BalanceService();
+        await balanceService.refreshBalanceAfterTrade(Number(userId), {
+          exchange: 'auto-trading',
+          side: 'sell',
+          symbol: 'stop'
+        });
+        console.log(`✅ [자동매매 중지] 잔고 갱신 완료 (사용자: ${userId})`);
+      } catch (balanceError) {
+        console.warn(`⚠️ [자동매매 중지] 잔고 갱신 실패:`, balanceError);
+      }
+
       res.json({ message: "자동매매가 중지되었습니다" });
     } catch (error) {
       console.error("자동매매 중지 오류:", error);
@@ -981,7 +1012,38 @@ export async function registerRoutes(
     }
   });
 
-  // 자동매매 상태 조회
+  // 자동매매 상태 조회 (전체)
+  app.get("/api/trading/status", async (req, res) => {
+    try {
+      const isRunning = multiStrategyTradingService.getIsTrading();
+      // 세션에서 사용자 ID 추출
+      const sessionUserId = (req as any).session?.user?.id;
+      
+      if (!sessionUserId) {
+        return res.json({
+          isRunning: false,
+          strategies: [],
+          activeStrategies: 0,
+          newKimchiActive: false,
+          totalActive: false
+        });
+      }
+
+      const strategies = await storage.getTradingStrategiesByUserId(String(sessionUserId));
+      res.json({
+        isRunning,
+        strategies,
+        activeStrategies: strategies.filter((s) => s.isActive).length,
+        newKimchiActive: isRunning, // 호환성을 위해 추가
+        totalActive: isRunning // 호환성을 위해 추가
+      });
+    } catch (error) {
+      console.error("자동매매 상태 조회 오류:", error);
+      res.status(500).json({ error: "자동매매 상태 조회 중 오류가 발생했습니다" });
+    }
+  });
+
+  // 자동매매 상태 조회 (특정 사용자)
   app.get("/api/trading/status/:userId", async (req, res) => {
     try {
       const userId = req.params.userId; // string으로 처리
@@ -1009,6 +1071,20 @@ export async function registerRoutes(
         title: "자동매매 긴급 정지",
         message: `사용자 ${userId}의 자동매매가 긴급 정지되었습니다` ,
       });
+
+      // 긴급 정지 후 잔고 즉시 갱신
+      try {
+        const balanceService = new BalanceService();
+        await balanceService.refreshBalanceAfterTrade(Number(userId), {
+          exchange: 'emergency',
+          side: 'sell',
+          symbol: 'emergency-stop'
+        });
+        console.log(`✅ [긴급 정지] 잔고 갱신 완료 (사용자: ${userId})`);
+      } catch (balanceError) {
+        console.warn(`⚠️ [긴급 정지] 잔고 갱신 실패:`, balanceError);
+      }
+
       res.json({ message: "긴급 정지 완료" });
     } catch (error) {
       console.error("긴급 정지 오류:", error);
@@ -2338,12 +2414,235 @@ export async function registerRoutes(
     }
   });
 
+  // ===== 새로운 잔고 연결 시스템 라우트 =====
+  
+  // 잔고 조회 (새 BalanceService 사용)
+  app.get("/api/v2/balance", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { balanceService } = await import('./services/BalanceService.js');
+      
+      const balances = await balanceService.getUserBalances(userId);
+      
+      res.json(balances);
+    } catch (error: any) {
+      console.error('❌ 잔고 조회 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'BALANCE_FETCH_FAILED',
+          message: error.message || '잔고 조회에 실패했습니다.',
+          timestamp: new Date()
+        }
+      });
+    }
+  });
+
+  // 거래소 연결 상태 조회 (새 BalanceService 사용)
+  app.get("/api/v2/exchanges/status", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { balanceService } = await import('./services/BalanceService.js');
+      
+      const status = await balanceService.getExchangeStatus(userId);
+      
+      res.json(status);
+    } catch (error: any) {
+      console.error('❌ 거래소 상태 조회 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'STATUS_FETCH_FAILED',
+          message: error.message || '거래소 상태 조회에 실패했습니다.',
+          timestamp: new Date()
+        }
+      });
+    }
+  });
+
+  // 거래소 연결 테스트
+  app.post("/api/v2/exchanges/test", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { exchange } = req.body;
+      
+      if (!exchange) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_REQUEST',
+            message: '거래소명이 필요합니다.',
+            timestamp: new Date()
+          }
+        });
+      }
+
+      const { balanceService } = await import('./services/BalanceService.js');
+      const result = await balanceService.testExchangeConnection(userId, exchange);
+      
+      res.json({
+        success: result.success,
+        data: result,
+        timestamp: new Date()
+      });
+    } catch (error: any) {
+      console.error('❌ 거래소 연결 테스트 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'CONNECTION_TEST_FAILED',
+          message: error.message || '연결 테스트에 실패했습니다.',
+          timestamp: new Date()
+        }
+      });
+    }
+  });
+
+  // API 키 저장
+  app.post("/api/v2/exchanges/connect", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { exchange, apiKey, secretKey, passphrase } = req.body;
+      
+      if (!exchange || !apiKey || !secretKey) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_REQUEST',
+            message: '거래소명, API 키, Secret 키가 모두 필요합니다.',
+            timestamp: new Date()
+          }
+        });
+      }
+
+      const { balanceService } = await import('./services/BalanceService.js');
+      const result = await balanceService.saveApiKey(userId, exchange, apiKey, secretKey, passphrase);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          data: {
+            message: result.message,
+            permissions: result.permissions
+          },
+          timestamp: new Date()
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'CONNECTION_FAILED',
+            message: result.message,
+            timestamp: new Date()
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ API 키 저장 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'API_KEY_SAVE_FAILED',
+          message: error.message || 'API 키 저장에 실패했습니다.',
+          timestamp: new Date()
+        }
+      });
+    }
+  });
+
+  // 잔고 새로고침
+  app.post("/api/v2/balance/refresh", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { tradeDetails, forceRefresh } = req.body; // 거래 정보 및 강제 새로고침 플래그
+      const balanceService = new BalanceService();
+      
+      // 거래 정보가 있거나 강제 새로고침이면 실제 API 호출, 그렇지 않으면 일반 새로고침
+      const balances = (tradeDetails || forceRefresh)
+        ? await balanceService.refreshBalanceAfterTrade(userId, tradeDetails)
+        : await balanceService.refreshBalances(userId);
+      
+      console.log(`🔄 잔고 갱신 방식: ${tradeDetails || forceRefresh ? '실제 API 직접 호출' : '캐시 활용'}`);
+      
+      res.json({
+        success: true,
+        data: balances,
+        timestamp: new Date(),
+        refreshType: (tradeDetails || forceRefresh) ? 'real-api-direct' : 'cached-or-normal',
+        method: (tradeDetails || forceRefresh) ? 'direct-exchange-api' : 'cached-balance'
+      });
+    } catch (error: any) {
+      console.error('❌ 잔고 새로고침 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'BALANCE_REFRESH_FAILED',
+          message: error.message || '잔고 새로고침에 실패했습니다.',
+          timestamp: new Date()
+        }
+      });
+    }
+  });
+
   // CORS preflight 처리
   app.options("/api/auth/*", (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
     res.sendStatus(200);
+  });
+
+  // ===== IP 밴 방지 모니터링 API =====
+  
+  // 통합 시스템 상태
+  app.get("/api/v2/system/status", authenticateSession, (req, res) => {
+    try {
+      res.json({
+        success: true,
+        data: {
+          rateLimits: globalRateLimiter.getStatus(),
+          banStatus: ipBanDetector.getStatus(),
+          proxyStatus: proxyManager.getStatus(),
+          serverInfo: {
+            nodeVersion: process.version,
+            uptime: process.uptime(),
+            memoryUsage: process.memoryUsage(),
+            environment: process.env.NODE_ENV || 'development'
+          }
+        },
+        timestamp: new Date()
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // 긴급 시스템 리셋
+  app.post("/api/v2/system/emergency-reset", authenticateSession, (req, res) => {
+    try {
+      globalRateLimiter.emergencyReset();
+      proxyManager.resetAllProxies();
+      
+      ['binance', 'upbit'].forEach(exchange => {
+        ipBanDetector.clearBanRecord(exchange);
+      });
+
+      console.warn('🚨 [System] 긴급 시스템 리셋 실행');
+
+      res.json({
+        success: true,
+        message: '긴급 시스템 리셋 완료',
+        timestamp: new Date()
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
   });
 
   return;

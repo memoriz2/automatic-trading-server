@@ -19,7 +19,7 @@ export const useApiConnection = ({ tradingMode }: UseApiConnectionProps) => {
         try {
           console.log('🔍 거래소 API 연결 상태 확인 중...');
           
-          const response = await fetch('/api/exchanges/status', { 
+          const response = await fetch('/api/v2/exchanges/status', { 
             credentials: 'include'
           });
           
