@@ -209,10 +209,17 @@ app.use((req, res, next) => {
 
   // API 요청 로그
   if (path.startsWith("/api")) {
+    // 실제 클라이언트 IP 추출 (프록시 고려)
+    const clientIP = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+                    req.headers['x-real-ip']?.toString() ||
+                    req.headers['cf-connecting-ip']?.toString() ||
+                    req.ip ||
+                    req.connection.remoteAddress ||
+                    req.socket.remoteAddress ||
+                    '알 수 없음';
+    
     logInfo(
-      `🔌 API 요청: ${req.method} ${path} - IP: ${
-        req.ip || req.connection.remoteAddress
-      }`
+      `🔌 API 요청: ${req.method} ${path} - IP: ${clientIP}`
     );
   }
 

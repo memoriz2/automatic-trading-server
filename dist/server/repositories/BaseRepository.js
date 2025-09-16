@@ -1,7 +1,14 @@
-import { pool } from '../db.js';
+import { Pool } from 'pg';
+// PostgreSQL 연결 풀
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+});
 /**
  * 기본 Repository 클래스
- * 모든 Repository가 상속받아 사용하는 공통 기능 제공
+ * 공통 데이터베이스 작업을 위한 베이스 클래스
  */
 export class BaseRepository {
     pool;
@@ -9,24 +16,30 @@ export class BaseRepository {
         this.pool = pool;
     }
     /**
-     * 단일 쿼리 실행
+     * 단일 결과 조회
      */
-    async query(text, params) {
+    async queryOne(query, params = []) {
         try {
-            const result = await this.pool.query(text, params);
-            return result.rows;
+            const result = await this.pool.query(query, params);
+            return result.rows[0] || null;
         }
         catch (error) {
-            console.error('❌ Database query error:', { text, params, error });
+            console.error('Database query error:', error);
             throw error;
         }
     }
     /**
-     * 단일 레코드 조회
+     * 다중 결과 조회
      */
-    async queryOne(text, params) {
-        const rows = await this.query(text, params);
-        return rows.length > 0 ? rows[0] : null;
+    async queryMany(query, params = []) {
+        try {
+            const result = await this.pool.query(query, params);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Database query error:', error);
+            throw error;
+        }
     }
     /**
      * 트랜잭션 실행
@@ -41,7 +54,6 @@ export class BaseRepository {
         }
         catch (error) {
             await client.query('ROLLBACK');
-            console.error('❌ Transaction error:', error);
             throw error;
         }
         finally {
@@ -49,100 +61,127 @@ export class BaseRepository {
         }
     }
     /**
-     * 페이지네이션 쿼리
+     * 레코드 존재 여부 확인
      */
-    async queryWithPagination(baseQuery, countQuery, params = [], page = 1, limit = 20) {
-        const offset = (page - 1) * limit;
-        // 데이터와 총 개수를 병렬로 조회
-        const [dataResult, countResult] = await Promise.all([
-            this.query(`${baseQuery} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset]),
-            this.queryOne(countQuery, params)
-        ]);
-        const total = parseInt(countResult?.count || '0');
-        const pages = Math.ceil(total / limit);
-        return {
-            data: dataResult,
-            total,
-            page,
-            limit,
-            pages
-        };
-    }
-    /**
-     * 벌크 삽입
-     */
-    async bulkInsert(tableName, columns, values, onConflict) {
-        if (values.length === 0)
-            return;
-        const placeholders = values.map((_, rowIndex) => `(${columns.map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`).join(', ')})`).join(', ');
-        const flatValues = values.flat();
-        const conflictClause = onConflict ? ` ON CONFLICT ${onConflict}` : '';
-        const query = `
-      INSERT INTO ${tableName} (${columns.join(', ')})
-      VALUES ${placeholders}
-      ${conflictClause}
-    `;
-        await this.query(query, flatValues);
-    }
-    /**
-     * 안전한 업데이트 (WHERE 조건 필수)
-     */
-    async safeUpdate(tableName, updates, whereConditions) {
-        if (Object.keys(whereConditions).length === 0) {
-            throw new Error('WHERE 조건이 필요합니다. 전체 테이블 업데이트는 허용되지 않습니다.');
-        }
-        const updateClauses = Object.keys(updates).map((key, index) => `${key} = $${index + 1}`);
-        const whereClauses = Object.keys(whereConditions).map((key, index) => `${key} = $${Object.keys(updates).length + index + 1}`);
-        const query = `
-      UPDATE ${tableName} 
-      SET ${updateClauses.join(', ')}, updated_at = NOW()
-      WHERE ${whereClauses.join(' AND ')}
-    `;
-        const params = [...Object.values(updates), ...Object.values(whereConditions)];
-        const result = await this.query(query, params);
-        return result.rowCount || 0;
-    }
-    /**
-     * 안전한 삭제 (WHERE 조건 필수)
-     */
-    async safeDelete(tableName, whereConditions) {
-        if (Object.keys(whereConditions).length === 0) {
-            throw new Error('WHERE 조건이 필요합니다. 전체 테이블 삭제는 허용되지 않습니다.');
-        }
-        const whereClauses = Object.keys(whereConditions).map((key, index) => `${key} = $${index + 1}`);
-        const query = `
-      DELETE FROM ${tableName} 
-      WHERE ${whereClauses.join(' AND ')}
-    `;
-        const result = await this.query(query, Object.values(whereConditions));
-        return result.rowCount || 0;
-    }
-    /**
-     * 존재 여부 확인
-     */
-    async exists(tableName, whereConditions) {
-        const whereClauses = Object.keys(whereConditions).map((key, index) => `${key} = $${index + 1}`);
-        const query = `
-      SELECT EXISTS(
-        SELECT 1 FROM ${tableName} 
-        WHERE ${whereClauses.join(' AND ')}
-      ) as exists
-    `;
-        const result = await this.queryOne(query, Object.values(whereConditions));
+    async exists(tableName, conditions) {
+        const whereClause = Object.keys(conditions)
+            .map((key, index) => `${key} = $${index + 1}`)
+            .join(' AND ');
+        const query = `SELECT EXISTS(SELECT 1 FROM ${tableName} WHERE ${whereClause})`;
+        const values = Object.values(conditions);
+        const result = await this.queryOne(query, values);
         return result?.exists || false;
     }
     /**
-     * 카운트 조회
+     * 페이징 처리된 결과 조회
      */
-    async count(tableName, whereConditions) {
-        let query = `SELECT COUNT(*) as count FROM ${tableName}`;
-        let params = [];
-        if (whereConditions && Object.keys(whereConditions).length > 0) {
-            const whereClauses = Object.keys(whereConditions).map((key, index) => `${key} = $${index + 1}`);
-            query += ` WHERE ${whereClauses.join(' AND ')}`;
-            params = Object.values(whereConditions);
+    async paginate(baseQuery, countQuery, params = [], page = 1, limit = 50) {
+        const offset = (page - 1) * limit;
+        // LIMIT과 OFFSET을 추가한 쿼리
+        const paginatedQuery = `${baseQuery} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        const paginatedParams = [...params, limit, offset];
+        const [data, countResult] = await Promise.all([
+            this.queryMany(paginatedQuery, paginatedParams),
+            this.queryOne(countQuery, params)
+        ]);
+        const total = parseInt(countResult?.count || '0');
+        const totalPages = Math.ceil(total / limit);
+        return {
+            data,
+            total,
+            page,
+            limit,
+            pages: totalPages, // 호환성을 위해 pages도 추가
+            totalPages
+        };
+    }
+    /**
+     * 일반 쿼리 실행 (기존 호환성을 위해)
+     */
+    async query(query, params = []) {
+        return this.queryMany(query, params);
+    }
+    /**
+     * 페이징이 포함된 쿼리 실행
+     */
+    async queryWithPagination(baseQuery, countQuery, params = [], page = 1, limit = 50) {
+        return this.paginate(baseQuery, countQuery, params, page, limit);
+    }
+    /**
+     * 안전한 업데이트
+     */
+    async safeUpdate(tableName, updates, conditions) {
+        const setClause = Object.keys(updates)
+            .map((key, index) => `${key} = $${index + 1}`)
+            .join(', ');
+        const whereClause = Object.keys(conditions)
+            .map((key, index) => `${key} = $${Object.keys(updates).length + index + 1}`)
+            .join(' AND ');
+        const query = `
+      UPDATE ${tableName} 
+      SET ${setClause}, updated_at = NOW()
+      WHERE ${whereClause}
+    `;
+        const params = [...Object.values(updates), ...Object.values(conditions)];
+        try {
+            const result = await this.pool.query(query, params);
+            return result.rowCount || 0;
         }
+        catch (error) {
+            console.error(`Safe update error on ${tableName}:`, error);
+            throw error;
+        }
+    }
+    /**
+     * 안전한 삭제
+     */
+    async safeDelete(tableName, conditions) {
+        const whereClause = Object.keys(conditions)
+            .map((key, index) => `${key} = $${index + 1}`)
+            .join(' AND ');
+        const query = `DELETE FROM ${tableName} WHERE ${whereClause}`;
+        const params = Object.values(conditions);
+        try {
+            const result = await this.pool.query(query, params);
+            return result.rowCount || 0;
+        }
+        catch (error) {
+            console.error(`Safe delete error on ${tableName}:`, error);
+            throw error;
+        }
+    }
+    /**
+     * 레코드 개수 조회
+     */
+    async count(tableName, conditions = {}) {
+        const whereClause = Object.keys(conditions).length > 0
+            ? 'WHERE ' + Object.keys(conditions)
+                .map((key, index) => `${key} = $${index + 1}`)
+                .join(' AND ')
+            : '';
+        const query = `SELECT COUNT(*) as count FROM ${tableName} ${whereClause}`;
+        const params = Object.values(conditions);
         const result = await this.queryOne(query, params);
         return parseInt(result?.count || '0');
+    }
+    /**
+     * 대량 삽입
+     */
+    async bulkInsert(tableName, columns, rows) {
+        if (rows.length === 0)
+            return;
+        const placeholders = rows.map((_, rowIndex) => `(${columns.map((_, colIndex) => `$${rowIndex * columns.length + colIndex + 1}`).join(', ')})`).join(', ');
+        const query = `
+      INSERT INTO ${tableName} (${columns.join(', ')})
+      VALUES ${placeholders}
+    `;
+        const params = rows.flat();
+        try {
+            await this.pool.query(query, params);
+        }
+        catch (error) {
+            console.error(`Bulk insert error on ${tableName}:`, error);
+            throw error;
+        }
     }
 }

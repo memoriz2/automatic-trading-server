@@ -1605,6 +1605,11 @@ export async function registerRoutes(app, server) {
                 success: testResult.success,
                 message: testResult.message
             });
+            console.log(`🔍 [연동테스트] 잔고 조회 조건 확인:`, {
+                testSuccess: testResult.success,
+                exchangeIsBinance: exchange === 'binance',
+                shouldQueryBalance: testResult.success && exchange === 'binance'
+            });
             // 연결 성공 시 잔고도 조회해서 함께 반환
             if (testResult.success && exchange === 'binance') {
                 try {
