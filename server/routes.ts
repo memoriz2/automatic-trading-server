@@ -1392,8 +1392,8 @@ export async function registerRoutes(
 
       // API 키 없어도 기본 잔고 반환
       const balances: any = {
-        upbit: { krw: 1000000, connected: false, demo: true },
-        binance: { usdt: 1000, connected: false, demo: true },
+        upbit: { krw: 0, connected: false, demo: true },
+        binance: { usdt: 0, connected: false, demo: true },
       };
 
       let exchanges: any[] = [];
