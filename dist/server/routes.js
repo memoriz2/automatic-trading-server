@@ -182,6 +182,90 @@ export async function registerRoutes(app, server) {
         const m = kimpgaSvc.getMetrics();
         res.json(m);
     });
+    // 실제 거래 통계 API (DB 기반)
+    app.get("/api/trading/daily-stats", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const minutes = parseInt(req.query.minutes) || 1440; // 기본 24시간
+            console.log(`📊 일일 통계 조회: 사용자 ${userId}, 지난 ${minutes}분`);
+            // 한국시간 기준 시작 시간 계산
+            const now = new Date();
+            const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+            // 오늘 자정 계산 (한국시간)
+            const kstToday = new Date(kstNow);
+            kstToday.setHours(0, 0, 0, 0);
+            const startTime = new Date(kstToday.getTime() - 9 * 60 * 60 * 1000); // UTC로 변환
+            console.log(`📊 시간 범위: ${startTime.toISOString()} ~ ${now.toISOString()}`);
+            // 실제 거래 내역에서 통계 계산
+            const trades = await storage.getTradesByUserId(String(userId), 1000);
+            const positions = await storage.getPositions({ user_id: userId });
+            console.log(`📊 DB 조회 결과: 거래 ${trades.length}개, 포지션 ${positions.length}개`);
+            // 오늘 거래 필터링
+            const todayTrades = trades.filter(trade => {
+                const tradeTime = new Date(trade.created_at || trade.timestamp);
+                return tradeTime >= startTime;
+            });
+            // 오늘 포지션 필터링
+            const todayPositions = positions.filter(position => {
+                const positionTime = new Date(position.created_at || position.entry_time);
+                return positionTime >= startTime;
+            });
+            console.log(`📊 필터링 결과: 오늘 거래 ${todayTrades.length}개, 오늘 포지션 ${todayPositions.length}개`);
+            if (todayTrades.length > 0) {
+                console.log(`📊 거래 샘플:`, todayTrades.slice(0, 3).map(t => ({
+                    id: t.id,
+                    exchange: t.exchange,
+                    type: t.type,
+                    created_at: t.created_at
+                })));
+            }
+            if (todayPositions.length > 0) {
+                console.log(`📊 포지션 샘플:`, todayPositions.slice(0, 3).map(p => ({
+                    id: p.id,
+                    status: p.status,
+                    side: p.side,
+                    created_at: p.created_at
+                })));
+            }
+            // 진입/청산 거래만 필터링 (실제 의미있는 거래)
+            const entryTrades = todayTrades.filter(t => t.side === 'buy' || t.type === 'buy' || t.action === 'entry' ||
+                (t.exchange === 'upbit' && (t.side === 'bid' || t.ord_type === 'limit')));
+            const exitTrades = todayTrades.filter(t => t.side === 'sell' || t.type === 'sell' || t.action === 'exit' ||
+                (t.exchange === 'binance' && (t.side === 'ask' || t.type === 'short')));
+            // 실제 포지션 생성/청산 횟수
+            const todayEntries = todayPositions.filter(p => p.status === 'open').length;
+            const todayExits = todayPositions.filter(p => p.status === 'closed').length;
+            console.log(`📊 거래 분석: 진입거래 ${entryTrades.length}개, 청산거래 ${exitTrades.length}개`);
+            console.log(`📊 포지션 분석: 진입 ${todayEntries}개, 청산 ${todayExits}개`);
+            // 통계 계산 (의미있는 거래만)
+            const meaningfulTrades = entryTrades.length + exitTrades.length;
+            const stats = {
+                total_orders: meaningfulTrades, // 진입+청산 거래만
+                entries: todayEntries, // 실제 포지션 진입
+                exits: todayExits, // 실제 포지션 청산
+                upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
+                binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
+                total_fees: todayTrades.reduce((sum, trade) => {
+                    const fee = Number(trade.fee || 0);
+                    return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
+                }, 0),
+                total_profit_rate: todayPositions.reduce((sum, pos) => {
+                    return sum + Number(pos.profit_loss_rate || 0);
+                }, 0) / Math.max(1, todayPositions.length),
+                loops: 0,
+                errors: 0
+            };
+            console.log(`📊 계산된 일일 통계:`, stats);
+            res.json(stats);
+        }
+        catch (error) {
+            console.error('일일 통계 조회 실패:', error);
+            res.status(500).json({
+                error: '일일 통계 조회 중 오류가 발생했습니다',
+                details: error.message
+            });
+        }
+    });
     app.get("/api/kimpga/balance", async (req, res) => {
         try {
             // 헤더에서 사용자 ID 가져오기 (우선순위: X-User-ID > 세션 > 기본값)

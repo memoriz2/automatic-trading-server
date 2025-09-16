@@ -51,7 +51,7 @@ export const useRealTimeStats = (userId?: number) => {
       const minutes = getKstMinutesSinceMidnight();
       const token = localStorage.getItem('authToken');
       
-      const res = await fetch(`/api/kimpga/metrics?minutes=${minutes}`, {
+      const res = await fetch(`/api/trading/daily-stats?minutes=${minutes}`, {
         method: 'GET',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -61,22 +61,28 @@ export const useRealTimeStats = (userId?: number) => {
         cache: 'no-store',
       });
 
-      if (res.ok) {
-        const metrics = await res.json();
-        const realStats: RealTimeStats = {
-          totalTrades: Number(metrics.total_orders || 0) + Number(metrics.entries || 0) + Number(metrics.exits || 0),
-          upbitTrades: Number(metrics.upbit_orders || 0),
-          binanceTrades: Number(metrics.binance_orders || 0),
-          entries: Number(metrics.entries || 0),
-          exits: Number(metrics.exits || 0),
-          loops: Number(metrics.loops || 0),
-          errors: Number(metrics.errors || 0),
-          totalFees: Number(metrics.total_fees || 0),
-          totalProfitRate: Number(metrics.total_profit_rate || 0)
-        };
-        
-        setStats(realStats);
-        console.log('📊 [useRealTimeStats] DB 통계 업데이트:', realStats);
+        if (res.ok) {
+          const metrics = await res.json();
+          console.log('📊 [useRealTimeStats] 서버 응답 원본:', metrics);
+          
+          const realStats: RealTimeStats = {
+            totalTrades: Number(metrics.total_orders || 0) + Number(metrics.entries || 0) + Number(metrics.exits || 0),
+            upbitTrades: Number(metrics.upbit_orders || 0),
+            binanceTrades: Number(metrics.binance_orders || 0),
+            entries: Number(metrics.entries || 0),
+            exits: Number(metrics.exits || 0),
+            loops: Number(metrics.loops || 0),
+            errors: Number(metrics.errors || 0),
+            totalFees: Number(metrics.total_fees || 0),
+            totalProfitRate: Number(metrics.total_profit_rate || 0)
+          };
+          
+          setStats(realStats);
+          console.log('📊 [useRealTimeStats] DB 통계 업데이트:', realStats);
+          console.log('📊 [useRealTimeStats] 변환 과정:', {
+            원본: metrics,
+            변환후: realStats
+          });
       } else {
         throw new Error(`API 응답 오류: ${res.status}`);
       }
