@@ -22,6 +22,7 @@ import { markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
 import { userIdManager, useStableUserId } from '@/utils/user-id-manager';
 import { strategyBackupManager, useStrategyBackup } from '@/utils/strategy-backup';
 import { Badge } from '@/components/ui/badge';
+import { DailyStatsPanel } from '@/components/trading/DailyStatsPanel';
 
 interface Band {
   name?: string;
@@ -460,18 +461,7 @@ const LegacyAutoTradingPage = () => {
     realizedPnl: 0
   });
   
-  // 실제 DB 기반 통계 조회 (Dashboard와 동일한 방식)
-  const [realDailyStats, setRealDailyStats] = useState({
-    totalTrades: 0,
-    upbitTrades: 0,
-    binanceTrades: 0,
-    entries: 0,
-    exits: 0,
-    loops: 0,
-    errors: 0,
-    totalFees: 0,
-    totalProfitRate: 0
-  });
+  // 실제 DB 기반 통계는 DailyStatsPanel 컴포넌트로 이동됨
   const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
 
   // 거래 모드 관리 (커스텀 훅)
@@ -507,56 +497,7 @@ const LegacyAutoTradingPage = () => {
     setLoadingState(isDataValid ? 'stable' : 'loading');
   }, [kimp]);
 
-  // 실제 DB 기반 일일 통계 가져오기
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const fetchRealStats = async () => {
-      try {
-        // 한국시간 자정부터 경과 분 계산
-        const now = new Date();
-        const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-        const kstMidnightUtc = Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate(), -9, 0, 0);
-        const minutes = Math.max(1, Math.floor((now.getTime() - kstMidnightUtc) / 60000));
-
-        const token = localStorage.getItem('authToken');
-        const res = await fetch(`/api/kimpga/metrics?minutes=${minutes}`, {
-          method: 'GET',
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            'X-User-ID': String(user.id),
-          },
-          credentials: 'include',
-          cache: 'no-store',
-        });
-
-        if (res.ok) {
-          const metrics = await res.json();
-          const realStats = {
-            totalTrades: Number(metrics.total_orders || 0) + Number(metrics.entries || 0) + Number(metrics.exits || 0),
-            upbitTrades: Number(metrics.upbit_orders || 0),
-            binanceTrades: Number(metrics.binance_orders || 0),
-            entries: Number(metrics.entries || 0),
-            exits: Number(metrics.exits || 0),
-            loops: Number(metrics.loops || 0),
-            errors: Number(metrics.errors || 0),
-            totalFees: Number(metrics.total_fees || 0),
-            totalProfitRate: Number(metrics.total_profit_rate || 0)
-          };
-          setRealDailyStats(realStats);
-          console.log('📊 실제 DB 통계 업데이트:', realStats);
-        }
-      } catch (error) {
-        console.error('실제 통계 조회 실패:', error);
-      }
-    };
-
-    // 즉시 실행 후 5초마다 업데이트
-    fetchRealStats();
-    const interval = setInterval(fetchRealStats, 5000);
-    
-    return () => clearInterval(interval);
-  }, [user?.id]);
+  // 실제 DB 기반 통계는 useRealTimeStats 훅으로 이동됨
 
   // 중복 로직들이 커스텀 훅으로 이동됨
 
@@ -1873,39 +1814,10 @@ const LegacyAutoTradingPage = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="mt-4 pt-4 border-t border-slate-600">
-                  <h4 className="text-slate-400 text-sm mb-3">오늘의 실거래 통계 (DB 기반)</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-green-400">{realDailyStats.totalTrades}</p>
-                      <p className="text-xs text-slate-400">총 거래</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-blue-400">{realDailyStats.entries}</p>
-                      <p className="text-xs text-slate-400">진입</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-orange-400">{realDailyStats.exits}</p>
-                      <p className="text-xs text-slate-400">청산</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-purple-400">{realDailyStats.loops}</p>
-                      <p className="text-xs text-slate-400">루프 수</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-yellow-400">₩{realDailyStats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</p>
-                      <p className="text-xs text-slate-400">총 수수료</p>
-                    </div>
-                    <div className="text-center">
-                      <p className={`text-xl font-bold ${realDailyStats.totalProfitRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {realDailyStats.totalProfitRate >= 0 ? '+' : ''}{realDailyStats.totalProfitRate.toFixed(2)}%
-                      </p>
-                      <p className="text-xs text-slate-400">총 수익률</p>
-                    </div>
-                  </div>
-                </div>
+                <DailyStatsPanel 
+                  userId={user?.id} 
+                  title="오늘의 실거래 통계 (DB 기반)"
+                />
               </div>
             </section>
           )}
