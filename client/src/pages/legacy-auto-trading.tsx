@@ -221,23 +221,14 @@ const LegacyAutoTradingPage = () => {
   const [loadingState, setLoadingState] = useState<'stable' | 'loading'>('stable');
   const lastStateChangeRef = useRef<number>(Date.now());
   
-  // 실시간 데이터 유효성 검증
+  // 실시간 데이터 유효성 검증 (단순화)
   const isRealTimeDataValid = (kimchiData: any) => {
-    // Mock 모드에서는 항상 유효
-    if (tradingMode === 'mock') return true;
-    
-    const now = Date.now();
-    const dataAge = kimchiData?.timestamp ? now - new Date(kimchiData.timestamp).getTime() : Infinity;
-    
     return !!(
       kimchiData?.upbit_price && 
       kimchiData?.binance_price && 
       kimchiData?.usdkrw &&
       kimchiData.upbit_price > 0 &&
-      kimchiData.binance_price > 0 &&
-      kimchiData.usdkrw > 1000 &&
-      kimchiData.usdkrw < 2000 &&
-      dataAge < 60000 // 1분 이내 데이터만 유효
+      kimchiData.binance_price > 0
     );
   };
 
@@ -511,26 +502,13 @@ const LegacyAutoTradingPage = () => {
   } = useTradingMode({ user });
 
 
-  // Mock 모드에서 strategies 상태가 변경될 때마다 localStorage에 저장 + 백업
+  // 실시간 거래 모드: 전략 변경 시 자동 DB 동기화
   useEffect(() => {
-    if (tradingMode === 'mock' && effectiveUserId) {
-      const storageKey = `mock-strategies-${effectiveUserId}`;
-      console.log('💾 Mock 전략 저장:', { storageKey, count: strategies.length });
-      localStorage.setItem(storageKey, JSON.stringify(strategies));
-      
-      // 전략 변경 시 자동 백업 (5초 디바운스)
-      const backupTimer = setTimeout(() => {
-        if (strategies.length > 0) {
-          const backupKey = createBackup();
-          if (backupKey) {
-            console.log('🛡️ 전략 변경 후 자동 백업:', backupKey);
-          }
-        }
-      }, 5000);
-      
-      return () => clearTimeout(backupTimer);
+    if (effectiveUserId && strategies.length > 0) {
+      console.log('🔄 전략 상태 변경 감지:', { count: strategies.length });
+      // 실시간 거래에서는 DB가 단일 진실 소스이므로 별도 저장 불필요
     }
-  }, [strategies, tradingMode, effectiveUserId, createBackup]);
+  }, [strategies, effectiveUserId]);
 
   // 전략 복원 완료 추적
   const hasRestoredRef = useRef(false);
@@ -1633,13 +1611,9 @@ const LegacyAutoTradingPage = () => {
             console.log('✅ [DEBUG] 페이지 로드 - 세션 확인됨:', sessionData.id);
             // effectiveUserId는 이미 sessionData.id를 사용하므로 별도 설정 불필요
             
-            // Mock 모드에서는 DB 로드하지 않음
-            if (tradingMode !== 'mock') {
-              console.log('🚀 [DEBUG] 실거래 모드 - loadStrategiesFromDB 호출');
-              loadStrategiesFromDB();
-            } else {
-              console.log('🧪 [DEBUG] Mock 모드 - DB 로드 건너뜀, 로컬 데이터 사용');
-            }
+            // 실시간 거래 모드: DB에서 전략 로드
+            console.log('🚀 [DEBUG] 실시간 거래 모드 - loadStrategiesFromDB 호출');
+            loadStrategiesFromDB();
           } else {
             console.log('❌ [DEBUG] 페이지 로드 - 세션 없음, 로그인 필요');
           }
@@ -1667,14 +1641,10 @@ const LegacyAutoTradingPage = () => {
       console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
       // effectiveUserId는 이미 user.id를 사용하므로 별도 설정 불필요
       
-      // Mock 모드에서는 DB 로드하지 않음 (로컬 데이터만 사용)
-      if (tradingMode !== 'mock') {
-        hasLoadedStrategiesRef.current = false; // 사용자 변경 시 한 번 더 허용
-        loadStrategiesFromDB();
-        console.log('🔄 실거래 모드 - DB에서 전략 로드');
-      } else {
-        console.log('🧪 Mock 모드 - 로컬 데이터만 사용, DB 로드 건너뜀');
-      }
+      // 실시간 거래 모드: DB에서 전략 로드
+      hasLoadedStrategiesRef.current = false; // 사용자 변경 시 한 번 더 허용
+      loadStrategiesFromDB();
+      console.log('🔄 실시간 거래 모드 - DB에서 전략 로드');
     } else {
       console.log('⚠️ 세션에 사용자 정보가 없습니다. 조회 보류');
     }
@@ -2015,68 +1985,39 @@ const LegacyAutoTradingPage = () => {
 
           {/* 거래 시스템 섹션 */}
           <section className="card col-12">
-            {realTimeDataStatus ? realTimeDataStatus : (tradingMode === 'mock' && canUseMock) ? (
-              /* Mock 매매시스템 */
-            <MockTradingSystem 
-                strategies={strategies} // Mock 모드: 로컬 전략
-                setStrategies={setStrategies} // 전략 복원을 위해 추가
-              currentKimchiData={{
-                kimp: Number(kimp?.kimp) || 0.5,
-                upbit_price: Number(kimp?.upbit_price) || 0, // 실시간 데이터만 사용
-                binance_price: Number(kimp?.binance_price) || 0, // 실시간 데이터만 사용
-                usdkrw: Number(kimp?.usdkrw) || 0, // 실시간 데이터만 사용
-                isRealTimeValid: hasValidRealTimeData,
-                dataAge: Math.round(dataAge / 1000)
-              }}
-              userId={user?.id ? String(user.id) : "1"}
-              onDailyStatsUpdate={setDailyStats}
-                isLiveMode={false}
-              onStrategyStatsUpdate={(stats) => {
-                setStrategies(prev => {
-                  const updated = prev.map(s => {
+            {realTimeDataStatus ? realTimeDataStatus : (
+            (liveConnected || window.location.hostname === 'localhost') ? (
+              /* 실시간 거래 시스템 */
+              <MockTradingSystem 
+                strategies={realStrategies} // DB 기반 전략
+                currentKimchiData={{
+                  kimp: Number(kimp?.kimp) || 0.5,
+                  upbit_price: Number(kimp?.upbit_price) || 0,
+                  binance_price: Number(kimp?.binance_price) || 0,
+                  usdkrw: Number(kimp?.usdkrw) || 0,
+                  isRealTimeValid: hasValidRealTimeData,
+                  dataAge: Math.round(dataAge / 1000)
+                }}
+                userId={user?.id ? String(user.id) : "1"}
+                onDailyStatsUpdate={setDailyStats}
+                isLiveMode={true}
+                realBalances={balances}
+                onStrategyStatsUpdate={(stats) => {
+                  setRealStrategies(prev => prev.map(s => {
                     const st = stats[s.id];
                     return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
-                  });
-                  // 통계 업데이트 시에도 자동 저장
-                  saveStrategiesToLocal(updated);
-                  return updated;
-                });
-              }}
-            />
+                  }));
+                }}
+              />
             ) : (
-              /* 실거래 모드 */
-              (liveConnected || window.location.hostname === 'localhost') ? (
-                /* API 연결 완료 - 실거래 시스템 */
-                <MockTradingSystem 
-                  strategies={realStrategies} // 실거래 모드: DB 조회 전략
-                  currentKimchiData={{
-                    kimp: Number(kimp?.kimp) || 0.5,
-                    upbit_price: Number(kimp?.upbit_price) || 0, // 실시간 데이터만 사용
-                    binance_price: Number(kimp?.binance_price) || 0, // 실시간 데이터만 사용
-                    usdkrw: Number(kimp?.usdkrw) || 0, // 실시간 데이터만 사용
-                    isRealTimeValid: hasValidRealTimeData,
-                    dataAge: Math.round(dataAge / 1000)
-                  }}
-                  userId={user?.id ? String(user.id) : "1"}
-                  onDailyStatsUpdate={setDailyStats}
-                  isLiveMode={true} // 실거래 모드
-                  realBalances={balances} // 실제 잔고 데이터 전달
-                  onStrategyStatsUpdate={(stats) => {
-                    setRealStrategies(prev => prev.map(s => {
-                      const st = stats[s.id];
-                      return st ? { ...s, executionCount: st.executionCount, profitRate: Number(st.profitRate.toFixed(2)) } : s;
-                    }));
-                  }}
-                />
-              ) : (
-                /* API 연결 대기 중 */
-                <div className="p-8 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-                  <h3 className="text-xl font-semibold text-white mb-2">실거래 API 연결 중</h3>
-                  <p className="text-slate-400">업비트 및 바이낸스 API에 연결하고 있습니다...</p>
-                  </div>
-              )
-            )}
+              /* API 연결 대기 중 */
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                <h3 className="text-xl font-semibold text-white mb-2">실거래 API 연결 중</h3>
+                <p className="text-slate-400">업비트 및 바이낸스 API에 연결하고 있습니다...</p>
+              </div>
+            )
+          )}
           </section>
 
           <MarketSnapshot kimp={kimp} balances={balances} isLoadingBalances={isConnecting} />
@@ -2140,39 +2081,7 @@ const LegacyAutoTradingPage = () => {
               e.preventDefault();
               
               if (editingStrategyId) {
-                // 기존 전략 수정
-                if (tradingMode === 'mock') {
-                  // Mock 모드: 로컬 저장만
-                  setStrategies(prev => {
-                    const updated = prev.map(strategy => 
-                      strategy.id === editingStrategyId 
-                        ? {
-                            ...strategy,
-                            name: newStrategy.name,
-                            crypto: newStrategy.crypto,
-                            entryCondition: newStrategy.entryCondition,
-                            takeProfitCondition: newStrategy.takeProfitCondition,
-                            investmentAmount: newStrategy.investmentAmount,
-                            leverage: newStrategy.leverage,
-                            tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
-                            riskLevel: newStrategy.riskLevel,
-                            isActive: newStrategy.activateImmediately
-                          }
-                        : strategy
-                    );
-                    // Mock 모드에서 Local Storage에 자동 저장
-                    saveStrategiesToLocal(updated);
-                    return updated;
-                  });
-                  
-                  toast({
-                    title: '전략 수정 완료 (Mock)! 🎉',
-                    description: `${newStrategy.name} Mock 전략이 업데이트되었습니다.`,
-                  });
-                  
-                  setEditingStrategyId(null);
-                } else {
-                  // 실거래 모드: 서버 우선 업데이트 후 UI 새로고침
+                // 기존 전략 수정 (실시간 거래 모드)
                 try {
                   const normalizedInvestment = (() => {
                     const n = Number(newStrategy.investmentAmount);
@@ -2185,7 +2094,6 @@ const LegacyAutoTradingPage = () => {
                     exitRate: newStrategy.takeProfitCondition,
                     toleranceRate: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
                     leverage: parseInt(newStrategy.leverage) || 3,
-                    // 서버에는 투자수량(BTC) 저장
                     investmentAmount: normalizedInvestment,
                     symbol: newStrategy.crypto || 'BTC',
                     isActive: newStrategy.activateImmediately,
@@ -2195,12 +2103,10 @@ const LegacyAutoTradingPage = () => {
                   
                   console.log('🔍 전략 수정 payload:', payload);
                   
-                  // 전략 수정: PUT 메서드로 기존 전략 업데이트
                   await fetchJson(`/api/trading-strategies/${editingStrategyId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
-                    // 저장 요청은 취소되지 않도록 보장
                     nonCancelable: true as any
                   });
                   
@@ -2209,7 +2115,6 @@ const LegacyAutoTradingPage = () => {
                     description: `${newStrategy.name} 전략이 업데이트되었습니다.`,
                   });
                   
-                  // 서버에서 최신 전략 목록 비동기 로드
                   await loadStrategiesFromDB({ force: true });
                 } catch (error) {
                   console.error('전략 수정 실패:', error);
@@ -2219,9 +2124,8 @@ const LegacyAutoTradingPage = () => {
                     variant: 'destructive' 
                   });
                 }
-                  
-                  setEditingStrategyId(null);
-                }
+                
+                setEditingStrategyId(null);
               } else {
                 // 새 전략 생성
                 const newId = `strategy-${Date.now()}`;
@@ -2250,23 +2154,7 @@ const LegacyAutoTradingPage = () => {
                   executionCount: 0
                 };
                 
-                setStrategies(prev => {
-                  const updated = [...prev, newStrategyData];
-                  // Mock 모드에서 Local Storage에 자동 저장
-                  saveStrategiesToLocal(updated);
-                  return updated;
-                });
-                
-                // Mock/실거래 모드 구분
-                if (tradingMode === 'mock') {
-                  // Mock 모드: 로컬 저장만
-                  console.log('🧪 Mock 모드 - 전략 로컬 저장만:', newStrategyData);
-                  toast({ 
-                    title: '전략 생성 완료 (Mock)', 
-                    description: 'Mock 전략이 생성되었습니다.' 
-                  });
-                } else {
-                  // 실거래 모드: DB 저장 시도
+                // 실시간 거래 모드: DB 저장
                 try {
                   const normalizedInvestment = (() => {
                     const n = Number(newStrategy.investmentAmount);
@@ -2279,7 +2167,6 @@ const LegacyAutoTradingPage = () => {
                     exitRate: newStrategy.takeProfitCondition,
                     toleranceRate: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
                     leverage: parseInt(newStrategy.leverage) || 3,
-                    // 서버는 투자수량(BTC)을 그대로 저장
                     investmentAmount: normalizedInvestment,
                     symbol: newStrategy.crypto || 'BTC',
                     isActive: newStrategy.activateImmediately,
@@ -2303,13 +2190,11 @@ const LegacyAutoTradingPage = () => {
                   
                   console.log('✅ 전략 생성 성공:', result);
                   toast({ title: '전략 생성 완료', description: '새 전략이 성공적으로 생성되었습니다.' });
-                  // DB에서 최신 데이터 다시 로드
-                  loadStrategiesFromDB({ force: true });
+                  await loadStrategiesFromDB({ force: true });
                 } catch (error: any) {
                   console.error('❌ 전략 생성 실패:', error);
                   toast({ title: '전략 생성 실패', description: `서버 저장 실패: ${error.message}`, variant: 'destructive' });
                 }
-                } // 실거래 모드 끝
               }
               
               // 모달 닫기 및 폼 초기화
