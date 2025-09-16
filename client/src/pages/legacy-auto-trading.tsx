@@ -1412,14 +1412,34 @@ const LegacyAutoTradingPage = () => {
 
   // 간단한 전략 로드 함수
   const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean } = {}) => {
-    if (!opts.force && hasLoadedStrategiesRef.current) return [];
+    console.log('📋 [전략로드] loadStrategiesFromDB 시작:', { 
+      force: opts.force, 
+      hasLoaded: hasLoadedStrategiesRef.current,
+      userId: user?.id 
+    });
+    
+    if (!opts.force && hasLoadedStrategiesRef.current) {
+      console.log('📋 [전략로드] 이미 로드됨 - 건너뜀');
+      return [];
+    }
     
     setIsLoadingStrategies(true);
     try {
-      if (!user?.id) return [];
+      if (!user?.id) {
+        console.log('❌ [전략로드] 사용자 ID 없음');
+        return [];
+      }
       
       const userId = String(user.id);
+      console.log('🔍 [전략로드] API 호출:', `/api/trading-strategies/${userId}`);
+      
       const dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
+      console.log('📥 [전략로드] DB 응답:', { 
+        type: typeof dbStrategies, 
+        isArray: Array.isArray(dbStrategies),
+        length: Array.isArray(dbStrategies) ? dbStrategies.length : 'N/A',
+        data: dbStrategies 
+      });
       
       if (Array.isArray(dbStrategies)) {
         const formattedStrategies = dbStrategies.map(s => ({
@@ -1439,11 +1459,14 @@ const LegacyAutoTradingPage = () => {
         }));
         
         hasLoadedStrategiesRef.current = true;
+        console.log('✅ [전략로드] 포맷팅 완료:', formattedStrategies.length, '개 전략');
+        console.log('📋 [전략로드] 전략 목록:', formattedStrategies.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })));
         return formattedStrategies;
       }
+      console.log('❌ [전략로드] DB 응답이 배열이 아님');
       return [];
     } catch (error) {
-      console.error('전략 로드 실패:', error);
+      console.error('❌ [전략로드] 전략 로드 실패:', error);
       return [];
     } finally {
       setIsLoadingStrategies(false);
@@ -1469,9 +1492,16 @@ const LegacyAutoTradingPage = () => {
             
             // 실시간 거래 모드: DB에서 전략 로드
             console.log('🚀 [DEBUG] 실시간 거래 모드 - loadStrategiesFromDB 호출');
-            loadStrategiesFromDB().then(strategies => {
+            loadStrategiesFromDB({ force: true }).then(strategies => {
+              console.log('🔄 [전략로드] 로드 결과:', { 
+                strategiesLength: strategies?.length || 0,
+                strategies: strategies?.map(s => ({ id: s.id, name: s.name })) || []
+              });
               if (strategies && strategies.length > 0) {
                 setRealStrategies(strategies);
+                console.log('✅ [전략로드] realStrategies 상태 업데이트 완료');
+              } else {
+                console.log('⚠️ [전략로드] 전략이 없어서 상태 업데이트 안함');
               }
             });
           } else {
@@ -1495,9 +1525,16 @@ const LegacyAutoTradingPage = () => {
       
       // 실시간 거래 모드: DB에서 전략 로드
       hasLoadedStrategiesRef.current = false;
-      loadStrategiesFromDB().then(strategies => {
+      loadStrategiesFromDB({ force: true }).then(strategies => {
+        console.log('🔄 [전략로드] 사용자 변경 시 로드 결과:', { 
+          strategiesLength: strategies?.length || 0,
+          strategies: strategies?.map(s => ({ id: s.id, name: s.name })) || []
+        });
         if (strategies && strategies.length > 0) {
           setRealStrategies(strategies);
+          console.log('✅ [전략로드] realStrategies 상태 업데이트 완료 (사용자 변경)');
+        } else {
+          console.log('⚠️ [전략로드] 전략이 없어서 상태 업데이트 안함 (사용자 변경)');
         }
       });
       console.log('🔄 실시간 거래 모드 - DB에서 전략 로드');
@@ -1954,7 +1991,11 @@ const LegacyAutoTradingPage = () => {
                     description: `${newStrategy.name} 전략이 업데이트되었습니다.`,
                   });
                   
-                  await loadStrategiesFromDB({ force: true });
+                  const newStrategies = await loadStrategiesFromDB({ force: true });
+                  if (newStrategies && newStrategies.length > 0) {
+                    setRealStrategies(newStrategies);
+                    console.log('🔄 [전략수정] realStrategies 상태 업데이트:', newStrategies.length, '개');
+                  }
                 } catch (error) {
                   console.error('전략 수정 실패:', error);
                   toast({ 
@@ -2029,7 +2070,12 @@ const LegacyAutoTradingPage = () => {
                   
                   console.log('✅ 전략 생성 성공:', result);
                   toast({ title: '전략 생성 완료', description: '새 전략이 성공적으로 생성되었습니다.' });
-                  await loadStrategiesFromDB({ force: true });
+                  
+                  const newStrategies = await loadStrategiesFromDB({ force: true });
+                  if (newStrategies && newStrategies.length > 0) {
+                    setRealStrategies(newStrategies);
+                    console.log('🔄 [전략생성] realStrategies 상태 업데이트:', newStrategies.length, '개');
+                  }
                 } catch (error: any) {
                   console.error('❌ 전략 생성 실패:', error);
                   toast({ title: '전략 생성 실패', description: `서버 저장 실패: ${error.message}`, variant: 'destructive' });

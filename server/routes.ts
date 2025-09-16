@@ -1669,8 +1669,22 @@ export async function registerRoutes(
         ? String(authenticatedUserId)
         : String(authenticatedUserId); // 현재 정책: 세션 우선
 
+      console.log(`🔍 전략조회 실행: effectiveUserId=${effectiveUserId}`);
+      
       const strategies = await storage.getTradingStrategiesByUserId(effectiveUserId);
       console.log(`✅ 전략조회 성공: ${strategies.length}개 전략`);
+      
+      if (strategies.length > 0) {
+        console.log(`📋 전략 목록:`, strategies.map(s => ({
+          id: s.id,
+          name: s.name,
+          symbol: s.symbol,
+          is_active: s.is_active,
+          created_at: s.created_at
+        })));
+      } else {
+        console.log(`⚠️ 사용자 ${effectiveUserId}의 전략이 없습니다`);
+      }
       
       res.json(strategies);
     } catch (error) {
