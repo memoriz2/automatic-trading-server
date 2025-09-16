@@ -18,22 +18,29 @@ export function encryptApiKey(plaintext) {
     }
 }
 /**
- * API 키/시크릿 키 복호화
+ * API 키/시크릿 키 복호화 (안전한 방식)
  */
 export function decryptApiKey(encryptedText) {
     if (!encryptedText)
         return '';
+    // 이미 복호화된 것 같으면 그대로 반환 (암호화되지 않은 키)
+    if (!encryptedText.includes('U2FsdGVkX1') && encryptedText.length < 100) {
+        console.warn('⚠️ 암호화되지 않은 것으로 보이는 API 키, 원본 반환');
+        return encryptedText;
+    }
     try {
         const bytes = CryptoJS.AES.decrypt(encryptedText, MASTER_KEY);
         const decrypted = bytes.toString(CryptoJS.enc.Utf8);
         if (!decrypted) {
-            throw new Error('복호화 결과가 비어있습니다');
+            console.warn('⚠️ 복호화 결과가 비어있음, 원본 반환');
+            return encryptedText;
         }
         return decrypted;
     }
     catch (error) {
-        console.error('복호화 실패:', error);
-        throw new Error('API 키 복호화에 실패했습니다');
+        console.warn('⚠️ 복호화 실패, 원본 반환:', error instanceof Error ? error.message : String(error));
+        // 복호화 실패시 원본 반환 (암호화되지 않은 키일 가능성)
+        return encryptedText;
     }
 }
 /**

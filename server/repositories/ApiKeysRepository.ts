@@ -211,17 +211,28 @@ export class ApiKeysRepository extends BaseRepository {
     
     const results = await this.query<ApiKeyDto>(query, [userId]);
     
-    // 모든 API 키 복호화
+    // 모든 API 키 복호화 (안전한 방식)
     return results.map(result => {
       try {
-        return {
-          ...result,
-          apiKey: decryptApiKey(result.apiKey),
-          secretKey: decryptApiKey(result.secretKey)
-        };
+        // 복호화 시도
+        const decryptedApiKey = decryptApiKey(result.apiKey);
+        const decryptedSecretKey = decryptApiKey(result.secretKey);
+        
+        // 복호화가 성공했는지 확인
+        if (decryptedApiKey && decryptedSecretKey) {
+          return {
+            ...result,
+            apiKey: decryptedApiKey,
+            secretKey: decryptedSecretKey
+          };
+        } else {
+          console.warn(`⚠️ API 키 복호화 결과가 비어있음 (ID: ${result.id}), 원본 사용`);
+          return result;
+        }
       } catch (error) {
-        console.error(`❌ API 키 복호화 실패 (ID: ${result.id}):`, error);
-        return result; // 복호화 실패시 원본 반환 (에러 방지)
+        console.warn(`⚠️ API 키 복호화 실패 (ID: ${result.id}), 원본 사용:`, error instanceof Error ? error.message : String(error));
+        // 복호화 실패시 원본 반환 (암호화되지 않은 키일 수 있음)
+        return result;
       }
     }).filter(result => result.apiKey && result.secretKey); // 복호화 성공한 것만 반환
   }

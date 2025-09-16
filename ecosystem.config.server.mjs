@@ -7,7 +7,8 @@ export default {
     exec_mode: 'fork',
     env: {
       NODE_ENV: 'production',
-      PORT: 5000
+      PORT: 5000,
+      ENCRYPTION_KEY: 'kimchi-premium-master-key-2025'
     },
     log_file: './logs/combined.log',
     out_file: './logs/out.log',
