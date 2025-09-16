@@ -203,7 +203,6 @@ const LegacyAutoTradingPage = () => {
   const [netOk, setNetOk] = useState<boolean>(true);
   const [errCount, setErrCount] = useState<number>(0);
   const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
-  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false); // 전략 로딩 상태 추가
   const [strategies, setStrategies] = useState<any[]>([]); // 전략 목록 상태 추가
   
   // 🛡️ 전략 데이터 백업 시스템
@@ -460,6 +459,20 @@ const LegacyAutoTradingPage = () => {
     totalFees: 0,
     realizedPnl: 0
   });
+  
+  // 실제 DB 기반 통계 조회 (Dashboard와 동일한 방식)
+  const [realDailyStats, setRealDailyStats] = useState({
+    totalTrades: 0,
+    upbitTrades: 0,
+    binanceTrades: 0,
+    entries: 0,
+    exits: 0,
+    loops: 0,
+    errors: 0,
+    totalFees: 0,
+    totalProfitRate: 0
+  });
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
 
   // 거래 모드 관리 (커스텀 훅)
   const {
@@ -493,6 +506,57 @@ const LegacyAutoTradingPage = () => {
     const isDataValid = isRealTimeDataValid(kimp);
     setLoadingState(isDataValid ? 'stable' : 'loading');
   }, [kimp]);
+
+  // 실제 DB 기반 일일 통계 가져오기
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchRealStats = async () => {
+      try {
+        // 한국시간 자정부터 경과 분 계산
+        const now = new Date();
+        const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const kstMidnightUtc = Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate(), -9, 0, 0);
+        const minutes = Math.max(1, Math.floor((now.getTime() - kstMidnightUtc) / 60000));
+
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`/api/kimpga/metrics?minutes=${minutes}`, {
+          method: 'GET',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'X-User-ID': String(user.id),
+          },
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (res.ok) {
+          const metrics = await res.json();
+          const realStats = {
+            totalTrades: Number(metrics.total_orders || 0) + Number(metrics.entries || 0) + Number(metrics.exits || 0),
+            upbitTrades: Number(metrics.upbit_orders || 0),
+            binanceTrades: Number(metrics.binance_orders || 0),
+            entries: Number(metrics.entries || 0),
+            exits: Number(metrics.exits || 0),
+            loops: Number(metrics.loops || 0),
+            errors: Number(metrics.errors || 0),
+            totalFees: Number(metrics.total_fees || 0),
+            totalProfitRate: Number(metrics.total_profit_rate || 0)
+          };
+          setRealDailyStats(realStats);
+          console.log('📊 실제 DB 통계 업데이트:', realStats);
+        }
+      } catch (error) {
+        console.error('실제 통계 조회 실패:', error);
+      }
+    };
+
+    // 즉시 실행 후 5초마다 업데이트
+    fetchRealStats();
+    const interval = setInterval(fetchRealStats, 5000);
+    
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   // 중복 로직들이 커스텀 훅으로 이동됨
 
@@ -1405,46 +1469,16 @@ const LegacyAutoTradingPage = () => {
     }
   }, []);
 
-  // ===== 실제 전략 목록 불러오기 (세션 기반) =====
+  // 간단한 전략 로드 함수
   const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean } = {}) => {
-    console.log('📋 [DEBUG] loadStrategiesFromDB 함수 호출됨', opts);
-    console.log('📋 [DEBUG] hasLoadedStrategiesRef.current:', hasLoadedStrategiesRef.current);
+    if (!opts.force && hasLoadedStrategiesRef.current) return [];
     
-    if (!opts.force && hasLoadedStrategiesRef.current) {
-      console.log('📋 [DEBUG] 이미 로드됨 - 함수 종료');
-      return;
-    }
-
-    // 로딩 상태 시작
     setIsLoadingStrategies(true);
-    
     try {
-      // 세션 우선: 세션/효과적 사용자 ID가 없으면 조회 보류
-      console.log('👤 [DEBUG] 사용자 상태 확인:', { 
-        userId: user?.id, 
-        effectiveUserId, 
-        hasUser: !!user?.id,
-        hasEffectiveUserId: !!effectiveUserId 
-      });
+      if (!user?.id) return [];
       
-      // 세션 기반 사용자 ID 필수 (Mock 모드에서도)
-      if (!user?.id) {
-        // 세션 로드 대기 중
-        // 토스트 제거 - 로그인 상태 로딩 중일 수 있음
-        return;
-      }
-
-      // 1. 세션에서 인증된 사용자 정보 우선 사용
-      const userId = user?.id ? String(user.id) : String(effectiveUserId);
-      console.log('🔍 전략조회 요청:', { userId, url: `/api/trading-strategies/${userId}` });
-      
-      // 3. 해당 사용자의 전략 목록 조회
+      const userId = String(user.id);
       const dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
-      if (dbStrategies == null) {
-        console.log('⏭️ 전략 조회가 취소됨(Abort) - 기존 화면 상태 유지');
-        return;
-      }
-      console.log('📥 전략조회 응답:', dbStrategies);
       
       if (Array.isArray(dbStrategies)) {
         const formattedStrategies = dbStrategies.map(s => ({
@@ -1460,89 +1494,20 @@ const LegacyAutoTradingPage = () => {
           isActive: s.is_active,
           profitRate: s.total_profit > 0 ? `+${s.total_profit}` : String(s.total_profit || '+0.00'),
           executionCount: s.total_trades || 0,
-          created_at: s.created_at // 정렬을 위한 생성시간 추가
+          created_at: s.created_at
         }));
         
-        // 🔒 전략 로드 후 활성 전략들의 포지션 상태 확인
-        console.log('🚀 [DEBUG] checkActiveStrategiesPositions 호출 직전');
-        await checkActiveStrategiesPositions(formattedStrategies);
-        console.log('🚀 [DEBUG] checkActiveStrategiesPositions 호출 완료');
-        
-        // 만든시간 기준 내림차순, 두 번째 기준은 ID 내림차순 정렬
-        const sortedStrategies = formattedStrategies.sort((a, b) => {
-          // 1차 정렬: created_at (최신순)
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          if (dateB !== dateA) {
-            return dateB - dateA;
-          }
-          // 2차 정렬: ID (큰 번호순)
-          return Number(b.id) - Number(a.id);
-        });
-        
-        setRealStrategies(sortedStrategies);
-        console.log(`✅ 사용자 ${userId}의 전략 ${sortedStrategies.length}개 로드 완료 (시간순 정렬):`, sortedStrategies);
         hasLoadedStrategiesRef.current = true;
-        
-        if (formattedStrategies.length === 0) {
-          console.log('ℹ️ 등록된 전략이 없습니다. 새 전략을 추가해보세요.');
-          toast({
-            title: '전략 없음',
-            description: '등록된 전략이 없습니다. 새로운 전략을 생성해보세요.',
-          });
-        }
-      } else {
-        console.error('⚠️ 전략 데이터 형식이 올바르지 않습니다:', dbStrategies);
-        toast({
-          title: '데이터 오류',
-          description: '전략 데이터 형식이 올바르지 않습니다.',
-          variant: 'destructive'
-        });
+        return formattedStrategies;
       }
+      return [];
     } catch (error) {
-      const userId = user?.id ? String(user.id) : String(effectiveUserId);
-      console.error('❌ 전략 목록 로드 실패:', {
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        userId,
-        url: `/api/trading-strategies/${userId}`,
-        userInfo: { id: user?.id, username: user?.username }
-      });
-      
-      // 401 Unauthorized 에러 처리
-      if (error instanceof Error && error.message.includes('401')) {
-        console.error('🔐 인증 실패 - 세션 만료 또는 로그인 필요');
-        toast({
-          title: '인증 필요',
-          description: '로그인이 필요합니다. 로그인 페이지로 이동합니다.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      // 500 서버 오류 처리
-      if (error instanceof Error && error.message.includes('500')) {
-        console.error('🔧 서버 내부 오류 - DB 연결 또는 쿼리 문제');
-        toast({
-          title: '서버 오류',
-          description: 'DB 연결 문제가 발생했습니다. 관리자에게 문의하세요.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      
-      // 네트워크 오류 등 기타 에러 처리
-      console.error('🌐 기타 네트워크 오류');
-      toast({
-        title: '전략 조회 실패',
-        description: `전략을 불러오는 중 오류가 발생했습니다: ${error instanceof Error ? error.message : String(error)}`,
-        variant: 'destructive'
-      });
+      console.error('전략 로드 실패:', error);
+      return [];
     } finally {
-      // 로딩 상태 종료
       setIsLoadingStrategies(false);
     }
-  }, [fetchJson, effectiveUserId, user?.id, toast]);
+  }, [fetchJson, user?.id]);
 
   // ===== Lifecycle Hooks =====
   useEffect(() => {
@@ -1560,11 +1525,14 @@ const LegacyAutoTradingPage = () => {
           
           if (sessionData.id) {
             console.log('✅ [DEBUG] 페이지 로드 - 세션 확인됨:', sessionData.id);
-            // effectiveUserId는 이미 sessionData.id를 사용하므로 별도 설정 불필요
             
             // 실시간 거래 모드: DB에서 전략 로드
             console.log('🚀 [DEBUG] 실시간 거래 모드 - loadStrategiesFromDB 호출');
-            loadStrategiesFromDB();
+            loadStrategiesFromDB().then(strategies => {
+              if (strategies && strategies.length > 0) {
+                setRealStrategies(strategies);
+              }
+            });
           } else {
             console.log('❌ [DEBUG] 페이지 로드 - 세션 없음, 로그인 필요');
           }
@@ -1579,27 +1547,23 @@ const LegacyAutoTradingPage = () => {
   useEffect(() => {
     console.log('👤 [DEBUG] 사용자 정보 변경 감지 useEffect 실행됨');
     console.log('👤 [DEBUG] user?.id 변경 감지:', user?.id);
-    console.log('🔍 현재 사용자 상태:', { 
-      userFromAuth: user?.id, 
-      effectiveUserId,
-      sessionUser: user,
-      isAuthenticated: !!user,
-      userLoading: !user && effectiveUserId
-    });
     
-    // 세션에서 사용자 정보가 있을 때만 전략 로드 (실거래 모드에서만)
+    // 세션에서 사용자 정보가 있을 때만 전략 로드
     if (user?.id) {
       console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
-      // effectiveUserId는 이미 user.id를 사용하므로 별도 설정 불필요
       
       // 실시간 거래 모드: DB에서 전략 로드
-      hasLoadedStrategiesRef.current = false; // 사용자 변경 시 한 번 더 허용
-      loadStrategiesFromDB();
+      hasLoadedStrategiesRef.current = false;
+      loadStrategiesFromDB().then(strategies => {
+        if (strategies && strategies.length > 0) {
+          setRealStrategies(strategies);
+        }
+      });
       console.log('🔄 실시간 거래 모드 - DB에서 전략 로드');
     } else {
       console.log('⚠️ 세션에 사용자 정보가 없습니다. 조회 보류');
     }
-  }, [user?.id, tradingMode]);
+  }, [user?.id, loadStrategiesFromDB, setRealStrategies]);
 
   // 웹소켓 메시지 핸들러 등록
   useEffect(() => {
@@ -1910,23 +1874,35 @@ const LegacyAutoTradingPage = () => {
 
               <div className="space-y-6">
                 <div className="mt-4 pt-4 border-t border-slate-600">
-                  <h4 className="text-slate-400 text-sm mb-3">오늘의 실거래 통계</h4>
+                  <h4 className="text-slate-400 text-sm mb-3">오늘의 실거래 통계 (DB 기반)</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="text-center">
-                      <p className="text-xl font-bold text-green-400">{dailyStats.totalTrades}</p>
+                      <p className="text-xl font-bold text-green-400">{realDailyStats.totalTrades}</p>
                       <p className="text-xs text-slate-400">총 거래</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-blue-400">{dailyStats.upbitTrades}</p>
-                      <p className="text-xs text-slate-400">업비트 거래</p>
+                      <p className="text-xl font-bold text-blue-400">{realDailyStats.entries}</p>
+                      <p className="text-xs text-slate-400">진입</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-orange-400">{dailyStats.binanceTrades}</p>
-                      <p className="text-xs text-slate-400">바이낸스 거래</p>
+                      <p className="text-xl font-bold text-orange-400">{realDailyStats.exits}</p>
+                      <p className="text-xs text-slate-400">청산</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xl font-bold text-purple-400">{dailyStats.activePositions}</p>
-                      <p className="text-xs text-slate-400">활성 포지션</p>
+                      <p className="text-xl font-bold text-purple-400">{realDailyStats.loops}</p>
+                      <p className="text-xs text-slate-400">루프 수</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-yellow-400">₩{realDailyStats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</p>
+                      <p className="text-xs text-slate-400">총 수수료</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-xl font-bold ${realDailyStats.totalProfitRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {realDailyStats.totalProfitRate >= 0 ? '+' : ''}{realDailyStats.totalProfitRate.toFixed(2)}%
+                      </p>
+                      <p className="text-xs text-slate-400">총 수익률</p>
                     </div>
                   </div>
                 </div>
@@ -2672,3 +2648,4 @@ const LegacyAutoTradingPage = () => {
 };
 
 export default LegacyAutoTradingPage;
+
