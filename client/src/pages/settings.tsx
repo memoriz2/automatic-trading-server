@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -206,31 +206,82 @@ export default function Settings() {
   const exchangeForm = useForm({
     resolver: zodResolver(exchangeFormSchema),
     defaultValues: {
-      name: "upbit",
+      exchange: "upbit",
       apiKey: "",
-      secretKey: "",
+      apiSecret: "",
     },
   });
 
+  // 선택된 거래소가 변경될 때 기존 데이터 로드
+  useEffect(() => {
+    const existingExchange = exchanges.find((e) => e.name === selectedExchange);
+    if (existingExchange) {
+      // 기존 데이터가 있으면 폼에 미리 채우기 (API 키는 보안상 마스킹)
+      exchangeForm.setValue("exchange", selectedExchange);
+      exchangeForm.setValue("apiKey", existingExchange.apiKeyStart + "..."); // 시작 부분만 표시
+      exchangeForm.setValue("apiSecret", ""); // 보안상 비워둠
+    } else {
+      // 새로운 거래소면 폼 초기화
+      exchangeForm.reset({
+        exchange: selectedExchange,
+        apiKey: "",
+        apiSecret: "",
+      });
+    }
+  }, [selectedExchange, exchanges, exchangeForm]);
+
   const onSubmitExchange = async (data: z.infer<typeof exchangeFormSchema>) => {
     try {
-      await authenticatedApiRequest("/api/exchanges", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-      toast({
-        title: "API 키 저장 완료",
-        description: `${
-          data.exchange === "upbit" ? "업비트" : "바이낸스"
-        } API 키가 저장되었습니다.`,
-      });
+      // 기존 거래소 데이터 확인
+      const existingExchange = exchanges.find((e) => e.name === data.exchange);
+      
+      if (existingExchange) {
+        // 기존 데이터가 있으면 수정 (PUT)
+        await authenticatedApiRequest(`/api/v2/exchanges/connect`, {
+          method: "POST", // 서버에서 upsert 방식으로 처리
+          body: JSON.stringify({
+            exchange: data.exchange,
+            apiKey: data.apiKey,
+            secretKey: data.apiSecret,
+          }),
+        });
+        toast({
+          title: "API 키 수정 완료",
+          description: `${
+            data.exchange === "upbit" ? "업비트" : "바이낸스"
+          } API 키가 수정되었습니다.`,
+        });
+      } else {
+        // 새로운 데이터면 생성 (POST)
+        await authenticatedApiRequest(`/api/v2/exchanges/connect`, {
+          method: "POST",
+          body: JSON.stringify({
+            exchange: data.exchange,
+            apiKey: data.apiKey,
+            secretKey: data.apiSecret,
+          }),
+        });
+        toast({
+          title: "API 키 저장 완료",
+          description: `${
+            data.exchange === "upbit" ? "업비트" : "바이낸스"
+          } API 키가 저장되었습니다.`,
+        });
+      }
+      
       exchangeForm.reset();
       refetchExchanges();
-      refetchBalances();
-    } catch (error) {
+      
+      // 잔고 새로고침 (약간의 지연 후)
+      setTimeout(() => {
+        refetchBalances();
+        refetchLiveStatus();
+      }, 1000);
+    } catch (error: any) {
+      console.error('API 키 저장/수정 오류:', error);
       toast({
         title: "오류",
-        description: "API 키 저장 중 오류가 발생했습니다.",
+        description: error?.message || "API 키 저장 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     }
@@ -254,13 +305,19 @@ export default function Settings() {
       </div>
 
       <div className="space-y-6">
-        {/* 거래소 API 키 설정 - 기존 폼 주석 처리 */}
-        {/* <Card>
+        {/* 거래소 API 키 설정 */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Key className="h-5 w-5" />
               거래소 API 키 설정
             </CardTitle>
+            <CardDescription>
+              {exchanges.find((e) => e.name === selectedExchange) 
+                ? "기존 API 키를 수정합니다. 보안을 위해 새로운 키를 입력해주세요."
+                : "거래소 API 키를 등록하여 자동 거래를 시작하세요."
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...exchangeForm}>
@@ -270,12 +327,15 @@ export default function Settings() {
               >
                 <FormField
                   control={exchangeForm.control}
-                  name="name"
+                  name="exchange"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>거래소</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedExchange(value as "upbit" | "binance");
+                        }}
                         defaultValue={field.value}
                       >
                         <FormControl>
@@ -315,7 +375,7 @@ export default function Settings() {
 
                 <FormField
                   control={exchangeForm.control}
-                  name="secretKey"
+                  name="apiSecret"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Secret Key</FormLabel>
@@ -332,199 +392,15 @@ export default function Settings() {
                 />
 
                 <Button type="submit" className="w-full">
-                  API 키 저장
+                  {exchanges.find((e) => e.name === selectedExchange) 
+                    ? "API 키 수정" 
+                    : "API 키 저장"
+                  }
                 </Button>
               </form>
             </Form>
           </CardContent>
-        </Card> */}
-
-        {/* 새로운 API 키 설정 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              거래소 API 키 설정 (새로운 버전)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="exchange-select">거래소</Label>
-              <Select
-                value={selectedExchange}
-                onValueChange={(v) =>
-                  setSelectedExchange(v as "upbit" | "binance")
-                }
-              >
-                <SelectTrigger id="exchange-select" className="mt-1">
-                  <SelectValue placeholder="거래소를 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="upbit">업비트 (Upbit)</SelectItem>
-                  <SelectItem value="binance">바이낸스 (Binance)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="api-key">API Key</Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="API 키를 입력하세요"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="secret-key">Secret Key</Label>
-              <Input
-                id="secret-key"
-                type="password"
-                placeholder="Secret 키를 입력하세요"
-                className="mt-1"
-              />
-            </div>
-
-            <button
-              className="bg-primary"
-              onClick={async () => {
-                try {
-                  // 입력값 가져오기
-                  const exchange = selectedExchange;
-                  const apiKey = (
-                    document.getElementById("api-key") as HTMLInputElement
-                  )?.value;
-                  const secretKey = (
-                    document.getElementById("secret-key") as HTMLInputElement
-                  )?.value;
-
-                  if (!apiKey || !secretKey) {
-                    toast({
-                      title: "입력 오류",
-                      description: "API 키와 Secret 키를 모두 입력해주세요.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-
-                  // 실제 API 키 저장 API 호출
-                  const response = await fetch(`/api/exchanges/${userId}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      exchange: exchange,
-                      apiKey: apiKey,
-                      apiSecret: secretKey,
-                    }),
-                  });
-
-                  if (response.ok) {
-                    // 성공 시 서버 로그
-                    await fetch("/api/test-log", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        message: `API 키 저장 성공: ${exchange}`,
-                        timestamp: new Date().toISOString(),
-                        userId: userId,
-                        exchange: exchange,
-                      }),
-                    });
-
-                    toast({
-                      title: "저장 완료",
-                      description: `${exchange} API 키가 저장되었습니다.`,
-                    });
-
-                    // 입력 필드 초기화
-                    (
-                      document.getElementById("api-key") as HTMLInputElement
-                    ).value = "";
-                    (
-                      document.getElementById("secret-key") as HTMLInputElement
-                    ).value = "";
-                  } else {
-                    // 실패 시 상세 에러 정보 가져오기
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error("API 저장 실패 상세:", {
-                      status: response.status,
-                      statusText: response.statusText,
-                      errorData: errorData,
-                      responseHeaders: Object.fromEntries(
-                        response.headers.entries()
-                      ),
-                    });
-
-                    // 서버 에러 로그에 상세 정보 전송
-                    await fetch("/api/test-log", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        message: `API 저장 실패 상세: ${response.status} ${response.statusText}`,
-                        timestamp: new Date().toISOString(),
-                        userId: userId,
-                        exchange: exchange,
-                        errorDetails: {
-                          status: response.status,
-                          statusText: response.statusText,
-                          errorData: errorData,
-                          requestBody: {
-                            exchange: exchange,
-                            apiKey: apiKey.substring(0, 8) + "...",
-                            apiSecret: secretKey.substring(0, 8) + "...",
-                          },
-                        },
-                      }),
-                    });
-
-                    throw new Error(
-                      `API 저장 실패: ${response.status} - ${JSON.stringify(
-                        errorData
-                      )}`
-                    );
-                  }
-                } catch (error) {
-                  // 서버에 에러 로그 전송
-                  try {
-                    await fetch("/api/test-log", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        message: `API 키 저장 실패: ${error}`,
-                        timestamp: new Date().toISOString(),
-                        userId: userId,
-                        error: error,
-                        type: "error",
-                      }),
-                    });
-                  } catch (logError) {
-                    // 서버 로그 전송도 실패한 경우는 무시
-                  }
-
-                  toast({
-                    title: "저장 실패",
-                    description: "API 키 저장 중 오류가 발생했습니다.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              style={{
-                color: "white",
-                padding: "12px",
-                borderRadius: "4px",
-                border: "none",
-                cursor: "pointer",
-                width: "100%",
-                fontSize: "16px",
-                fontWeight: "bold",
-              }}
-            >
-              API 키 저장
-            </button>
-          </CardContent>
         </Card>
-
 
 
         {/* 거래소 연결 상태 */}
@@ -561,16 +437,27 @@ export default function Settings() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    {balance && (
+                    {/* 연동 테스트 결과에서 잔고 표시 */}
+                    {connectionTestResult && connectionTestResult.success && (
+                      <div className="text-sm text-gray-600">
+                        {exchangeName === 'upbit' && connectionTestResult.details?.balance && (
+                          <span>KRW: {Number(connectionTestResult.details.balance).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}원</span>
+                        )}
+                        {exchangeName === 'binance' && connectionTestResult.balance?.usdt && (
+                          <span>USDT: {Number(connectionTestResult.balance.usdt).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 기본 잔고 데이터 (연동 테스트 결과가 없을 때) */}
+                    {!connectionTestResult && balance && (
                       <div className="text-sm text-gray-600">
                         {balance.krw != null && (
-                          <span>KRW: {Number(balance.krw).toLocaleString()}원</span>
+                          <span>KRW: {Number(balance.krw).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}원</span>
                         )}
-                        {(balance.usdt != null || (exchangeName === 'binance' && connectionTestResult?.balance?.usdt)) && (
+                        {balance.usdt != null && (
                           <span className="ml-2">
-                            USDT: {Math.floor(Number(
-                              (exchangeName === 'binance' && connectionTestResult?.balance?.usdt) || balance.usdt || 0
-                            ))}
+                            USDT: {Number(balance.usdt).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                           </span>
                         )}
                         {balance.btc != null && (

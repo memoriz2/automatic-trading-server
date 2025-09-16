@@ -1547,7 +1547,7 @@ const LegacyAutoTradingPage = () => {
           return Number(b.id) - Number(a.id);
         });
         
-        setStrategies(sortedStrategies);
+        setRealStrategies(sortedStrategies);
         console.log(`✅ 사용자 ${userId}의 전략 ${sortedStrategies.length}개 로드 완료 (시간순 정렬):`, sortedStrategies);
         hasLoadedStrategiesRef.current = true;
         

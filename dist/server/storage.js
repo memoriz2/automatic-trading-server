@@ -425,14 +425,31 @@ export class DatabaseStorage {
     async getDecryptedExchange(userId, exchangeName) {
         try {
             const result = await this.pool.query('SELECT * FROM exchanges WHERE user_id = $1 AND exchange = $2 AND is_active = true LIMIT 1', [typeof userId === 'string' ? parseInt(userId) : userId, exchangeName]);
-            if (result.rows.length === 0)
+            if (result.rows.length === 0) {
+                console.log(`❌ 데이터 없음: 사용자 ${userId}, 거래소 ${exchangeName}`);
                 return undefined;
+            }
             const exchange = result.rows[0];
-            return {
-                ...exchange,
-                apiKey: decryptApiKey(exchange.api_key),
-                apiSecret: decryptApiKey(exchange.api_secret)
-            };
+            try {
+                // 복호화 시도
+                const decryptedApiKey = decryptApiKey(exchange.api_key);
+                const decryptedApiSecret = decryptApiKey(exchange.api_secret);
+                console.log(`✅ 복호화 성공: 사용자 ${userId}, 거래소 ${exchangeName}`);
+                return {
+                    ...exchange,
+                    apiKey: decryptedApiKey,
+                    apiSecret: decryptedApiSecret
+                };
+            }
+            catch (decryptError) {
+                console.error(`❌ 복호화 실패하지만 원본 데이터 반환: 사용자 ${userId}, 거래소 ${exchangeName}`, decryptError);
+                // 복호화 실패 시 원본 데이터 반환 (암호화되지 않은 상태로 가정)
+                return {
+                    ...exchange,
+                    apiKey: exchange.api_key,
+                    apiSecret: exchange.api_secret
+                };
+            }
         }
         catch (error) {
             console.error('Error getting decrypted exchange:', error);

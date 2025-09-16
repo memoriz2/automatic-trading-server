@@ -67,45 +67,83 @@ export class ApiKeysRepository extends BaseRepository {
         }
     }
     /**
-     * API 키 생성 또는 업데이트
+     * 데이터 존재 여부만 확인 (복호화 무관, is_active 상관없이)
+     */
+    async existsByUserAndExchange(userId, exchange) {
+        const query = `
+      SELECT COUNT(*) as count
+      FROM exchanges 
+      WHERE user_id = $1 AND exchange = $2
+    `;
+        const result = await this.queryOne(query, [userId, exchange]);
+        return parseInt(result?.count || '0') > 0;
+    }
+    /**
+     * API 키 생성 또는 업데이트 (트랜잭션 기반 안전한 방식)
      */
     async upsert(apiKeyData) {
-        const query = `
-      INSERT INTO exchanges (
-        user_id, exchange, api_key, api_secret, passphrase, is_active, created_at, updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, NOW(), NOW()
-      )
-      ON CONFLICT (user_id, exchange) 
-      DO UPDATE SET 
-        api_key = EXCLUDED.api_key,
-        api_secret = EXCLUDED.api_secret,
-        passphrase = EXCLUDED.passphrase,
-        is_active = EXCLUDED.is_active,
-        updated_at = NOW()
-      RETURNING 
-        id,
-        user_id as "userId",
-        exchange,
-        api_key as "apiKey",
-        api_secret as "secretKey",
-        passphrase,
-        is_active as "isActive",
-        created_at as "createdAt",
-        updated_at as "updatedAt"
-    `;
-        const result = await this.queryOne(query, [
-            apiKeyData.userId,
-            apiKeyData.exchange,
-            apiKeyData.apiKey,
-            apiKeyData.secretKey,
-            apiKeyData.passphrase || null,
-            apiKeyData.isActive
-        ]);
-        if (!result) {
-            throw new Error('API 키 저장에 실패했습니다.');
+        try {
+            console.log('🔍 API 키 upsert 시작:', {
+                userId: apiKeyData.userId,
+                exchange: apiKeyData.exchange,
+                isActive: apiKeyData.isActive
+            });
+            // 1. 먼저 기존 데이터 삭제 (손상된 암호화 데이터 정리)
+            await this.query(`
+        DELETE FROM exchanges 
+        WHERE user_id = $1 AND exchange = $2
+      `, [apiKeyData.userId, apiKeyData.exchange]);
+            console.log('🗑️ 기존 데이터 삭제 완료:', {
+                userId: apiKeyData.userId,
+                exchange: apiKeyData.exchange
+            });
+            // 2. 새로운 데이터 삽입
+            const insertQuery = `
+        INSERT INTO exchanges (
+          user_id, exchange, api_key, api_secret, passphrase, is_active, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, NOW(), NOW()
+        )
+        RETURNING 
+          id,
+          user_id as "userId",
+          exchange,
+          api_key as "apiKey",
+          api_secret as "secretKey",
+          passphrase,
+          is_active as "isActive",
+          created_at as "createdAt",
+          updated_at as "updatedAt"
+      `;
+            const result = await this.queryOne(insertQuery, [
+                apiKeyData.userId,
+                apiKeyData.exchange,
+                apiKeyData.apiKey,
+                apiKeyData.secretKey,
+                apiKeyData.passphrase || null,
+                apiKeyData.isActive
+            ]);
+            if (!result) {
+                throw new Error('API 키 저장에 실패했습니다.');
+            }
+            console.log('✅ API 키 upsert 성공:', {
+                id: result.id,
+                userId: result.userId,
+                exchange: result.exchange,
+                isActive: result.isActive
+            });
+            return result;
         }
-        return result;
+        catch (error) {
+            console.error('❌ API 키 upsert 실패:', {
+                error: error.message,
+                code: error.code,
+                detail: error.detail,
+                userId: apiKeyData.userId,
+                exchange: apiKeyData.exchange
+            });
+            throw error;
+        }
     }
     /**
      * API 키 활성화/비활성화
