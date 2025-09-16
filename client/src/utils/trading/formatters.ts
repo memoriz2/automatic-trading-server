@@ -12,7 +12,7 @@ export const formatKRW = (n: number) =>
   new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(Math.round(n));
 
 export const formatUSD = (n: number) => 
-  new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(n));
 
 export const formatCompact = (n: number, digits = 1): string => {
   const abs = Math.abs(n);

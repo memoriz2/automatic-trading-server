@@ -1006,10 +1006,10 @@ const LegacyAutoTradingPage = () => {
           }
           setLogs(display);
           const pnl = kgaStat?.pnl || {};
-          const elPnl = document.getElementById('pnl-krw-sum'); if (elPnl) elPnl.textContent = Number(pnl.profit_krw_cum ?? 0).toLocaleString();
-          const elFeeUp = document.getElementById('fee-upbit-krw'); if (elFeeUp) elFeeUp.textContent = Number(pnl.fees_upbit_krw_cum ?? 0).toLocaleString();
-          const elFeeBnU = document.getElementById('fee-binance-usdt'); if (elFeeBnU) elFeeBnU.textContent = (Number(pnl.fees_binance_usdt_cum ?? 0)).toFixed(3);
-          const elFeeBnK = document.getElementById('fee-binance-krw'); if (elFeeBnK) elFeeBnK.textContent = Number(pnl.fees_binance_krw_cum ?? 0).toLocaleString();
+          const elPnl = document.getElementById('pnl-krw-sum'); if (elPnl) elPnl.textContent = Number(pnl.profit_krw_cum ?? 0).toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+          const elFeeUp = document.getElementById('fee-upbit-krw'); if (elFeeUp) elFeeUp.textContent = Number(pnl.fees_upbit_krw_cum ?? 0).toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+          const elFeeBnU = document.getElementById('fee-binance-usdt'); if (elFeeBnU) elFeeBnU.textContent = Math.round(Number(pnl.fees_binance_usdt_cum ?? 0)).toLocaleString('en-US');
+          const elFeeBnK = document.getElementById('fee-binance-krw'); if (elFeeBnK) elFeeBnK.textContent = Number(pnl.fees_binance_krw_cum ?? 0).toLocaleString('ko-KR', { maximumFractionDigits: 0 });
         }
       } catch {}
 
@@ -1936,12 +1936,12 @@ const LegacyAutoTradingPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-yellow-400">₩{dailyStats.totalFees.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-yellow-400">₩{dailyStats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</p>
                   <p className="text-xs text-slate-400">총 수수료</p>
                 </div>
                 <div className="text-center">
                   <p className={`text-lg font-bold ${dailyStats.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {dailyStats.realizedPnl >= 0 ? '+' : ''}₩{dailyStats.realizedPnl.toLocaleString()}
+                    {dailyStats.realizedPnl >= 0 ? '+' : ''}₩{dailyStats.realizedPnl.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
                   </p>
                   <p className="text-xs text-slate-400">실현 손익</p>
                 </div>
@@ -2492,48 +2492,8 @@ const LegacyAutoTradingPage = () => {
               </div>
             </div>
 
-            {/* 기본투자금액과 허용오차 */}
+            {/* 허용오차와 레버리지 */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  htmlFor=":r12a:-form-item"
-                >
-                  기본 투자 금액 (원)
-                </label>
-                <input
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                  style={{
-                    backgroundColor: '#0b1220',
-                    border: '1px solid #1e293b',
-                    color: '#dbe6ff',
-                    borderRadius: '10px'
-                  }}
-                  name="baseAmount"
-                  placeholder="0"
-                  data-testid="input-base-amount"
-                  id=":r12a:-form-item"
-                  key={`base-amount-${newStrategy.baseAmount}`}
-                  value={newStrategy.baseAmount}
-                  onChange={(e) => {
-                    const baseAmount = parseFloat(e.target.value) || 0;
-                    const leverage = getSafeLeverage(newStrategy.leverage);
-                    const btcPrice = Number(kimp?.upbit_price) || 0;
-                    
-                    // BTC 가격이 없으면 계산하지 않음
-                    const calculatedBTC = btcPrice > 0 && baseAmount > 0 
-                      ? parseFloat((baseAmount / leverage / btcPrice).toFixed(3))
-                      : 0;
-                    
-                    setNewStrategy(prev => ({
-                      ...prev, 
-                      baseAmount: e.target.value,
-                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.000',
-                      tolerance: prev.tolerance
-                    }));
-                  }}
-                />
-              </div>
               <div className="space-y-2">
                 <label
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -2573,10 +2533,6 @@ const LegacyAutoTradingPage = () => {
                   기본값: 0.05% (수정 가능) - 예: 3.0% ± 0.05% → 2.95% ~ 3.05% 범위에서 매매
                 </p>
               </div>
-            </div>
-
-            {/* 레버리지와 투자수량 */}
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -2621,6 +2577,10 @@ const LegacyAutoTradingPage = () => {
                   레버리지 {newStrategy.leverage}배 기준 권장 수량
                 </div>
               </div>
+            </div>
+
+            {/* BTC 수량과 기본투자금액 */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -2659,8 +2619,48 @@ const LegacyAutoTradingPage = () => {
                   }}
                 />
                 <div className="text-xs text-muted-foreground">
-                  ₩{parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0').toLocaleString()} ÷ {newStrategy.leverage}배 = {(parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0') / getSafeLeverage(newStrategy.leverage)).toLocaleString()}원 증거금
+                  ₩{parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0').toLocaleString('ko-KR', { maximumFractionDigits: 0 })} ÷ {newStrategy.leverage}배 = {(parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0') / getSafeLeverage(newStrategy.leverage)).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}원 증거금
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  htmlFor=":r12a:-form-item"
+                >
+                  기본 투자 금액 (원)
+                </label>
+                <input
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  style={{
+                    backgroundColor: '#0b1220',
+                    border: '1px solid #1e293b',
+                    color: '#dbe6ff',
+                    borderRadius: '10px'
+                  }}
+                  name="baseAmount"
+                  placeholder="0"
+                  data-testid="input-base-amount"
+                  id=":r12a:-form-item"
+                  key={`base-amount-${newStrategy.baseAmount}`}
+                  value={newStrategy.baseAmount}
+                  onChange={(e) => {
+                    const baseAmount = parseFloat(e.target.value) || 0;
+                    const leverage = getSafeLeverage(newStrategy.leverage);
+                    const btcPrice = Number(kimp?.upbit_price) || 0;
+                    
+                    // BTC 가격이 없으면 계산하지 않음
+                    const calculatedBTC = btcPrice > 0 && baseAmount > 0 
+                      ? parseFloat((baseAmount / leverage / btcPrice).toFixed(3))
+                      : 0;
+                    
+                    setNewStrategy(prev => ({
+                      ...prev, 
+                      baseAmount: e.target.value,
+                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.000',
+                      tolerance: prev.tolerance
+                    }));
+                  }}
+                />
               </div>
             </div>
 
