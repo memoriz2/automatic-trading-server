@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
-import { MockTradingSystem } from '@/components/mock-trading-system';
+import { LiveTradingSystem } from '@/components/mock-trading-system';
 import { StrategyList } from '@/components/trading/StrategyList';
 import { KimchiChart } from '@/components/trading/KimchiChart';
 import { TradingHeader } from '@/components/trading/TradingHeader';
@@ -1864,7 +1864,7 @@ const LegacyAutoTradingPage = () => {
             {realTimeDataStatus ? realTimeDataStatus : (
             (liveConnected || window.location.hostname === 'localhost') ? (
               /* 실시간 거래 시스템 */
-              <MockTradingSystem 
+              <LiveTradingSystem 
                 strategies={realStrategies} // DB 기반 전략
                 currentKimchiData={{
                   kimp: Number(kimp?.kimp) || 0.5,
@@ -1877,7 +1877,7 @@ const LegacyAutoTradingPage = () => {
                 userId={user?.id ? String(user.id) : "1"}
                 onDailyStatsUpdate={setDailyStats}
                 isLiveMode={true}
-                realBalances={balances}
+                liveBalances={balances}
                 onStrategyStatsUpdate={(stats) => {
                   setRealStrategies(prev => prev.map(s => {
                     const st = stats[s.id];

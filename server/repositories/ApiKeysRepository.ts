@@ -211,6 +211,19 @@ export class ApiKeysRepository extends BaseRepository {
     
     const results = await this.query<ApiKeyDto>(query, [userId]);
     
+    // 🔍 디버깅: 조회된 API 키 정보 로그
+    console.log(`🔍 [DEBUG] 사용자 ${userId}의 API 키 조회 결과:`, {
+      count: results.length,
+      exchanges: results.map(r => ({
+        id: r.id,
+        exchange: r.exchange,
+        apiKeyLength: r.apiKey?.length || 0,
+        secretKeyLength: r.secretKey?.length || 0,
+        apiKeyPrefix: r.apiKey?.substring(0, 8) + '...',
+        isEncrypted: r.apiKey?.includes('U2FsdGVkX1') || false
+      }))
+    });
+    
     // 모든 API 키 복호화 (안전한 방식)
     return results.map(result => {
       try {

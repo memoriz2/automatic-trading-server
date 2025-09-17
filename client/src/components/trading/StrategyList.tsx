@@ -56,14 +56,18 @@ export const StrategyList: React.FC<StrategyListProps> = ({
   const { toast } = useToast();
 
   const handleStrategyToggle = async (strategy: Strategy) => {
+    console.log('🔄 전략 토글 시작:', { strategyId: strategy.id, name: strategy.name, currentState: strategy.isActive });
+    
     // 1. 사용자 ID 확립 (localStorage 우선)
     const userId = localStorage.getItem('x-user-id') || effectiveUserId || user?.id;
     if (!userId) {
+      console.error('❌ 사용자 ID 없음');
       toast({ title: '오류', description: '사용자 ID를 확인할 수 없습니다.', variant: 'destructive' });
       return;
     }
 
     const newActiveState = !strategy.isActive;
+    console.log('🔄 전략 상태 변경:', { from: strategy.isActive, to: newActiveState });
     
     // 🔒 활성화 시 기존 포지션 확인 (중복 진입 방지)
     if (newActiveState) {
@@ -91,7 +95,7 @@ export const StrategyList: React.FC<StrategyListProps> = ({
       }
     }
 
-    // 2. DB에 상태 변경 저장 (실거래 모드)
+i    // 2. DB에 상태 변경 저장 (실거래 모드)
     try {
       const payload = {
         name: strategy.name,
@@ -120,6 +124,17 @@ export const StrategyList: React.FC<StrategyListProps> = ({
         title: newActiveState ? '전략 활성화' : '전략 비활성화',
         description: `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`
       });
+
+      // 3. DB에서 최신 전략 목록 다시 로드 (비동기)
+      setTimeout(async () => {
+        try {
+          console.log('🔄 전략 상태 변경 후 목록 새로고침');
+          await loadStrategiesFromDB();
+        } catch (error) {
+          console.error('❌ 전략 목록 새로고침 실패:', error);
+        }
+      }, 500); // 0.5초 후 새로고침
+
     } catch (error) {
       console.error('❌ 전략 상태 변경 DB 저장 실패:', error);
       toast({ 
@@ -130,7 +145,7 @@ export const StrategyList: React.FC<StrategyListProps> = ({
       return; // 실패 시 UI 업데이트 중단
     }
 
-    // 3. 부모 컴포넌트에 상태 변경 요청 (DB 저장 성공 후)
+    // 4. 즉시 UI 업데이트 (낙관적 업데이트)
     const updatedStrategies = strategies.map(s =>
       s.id === strategy.id ? { ...s, isActive: newActiveState } : s
     );

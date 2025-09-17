@@ -7,17 +7,19 @@ export interface ClientTradingConfig {
   wsEndpoint: string;
 }
 
-// 환경 변수 또는 기본값으로 설정
+// 서버의 거래 모드를 동적으로 확인
 const getTradingMode = (): 'mock' | 'real' => {
-  // Vite 환경 변수 확인
+  // 1. Vite 환경 변수 우선 확인 (강제 설정)
   const viteMode = import.meta.env.VITE_TRADING_MODE;
   if (viteMode === 'real') return 'real';
+  if (viteMode === 'mock') return 'mock';
   
-  // 개발 환경에서는 기본적으로 Mock 모드
-  if (import.meta.env.DEV) return 'mock';
+  // 2. 서버 환경에서는 실거래 모드로 가정 (서버에서 ENABLE_REAL_TRADING 확인)
+  const isServerEnvironment = window.location.hostname !== 'localhost';
+  if (isServerEnvironment) return 'real';
   
-  // 프로덕션에서는 실거래 모드
-  return import.meta.env.PROD ? 'real' : 'mock';
+  // 3. 로컬 개발 환경에서는 Mock 모드
+  return 'mock';
 };
 
 export const CLIENT_TRADING_CONFIG: ClientTradingConfig = {
@@ -25,6 +27,23 @@ export const CLIENT_TRADING_CONFIG: ClientTradingConfig = {
   tradingMode: getTradingMode(),
   apiEndpoint: getTradingMode() === 'mock' ? '/api/mock' : '/api/live',
   wsEndpoint: getTradingMode() === 'mock' ? '/ws-mock' : '/ws-live'
+};
+
+// 서버에서 실제 거래 모드를 동적으로 확인하는 함수
+export const getServerTradingMode = async (): Promise<'mock' | 'real'> => {
+  try {
+    const response = await fetch('/api/server-info');
+    if (response.ok) {
+      const serverInfo = await response.json();
+      console.log('🔍 서버 거래 모드 확인:', serverInfo);
+      return serverInfo.tradingMode === 'real' ? 'real' : 'mock';
+    }
+  } catch (error) {
+    console.warn('⚠️ 서버 거래 모드 확인 실패, 클라이언트 설정 사용:', error);
+  }
+  
+  // 서버 확인 실패 시 클라이언트 설정 사용
+  return getTradingMode();
 };
 
 // 거래 모드 확인 함수들

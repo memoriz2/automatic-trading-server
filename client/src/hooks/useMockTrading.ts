@@ -8,7 +8,7 @@ export const useMockTrading = (
   userId: string,
   isLiveMode: boolean,
   mockBalance: any,
-  setMockBalance: any, // 잔고 업데이트는 MockTradingSystem에서만 처리
+  setMockBalance: any, // 잔고 업데이트는 LiveTradingSystem에서만 처리
   currentKimchiData: any,
   onStrategyStatsUpdate?: any
 ) => {
@@ -241,7 +241,7 @@ export const useMockTrading = (
         return;
       }
 
-      // 잔고 변화량 계산 (실제 업데이트는 MockTradingSystem에서 처리)
+      // 잔고 변화량 계산 (실제 업데이트는 LiveTradingSystem에서 처리)
       const balanceChanges = {
         krw: -calculation.totalUpbitCost,
         btc: +calculation.upbitBuyAmountBTC,
@@ -252,7 +252,7 @@ export const useMockTrading = (
       
       console.log('💰 useMockTrading 진입 잔고 변화량:', balanceChanges);
       
-      // MockTradingSystem에서 잔고 업데이트 처리하도록 콜백 호출
+      // LiveTradingSystem에서 잔고 업데이트 처리하도록 콜백 호출
       if (typeof setMockBalance === 'function') {
         setMockBalance((prev: any) => ({
           ...prev,
@@ -384,7 +384,7 @@ export const useMockTrading = (
         ratio
       );
 
-      // 잔고 변화량 계산 (실제 업데이트는 MockTradingSystem에서 처리)
+      // 잔고 변화량 계산 (실제 업데이트는 LiveTradingSystem에서 처리)
       const balanceChanges = {
         krw: +exitCalc.upbitNetRevenue,
         btc: -exitCalc.upbitSellQuantity,
@@ -395,7 +395,7 @@ export const useMockTrading = (
       
       console.log('💰 useMockTrading 청산 잔고 변화량:', balanceChanges);
       
-      // MockTradingSystem에서 잔고 업데이트 처리하도록 콜백 호출
+      // LiveTradingSystem에서 잔고 업데이트 처리하도록 콜백 호출
       if (typeof setMockBalance === 'function') {
         setMockBalance((prev: any) => ({
           ...prev,

@@ -40,23 +40,22 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
       try {
         console.log('🔍 실거래 전략 DB 조회 중...');
         
-        // 실거래 전용 전략 조회 (Mock 전략 제외)
-        const response = await fetch('/api/trading-strategies?realOnly=true', { credentials: 'include' });
+        // 모든 전략 조회 (활성화/비활성화 포함)
+        const response = await fetch('/api/trading-strategies', { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           if (data && Array.isArray(data)) {
-            // 실거래 전략만 필터링 (isMock=false인 것만)
-            const realOnlyStrategies = data.filter(s => s.isMock === false);
-            setRealStrategies(realOnlyStrategies);
-            console.log('✅ 실거래 전략 조회 완료:', realOnlyStrategies.length, '개 (DB 전용)');
-            console.log('📊 실거래 전략 목록:', realOnlyStrategies);
+            // 모든 전략 사용 (활성화/비활성화 구분 없이)
+            setRealStrategies(data);
+            console.log('✅ 전략 조회 완료:', data.length, '개 (활성화/비활성화 모두 포함)');
+            console.log('📊 전략 목록:', data.map(s => ({ id: s.id, name: s.name, is_active: s.is_active })));
           } else {
             setRealStrategies([]);
-            console.log('📭 실거래 전략 없음 - 빈 배열로 설정');
+            console.log('📭 전략 없음 - 빈 배열로 설정');
           }
         } else {
           setRealStrategies([]);
-          console.log('❌ 실거래 전략 조회 API 실패 - 빈 배열로 설정');
+          console.log('❌ 전략 조회 API 실패 - 빈 배열로 설정');
         }
       } catch (error) {
         console.error('❌ 실거래 전략 조회 실패:', error);

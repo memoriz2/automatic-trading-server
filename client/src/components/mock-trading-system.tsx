@@ -8,7 +8,7 @@ import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 import { MockPositionList } from '@/components/trading/MockPositionList';
 import { MockTradeHistory } from '@/components/trading/MockTradeHistory';
 import { MockBalanceDisplay } from '@/components/trading/MockBalanceDisplay';
-import { CLIENT_TRADING_CONFIG, isMockMode, logClientTradingMode } from '@/config/trading-config';
+import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime, formatKoreanDateTime } from '@/utils/datetime';
 
 // API 호출 함수
@@ -29,7 +29,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 };
 
 // 거래 저장 함수들
-const saveTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: boolean = false) => {
+const saveLiveTradeToDB = async (trade: LiveTrade, userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
     console.log(`🧪 Mock 거래 - 로컬스토리지만 사용:`, trade.id);
@@ -62,7 +62,7 @@ const saveTradeToDB = async (trade: MockTrade, userId: string, isLiveMode: boole
   }
 };
 
-const savePositionToDB = async (position: MockPosition, userId: string, isLiveMode: boolean = false) => {
+const saveLivePositionToDB = async (position: LivePosition, userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
     console.log(`🧪 Mock 포지션 - 로컬스토리지만 사용:`, position.id);
@@ -87,7 +87,7 @@ const savePositionToDB = async (position: MockPosition, userId: string, isLiveMo
   }
 };
 
-const updatePositionInDB = async (position: MockPosition, userId: string, isLiveMode: boolean = false) => {
+const updateLivePositionInDB = async (position: LivePosition, userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: DB 업데이트 안함
     console.log(`🧪 Mock 포지션 업데이트 - 로컬스토리지만 사용:`, position.id);
@@ -111,8 +111,8 @@ const updatePositionInDB = async (position: MockPosition, userId: string, isLive
   }
 };
 
-// 모의 거래 타입 정의
-interface MockBalance {
+// Live 거래 타입 정의
+interface LiveBalance {
   krw: number;
   btc: number;
   usdt: number;
@@ -121,7 +121,7 @@ interface MockBalance {
   binanceUsdt: number; // 바이낸스 USDT
 }
 
-interface MockTrade {
+interface LiveTrade {
   id: string;
   timestamp: Date;
   type: 'buy' | 'sell' | 'spot' | 'short' | 'cover';
@@ -135,7 +135,7 @@ interface MockTrade {
   premiumRate: number;
 }
 
-interface MockPosition {
+interface LivePosition {
   id: string;
   strategyId: string;
   strategyName?: string;
@@ -153,6 +153,9 @@ interface MockPosition {
   status: 'open' | 'closed';
   unrealizedPnl: number;
   realizedPnl: number;
+  upbitOrderId?: string; // 실제 업비트 주문 ID
+  binanceOrderId?: string; // 실제 바이낸스 주문 ID
+  isRealTrade?: boolean; // 실거래 여부
 }
 
 interface KimchiData {
@@ -164,52 +167,41 @@ interface KimchiData {
   dataAge?: number;
 }
 
-interface MockTradingSystemProps {
+interface LiveTradingSystemProps {
   strategies: any[];
   setStrategies?: (strategies: any[]) => void; // 전략 복원을 위해 추가
   currentKimchiData: KimchiData | null;
   userId?: string;
   onDailyStatsUpdate?: (stats: any) => void;
   isLiveMode?: boolean; // 실거래 모드 여부
-  realBalances?: any; // 실제 잔고 데이터 (실거래 모드용)
+  liveBalances?: any; // 실제 잔고 데이터 (실거래 모드용)
   onStrategyStatsUpdate?: (stats: Record<string, { executionCount: number; realizedPnlKRW: number; investedKRW: number; profitRate: number; }>) => void;
 }
 
-export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({ 
+export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({ 
   strategies, 
   setStrategies,
   currentKimchiData,
   userId = "1", // 기본 사용자 ID
   onDailyStatsUpdate,
   isLiveMode = false, // 기본값은 Mock 모드
-  realBalances, // 실제 잔고 데이터
+  liveBalances, // 실제 잔고 데이터
   onStrategyStatsUpdate
 }) => {
   const { toast } = useToast();
   
-  // 환경별 거래 모드 설정
-  const actualTradingMode = isLiveMode && !isMockMode() ? 'real' : 'mock';
+  // 거래 모드 (prop으로 명확하게 결정됨)
+  const actualTradingMode = isLiveMode ? 'real' : 'mock';
   
   // 컴포넌트 초기화 시 거래 모드 로그
   useEffect(() => {
     logClientTradingMode();
-    console.log(`🎯 MockTradingSystem 모드: ${actualTradingMode}`);
+    console.log(`🎯 LiveTradingSystem 모드: ${actualTradingMode}`);
   }, []);
 
-  // 실거래 모드일 때 실제 잔고 적용
-  useEffect(() => {
-    if (isLiveMode && realBalances) {
-      const convertedBalance = convertRealBalanceToMock(realBalances);
-      console.log('💰 실제 잔고 적용:', {
-        krw: convertedBalance.krw.toLocaleString(),
-        btc: convertedBalance.btc,
-        usdt: convertedBalance.usdt
-      });
-      setMockBalance(convertedBalance);
-    }
-  }, [isLiveMode, realBalances]);
+  // 실거래 모드에서는 liveBalances를 직접 사용 (변환 불필요)
 
-  // 전략-포지션 불일치 감지 및 자동 복원은 mockPositions 선언 후로 이동
+  // 전략-포지션 불일치 감지 및 자동 복원은 livePositions 선언 후로 이동
   
   // 숫자 부드러운 변경용 유틸
   const animateNumber = useCallback((from: number, to: number, setter: (v: number) => void, durationMs: number = 300) => {
@@ -246,95 +238,26 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   const tradingLockRef = useRef<boolean>(false);
   const processingEntryRef = useRef<Set<string>>(new Set());
   
-  // 실제 잔고를 Mock 형태로 변환하는 함수
-  const convertRealBalanceToMock = (realBalances: any): MockBalance => {
-    if (!realBalances?.real) {
+
+  // 거래 잔고 (실거래: 실제 잔고 사용, Mock: 로컬스토리지)
+  const [liveBalance, setLiveBalance] = useState<LiveBalance>(() => {
+    // 실거래 모드: 실제 거래소 잔고 사용 (로컬스토리지 무시)
+    if (isLiveMode) {
+      console.log('🚨 실거래 모드: 실제 거래소 잔고 사용, 로컬스토리지 무시');
       return {
-        krw: isLiveMode ? 0 : 100000000,
+        krw: 0, // 실제 잔고는 liveBalances에서 가져옴
         btc: 0,
-        usdt: isLiveMode ? 0 : 100000,
+        usdt: 0,
         binanceBtc: 0,
         binanceSpotBtc: 0,
-        binanceUsdt: isLiveMode ? 0 : 100000
+        binanceUsdt: 0
       };
     }
-
-    // 실제 잔고에서 주요 통화 추출
-    const upbitBalances = realBalances.balances?.upbit || [];
-    const binanceBalances = realBalances.balances?.binance || [];
-
-    const krwBalance = upbitBalances.find((b: any) => b.currency === 'KRW');
-    const btcBalance = upbitBalances.find((b: any) => b.currency === 'BTC');
-    // 바이낸스 선물 증거금: USDT만 집계
-    const usdtBalance = binanceBalances.find((b: any) => b.currency === 'USDT');
-
-    return {
-      krw: krwBalance?.total || realBalances.real.krw || 0,
-      btc: btcBalance?.total || realBalances.real.btc_upbit || 0,
-      usdt: usdtBalance?.total || realBalances.real.usdt || 0,
-      binanceBtc: 0, // 선물 포지션은 별도 관리
-      binanceSpotBtc: 0,
-      binanceUsdt: usdtBalance?.total || realBalances.real.usdt || 0
-    };
-  };
-
-  // 모의 잔고 (사용자별 로컬스토리지 저장)
-  const [mockBalance, setMockBalance] = useState<MockBalance>(() => {
-    const storageKey = `mock-balance-${userId}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsedBalance = JSON.parse(saved);
-        // 저장된 잔고 그대로 복원 (하드코딩 제거)
-        return {
-          krw: parsedBalance.krw || 100000000,
-          btc: parsedBalance.btc || 0, // 저장된 값 사용
-          usdt: parsedBalance.usdt || 100000,
-          binanceBtc: parsedBalance.binanceBtc || 0, // 저장된 값 사용
-          binanceSpotBtc: parsedBalance.binanceSpotBtc || 0,
-          binanceUsdt: parsedBalance.binanceUsdt || 100000
-        };
-      } catch (error) {
-        console.error('잔고 데이터 파싱 실패:', error);
-      }
-    }
     
-    // 잔고 데이터가 없으면 포지션 기반으로 복원 시도
-    const positionKey = `mock-positions-${userId}`;
-    const savedPositions = localStorage.getItem(positionKey);
+    // Mock 모드: 간단한 기본 잔고
+    console.log('🧪 Mock 모드: 기본 잔고 사용');
     
-    if (savedPositions) {
-      try {
-        const positions = JSON.parse(savedPositions);
-        const activePositions = positions.filter((p: any) => p.status === 'open');
-        
-        if (activePositions.length > 0) {
-          const totalUpbitQty = activePositions.reduce((sum: number, p: any) => sum + (p.upbitQuantity || 0), 0);
-          const totalBinanceQty = activePositions.reduce((sum: number, p: any) => sum + (p.binanceQuantity || 0), 0);
-          
-          console.log('🔄 포지션 기반 잔고 자동 복원:', {
-            activePositions: activePositions.length,
-            totalUpbitQty,
-            totalBinanceQty
-          });
-          
-          // 포지션 기반 잔고 복원
-          return {
-            krw: 100000000 - (totalUpbitQty * 160000000), // 대략적인 투자액 차감
-            btc: totalUpbitQty,
-            usdt: 100000 - (totalBinanceQty * 115000 / 5 / 1390), // 대략적인 증거금 차감
-            binanceBtc: totalBinanceQty,
-            binanceSpotBtc: 0,
-            binanceUsdt: 100000
-          };
-        }
-      } catch (error) {
-        console.error('포지션 기반 복원 실패:', error);
-      }
-    }
-    
-    // 완전히 새로운 시작일 때만 기본값
-    console.log('🆕 새로운 시작 - 기본 잔고 설정');
+    // Mock 모드 기본 잔고
     return {
       krw: 100000000,
       btc: 0,
@@ -345,13 +268,20 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     };
   });
 
-  // 모의 거래 기록 (사용자별 저장) - 강화된 초기화
-  const [mockTrades, setMockTrades] = useState<MockTrade[]>(() => {
+  // Live 거래 기록 (실거래: DB에서 조회, Mock: 간단한 로컬 저장)
+  const [liveTrades, setLiveTrades] = useState<LiveTrade[]>(() => {
+    // 실거래 모드: DB에서 조회하므로 빈 배열로 시작
+    if (isLiveMode) {
+      console.log('🚨 실거래 모드: 거래 기록은 DB에서 조회');
+      return [];
+    }
+    
+    // Mock 모드: 간단한 로컬스토리지 사용
     try {
-      const storageKey = `mock-trades-${userId}`;
+      const storageKey = `live-trades-${userId}`;
       const saved = localStorage.getItem(storageKey);
       
-      console.log('🔄 mockTrades 초기화 (강화):', {
+      console.log('🔄 liveTrades 초기화 (강화):', {
         userId,
         storageKey,
         hasSavedData: !!saved,
@@ -390,39 +320,39 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       console.log('📭 유효한 저장된 거래 기록 없음');
       return [];
     } catch (error) {
-      console.error('❌ mockTrades 초기화 전체 실패:', error);
+      console.error('❌ liveTrades 초기화 전체 실패:', error);
       return [];
     }
   });
 
-  // mockTrades 상태 변화 추적
+  // liveTrades 상태 변화 추적
   React.useEffect(() => {
     const debugInfo = {
-      count: mockTrades.length,
-      trades: mockTrades.map(t => ({ id: t.id, type: t.type, exchange: t.exchange })),
+      count: liveTrades.length,
+      trades: liveTrades.map(t => ({ id: t.id, type: t.type, exchange: t.exchange })),
       timestamp: new Date().toISOString(),
       stack: new Error().stack?.split('\n').slice(1, 3) // 호출 스택 추적
     };
     
     // 콘솔과 localStorage 둘 다에 저장
-    console.log('🔄 mockTrades 상태 변경:', debugInfo);
-    localStorage.setItem('debug-mockTrades-changes', JSON.stringify(debugInfo));
-  }, [mockTrades]);
+    console.log('🔄 liveTrades 상태 변경:', debugInfo);
+    localStorage.setItem('debug-liveTrades-changes', JSON.stringify(debugInfo));
+  }, [liveTrades]);
 
-  // 모의 포지션 (사용자별 저장)
-  const [mockPositions, setMockPositions] = useState<MockPosition[]>(() => {
-    const storageKey = `mock-positions-${userId}`;
+  // Live 포지션 (실거래: DB, Mock: 로컬스토리지)
+  const [livePositions, setLivePositions] = useState<LivePosition[]>(() => {
+    const storageKey = `live-positions-${userId}`;
     const saved = localStorage.getItem(storageKey);
     const positions = saved ? JSON.parse(saved) : [];
     console.log('🎯 로컬 스토리지 포지션 로드:', positions);
-    console.log('🎯 활성 포지션 개수:', positions.filter((p: MockPosition) => p.status === 'open').length);
+    console.log('🎯 활성 포지션 개수:', positions.filter((p: LivePosition) => p.status === 'open').length);
     return positions;
   });
 
   // 잔고-포지션 일관성 검증 및 자동 수정
   useEffect(() => {
-    if (mockPositions.length > 0) {
-      const openPositions = mockPositions.filter(p => p.status === 'open');
+    if (livePositions.length > 0) {
+      const openPositions = livePositions.filter(p => p.status === 'open');
       
       if (openPositions.length > 0) {
         // 활성 포지션의 총 BTC 수량 계산
@@ -430,8 +360,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         const totalBinanceBtc = openPositions.reduce((sum, p) => sum + (p.binanceQuantity || 0), 0);
         
         // 잔고 검증
-        const currentUpbitBtc = mockBalance.btc || 0;
-        const currentBinanceBtc = mockBalance.binanceBtc || 0;
+        const currentUpbitBtc = liveBalance.btc || 0;
+        const currentBinanceBtc = liveBalance.binanceBtc || 0;
         
         // BTC 잔고가 활성 포지션과 다르면 수정 (정확히 일치시킴)
         if (Math.abs(totalUpbitBtc - currentUpbitBtc) > 0.000001) {
@@ -442,7 +372,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
             수정필요: true
           });
           
-          setMockBalance(prev => ({
+          setLiveBalance(prev => ({
             ...prev,
             btc: totalUpbitBtc // 활성 포지션과 정확히 일치시킴
           }));
@@ -508,7 +438,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
             수정필요: true
           });
           
-          setMockBalance(prev => ({
+          setLiveBalance(prev => ({
             ...prev,
             binanceBtc: totalBinanceBtc // 활성 포지션과 정확히 일치시킴
           }));
@@ -517,13 +447,13 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         }
       }
     }
-  }, [mockPositions, mockBalance.btc, mockBalance.binanceBtc]);
+  }, [livePositions, liveBalance.btc, liveBalance.binanceBtc]);
 
   // 전략-포지션 불일치 감지 및 자동 복원 (임시 비활성화)
   useEffect(() => {
-    if (false && mockPositions.length > 0 && setStrategies) { // 임시 비활성화
+    if (false && livePositions.length > 0 && setStrategies) { // 임시 비활성화
       // 포지션에 있는 전략 ID들
-      const positionStrategyIds = Array.from(new Set(mockPositions.map(pos => pos.strategyId)));
+      const positionStrategyIds = Array.from(new Set(livePositions.map(pos => pos.strategyId)));
       // 현재 전략 ID들  
       const currentStrategyIds = strategies.map(s => s.id);
       
@@ -541,7 +471,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         const restoredStrategies: any[] = [];
         
         missingStrategyIds.forEach(strategyId => {
-          const position = mockPositions.find(pos => pos.strategyId === strategyId);
+          const position = livePositions.find(pos => pos.strategyId === strategyId);
           if (position) {
             // 백업에서 원래 전략 데이터 찾기
             let originalStrategy = null;
@@ -607,7 +537,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         }
       }
     }
-  }, [mockPositions.length, strategies.length, setStrategies, userId, toast]);
+  }, [livePositions.length, strategies.length, setStrategies, userId, toast]);
 
   // 모의 거래 실행 중 상태
   const [isTrading, setIsTrading] = useState(false);
@@ -649,7 +579,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
           };
         });
         console.log('📈 거래 기록 로드:', normalizedTrades.length, '건');
-        setMockTrades(normalizedTrades);
+        setLiveTrades(normalizedTrades);
       }
       
       // 포지션 가져오기 (모의거래만): 클라이언트 단일 소스 유지 → 덮어쓰지 않음
@@ -676,7 +606,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         tradeKey,
         hasSavedTrades: !!savedTrades,
         savedTrades,
-        currentMockTrades: mockTrades.length
+        currentMockTrades: liveTrades.length
       });
       
       if (savedTrades && savedTrades !== '[]' && savedTrades !== 'null') {
@@ -684,7 +614,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
           const parsed = JSON.parse(savedTrades);
           if (Array.isArray(parsed) && parsed.length > 0) {
             console.log('🔄 거래 기록 강제 동기화:', parsed.length, '건', parsed);
-            setMockTrades(parsed);
+            setLiveTrades(parsed);
             return true;
           }
         } catch (error) {
@@ -698,7 +628,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     const handleForceUpdate = (event: any) => {
       console.log('🔄 강제 업데이트 이벤트 수신:', event.detail);
       if (event.detail && Array.isArray(event.detail)) {
-        setMockTrades(event.detail);
+        setLiveTrades(event.detail);
       }
     };
     
@@ -709,16 +639,16 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     
     // 1초 후 한번 더 시도 (컴포넌트 완전 로드 후)
     const syncTimeout = setTimeout(() => {
-      console.log('🔄 1초 후 재동기화 시도, 현재 거래 수:', mockTrades.length);
-      if (mockTrades.length === 0) {
+      console.log('🔄 1초 후 재동기화 시도, 현재 거래 수:', liveTrades.length);
+      if (liveTrades.length === 0) {
         forceSyncTrades();
       }
     }, 1000);
     
     // 5초 후 마지막 시도
     const finalSyncTimeout = setTimeout(() => {
-      console.log('🔄 5초 후 최종 동기화 시도, 현재 거래 수:', mockTrades.length);
-      if (mockTrades.length === 0) {
+      console.log('🔄 5초 후 최종 동기화 시도, 현재 거래 수:', liveTrades.length);
+      if (liveTrades.length === 0) {
         forceSyncTrades();
       }
     }, 5000);
@@ -726,7 +656,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     // 30초마다 주기적 동기화
     const interval = setInterval(() => {
       fetchTradingData();
-      if (mockTrades.length === 0) {
+      if (liveTrades.length === 0) {
         forceSyncTrades();
       }
     }, 30000);
@@ -741,24 +671,24 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
   // 로컬스토리지에 저장 (사용자별)
   useEffect(() => {
-    const storageKey = `mock-balance-${userId}`;
-    localStorage.setItem(storageKey, JSON.stringify(mockBalance));
-  }, [mockBalance, userId]);
+    const storageKey = `live-balance-${userId}`;
+    localStorage.setItem(storageKey, JSON.stringify(liveBalance));
+  }, [liveBalance, userId]);
 
   useEffect(() => {
     const storageKey = `mock-trades-${userId}`;
     console.log('💾 거래 기록 로컬스토리지 저장:', {
       userId,
       storageKey,
-      tradesCount: mockTrades.length,
-      recentTradesCount: mockTrades.filter(t => ['buy', 'sell', 'short', 'cover'].includes(t.type?.toLowerCase() || '')).length,
+      tradesCount: liveTrades.length,
+      recentTradesCount: liveTrades.filter(t => ['buy', 'sell', 'short', 'cover'].includes(t.type?.toLowerCase() || '')).length,
       timestamp: new Date().toISOString(),
       stack: new Error().stack?.split('\n')[1] // 호출 위치 추적
     });
     
     // 빈 배열로 덮어쓰는 것을 방지 (기존 데이터가 있는 경우)
     const existing = localStorage.getItem(storageKey);
-    if (mockTrades.length === 0 && existing && existing !== '[]' && existing !== 'null') {
+    if (liveTrades.length === 0 && existing && existing !== '[]' && existing !== 'null') {
       console.warn('⚠️ 빈 배열로 덮어쓰기 방지 - 기존 데이터 유지:', existing);
       
       // 기존 데이터를 다시 로드하여 상태와 동기화
@@ -766,7 +696,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         const existingParsed = JSON.parse(existing);
         if (Array.isArray(existingParsed) && existingParsed.length > 0) {
           console.log('🔄 덮어쓰기 방지 중 자동 복원:', existingParsed.length, '건');
-          setMockTrades(existingParsed);
+          setLiveTrades(existingParsed);
         }
       } catch (error) {
         console.error('❌ 덮어쓰기 방지 중 복원 실패:', error);
@@ -774,13 +704,13 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       return;
     }
     
-    localStorage.setItem(storageKey, JSON.stringify(mockTrades));
-  }, [mockTrades, userId]);
+    localStorage.setItem(storageKey, JSON.stringify(liveTrades));
+  }, [liveTrades, userId]);
 
   useEffect(() => {
-    const storageKey = `mock-positions-${userId}`;
-    localStorage.setItem(storageKey, JSON.stringify(mockPositions));
-  }, [mockPositions, userId]);
+    const storageKey = `live-positions-${userId}`;
+    localStorage.setItem(storageKey, JSON.stringify(livePositions));
+  }, [livePositions, userId]);
 
   // 거래 로그 추가 함수
   const addTradingLog = useCallback((message: string) => {
@@ -790,9 +720,9 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   }, []);
 
 
-  // 모의 진입 (원자적 처리)
-  const mockEntry = useCallback(async (strategy: any, premiumRate: number) => {
-    console.log('🎯 mockEntry 시작:', strategy.name, premiumRate);
+  // Live 진입 (원자적 처리)
+  const liveEntry = useCallback(async (strategy: any, premiumRate: number) => {
+    console.log('🎯 liveEntry 시작:', strategy.name, premiumRate);
     
     // 거래 잠금 확인
     if (tradingLockRef.current) {
@@ -805,7 +735,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       processingEntryRef.current.add(String(strategy.id));
 
       if (!currentKimchiData) {
-        console.error('❌ currentKimchiData is null in mockEntry');
+        console.error('❌ currentKimchiData is null in liveEntry');
         return;
       }
 
@@ -843,6 +773,85 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         difference: (binanceShortAmountBTC - upbitBuyAmountBTC).toFixed(8)
       });
 
+      // 거래 기록 추가
+      const currentCounter = tradeCounter + 1;
+      setTradeCounter(currentCounter);
+      const randomId = Math.random().toString(36).substring(2, 8);
+      const tradeId = `trade-${Date.now()}-${currentCounter}-${randomId}`;
+
+      // 🚀 실거래 모드: 실제 거래소 API 호출
+      let upbitOrderId = `${isLiveMode ? 'live' : 'mock'}-upbit-${tradeId}`;
+      let binanceOrderId = `${isLiveMode ? 'live' : 'mock'}-binance-${tradeId}`;
+      
+      if (isLiveMode) {
+        try {
+          console.log('🚨 실거래 모드 - 실제 거래소 주문 실행 시작');
+          
+          // 1. 업비트 BTC 매수 주문
+          console.log('📈 업비트 BTC 매수 주문:', {
+            symbol: 'BTC',
+            quantity: upbitBuyAmountBTC,
+            estimatedCost: totalUpbitCost
+          });
+          
+          const upbitOrderResponse = await fetch('/api/trading/upbit/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              market: 'KRW-BTC',
+              volume: upbitBuyAmountBTC,
+              ord_type: 'market'
+            })
+          });
+          
+          if (upbitOrderResponse.ok) {
+            const upbitResult = await upbitOrderResponse.json();
+            upbitOrderId = upbitResult.uuid || upbitResult.orderId || upbitOrderId;
+            console.log('✅ 업비트 매수 주문 성공:', upbitOrderId);
+          } else {
+            throw new Error('업비트 매수 주문 실패');
+          }
+          
+          // 2. 바이낸스 BTC 숏 주문
+          console.log('📉 바이낸스 BTC 숏 주문:', {
+            symbol: 'BTCUSDT',
+            quantity: binanceShortAmountBTC,
+            leverage: leverage
+          });
+          
+          const binanceOrderResponse = await fetch('/api/trading/binance/short', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              symbol: 'BTCUSDT',
+              quantity: binanceShortAmountBTC,
+              leverage: leverage
+            })
+          });
+          
+          if (binanceOrderResponse.ok) {
+            const binanceResult = await binanceOrderResponse.json();
+            binanceOrderId = binanceResult.orderId || binanceResult.uuid || binanceOrderId;
+            console.log('✅ 바이낸스 숏 주문 성공:', binanceOrderId);
+          } else {
+            throw new Error('바이낸스 숏 주문 실패');
+          }
+          
+          console.log('🎉 실거래 주문 모두 완료!', { upbitOrderId, binanceOrderId });
+          
+        } catch (realTradingError) {
+          console.error('❌ 실거래 주문 실패:', realTradingError);
+          toast({
+            title: "실거래 주문 실패",
+            description: `거래소 주문 중 오류: ${(realTradingError as any).message}`,
+            variant: "destructive"
+          });
+          return; // 실거래 실패 시 포지션 생성 중단
+        }
+      }
+
       console.log('📈 2단계 - 업비트 현물 매수:', {
         upbitBuyAmountBTC,
         upbitPrice,
@@ -851,14 +860,15 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         totalUpbitCost
       });
 
-      // 잔고 확인
-      if (mockBalance.krw < totalUpbitCost) {
-        const errorMsg = `KRW 부족: 필요 ₩${totalUpbitCost.toLocaleString()}, 보유 ₩${mockBalance.krw.toLocaleString()}`;
+      // 잔고 확인 (실거래: 실제 잔고, Mock: 로컬 잔고)
+      const availableKrw = isLiveMode ? (liveBalances?.real?.krw || 0) : liveBalance.krw;
+      if (availableKrw < totalUpbitCost) {
+        const errorMsg = `KRW 부족: 필요 ₩${totalUpbitCost.toLocaleString()}, 보유 ₩${availableKrw.toLocaleString()}`;
         if (lastToastMessage !== errorMsg) {
           setLastToastMessage(errorMsg);
           toast({
             title: "💸 원화 부족!",
-            description: `🏦 ${errorMsg} → 더 많은 자금이 필요해요!`,
+            description: `🏦 ${errorMsg} → ${isLiveMode ? '실제 잔고를' : '더 많은 자금이'} 확인해주세요!`,
             variant: "destructive"
           });
         }
@@ -872,24 +882,26 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         binanceMargin,
         binanceFee,
         totalNeeded: binanceMargin + binanceFee,
-        currentUSDT: mockBalance.usdt
+        currentUSDT: liveBalance.usdt
       });
 
-      if (mockBalance.usdt < binanceMargin + binanceFee) {
-        const errorMsg = `증거금 부족: 필요 $${(binanceMargin + binanceFee).toFixed(2)}, 보유 $${(mockBalance.usdt || 0).toLocaleString()}`;
+      const availableUsdt = isLiveMode ? (liveBalances?.real?.usdt || 0) : liveBalance.usdt;
+      if (availableUsdt < binanceMargin + binanceFee) {
+        const errorMsg = `증거금 부족: 필요 $${(binanceMargin + binanceFee).toFixed(2)}, 보유 $${availableUsdt.toLocaleString()}`;
         if (lastToastMessage !== errorMsg) {
           setLastToastMessage(errorMsg);
           toast({
             title: "💵 USDT 증거금 부족!", 
-            description: `⚠️ ${errorMsg} → 바이낸스 잔고를 확인해주세요!`,
+            description: `⚠️ ${errorMsg} → ${isLiveMode ? '실제 바이낸스' : '바이낸스'} 잔고를 확인해주세요!`,
             variant: "destructive"
           });
         }
         return;
       }
 
-      // 잔고 변경 (수수료 포함한 정확한 차감) - 균형 보장
-      setMockBalance(prev => {
+      // 잔고 변경 (Mock 모드에서만, 실거래는 실제 잔고 사용)
+      if (!isLiveMode) {
+        setLiveBalance(prev => {
         const newBalance = {
           ...prev,
           krw: Math.max(0, prev.krw - totalUpbitCost), // 음수 방지
@@ -920,7 +932,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         });
         
         return newBalance;
-      });
+        });
+      }
 
       console.log('💰 진입 시 잔고 변화:', {
         upbitCost: totalUpbitCost,
@@ -929,12 +942,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         totalCost: totalUpbitCost + (binanceMargin + binanceFee) * entryUsdKrw
       });
 
-      // 거래 기록 추가
-      const currentCounter = tradeCounter + 1;
-      setTradeCounter(currentCounter);
-      const randomId = Math.random().toString(36).substring(2, 8);
-      const tradeId = `trade-${Date.now()}-${currentCounter}-${randomId}`;
-      const newTrades: MockTrade[] = [
+      // 거래 기록 생성
+      const newTrades: LiveTrade[] = [
         {
           id: `${tradeId}-binance`,
           timestamp: new Date(),
@@ -963,15 +972,15 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         }
       ];
 
-      setMockTrades(prev => [...prev, ...newTrades]);
+      setLiveTrades(prev => [...prev, ...newTrades]);
       
       // 거래 기록 저장 (실거래만 DB, Mock은 로컬스토리지만)
       newTrades.forEach(trade => {
-        saveTradeToDB(trade, userId, isLiveMode);
+        saveLiveTradeToDB(trade, userId, isLiveMode);
       });
 
-      // 포지션 생성
-      const newPosition: MockPosition = {
+      // 포지션 생성 (실제 주문 ID 포함)
+      const newPosition: LivePosition = {
         id: `position-${tradeId}`,
         strategyId: strategy.id,
         strategyName: strategy.name, // 전략 이름 저장
@@ -987,10 +996,14 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         leverage,
         status: 'open',
         unrealizedPnl: 0,
-        realizedPnl: 0
+        realizedPnl: 0,
+        // 실제 주문 ID 추가
+        upbitOrderId: upbitOrderId,
+        binanceOrderId: binanceOrderId,
+        isRealTrade: isLiveMode // 실거래 여부 표시
       };
 
-      setMockPositions(prev => [...prev, newPosition]);
+      setLivePositions(prev => [...prev, newPosition]);
       // 전략별 집계: 실행 횟수 + 총 투자원금 합산 (업비트 + 바이낸스)
       const upbitInvestedKRW = newPosition.upbitQuantity * newPosition.upbitPrice;
       const binanceInvestedKRW = ((newPosition.binanceQuantity * newPosition.binancePrice) / newPosition.leverage) * entryUsdKrw;
@@ -1007,7 +1020,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
       
       // 포지션 저장 (실거래만 DB, Mock은 로컬스토리지만)
-      savePositionToDB(newPosition, userId, isLiveMode);
+      saveLivePositionToDB(newPosition, userId, isLiveMode);
 
       addTradingLog(`✅ ${strategy.name} 진입 완료! 김프 ${premiumRate.toFixed(3)}%`);
       
@@ -1016,18 +1029,21 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         description: `🎯 ${strategy.name} 전략 → 김프율 ${premiumRate.toFixed(3)}%에서 완벽 진입! 💎`,
       });
 
-      console.log('✅ 모의 진입 완료:', {
+      console.log(`✅ ${isLiveMode ? '실거래' : '모의'} 진입 완료:`, {
         strategy: strategy.name,
         premium: premiumRate,
         upbitCost: totalUpbitCost,
-        binanceMargin
+        binanceMargin,
+        mode: isLiveMode ? 'REAL' : 'MOCK',
+        upbitOrderId,
+        binanceOrderId
       });
 
     } catch (error) {
-      console.error('❌ 모의 진입 실패:', error);
+      console.error(`❌ ${isLiveMode ? '실거래' : '모의'} 진입 실패:`, error);
       toast({
-        title: "모의 진입 실패",
-        description: "모의 거래 실행 중 오류가 발생했습니다.",
+        title: `${isLiveMode ? '실거래' : '모의'} 진입 실패`,
+        description: `${isLiveMode ? '실거래' : '모의'} 거래 실행 중 오류가 발생했습니다.`,
         variant: "destructive"
       });
     } finally {
@@ -1036,13 +1052,13 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     }
   }, [
     currentKimchiData, 
-    mockBalance, 
+    liveBalance, 
     isLiveMode, 
     userId, 
     toast, 
     tradeCounter,
-    mockTrades,
-    mockPositions,
+    liveTrades,
+    livePositions,
     addTradingLog,
     onStrategyStatsUpdate,
     lastToastMessage,
@@ -1095,7 +1111,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       };
       
       // 3. 실제 거래 진입 (DB ID 포함)
-      mockEntry(forceStrategy, currentKimp);
+      liveEntry(forceStrategy, currentKimp);
       
       toast({
         title: '🧪 강제진입 완료',
@@ -1110,10 +1126,10 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         variant: 'destructive'
       });
     }
-  }, [currentKimchiData, mockEntry, toast]);
+  }, [currentKimchiData, liveEntry, toast]);
 
   // 모의 청산 (원자적 처리)
-  const mockExit = useCallback(async (position: MockPosition, premiumRate: number, ratio: number = 1.0) => {
+  const liveExit = useCallback(async (position: LivePosition, premiumRate: number, ratio: number = 1.0) => {
     // 거래 잠금 확인
     if (tradingLockRef.current) {
       console.warn('⏸️ 다른 거래 진행 중 - 청산 대기');
@@ -1125,7 +1141,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
     try {
       if (!currentKimchiData) {
-        console.error('❌ currentKimchiData is null in mockExit');
+        console.error('❌ currentKimchiData is null in liveExit');
         setIsTrading(false);
         return;
       }
@@ -1192,8 +1208,8 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
       console.log('💰 청산 시 잔고 변화:', {
         binanceCloseQuantity,
-        currentBinanceBtc: mockBalance.binanceBtc,
-        newBinanceBtc: (mockBalance.binanceBtc || 5.0) + binanceCloseQuantity
+        currentBinanceBtc: liveBalance.binanceBtc,
+        newBinanceBtc: (liveBalance.binanceBtc || 5.0) + binanceCloseQuantity
       });
 
       // 청산 시 정확한 잔고 업데이트
@@ -1201,7 +1217,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       const upbitNetRevenue = upbitSellRevenue - upbitFee; // 업비트 매도 수수료 차감
       const binanceNetReturnForBalance = binanceNetReturn; // 바이낸스 순 회수액 (이미 계산됨)
       
-      setMockBalance(prev => {
+      setLiveBalance(prev => {
         const newBalance = {
           ...prev,
           krw: Math.max(0, prev.krw + upbitNetRevenue), // 음수 방지
@@ -1275,7 +1291,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       setTradeCounter(currentCounter);
       const randomId = Math.random().toString(36).substring(2, 8);
       const tradeId = `exit-${Date.now()}-${currentCounter}-${randomId}`;
-      const exitTrades: MockTrade[] = [
+      const exitTrades: LiveTrade[] = [
         {
           id: `${tradeId}-upbit`,
           timestamp: new Date(),
@@ -1304,15 +1320,15 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         }
       ];
 
-      setMockTrades(prev => [...prev, ...exitTrades]);
+      setLiveTrades(prev => [...prev, ...exitTrades]);
       
       // 청산 거래 기록 저장 (실거래만 DB, Mock은 로컬스토리지만)
       exitTrades.forEach(trade => {
-        saveTradeToDB(trade, userId, isLiveMode);
+        saveLiveTradeToDB(trade, userId, isLiveMode);
       });
 
       // 포지션 업데이트 (비율에 따라 부분/전체 청산)
-      const updatedPositions = mockPositions.map(p => 
+      const updatedPositions = livePositions.map(p => 
         p.id === position.id 
           ? exitRatio >= 1.0 
             ? {...p, status: 'closed' as const, realizedPnl: totalPnl} // 전체 청산
@@ -1324,7 +1340,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
           : p
       );
       
-      setMockPositions(updatedPositions);
+      setLivePositions(updatedPositions);
       // 전략별 집계: 실현손익 반영 및 수익률 갱신 (정확한 계산)
       const curStats = strategyStatsRef.current[position.strategyId] || { executionCount: 0, realizedPnlKRW: 0, investedKRW: 0, profitRate: 0 };
       const updatedRealizedPnl = (curStats.realizedPnlKRW || 0) + totalPnl;
@@ -1340,7 +1356,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       // 포지션 업데이트 저장 (실거래만 DB, Mock은 로컬스토리지만)
       const updatedPosition = updatedPositions.find(p => p.id === position.id);
       if (updatedPosition) {
-        updatePositionInDB(updatedPosition, userId, isLiveMode);
+        updateLivePositionInDB(updatedPosition, userId, isLiveMode);
       }
 
       const totalFeesKRW = (entryUpbitFee + upbitFee) + ((entryBinanceFee + binanceFee) * usdKrwRate);
@@ -1375,13 +1391,13 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     }
   }, [
     currentKimchiData,
-    mockBalance,
+    liveBalance,
     tradeCounter,
-    mockTrades,
+    liveTrades,
     isLiveMode,
     userId,
     strategies,
-    mockPositions,
+    livePositions,
     onStrategyStatsUpdate,
     addTradingLog,
     toast
@@ -1417,7 +1433,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       const exitRate = parseFloat(strategy.takeProfitCondition);
 
       // 기존 포지션 확인
-      const currentPosition: MockPosition | undefined = mockPositions.find(p => 
+      const currentPosition: LivePosition | undefined = livePositions.find(p => 
         p.strategyId === strategy.id && p.status === 'open'
       );
 
@@ -1446,7 +1462,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         // 진입 조건 만족 - 새 포지션 생성
         console.log(`🎯 진입 조건: ${strategy.name} - 김프 ${currentPremium.toFixed(3)}% ≈ ${entryRate}% (오차: ${Math.abs(currentPremium - entryRate).toFixed(3)}%)`);
         addTradingLog(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
-        await mockEntry(strategy, currentPremium);
+        await liveEntry(strategy, currentPremium);
         lastActionAtRef.current[strategy.id] = now;
         console.log(`✅ 진입 완료: ${strategy.name} - 청산 전까지 재진입 제한`);
       } else if (exitOk) {
@@ -1467,7 +1483,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         
         console.log(`✅ 청산 조건 만족! 청산 실행 중...`);
         addTradingLog(`🎯 ${strategy.name} 청산 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${exitRate}%`);
-        await mockExit(currentPosition, currentPremium);
+        await liveExit(currentPosition, currentPremium);
         lastActionAtRef.current[strategy.id] = now;
       } else if (currentPosition) {
         // 포지션이 있지만 청산 조건 불만족
@@ -1498,7 +1514,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     } finally {
       processingEntryRef.current.delete(strategyId);
     }
-  }, [currentKimchiData, isTrading, mockPositions, mockBalance, toast, mockEntry, mockExit, addTradingLog]);
+  }, [currentKimchiData, isTrading, livePositions, liveBalance, toast, liveEntry, liveExit, addTradingLog]);
 
   // 김프 데이터 업데이트 및 저장
   useEffect(() => {
@@ -1527,7 +1543,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
   // 포지션 균형 자동 체크 (거래 후)
   useEffect(() => {
-    const activePositions = mockPositions.filter(p => p.status === 'open');
+    const activePositions = livePositions.filter(p => p.status === 'open');
     if (activePositions.length > 0) {
       const totalUpbitQty = activePositions.reduce((sum, p) => sum + (p.upbitQuantity || 0), 0);
       const totalBinanceQty = activePositions.reduce((sum, p) => sum + (p.binanceQuantity || 0), 0);
@@ -1543,7 +1559,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         });
       }
     }
-  }, [mockPositions, currentKimchiData]);
+  }, [livePositions, currentKimchiData]);
 
   // 전략 상태 변경 시 즉시 체크 + 2초마다 주기적 체크
   useEffect(() => {
@@ -1588,9 +1604,9 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
   // 잔고 초기화 (전략은 보존)
   const resetBalance = () => {
-    const currentBalance = mockBalance;
-    const activePositions = mockPositions.filter(p => p.status === 'open').length;
-    const totalTrades = mockTrades.length;
+    const currentBalance = liveBalance;
+    const activePositions = livePositions.filter(p => p.status === 'open').length;
+    const totalTrades = liveTrades.length;
     const totalFees = dailyStats.totalFees;
     const currentPnL = totalPnl;
     
@@ -1609,13 +1625,13 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       binanceSpotBtc: 0, // 0 BTC (바이낸스 현물)
       binanceUsdt: 100000 // 10만 USDT (바이낸스)
     };
-    setMockBalance(initialBalance);
+    setLiveBalance(initialBalance);
     
     // 2. 거래 기록 초기화
-    setMockTrades([]);
+    setLiveTrades([]);
     
     // 3. 포지션 초기화
-    setMockPositions([]);
+    setLivePositions([]);
     
     // 4. 카운터 초기화
     setTradeCounter(0);
@@ -1631,9 +1647,9 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     setLastToastMessage('');
     
     // 8. 로컬스토리지 초기화 (전략은 보존)
-    localStorage.removeItem(`mock-balance-${userId}`);
+    localStorage.removeItem(`live-balance-${userId}`);
     localStorage.removeItem(`mock-trades-${userId}`);
-    localStorage.removeItem(`mock-positions-${userId}`);
+    localStorage.removeItem(`live-positions-${userId}`);
     
     // 전략 데이터는 보존 (실수로 삭제 방지)
     console.log('💡 전략 데이터는 보존됩니다 - 잔고/거래/포지션만 초기화');
@@ -1667,7 +1683,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   const currentBtcPrice = currentKimchiData?.upbit_price || 156000000;
   
   // === 🎯 개별 포지션 PnL 계산 (수수료 제외 방식) ===
-  const totalPositionPnl = mockPositions
+  const totalPositionPnl = livePositions
     .filter(p => p.status === 'open')
     .reduce((sum, position) => {
       const currentPremium = currentKimchiData?.kimp ?? position.entryPremiumRate;
@@ -1697,7 +1713,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     }, 0);
   
   // 청산된 포지션의 실현 손익
-  const realizedPnl = mockPositions
+  const realizedPnl = livePositions
     .filter(p => p.status === 'closed')
     .reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
   
@@ -1705,11 +1721,11 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   const totalPnl = totalPositionPnl; // 실현손익 제외, 활성 포지션 PnL만 사용
   
   // === 총 순투자금 계산 (활성 포지션만) ===
-  const activePositions = mockPositions.filter(p => p.status === 'open');
-  const closedPositions = mockPositions.filter(p => p.status === 'closed');
+  const activePositions = livePositions.filter(p => p.status === 'open');
+  const closedPositions = livePositions.filter(p => p.status === 'closed');
   
   console.log('🔍 포지션 상태 확인:', {
-    전체포지션: mockPositions.length,
+    전체포지션: livePositions.length,
     활성포지션: activePositions.length,
     청산포지션: closedPositions.length,
     활성포지션ID: activePositions.map(p => p.id),
@@ -1760,23 +1776,23 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     },
     현재자산: {
       총합: (initialTotalValue + totalPnl).toLocaleString(),
-      KRW: mockBalance.krw.toLocaleString() + ' (변화: ' + (mockBalance.krw - INITIAL_KRW).toLocaleString() + ')',
-      업비트BTC: mockBalance.btc.toFixed(6) + ' BTC (₩' + (mockBalance.btc * currentBtcPrice).toLocaleString() + ')',
-      바이낸스BTC: mockBalance.binanceBtc.toFixed(6) + ' BTC (₩' + (mockBalance.binanceBtc * currentBtcPrice).toLocaleString() + ')',
-      USDT: mockBalance.usdt.toFixed(2) + ' USDT (₩' + (mockBalance.usdt * currentUsdKrw).toLocaleString() + ', 변화: ' + (mockBalance.usdt - INITIAL_USDT).toFixed(2) + ')'
+      KRW: liveBalance.krw.toLocaleString() + ' (변화: ' + (liveBalance.krw - INITIAL_KRW).toLocaleString() + ')',
+      업비트BTC: liveBalance.btc.toFixed(6) + ' BTC (₩' + (liveBalance.btc * currentBtcPrice).toLocaleString() + ')',
+      바이낸스BTC: liveBalance.binanceBtc.toFixed(6) + ' BTC (₩' + (liveBalance.binanceBtc * currentBtcPrice).toLocaleString() + ')',
+      USDT: liveBalance.usdt.toFixed(2) + ' USDT (₩' + (liveBalance.usdt * currentUsdKrw).toLocaleString() + ', 변화: ' + (liveBalance.usdt - INITIAL_USDT).toFixed(2) + ')'
     },
     손익분석: {
       총손익: totalPnl.toLocaleString(),
       수익률: profitRate.toFixed(2) + '%',
-      KRW변화: (mockBalance.krw - INITIAL_KRW).toLocaleString(),
-      USDT손실KRW: ((INITIAL_USDT - mockBalance.usdt) * currentUsdKrw).toLocaleString(),
-      업비트BTC가치: (mockBalance.btc * currentBtcPrice).toLocaleString(),
-      바이낸스BTC가치: (mockBalance.binanceBtc * currentBtcPrice).toLocaleString()
+      KRW변화: (liveBalance.krw - INITIAL_KRW).toLocaleString(),
+      USDT손실KRW: ((INITIAL_USDT - liveBalance.usdt) * currentUsdKrw).toLocaleString(),
+      업비트BTC가치: (liveBalance.btc * currentBtcPrice).toLocaleString(),
+      바이낸스BTC가치: (liveBalance.binanceBtc * currentBtcPrice).toLocaleString()
     }
   });
 
   // 실제 투자 기준 수익률도 계산 (청산된 포지션들의 투자액 대비)
-  const realizedTrades = mockTrades.filter(t => t.type === 'sell' || t.type === 'cover');
+  const realizedTrades = liveTrades.filter(t => t.type === 'sell' || t.type === 'cover');
   const totalInvestedAmount = realizedTrades.reduce((sum, trade) => {
     // 각 거래의 원금 계산 (수수료 제외)
     if (trade.exchange === 'upbit') {
@@ -1795,13 +1811,13 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const todayTrades = mockTrades.filter(trade => {
+    const todayTrades = liveTrades.filter(trade => {
       const tradeDate = new Date(trade.timestamp);
       tradeDate.setHours(0, 0, 0, 0);
       return tradeDate.getTime() === today.getTime();
     });
 
-    const todayPositions = mockPositions.filter(position => {
+    const todayPositions = livePositions.filter(position => {
       const entryDate = new Date(position.entryTime);
       entryDate.setHours(0, 0, 0, 0);
       return entryDate.getTime() === today.getTime();
@@ -1822,12 +1838,12 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     }, 0);
 
     // 수익 통계 (실제로는 더 복잡한 계산이 필요하지만 간단히)
-    const realizedPnl = mockPositions
+    const realizedPnl = livePositions
       .filter(p => p.status === 'closed')
       .reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
 
     // 활성 포지션 수
-    const activePositions = mockPositions.filter(p => p.status === 'open').length;
+    const activePositions = livePositions.filter(p => p.status === 'open').length;
 
     return {
       totalTrades,
@@ -1838,7 +1854,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       activePositions,
       newPositions: todayPositions.length
     };
-  }, [mockTrades, mockPositions, currentUsdKrw]);
+  }, [liveTrades, livePositions, currentUsdKrw]);
 
   // 일일 통계가 변경될 때 부모 컴포넌트에 전달
   useEffect(() => {
@@ -1850,12 +1866,12 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
   // 최근 거래(진입+청산) 10건 (시간 내림차순)
   const recentTrades = useMemo(() => {
     console.log('📊 최근 거래 계산 시작:', {
-      mockTradesLength: mockTrades.length,
-      mockTradesData: mockTrades,
+      liveTradesLength: liveTrades.length,
+      liveTradesData: liveTrades,
       timestamp: new Date().toISOString()
     });
     
-    const filteredTrades = mockTrades
+    const filteredTrades = liveTrades
       .filter(t => {
         const isValidType = ['buy', 'sell', 'short', 'cover'].includes((t.type || '').toLowerCase());
         console.log('🔍 거래 필터링:', {
@@ -1870,7 +1886,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
       .slice(0, 10);
     
     const recentTradesDebug = {
-      totalMockTrades: mockTrades.length,
+      totalMockTrades: liveTrades.length,
       filteredTrades: filteredTrades.length,
       recentTradesData: filteredTrades,
       timestamp: new Date().toISOString()
@@ -1880,20 +1896,20 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
     localStorage.setItem('debug-recentTrades-calculation', JSON.stringify(recentTradesDebug));
     
     return filteredTrades;
-  }, [mockTrades]);
+  }, [liveTrades]);
 
   // 활성 포지션 합산 수량 (표시용)
   const rawOpenUpbitQty = useMemo(() => {
-    return mockPositions
+    return livePositions
       .filter(p => p.status === 'open')
       .reduce((sum, p) => sum + (Number(p.upbitQuantity) || 0), 0);
-  }, [mockPositions]);
+  }, [livePositions]);
 
   const rawOpenBinanceQty = useMemo(() => {
-    return mockPositions
+    return livePositions
       .filter(p => p.status === 'open')
       .reduce((sum, p) => sum + (Number(p.binanceQuantity) || 0), 0);
-  }, [mockPositions]);
+  }, [livePositions]);
 
   const [openUpbitQty, setOpenUpbitQty] = useState(0);
   const [openBinanceQty, setOpenBinanceQty] = useState(0);
@@ -1935,7 +1951,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
               size="sm" 
               onClick={() => {
                 // 활성 포지션 전체 청산 (한 번에 모두 처리)
-                const activePositions = mockPositions.filter(p => p.status === 'open');
+                const activePositions = livePositions.filter(p => p.status === 'open');
                 if (activePositions.length > 0) {
                   const currentKimp = currentKimchiData?.kimp || 0;
                   console.log('🔴 전체 청산 실행: 포지션', activePositions.length, '개');
@@ -1949,7 +1965,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
                   }));
                   
                   // 상태를 한 번에 업데이트
-                  setMockPositions(prev => 
+                  setLivePositions(prev => 
                     prev.map(p => 
                       activePositions.find(ap => ap.id === p.id) 
                         ? closedPositions.find(cp => cp.id === p.id)! 
@@ -1966,7 +1982,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
                   console.log('❌ 청산할 포지션이 없습니다');
                 }
               }}
-              disabled={!mockPositions.some(p => p.status === 'open')}
+              disabled={!livePositions.some(p => p.status === 'open')}
             >
               전체 청산
             </Button>
@@ -1990,8 +2006,15 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
         
         {/* 잔고 및 수익률 표시 */}
         <MockBalanceDisplay
-          mockBalance={mockBalance}
-          openUpbitQty={mockBalance.btc}
+          mockBalance={isLiveMode ? {
+            krw: liveBalances?.real?.krw || 0,
+            btc: liveBalances?.real?.btc_upbit || 0,
+            usdt: liveBalances?.real?.usdt || 0,
+            binanceBtc: openBinanceQty, // 활성 포지션 기반
+            binanceSpotBtc: 0,
+            binanceUsdt: liveBalances?.real?.usdt || 0
+          } : liveBalance}
+          openUpbitQty={isLiveMode ? (liveBalances?.real?.btc_upbit || 0) : liveBalance.btc}
           openBinanceQty={openBinanceQty}
           profitRate={profitRate}
           totalPnl={totalPnl}
@@ -2000,10 +2023,10 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
 
         {/* 활성 포지션 */}
         <MockPositionList
-          mockPositions={mockPositions}
+          mockPositions={livePositions}
           strategies={strategies}
           lastKimchiData={lastKimchiData}
-          onMockExit={mockExit}
+          onMockExit={liveExit}
         />
 
         {/* 거래 내역 */}
@@ -2022,7 +2045,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
                       try {
                         const parsed = JSON.parse(savedTrades);
                         console.log('🔄 파싱된 거래:', parsed);
-                        setMockTrades(parsed);
+                        setLiveTrades(parsed);
                         console.log('🔄 수동 거래 기록 복원:', parsed.length, '건');
                         
                         // 강제 리렌더링
@@ -2050,7 +2073,7 @@ export const MockTradingSystem: React.FC<MockTradingSystemProps> = ({
                         try {
                           const parsed = JSON.parse(savedTrades);
                           if (parsed.length > 0) {
-                            setMockTrades(parsed);
+                            setLiveTrades(parsed);
                             console.log('🔄 자동 복원 성공:', parsed.length, '건');
                             return true;
                           }

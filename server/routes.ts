@@ -17,6 +17,8 @@ import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
 import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
+import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
+import { TRADING_CONFIG } from "./config/trading-config.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
 import { proxyManager } from "./utils/proxy-manager.js";
 import { ipBanDetector } from "./utils/ip-ban-detector.js";
@@ -138,6 +140,7 @@ export async function registerRoutes(
   const coinAPIService = new CoinAPIService();
   const simpleKimchiService = new SimpleKimchiService();
   const backtestService = new BacktestService();
+  const errorTrackingService = new ErrorTrackingService();
   
   // 🚀 웹소켓 서비스 인스턴스 생성 및 자동 구독 시작
   const upbitWebSocketService = new UpbitWebSocketService();
@@ -647,7 +650,7 @@ export async function registerRoutes(
 
   // API Routes
 
-  // 서버 정보 조회 (IP 주소 등)
+  // 서버 정보 조회 (IP 주소, 거래 모드 등)
   app.get("/api/server-info", async (req, res) => {
     try {
       const serverIP = await getCurrentServerIP();
@@ -657,6 +660,9 @@ export async function registerRoutes(
         ip: serverIP,
         isReplit: isReplitEnv,
         environment: process.env.NODE_ENV || "development",
+        tradingMode: TRADING_CONFIG.tradingMode,
+        isRealTradingEnabled: TRADING_CONFIG.isRealTradingEnabled,
+        isMockMode: TRADING_CONFIG.tradingMode === "mock"
       });
     } catch (error) {
       console.error("Failed to get server info:", error);
@@ -2789,6 +2795,154 @@ export async function registerRoutes(
         success: false,
         error: error.message
       });
+    }
+  });
+
+  // ===== 실거래 주문 API =====
+
+  // 업비트 BTC 매수 주문
+  app.post("/api/trading/upbit/buy", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { market, volume, ord_type } = req.body;
+      
+      console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, ord_type });
+      
+      if (!TRADING_CONFIG.isRealTradingEnabled) {
+        return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+      }
+      
+      // 사용자의 업비트 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'upbit');
+      if (!exchange) {
+        return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+      }
+      
+      // 업비트 서비스로 실제 주문 실행
+      const upbitService = new UpbitService(exchange.apiKey, exchange.apiSecret);
+      
+      const orderResult = await upbitService.placeBuyOrder(market, parseFloat(volume));
+      
+      console.log(`✅ 업비트 매수 주문 성공:`, orderResult);
+      
+      // 성공한 거래 기록 저장
+      try {
+        await storage.createTrade({
+          userId: userId,
+          exchange: 'upbit',
+          symbol: market.replace('KRW-', ''),
+          side: 'buy',
+          quantity: parseFloat(volume),
+          price: orderResult.price || 0,
+          fee: orderResult.paid_fee || 0,
+          feeCurrency: 'KRW',
+          exchangeTradeId: orderResult.uuid,
+          executedAt: new Date(),
+          isMock: false
+        });
+        console.log(`✅ 업비트 거래 기록 DB 저장 성공`);
+      } catch (dbError: any) {
+        console.error(`❌ 업비트 거래 기록 저장 실패:`, dbError);
+      }
+      
+      res.json(orderResult);
+      
+    } catch (error: any) {
+      console.error(`❌ 업비트 매수 주문 실패:`, error);
+      
+      // 오류 추적 시스템에 기록
+      try {
+        await errorTrackingService.recordError({
+          userId: req.user.id,
+          error: error,
+          context: {
+            exchange: 'upbit',
+            symbol: req.body.market?.replace('KRW-', '') || 'BTC',
+            side: 'buy',
+            quantity: parseFloat(req.body.volume || '0'),
+            endpoint: '/api/trading/upbit/buy',
+            payload: req.body
+          }
+        });
+        console.log(`✅ 업비트 오류 추적 기록 완료`);
+      } catch (trackingError: any) {
+        console.error(`❌ 오류 추적 기록 실패:`, trackingError);
+      }
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // 바이낸스 BTC 숏 주문
+  app.post("/api/trading/binance/short", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { symbol, quantity, leverage } = req.body;
+      
+      console.log(`🚨 실거래 바이낸스 숏 주문:`, { userId, symbol, quantity, leverage });
+      
+      if (!TRADING_CONFIG.isRealTradingEnabled) {
+        return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+      }
+      
+      // 사용자의 바이낸스 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'binance');
+      if (!exchange) {
+        return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+      }
+      
+      // 바이낸스 서비스로 실제 주문 실행
+      const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
+      
+      const orderResult = await binanceService.placeShortOrder(symbol.replace('USDT', ''), parseFloat(quantity));
+      
+      console.log(`✅ 바이낸스 숏 주문 성공:`, orderResult);
+      
+      // 성공한 거래 기록 저장
+      try {
+        await storage.createTrade({
+          userId: userId,
+          exchange: 'binance',
+          symbol: symbol.replace('USDT', ''),
+          side: 'short',
+          quantity: parseFloat(quantity),
+          price: orderResult.price || 0,
+          fee: orderResult.commission || 0,
+          feeCurrency: 'USDT',
+          exchangeTradeId: orderResult.orderId,
+          executedAt: new Date(),
+          isMock: false
+        });
+        console.log(`✅ 바이낸스 거래 기록 DB 저장 성공`);
+      } catch (dbError: any) {
+        console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);
+      }
+      
+      res.json(orderResult);
+      
+    } catch (error: any) {
+      console.error(`❌ 바이낸스 숏 주문 실패:`, error);
+      
+      // 오류 추적 시스템에 기록
+      try {
+        await errorTrackingService.recordError({
+          userId: req.user.id,
+          error: error,
+          context: {
+            exchange: 'binance',
+            symbol: req.body.symbol?.replace('USDT', '') || 'BTC',
+            side: 'short',
+            quantity: parseFloat(req.body.quantity || '0'),
+            endpoint: '/api/trading/binance/short',
+            payload: req.body
+          }
+        });
+        console.log(`✅ 바이낸스 오류 추적 기록 완료`);
+      } catch (trackingError: any) {
+        console.error(`❌ 오류 추적 기록 실패:`, trackingError);
+      }
+      
+      res.status(500).json({ error: error.message });
     }
   });
 
