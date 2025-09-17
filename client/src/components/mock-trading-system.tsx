@@ -785,36 +785,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       
       if (isLiveMode) {
         try {
-          console.log('🚨 실거래 모드 - 실제 거래소 주문 실행 시작');
+          console.log('🚨 실거래 모드 - 실제 거래소 주문 실행 시작 (바이낸스 → 업비트 순서)');
           
-          // 1. 업비트 BTC 매수 주문
-          console.log('📈 업비트 BTC 매수 주문:', {
-            symbol: 'BTC',
-            quantity: upbitBuyAmountBTC,
-            estimatedCost: totalUpbitCost
-          });
-          
-          const upbitOrderResponse = await fetch('/api/trading/upbit/buy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              market: 'KRW-BTC',
-              volume: upbitBuyAmountBTC,
-              ord_type: 'market'
-            })
-          });
-          
-          if (upbitOrderResponse.ok) {
-            const upbitResult = await upbitOrderResponse.json();
-            upbitOrderId = upbitResult.uuid || upbitResult.orderId || upbitOrderId;
-            console.log('✅ 업비트 매수 주문 성공:', upbitOrderId);
-          } else {
-            throw new Error('업비트 매수 주문 실패');
-          }
-          
-          // 2. 바이낸스 BTC 숏 주문
-          console.log('📉 바이낸스 BTC 숏 주문:', {
+          // 1. 바이낸스 BTC 숏 주문 (먼저 실행 - 중요!)
+          console.log('📉 바이낸스 BTC 숏 주문 (1단계):', {
             symbol: 'BTCUSDT',
             quantity: binanceShortAmountBTC,
             leverage: leverage
@@ -831,15 +805,45 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             })
           });
           
-          if (binanceOrderResponse.ok) {
-            const binanceResult = await binanceOrderResponse.json();
-            binanceOrderId = binanceResult.orderId || binanceResult.uuid || binanceOrderId;
-            console.log('✅ 바이낸스 숏 주문 성공:', binanceOrderId);
-          } else {
-            throw new Error('바이낸스 숏 주문 실패');
+          if (!binanceOrderResponse.ok) {
+            const binanceError = await binanceOrderResponse.text();
+            throw new Error(`바이낸스 숏 주문 실패: ${binanceError}`);
           }
           
-          console.log('🎉 실거래 주문 모두 완료!', { upbitOrderId, binanceOrderId });
+          const binanceResult = await binanceOrderResponse.json();
+          binanceOrderId = binanceResult.orderId || binanceResult.uuid || binanceOrderId;
+          console.log('✅ 바이낸스 숏 주문 성공 (1단계 완료):', binanceOrderId);
+          
+          // 2. 바이낸스 성공 후 업비트 BTC 매수 주문
+          console.log('📈 업비트 BTC 매수 주문 (2단계):', {
+            symbol: 'BTC',
+            quantity: upbitBuyAmountBTC,
+            estimatedCost: totalUpbitCost
+          });
+          
+          const upbitOrderResponse = await fetch('/api/trading/upbit/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              market: 'KRW-BTC',
+              volume: upbitBuyAmountBTC,
+              ord_type: 'market'
+            })
+          });
+          
+          if (!upbitOrderResponse.ok) {
+            // 업비트 실패 시 바이낸스 주문 취소 필요 (향후 구현)
+            const upbitError = await upbitOrderResponse.text();
+            console.error('❌ 업비트 매수 실패, 바이낸스 주문 취소 필요:', upbitError);
+            throw new Error(`업비트 매수 주문 실패: ${upbitError}`);
+          }
+          
+          const upbitResult = await upbitOrderResponse.json();
+          upbitOrderId = upbitResult.uuid || upbitResult.orderId || upbitOrderId;
+          console.log('✅ 업비트 매수 주문 성공 (2단계 완료):', upbitOrderId);
+          
+          console.log('🎉 실거래 주문 모두 완료! (바이낸스 → 업비트)', { binanceOrderId, upbitOrderId });
           
         } catch (realTradingError) {
           console.error('❌ 실거래 주문 실패:', realTradingError);

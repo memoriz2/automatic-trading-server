@@ -24,6 +24,46 @@ export class BinanceService {
     this.secretKey = secretKey || '';
   }
 
+  /**
+   * 선물 심볼의 수량 규칙(LOT_SIZE/MARKET_LOT_SIZE, MIN_NOTIONAL 등) 조회
+   */
+  private async getFuturesQuantityRules(symbolWithUsdt: string): Promise<{ stepSize?: string; minQty?: string; minNotional?: string; decimals: number; }> {
+    try {
+      const res = await fetch(`${this.futuresBaseUrl}/fapi/v1/exchangeInfo?symbol=${symbolWithUsdt}`);
+      if (!res.ok) {
+        return { decimals: 8 };
+      }
+      const data = await res.json();
+      const info = Array.isArray(data.symbols) ? data.symbols[0] : undefined;
+      if (!info) return { decimals: 8 };
+      const lot = info.filters?.find((f: any) => f.filterType === 'LOT_SIZE');
+      const marketLot = info.filters?.find((f: any) => f.filterType === 'MARKET_LOT_SIZE');
+      const minNotionalF = info.filters?.find((f: any) => f.filterType === 'MIN_NOTIONAL');
+      const stepSize = lot?.stepSize || marketLot?.stepSize;
+      const minQty = lot?.minQty || marketLot?.minQty;
+      const minNotional = minNotionalF?.notional;
+      const decimals = stepSize ? (stepSize.split('.')[1]?.length || 0) : 8;
+      return { stepSize, minQty, minNotional, decimals };
+    } catch {
+      return { decimals: 8 };
+    }
+  }
+
+  private floorToStep(value: number, stepSize?: string): number {
+    if (!stepSize) return value;
+    const step = parseFloat(stepSize);
+    if (!isFinite(step) || step <= 0) return value;
+    const decimals = (stepSize.split('.')[1]?.length || 0);
+    const floored = Math.floor(value / step) * step;
+    return parseFloat(floored.toFixed(decimals));
+  }
+
+  private ensureMinNotional(qty: number, price: number, minNotional?: string): boolean {
+    if (!minNotional) return true;
+    const notional = qty * price;
+    return notional >= parseFloat(minNotional);
+  }
+
   private generateSignature(queryString: string): string {
     if (!this.secretKey) {
       throw new Error('Binance secret key not configured');
@@ -324,13 +364,29 @@ export class BinanceService {
       }
 
       const timestamp = Date.now();
+      const symbolWithUsdt = `${symbol}USDT`;
+      const rules = await this.getFuturesQuantityRules(symbolWithUsdt);
+      // 시장가인 경우 가격은 최신가로 추정하여 MIN_NOTIONAL 체크
+      const priceRes = await fetch(`${this.futuresBaseUrl}/fapi/v1/ticker/price?symbol=${symbolWithUsdt}`);
+      const priceJson = await priceRes.json().catch(() => ({ price: '0' }));
+      const lastPrice = parseFloat(priceJson?.price || '0');
+      const adjustedQty = this.floorToStep(quantity, rules.stepSize);
+      const qtyString = adjustedQty.toFixed(rules.decimals);
+
+      if (!this.ensureMinNotional(parseFloat(qtyString), lastPrice, rules.minNotional)) {
+        throw new Error(`Order notional too small: qty=${qtyString}, price=${lastPrice}, min=${rules.minNotional}`);
+      }
+
       const params = {
-        symbol: `${symbol}USDT`,
+        symbol: symbolWithUsdt,
         side: 'SELL',
         type: 'MARKET',
-        quantity: quantity.toString(),
-        timestamp: timestamp.toString()
-      };
+        quantity: qtyString,
+        timestamp: timestamp.toString(),
+        recvWindow: '5000'
+      } as Record<string, string>;
+
+      console.log(`🚨 바이낸스 선물 주문 파라미터:`, params);
 
       const queryString = new URLSearchParams(params).toString();
       const signature = this.generateSignature(queryString);
@@ -338,15 +394,25 @@ export class BinanceService {
       const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/order?${queryString}&signature=${signature}`, {
         method: 'POST',
         headers: {
-          'X-MBX-APIKEY': this.apiKey
+          'X-MBX-APIKEY': this.apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded'
         }
       });
       
       if (!response.ok) {
-        throw new Error(`Binance futures order error: ${response.status}`);
+        const text = await response.text();
+        let detail = text;
+        try {
+          const j = JSON.parse(text);
+          detail = `${j.code || response.status}: ${j.msg || text}`;
+        } catch {}
+        console.error(`❌ 바이낸스 선물 주문 실패 상세:`, { status: response.status, detail, params });
+        throw new Error(`Binance futures order error: ${detail}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      console.log(`✅ 바이낸스 선물 주문 성공:`, result);
+      return result;
     } catch (error) {
       console.error('Binance placeShortOrder error:', error);
       throw error;

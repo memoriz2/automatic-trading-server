@@ -23,6 +23,18 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     : 'https://fapi.binance.com';
 
   /**
+   * 공개(서명 불필요) 엔드포인트 여부
+   * 공개 엔드포인트만 whitelist 하고, 나머지는 기본적으로 인증 필요
+   */
+  private isPublicEndpoint(endpoint: string): boolean {
+    return [
+      '/api/v3/ticker/price',
+      '/api/v3/depth',
+      '/api/v3/exchangeInfo'
+    ].some((prefix) => endpoint.startsWith(prefix));
+  }
+
+  /**
    * HMAC 서명 생성
    */
   private generateSignature(queryString: string): string {
@@ -73,16 +85,12 @@ export class BinanceAdapter extends BaseExchangeAdapter {
 
         const baseUrl = isFutures ? this.futuresBaseUrl : this.baseUrl;
         const timestamp = Date.now();
-      
-      // 인증이 필요한 엔드포인트인지 확인
-      const needsAuth = endpoint.includes('/account') || 
-                       endpoint.includes('/order') || 
-                       endpoint.includes('/myTrades') ||
-                       endpoint.includes('/position');
 
-      if (needsAuth) {
-        params.timestamp = timestamp;
-      }
+        // 공개 엔드포인트만 예외 처리, 기본은 인증 필요
+        const needsAuth = !this.isPublicEndpoint(endpoint);
+        if (needsAuth) {
+          params.timestamp = timestamp;
+        }
 
       const queryString = new URLSearchParams(params).toString();
       const url = `${baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
@@ -279,41 +287,51 @@ export class BinanceAdapter extends BaseExchangeAdapter {
       console.warn('바이낸스 현물 잔고 조회 실패:', error);
     }
 
-    // 선물 잔고 조회
+    // 선물 잔고 조회 (계정 정보 API 사용)
     try {
-      const futuresAccount = await this.apiRequest<Array<{
-        asset: string;
-        walletBalance: string;
-        unrealizedProfit: string;
-        marginBalance: string;
-        maintMargin: string;
-        initialMargin: string;
-        positionInitialMargin: string;
-        openOrderInitialMargin: string;
-        crossWalletBalance: string;
-        crossUnPnl: string;
+      const futuresAccountInfo = await this.apiRequest<{
+        totalWalletBalance: string;
+        totalUnrealizedProfit: string;
+        totalMarginBalance: string;
+        totalMaintMargin: string;
+        totalInitialMargin: string;
+        totalPositionInitialMargin: string;
+        totalOpenOrderInitialMargin: string;
+        totalCrossWalletBalance: string;
+        totalCrossUnPnl: string;
         availableBalance: string;
         maxWithdrawAmount: string;
-      }>>('/fapi/v2/balance', 'GET', {}, true);
+        assets: Array<{
+          asset: string;
+          walletBalance: string;
+          unrealizedProfit: string;
+          marginBalance: string;
+          maintMargin: string;
+          initialMargin: string;
+          positionInitialMargin: string;
+          openOrderInitialMargin: string;
+          crossWalletBalance: string;
+          crossUnPnl: string;
+          availableBalance: string;
+          maxWithdrawAmount: string;
+        }>;
+      }>('/fapi/v2/account', 'GET', {}, true);
 
-      console.log('🔍 바이낸스 선물 잔고 원본 데이터:', futuresAccount);
+      console.log('🔍 바이낸스 선물 계정 정보:', futuresAccountInfo);
       
-      futuresAccount
-        .filter(balance => parseFloat(balance.walletBalance) > 0)
-        .forEach(balance => {
-          console.log(`💰 바이낸스 선물 잔고 처리: ${balance.asset} = ${balance.walletBalance}`);
-          
-          // 선물 자산 표기: USDT는 그대로, 그 외는 _FUTURES 접미사
-          const currency = (balance.asset === 'USDT') ? 'USDT' : `${balance.asset}_FUTURES`;
-          
-          balances.push({
-            exchange: 'binance',
-            currency,
-            available: parseFloat(balance.availableBalance),
-            locked: parseFloat(balance.walletBalance) - parseFloat(balance.availableBalance),
-            total: parseFloat(balance.walletBalance)
-          });
+      // totalWalletBalance를 USDT 잔고로 사용
+      const totalUsdt = parseFloat(futuresAccountInfo.totalWalletBalance || '0');
+      if (totalUsdt > 0) {
+        console.log(`💰 바이낸스 선물 총 잔고: ${totalUsdt} USDT`);
+        
+        balances.push({
+          exchange: 'binance',
+          currency: 'USDT',
+          available: parseFloat(futuresAccountInfo.availableBalance || '0'),
+          locked: totalUsdt - parseFloat(futuresAccountInfo.availableBalance || '0'),
+          total: totalUsdt
         });
+      }
     } catch (error) {
       console.warn('바이낸스 선물 잔고 조회 실패:', error);
     }

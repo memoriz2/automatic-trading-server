@@ -1442,21 +1442,34 @@ const LegacyAutoTradingPage = () => {
       });
       
       if (Array.isArray(dbStrategies)) {
-        const formattedStrategies = dbStrategies.map(s => ({
-          id: String(s.id),
-          name: s.name,
-          crypto: s.symbol,
-          entryCondition: String(s.entry_rate || 3.0),
-          takeProfitCondition: String(s.exit_rate || 2.0),
-          investmentAmount: String(s.investment_amount),
-          leverage: String(s.leverage),
-          tolerance: String(s.tolerance_rate || s.tolerance || TRADING_CONSTANTS.DEFAULT_TOLERANCE),
-          riskLevel: 'moderate',
-          isActive: s.is_active,
-          profitRate: s.total_profit > 0 ? `+${s.total_profit}` : String(s.total_profit || '+0.00'),
-          executionCount: s.total_trades || 0,
-          created_at: s.created_at
-        }));
+        const formattedStrategies = dbStrategies.map(s => {
+          // 안전한 숫자 변환 함수
+          const safeNumber = (value: any, defaultValue: number) => {
+            const num = parseFloat(value);
+            return isNaN(num) ? defaultValue : num;
+          };
+          
+          const safeString = (value: any, defaultValue: string) => {
+            const num = parseFloat(value);
+            return isNaN(num) ? defaultValue : String(num);
+          };
+          
+          return {
+            id: String(s.id),
+            name: s.name || '이름 없음',
+            crypto: s.symbol || 'BTC',
+            entryCondition: safeString(s.entry_rate, '3.0'),
+            takeProfitCondition: safeString(s.exit_rate, '2.0'),
+            investmentAmount: safeString(s.investment_amount, '0.001'),
+            leverage: safeString(s.leverage, '3'),
+            tolerance: safeString(s.tolerance_rate || s.tolerance, '0.05'),
+            riskLevel: 'moderate',
+            isActive: Boolean(s.is_active),
+            profitRate: s.total_profit > 0 ? `+${s.total_profit}` : String(s.total_profit || '+0.00'),
+            executionCount: s.total_trades || 0,
+            created_at: s.created_at
+          };
+        });
         
         hasLoadedStrategiesRef.current = true;
         console.log('✅ [전략로드] 포맷팅 완료:', formattedStrategies.length, '개 전략');
