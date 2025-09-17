@@ -4052,6 +4052,87 @@ window.onload = () => {
     res.send(html);
   });
 
+  // 업비트 BTC 매도 주문
+  app.post("/api/trading/upbit/sell", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { market, volume, ord_type = 'market' } = req.body;
+      
+      console.log(`🚨 실거래 업비트 매도 주문:`, { userId, market, volume, ord_type });
+      
+      if (!TRADING_CONFIG.isRealTradingEnabled) {
+        return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+      }
+      
+      // 사용자의 업비트 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'upbit');
+      if (!exchange) {
+        return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+      }
+      
+      // 업비트 서비스로 실제 매도 주문 실행
+      const upbitService = new UpbitService(exchange.apiKey, exchange.apiSecret);
+      
+      // 매도는 항상 volume(수량) 사용
+      const sellVolume = parseFloat(volume);
+      if (sellVolume <= 0) {
+        return res.status(400).json({ error: "매도 수량이 유효하지 않습니다" });
+      }
+      
+      console.log(`📊 매도 주문 실행: ${sellVolume} ${market.replace('KRW-', '')}`);
+      
+      const orderResult = await upbitService.placeSellOrder(market, sellVolume);
+      
+      console.log(`✅ 업비트 매도 주문 성공:`, orderResult);
+      
+      // 성공한 거래 기록 저장
+      try {
+        await storage.createTrade({
+          userId: userId,
+          exchange: 'upbit',
+          symbol: market.replace('KRW-', ''),
+          side: 'sell',
+          quantity: sellVolume,
+          price: parseFloat(orderResult.price || orderResult.avg_price || '0'),
+          fee: parseFloat(orderResult.paid_fee || '0'),
+          feeCurrency: 'KRW',
+          exchangeTradeId: orderResult.uuid,
+          executedAt: new Date(),
+          isMock: false
+        });
+        console.log(`✅ 업비트 매도 기록 DB 저장 성공`);
+      } catch (dbError: any) {
+        console.error(`❌ 업비트 매도 기록 저장 실패:`, dbError);
+      }
+      
+      res.json(orderResult);
+      
+    } catch (error: any) {
+      console.error(`❌ 업비트 매도 주문 실패:`, error);
+      
+      // 오류 추적 시스템에 기록
+      try {
+        await errorTrackingService.recordError({
+          userId: req.user.id,
+          error: error,
+          context: {
+            exchange: 'upbit',
+            symbol: req.body.market?.replace('KRW-', '') || 'BTC',
+            side: 'sell',
+            quantity: parseFloat(req.body.volume || '0'),
+            endpoint: '/api/trading/upbit/sell',
+            payload: req.body
+          }
+        });
+        console.log(`✅ 업비트 매도 오류 추적 기록 완료`);
+      } catch (trackingError: any) {
+        console.error(`❌ 오류 추적 기록 실패:`, trackingError);
+      }
+      
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   // 바이낸스 BTC 숏 주문 (재진입 방지 포함)
   app.post("/api/trading/binance/short", authenticateSession, async (req: any, res) => {
     try {

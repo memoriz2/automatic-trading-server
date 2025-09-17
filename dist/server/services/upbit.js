@@ -151,14 +151,26 @@ export class UpbitService {
             throw new Error(`주문 조회 실패: ${error.message}`);
         }
     }
-    async placeSellOrder(market, volume) {
+    async placeSellOrder(market, volume, orderType = 'market') {
         try {
             const params = {
                 market,
                 side: 'ask',
                 volume: volume.toString(),
-                ord_type: 'limit',
+                ord_type: orderType,
             };
+            if (orderType === 'limit') {
+                // 지정가 매도의 경우 현재가 조회해서 가격 설정
+                const ticker = await this.getTicker([market]);
+                const currentPrice = ticker[0]?.trade_price || 0;
+                if (currentPrice > 0) {
+                    params.price = Math.floor(currentPrice * 0.999).toString(); // 0.1% 낮은 가격으로 즉시 체결 유도
+                }
+                else {
+                    throw new Error('현재가 조회 실패로 지정가 매도 불가');
+                }
+            }
+            console.log(`📊 업비트 매도 주문:`, params);
             return this.sendRequest('orders', 'POST', params);
         }
         catch (error) {

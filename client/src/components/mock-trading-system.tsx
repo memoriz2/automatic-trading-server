@@ -1159,6 +1159,150 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         return;
       }
 
+      console.log(`🔄 포지션 청산 시작: ${position.symbol} (${ratio === 1.0 ? '전체' : Math.round(ratio * 100) + '%'} 청산)`);
+
+      // 실거래 모드에서는 실제 API 호출
+      if (actualTradingMode === 'real') {
+        try {
+          const exitUpbitQuantity = position.upbitQuantity * ratio;
+          const exitBinanceQuantity = Math.abs(position.binanceQuantity) * ratio;
+          
+          console.log(`🚨 실거래 개별 포지션 청산:`, {
+            포지션ID: position.id,
+            심볼: position.symbol,
+            업비트청산: exitUpbitQuantity,
+            바이낸스청산: exitBinanceQuantity,
+            청산비율: Math.round(ratio * 100) + '%'
+          });
+          
+          const liquidationResults = [];
+          
+          // 1. 업비트 현물 매도 (보유량이 있으면)
+          if (exitUpbitQuantity > 0.00001) {
+            try {
+              const upbitSellResponse = await fetch('/api/trading/upbit/sell', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  market: `KRW-${position.symbol}`,
+                  volume: exitUpbitQuantity,
+                  ord_type: 'market'
+                })
+              });
+              
+              if (upbitSellResponse.ok) {
+                const upbitResult = await upbitSellResponse.json();
+                console.log(`✅ 업비트 개별 매도 완료:`, upbitResult);
+                liquidationResults.push({ type: 'upbit_sell', result: upbitResult });
+              } else {
+                console.error(`❌ 업비트 개별 매도 실패:`, await upbitSellResponse.text());
+                liquidationResults.push({ type: 'upbit_error', error: await upbitSellResponse.text() });
+              }
+            } catch (upbitError: any) {
+              console.error(`❌ 업비트 매도 오류:`, upbitError);
+              liquidationResults.push({ type: 'upbit_error', error: upbitError.message });
+            }
+          }
+          
+          // 2. 바이낸스 선물 청산 (포지션이 있으면)
+          if (exitBinanceQuantity > 0.00001) {
+            try {
+              const binanceCloseResponse = await fetch('/api/trading/binance/close-short', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  symbol: `${position.symbol}USDT`,
+                  quantity: exitBinanceQuantity
+                })
+              });
+              
+              if (binanceCloseResponse.ok) {
+                const binanceResult = await binanceCloseResponse.json();
+                console.log(`✅ 바이낸스 개별 청산 완료:`, binanceResult);
+                liquidationResults.push({ type: 'binance_close', result: binanceResult });
+              } else {
+                console.error(`❌ 바이낸스 개별 청산 실패:`, await binanceCloseResponse.text());
+                liquidationResults.push({ type: 'binance_error', error: await binanceCloseResponse.text() });
+              }
+            } catch (binanceError: any) {
+              console.error(`❌ 바이낸스 청산 오류:`, binanceError);
+              liquidationResults.push({ type: 'binance_error', error: binanceError.message });
+            }
+          }
+          
+          console.log('🏁 개별 포지션 청산 결과:', liquidationResults);
+          
+          // 성공한 청산이 있으면 UI 업데이트
+          if (liquidationResults.some(r => r.type === 'upbit_sell' || r.type === 'binance_close')) {
+            // 부분 청산인 경우 수량 조정, 전체 청산인 경우 상태 변경
+            if (ratio < 1.0) {
+              // 부분 청산: 수량만 조정
+              setLivePositions(prev => 
+                prev.map(p => 
+                  p.id === position.id 
+                    ? {
+                        ...p,
+                        upbitQuantity: p.upbitQuantity * (1 - ratio),
+                        binanceQuantity: p.binanceQuantity * (1 - ratio),
+                        unrealizedPnl: p.unrealizedPnl * (1 - ratio)
+                      }
+                    : p
+                )
+              );
+              
+              toast({
+                title: `${Math.round(ratio * 100)}% 청산 완료`,
+                description: `포지션 ${position.id}의 일부가 실제로 청산되었습니다.`,
+              });
+            } else {
+              // 전체 청산: 상태 변경
+              setLivePositions(prev => 
+                prev.map(p => 
+                  p.id === position.id 
+                    ? {
+                        ...p,
+                        status: 'closed' as const,
+                        exitTime: new Date(),
+                        realizedPnl: p.unrealizedPnl || 0
+                      }
+                    : p
+                )
+              );
+              
+              toast({
+                title: "개별 포지션 청산 완료",
+                description: `포지션 ${position.id}가 실제로 청산되었습니다.`,
+              });
+            }
+            
+            return; // 실거래 처리 완료, Mock 로직 실행하지 않음
+          } else {
+            toast({
+              title: "개별 청산 실패",
+              description: "포지션 청산에 실패했습니다.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+        } catch (realTradeError: any) {
+          console.error('❌ 실거래 개별 청산 실패:', realTradeError);
+          toast({
+            title: "실거래 청산 오류",
+            description: `청산 중 오류가 발생했습니다: ${realTradeError.message}`,
+            variant: "destructive"
+          });
+          return;
+        } finally {
+          setIsTrading(false);
+          tradingLockRef.current = false;
+        }
+      }
+
+      // Mock 모드: 기존 로직 계속 실행
+
       const currentUpbitPrice = currentKimchiData?.upbit_price || 156000000;
       const currentBinancePrice = currentKimchiData?.binance_price || 112000;
 
@@ -1984,14 +2128,178 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             <Button 
               variant="destructive" 
               size="sm" 
-              onClick={() => {
-                // 활성 포지션 전체 청산 (한 번에 모두 처리)
+              onClick={async () => {
+                // 활성 포지션 전체 청산 (실제 API 호출 포함)
                 const activePositions = livePositions.filter(p => p.status === 'open');
-                if (activePositions.length > 0) {
-                  const currentKimp = currentKimchiData?.kimp || 0;
-                  console.log('🔴 전체 청산 실행: 포지션', activePositions.length, '개');
-                  
-                  // 모든 활성 포지션을 한 번에 청산 처리
+                if (activePositions.length === 0) {
+                  console.log('❌ 청산할 포지션이 없습니다');
+                  toast({
+                    title: "청산할 포지션 없음",
+                    description: "활성 포지션이 없습니다.",
+                    variant: "destructive"
+                  });
+                  return;
+                }
+
+                const currentKimp = currentKimchiData?.kimp || 0;
+                console.log('🔴 전체 청산 실행: 포지션', activePositions.length, '개');
+                
+                // 실거래 모드에서는 실제 API 호출
+                if (actualTradingMode === 'real') {
+                  try {
+                    console.log('🚨 실거래 전체 청산 API 호출 시작...');
+                    
+                    // 각 포지션별로 실제 청산 API 호출
+                    const liquidationResults = [];
+                    
+                    for (const position of activePositions) {
+                      try {
+                        console.log(`🔄 포지션 청산 중: ${position.symbol} (업비트: ${position.upbitQuantity}, 바이낸스: ${position.binanceQuantity})`);
+                        
+                        // 1. 업비트 현물 매도 (보유량이 있으면)
+                        if (position.upbitQuantity > 0.00001) {
+                          const upbitSellResponse = await fetch('/api/trading/upbit/sell', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              market: `KRW-${position.symbol}`,
+                              volume: position.upbitQuantity,
+                              ord_type: 'market'
+                            })
+                          });
+                          
+                          if (upbitSellResponse.ok) {
+                            const upbitResult = await upbitSellResponse.json();
+                            console.log(`✅ 업비트 매도 완료:`, upbitResult);
+                            liquidationResults.push({ type: 'upbit_sell', symbol: position.symbol, result: upbitResult });
+                          } else {
+                            console.error(`❌ 업비트 매도 실패:`, await upbitSellResponse.text());
+                          }
+                        }
+                        
+                        // 2. 바이낸스 선물 청산 (포지션이 있으면)
+                        if (Math.abs(position.binanceQuantity) > 0.00001) {
+                          const binanceCloseResponse = await fetch('/api/trading/binance/close-short', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              symbol: `${position.symbol}USDT`,
+                              quantity: Math.abs(position.binanceQuantity)
+                            })
+                          });
+                          
+                          if (binanceCloseResponse.ok) {
+                            const binanceResult = await binanceCloseResponse.json();
+                            console.log(`✅ 바이낸스 청산 완료:`, binanceResult);
+                            liquidationResults.push({ type: 'binance_close', symbol: position.symbol, result: binanceResult });
+                          } else {
+                            console.error(`❌ 바이낸스 청산 실패:`, await binanceCloseResponse.text());
+                          }
+                        }
+                        
+                      } catch (positionError: any) {
+                        console.error(`❌ 포지션 ${position.symbol} 청산 실패:`, positionError);
+                        liquidationResults.push({ type: 'error', symbol: position.symbol, error: positionError.message });
+                      }
+                    }
+                    
+                    console.log('🏁 실거래 청산 결과:', liquidationResults);
+                    
+                    // 성공한 청산이 있으면 실제 거래소 상태 확인 후 UI 업데이트
+                    if (liquidationResults.some(r => r.type !== 'error')) {
+                      console.log('🔍 실거래 청산 후 거래소 상태 재확인...');
+                      
+                      // 3초 후 실제 거래소 상태 확인
+                      setTimeout(async () => {
+                        try {
+                          // 바이낸스 포지션 확인
+                          const binanceResponse = await fetch('/api/test/binance-balance', { credentials: 'include' });
+                          const binanceData = await binanceResponse.json();
+                          const btcPosition = binanceData.summary?.positions?.find((p: any) => p.symbol === 'BTCUSDT');
+                          const hasBinancePosition = btcPosition && Math.abs(parseFloat(btcPosition.positionAmt || '0')) > 0.00001;
+                          
+                          // 업비트 잔고 확인  
+                          const upbitResponse = await fetch('/api/test/upbit-balance', { credentials: 'include' });
+                          const upbitData = await upbitResponse.json();
+                          const upbitBtc = parseFloat(upbitData.summary?.btc?.balance || '0');
+                          
+                          console.log('📊 실제 거래소 상태:', {
+                            바이낸스포지션: hasBinancePosition ? btcPosition.positionAmt : '없음',
+                            업비트BTC: upbitBtc
+                          });
+                          
+                          // 실제 거래소에 포지션이 없으면 UI에서도 제거
+                          setLivePositions(prev => 
+                            prev.map(p => {
+                              if (p.status === 'open') {
+                                const shouldClose = 
+                                  (p.symbol === 'BTC' && !hasBinancePosition && p.binanceQuantity !== 0) ||
+                                  (p.symbol === 'BTC' && upbitBtc < 0.001 && p.upbitQuantity !== 0);
+                                
+                                if (shouldClose) {
+                                  console.log(`🔄 포지션 ${p.id} 실제 청산 확인됨 - UI 업데이트`);
+                                  return {
+                                    ...p,
+                                    status: 'closed' as const,
+                                    exitTime: new Date(),
+                                    realizedPnl: p.unrealizedPnl || 0
+                                  };
+                                }
+                              }
+                              return p;
+                            })
+                          );
+                          
+                          toast({
+                            title: "실거래 청산 확인 완료",
+                            description: `거래소 상태와 동기화되었습니다.`,
+                          });
+                          
+                        } catch (syncError: any) {
+                          console.error('❌ 거래소 상태 동기화 실패:', syncError);
+                        }
+                      }, 3000);
+                      
+                      // 즉시 UI 업데이트 (낙관적 업데이트)
+                      const closedPositions = activePositions.map(position => ({
+                        ...position,
+                        status: 'closed' as const,
+                        exitTime: new Date(),
+                        realizedPnl: position.unrealizedPnl || 0
+                      }));
+                      
+                      setLivePositions(prev => 
+                        prev.map(p => 
+                          activePositions.find(ap => ap.id === p.id) 
+                            ? closedPositions.find(cp => cp.id === p.id)! 
+                            : p
+                        )
+                      );
+                      
+                      toast({
+                        title: "실거래 청산 완료",
+                        description: `${liquidationResults.filter(r => r.type !== 'error').length}개 포지션이 실제로 청산되었습니다.`,
+                      });
+                    } else {
+                      toast({
+                        title: "청산 실패",
+                        description: "모든 포지션 청산에 실패했습니다.",
+                        variant: "destructive"
+                      });
+                    }
+                    
+                  } catch (error: any) {
+                    console.error('❌ 실거래 전체 청산 실패:', error);
+                    toast({
+                      title: "청산 오류",
+                      description: `청산 중 오류가 발생했습니다: ${error.message}`,
+                      variant: "destructive"
+                    });
+                  }
+                } else {
+                  // Mock 모드: 기존 로직 (DB 상태만 변경)
                   const closedPositions = activePositions.map(position => ({
                     ...position,
                     status: 'closed' as const,
@@ -1999,7 +2307,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     realizedPnl: position.unrealizedPnl || 0
                   }));
                   
-                  // 상태를 한 번에 업데이트
                   setLivePositions(prev => 
                     prev.map(p => 
                       activePositions.find(ap => ap.id === p.id) 
@@ -2008,13 +2315,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     )
                   );
                   
-                  // 토스트 알림
                   toast({
-                    title: "전체 청산 완료",
-                    description: `${activePositions.length}개 포지션이 모두 청산되었습니다.`
+                    title: "Mock 청산 완료",
+                    description: `${activePositions.length}개 포지션이 청산되었습니다 (Mock 모드).`
                   });
-                } else {
-                  console.log('❌ 청산할 포지션이 없습니다');
                 }
               }}
               disabled={!livePositions.some(p => p.status === 'open')}

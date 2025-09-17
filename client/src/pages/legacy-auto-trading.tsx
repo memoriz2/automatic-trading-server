@@ -471,6 +471,7 @@ const LegacyAutoTradingPage = () => {
     canUseMock,
     realStrategies,
     setRealStrategies,
+    loadRealStrategies,
     isLoadingStrategies,
     strategiesError,
     lastLoadTime
@@ -2045,10 +2046,20 @@ const LegacyAutoTradingPage = () => {
                     description: `${newStrategy.name} 전략이 업데이트되었습니다.`,
                   });
                   
-                  const newStrategies = await loadStrategiesFromDB({ force: true });
-                  if (newStrategies && newStrategies.length > 0) {
-                    setRealStrategies(newStrategies);
-                    console.log('🔄 [전략수정] realStrategies 상태 업데이트:', newStrategies.length, '개');
+                  // 전략 목록 새로고침 (비동기, 로딩 스피너 포함)
+                  console.log('🔄 [전략수정] 전략 목록 새로고침 시작...');
+                  
+                  // useTradingMode 훅의 loadRealStrategies 호출 (로딩 상태 포함)
+                  await loadRealStrategies();
+                  
+                  // 추가로 로컬 함수로도 확인 (이중 안전장치)
+                  try {
+                    const newStrategies = await loadStrategiesFromDB({ force: true });
+                    if (newStrategies && newStrategies.length > 0) {
+                      console.log('🔄 [전략수정] 로컬 함수로 추가 확인:', newStrategies.length, '개');
+                    }
+                  } catch (localError) {
+                    console.warn('⚠️ [전략수정] 로컬 함수 새로고침 실패:', localError);
                   }
                 } catch (error) {
                   console.error('전략 수정 실패:', error);
@@ -2125,10 +2136,20 @@ const LegacyAutoTradingPage = () => {
                   console.log('✅ 전략 생성 성공:', result);
                   toast({ title: '전략 생성 완료', description: '새 전략이 성공적으로 생성되었습니다.' });
                   
-                  const newStrategies = await loadStrategiesFromDB({ force: true });
-                  if (newStrategies && newStrategies.length > 0) {
-                    setRealStrategies(newStrategies);
-                    console.log('🔄 [전략생성] realStrategies 상태 업데이트:', newStrategies.length, '개');
+                  // 전략 목록 새로고침 (비동기, 로딩 스피너 포함)
+                  console.log('🔄 [전략생성] 전략 목록 새로고침 시작...');
+                  
+                  // useTradingMode 훅의 loadRealStrategies 호출 (로딩 상태 포함)
+                  await loadRealStrategies();
+                  
+                  // 추가로 로컬 함수로도 확인 (이중 안전장치)
+                  try {
+                    const newStrategies = await loadStrategiesFromDB({ force: true });
+                    if (newStrategies && newStrategies.length > 0) {
+                      console.log('🔄 [전략생성] 로컬 함수로 추가 확인:', newStrategies.length, '개');
+                    }
+                  } catch (localError) {
+                    console.warn('⚠️ [전략생성] 로컬 함수 새로고침 실패:', localError);
                   }
                 } catch (error: any) {
                   console.error('❌ 전략 생성 실패:', error);
