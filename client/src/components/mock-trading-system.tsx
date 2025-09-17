@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { TRADING_CONSTANTS } from "@/lib/utils";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
+import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModal';
 import { MockPositionList } from '@/components/trading/MockPositionList';
 import { MockTradeHistory } from '@/components/trading/MockTradeHistory';
 import { MockBalanceDisplay } from '@/components/trading/MockBalanceDisplay';
@@ -227,6 +228,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   
   // 강제진입 모달 상태
   const [showForceEntryModal, setShowForceEntryModal] = useState(false);
+  
+  // 롤백 설정 모달 상태
+  const [showRollbackSettingsModal, setShowRollbackSettingsModal] = useState(false);
   
   // 토글 방지용: 최소 보유시간
   const MIN_HOLD_MS = 30_000; // 진입 후 최소 보유 30초
@@ -1951,6 +1955,14 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               🧪 강제 진입
             </Button>
             <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowRollbackSettingsModal(true)}
+              className="border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-white"
+            >
+              🛡️ 롤백 설정
+            </Button>
+            <Button 
               variant="destructive" 
               size="sm" 
               onClick={() => {
@@ -2121,6 +2133,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       currentKimp={currentKimchiData?.kimp || 0}
       onForceEntry={handleForceEntry}
       isLiveMode={actualTradingMode === 'real'}
+    />
+
+    {/* 롤백 설정 모달 */}
+    <RollbackSettingsModal
+      isOpen={showRollbackSettingsModal}
+      onClose={() => setShowRollbackSettingsModal(false)}
     />
     </>
   );

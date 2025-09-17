@@ -32,7 +32,7 @@ export const MockBalanceDisplay: React.FC<MockBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 KRW</h4>
           <p className="text-xl font-bold text-blue-400">
-            ₩{(mockBalance.krw || 0).toLocaleString()}
+            ₩{Math.floor(mockBalance.krw || 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
@@ -50,7 +50,7 @@ export const MockBalanceDisplay: React.FC<MockBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 USDT</h4>
           <p className="text-xl font-bold text-green-400">
-            ${(mockBalance.binanceUsdt || 0).toLocaleString()}
+            ${Math.floor(mockBalance.binanceUsdt || 0).toLocaleString()}
           </p>
         </div>
       </div>

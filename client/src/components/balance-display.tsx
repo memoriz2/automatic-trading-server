@@ -98,10 +98,10 @@ export const BalanceDisplay = React.memo(() => {
           </Badge>
         ) : stableBalances?.upbit.connected ? (
           <Badge variant="outline" className="text-xs">
-            <NumberDisplay 
+            ₩<NumberDisplay 
               value={Math.floor(stableBalances.upbit.krw)}
-              formatter={(v) => v.toLocaleString()}
-              suffix=" KRW"
+              formatter={(v) => Math.floor(v).toLocaleString()}
+              suffix=""
             />
           </Badge>
         ) : (
@@ -144,8 +144,8 @@ export const BalanceDisplay = React.memo(() => {
               <Badge variant="outline" className="text-xs">
                 $<NumberDisplay 
                   value={stableBalances.binance.usdt}
-                  formatter={(v) => v.toLocaleString()}
-                  suffix=" USDT"
+                  formatter={(v) => Math.floor(v).toLocaleString()}
+                  suffix=""
                 />
               </Badge>
             )}

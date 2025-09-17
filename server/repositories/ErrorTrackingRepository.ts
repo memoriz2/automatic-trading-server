@@ -75,7 +75,7 @@ export class ErrorTrackingRepository extends BaseRepository {
       errorData.errorSeverity,
       errorData.errorCode || null,
       errorData.errorMessage,
-      (errorData as any).errorSignature || null, // 타입에 추가 필요
+      errorData.errorSignature || null,
       errorData.exchange,
       errorData.symbol,
       errorData.side,

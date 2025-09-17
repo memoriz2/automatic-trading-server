@@ -132,6 +132,9 @@ export interface PositionDto {
   realizedPnl?: number;
   totalFees: number;
   
+  // 재진입 방지용 (부분 청산 추적)
+  remainingQuantity?: number;
+  
   // 시간 정보
   entryTime: Date;
   exitTime?: Date;

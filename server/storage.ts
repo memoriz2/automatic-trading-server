@@ -1,4 +1,7 @@
-import { Pool } from 'pg';
+import pg, { Pool } from 'pg';
+
+// PostgreSQL numeric 타입을 자동으로 숫자로 파싱
+pg.types.setTypeParser(1700, (val: string) => parseFloat(val));
 import { hashPassword } from "./utils/auth.js";
 import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
 import { normalizeLeverage } from "./utils/trading-constants.js";
@@ -741,6 +744,25 @@ export class DatabaseStorage {
 
   async createTradingStrategy(data: any): Promise<any> {
     try {
+      console.log('🔍 [createTradingStrategy] 입력 데이터:', data);
+      
+      // 필드명 매핑 (프론트엔드 → DB)
+      const entryRate = data.entryRate ?? data.entryCondition ?? 0;
+      const exitRate = data.exitRate ?? data.takeProfitCondition ?? 0;
+      const toleranceValue = data.tolerance ?? data.toleranceRate ?? 0.1;
+      const symbol = data.symbol ?? data.crypto ?? 'BTC';
+      const isActive = data.isActive ?? data.isAutoTrading ?? false;
+      
+      console.log('🔍 [createTradingStrategy] 매핑된 값들:', {
+        entryRate,
+        exitRate,
+        toleranceValue,
+        symbol,
+        isActive,
+        leverage: data.leverage,
+        investmentAmount: data.investmentAmount
+      });
+
       const result = await this.pool.query(`
         INSERT INTO trading_strategies (
           user_id, name, entry_rate, exit_rate, leverage, investment_amount,
@@ -749,14 +771,23 @@ export class DatabaseStorage {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING *
       `, [
-        data.userId, data.name, data.entryRate, data.exitRate, normalizeLeverage(data.leverage),
-        data.investmentAmount, data.symbol, data.tolerance || 0.1,
-        data.isAutoTrading || false, data.strategyType || 'positive_kimchi',
-        data.toleranceRate || 0.1
+        data.userId, 
+        data.name, 
+        entryRate, 
+        exitRate, 
+        normalizeLeverage(data.leverage),
+        data.investmentAmount, 
+        symbol, 
+        toleranceValue,
+        isActive, 
+        data.strategyType || 'positive_kimchi',
+        toleranceValue
       ]);
+      
+      console.log('✅ [createTradingStrategy] 생성 완료:', result.rows[0]);
       return result.rows[0];
     } catch (error) {
-      console.error('Error creating trading strategy:', error);
+      console.error('❌ [createTradingStrategy] 오류:', error);
       throw error;
     }
   }
@@ -783,15 +814,34 @@ export class DatabaseStorage {
     values.push(id);
 
     try {
-      const result = await this.pool.query(`
+      const query = `
         UPDATE trading_strategies 
         SET ${updateFields.join(', ')}
         WHERE id = $${paramIndex}
         RETURNING *
-      `, values);
+      `;
+      
+      console.log('🔍 [updateTradingStrategy] 실행 쿼리:', {
+        query,
+        values,
+        strategyId: id
+      });
+      
+      const result = await this.pool.query(query, values);
+      
+      console.log('✅ [updateTradingStrategy] 업데이트 결과:', {
+        rowCount: result.rowCount,
+        updatedStrategy: result.rows[0]
+      });
+      
       return result.rows[0] || undefined;
-    } catch (error) {
-      console.error('Error updating trading strategy:', error);
+    } catch (error: any) {
+      console.error('❌ [updateTradingStrategy] 오류:', {
+        error: error?.message || String(error),
+        stack: error?.stack,
+        query: `UPDATE trading_strategies SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
+        values
+      });
       return undefined;
     }
   }

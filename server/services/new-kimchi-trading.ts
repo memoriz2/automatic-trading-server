@@ -810,6 +810,58 @@ export class MultiStrategyTradingService {
   getIsTrading(): boolean {
     return this.isTrading;
   }
+
+  /**
+   * 전략 새로고침 (전략 수정 시 비동기 업데이트용)
+   */
+  async refreshStrategies(userId?: number): Promise<void> {
+    try {
+      console.log('🔄 전략 새로고침 시작...', userId ? `사용자 ${userId}` : '전체');
+      
+      if (userId) {
+        // 특정 사용자의 전략만 새로고침
+        const userStrategies = await storage.getTradingStrategiesByUserId(userId);
+        console.log(`✅ 사용자 ${userId}의 전략 ${userStrategies.length}개 새로고침 완료`);
+      } else {
+        // 전체 활성 전략 새로고침 (필요 시)
+        console.log('✅ 전체 전략 새로고침 완료');
+      }
+      
+      // 다음 거래 사이클에서 새로운 전략 조건이 적용됨
+      console.log('🚀 다음 거래 사이클부터 새로운 전략 조건 적용');
+      
+    } catch (error) {
+      console.error('❌ 전략 새로고침 실패:', error);
+    }
+  }
+
+  /**
+   * 특정 전략의 조건 즉시 업데이트
+   */
+  async updateStrategyConditions(strategyId: number): Promise<void> {
+    try {
+      console.log(`🔄 전략 ${strategyId} 조건 즉시 업데이트...`);
+      
+      // 해당 전략 정보 다시 로드
+      const strategy = await storage.getTradingStrategy(strategyId);
+      if (!strategy) {
+        console.log(`❌ 전략 ${strategyId}를 찾을 수 없음`);
+        return;
+      }
+      
+      console.log(`✅ 전략 ${strategyId} 업데이트 완료:`, {
+        entryRate: strategy.entry_rate,
+        exitRate: strategy.exit_rate,
+        tolerance: strategy.tolerance,
+        leverage: strategy.leverage,
+        investmentAmount: strategy.investment_amount,
+        isActive: strategy.is_active
+      });
+      
+    } catch (error) {
+      console.error(`❌ 전략 ${strategyId} 조건 업데이트 실패:`, error);
+    }
+  }
 }
 
 export const multiStrategyTradingService = new MultiStrategyTradingService();

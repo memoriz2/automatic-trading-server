@@ -357,10 +357,181 @@ export class BinanceService {
     }
   }
 
-  async placeShortOrder(symbol: string, quantity: number): Promise<any> {
+  async getLeverage(symbol: string): Promise<number> {
     try {
       if (!this.apiKey) {
         throw new Error('Binance API key not configured');
+      }
+
+      const timestamp = Date.now();
+      const params = {
+        symbol: `${symbol}USDT`,
+        timestamp: timestamp.toString(),
+        recvWindow: '5000'
+      };
+
+      const queryString = new URLSearchParams(params).toString();
+      const signature = this.generateSignature(queryString);
+      
+      const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/positionRisk?${queryString}&signature=${signature}`, {
+        method: 'GET',
+        headers: {
+          'X-MBX-APIKEY': this.apiKey,
+        }
+      });
+
+      if (!response.ok) {
+        console.warn('레버리지 조회 실패, 기본값 1배 사용');
+        return 1;
+      }
+
+      const positions = await response.json();
+      const position = positions.find((p: any) => p.symbol === `${symbol}USDT`);
+      const leverage = position ? parseInt(position.leverage) : 1;
+      
+      console.log(`📊 ${symbol} 현재 레버리지: ${leverage}배`);
+      return leverage;
+    } catch (error) {
+      console.warn('레버리지 조회 오류, 기본값 1배 사용:', error);
+      return 1;
+    }
+  }
+
+  async setLeverage(symbol: string, leverage: number): Promise<boolean> {
+    try {
+      if (!this.apiKey) {
+        throw new Error('Binance API key not configured');
+      }
+
+      const timestamp = Date.now();
+      const params = {
+        symbol: `${symbol}USDT`,
+        leverage: leverage.toString(),
+        timestamp: timestamp.toString(),
+        recvWindow: '5000'
+      };
+
+      const queryString = new URLSearchParams(params).toString();
+      const signature = this.generateSignature(queryString);
+      
+      const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/leverage?${queryString}&signature=${signature}`, {
+        method: 'POST',
+        headers: {
+          'X-MBX-APIKEY': this.apiKey,
+        }
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`❌ 레버리지 설정 실패 (${symbol}, ${leverage}배):`, text);
+        return false;
+      }
+
+      const result = await response.json();
+      console.log(`✅ ${symbol} 레버리지 ${leverage}배로 설정 완료:`, result);
+      return true;
+    } catch (error) {
+      console.error(`레버리지 설정 오류 (${symbol}, ${leverage}배):`, error);
+      return false;
+    }
+  }
+
+  async getFuturesAccountInfo(): Promise<any> {
+    try {
+      if (!this.apiKey) {
+        throw new Error('Binance API key not configured');
+      }
+
+      const timestamp = Date.now();
+      const params = {
+        timestamp: timestamp.toString(),
+        recvWindow: '5000'
+      };
+
+      const queryString = new URLSearchParams(params).toString();
+      const signature = this.generateSignature(queryString);
+      
+      const response = await fetch(`${this.futuresBaseUrl}/fapi/v2/account?${queryString}&signature=${signature}`, {
+        method: 'GET',
+        headers: {
+          'X-MBX-APIKEY': this.apiKey,
+        }
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('❌ 바이낸스 선물 계정 정보 조회 실패:', text);
+        throw new Error(`Failed to get futures account info: ${response.status}`);
+      }
+
+      const accountInfo = await response.json();
+      console.log('📊 바이낸스 선물 계정 정보:', {
+        totalWalletBalance: accountInfo.totalWalletBalance,
+        availableBalance: accountInfo.availableBalance,
+        totalMarginBalance: accountInfo.totalMarginBalance,
+        totalUnrealizedProfit: accountInfo.totalUnrealizedProfit,
+        totalInitialMargin: accountInfo.totalInitialMargin,
+        totalMaintMargin: accountInfo.totalMaintMargin,
+        totalCrossWalletBalance: accountInfo.totalCrossWalletBalance,
+        totalCrossUnPnl: accountInfo.totalCrossUnPnl
+      });
+
+      // 마진 사용량 분석
+      const totalWallet = parseFloat(accountInfo.totalWalletBalance || '0');
+      const available = parseFloat(accountInfo.availableBalance || '0');
+      const usedMargin = totalWallet - available;
+      const marginUsagePercent = totalWallet > 0 ? (usedMargin / totalWallet * 100) : 0;
+
+      console.log('💼 마진 사용량 분석:', {
+        totalWallet: totalWallet.toFixed(2),
+        usedMargin: usedMargin.toFixed(2),
+        available: available.toFixed(2),
+        marginUsage: `${marginUsagePercent.toFixed(1)}%`
+      });
+      
+      return accountInfo;
+    } catch (error) {
+      console.error('Binance getFuturesAccountInfo error:', error);
+      throw error;
+    }
+  }
+
+  async placeShortOrder(symbol: string, quantity: number, targetLeverage?: number): Promise<any> {
+    try {
+      if (!this.apiKey) {
+        throw new Error('Binance API key not configured');
+      }
+
+      // 먼저 계정 정보 확인
+      console.log('🔍 바이낸스 선물 계정 정보 확인 중...');
+      const accountInfo = await this.getFuturesAccountInfo();
+      const availableBalance = parseFloat(accountInfo.availableBalance || '0');
+      
+      console.log(`💰 사용 가능한 잔고: ${availableBalance} USDT`);
+
+      // 현재 레버리지 확인
+      const currentLeverage = await this.getLeverage(symbol);
+      console.log(`🔧 ${symbol} 현재 레버리지: ${currentLeverage}배`);
+
+      // 목표 레버리지 결정 (전략에서 지정된 값 우선 사용)
+      const desiredLeverage = targetLeverage || 20; // 기본값 20배
+      console.log(`🎯 ${symbol} 목표 레버리지: ${desiredLeverage}배 (전략 설정: ${targetLeverage || '없음'})`);
+
+      // 현재 레버리지와 목표 레버리지가 다르면 설정 변경
+      let finalLeverage = currentLeverage;
+      if (currentLeverage !== desiredLeverage) {
+        console.log(`⚡ ${symbol} 레버리지를 ${currentLeverage}배 → ${desiredLeverage}배로 변경 시도...`);
+        const leverageSet = await this.setLeverage(symbol, desiredLeverage);
+        if (leverageSet) {
+          console.log(`✅ ${symbol} 레버리지 ${desiredLeverage}배 설정 성공`);
+          finalLeverage = desiredLeverage; // 설정 성공 시 즉시 반영
+        } else {
+          console.warn(`⚠️ ${symbol} 레버리지 설정 실패, ${currentLeverage}배로 진행`);
+          finalLeverage = currentLeverage;
+        }
+      } else {
+        console.log(`✅ ${symbol} 레버리지 이미 ${currentLeverage}배로 설정됨`);
+        finalLeverage = currentLeverage;
       }
 
       const timestamp = Date.now();
@@ -375,6 +546,39 @@ export class BinanceService {
 
       if (!this.ensureMinNotional(parseFloat(qtyString), lastPrice, rules.minNotional)) {
         throw new Error(`Order notional too small: qty=${qtyString}, price=${lastPrice}, min=${rules.minNotional}`);
+      }
+
+      // 현재 포지션 정보 확인
+      const positions = accountInfo.positions?.filter((p: any) => parseFloat(p.positionAmt) !== 0) || [];
+      console.log('📈 현재 활성 포지션:', positions.length > 0 ? positions.map((p: any) => ({
+        symbol: p.symbol,
+        size: p.positionAmt,
+        entryPrice: p.entryPrice,
+        markPrice: p.markPrice,
+        pnl: p.unRealizedProfit
+      })) : '없음');
+
+      // 설정된 레버리지 기반 마진 계산
+      const orderValue = parseFloat(qtyString) * lastPrice;
+      const requiredMarginBase = orderValue / Math.max(finalLeverage, 1); // 설정된 레버리지 사용
+      const requiredMargin = requiredMarginBase * 1.1; // 10% 안전 마진
+      
+      console.log('📊 주문 마진 계산:', {
+        quantity: qtyString,
+        price: lastPrice,
+        leverage: `${finalLeverage}배`,
+        orderValue: orderValue.toFixed(2),
+        requiredMarginBase: requiredMarginBase.toFixed(2),
+        requiredMargin: requiredMargin.toFixed(2),
+        availableBalance: availableBalance.toFixed(2),
+        sufficient: availableBalance >= requiredMargin,
+        activePositions: positions.length
+      });
+
+      // 경고만 출력하고 주문은 계속 진행 (바이낸스 API가 최종 판단)
+      if (availableBalance < requiredMargin) {
+        console.warn(`⚠️ 마진 부족 가능성: 필요 ${requiredMargin.toFixed(2)} USDT, 보유 ${availableBalance.toFixed(2)} USDT`);
+        console.warn(`⚠️ 바이낸스 API 응답에 따라 주문이 실패할 수 있습니다.`);
       }
 
       const params = {
@@ -419,6 +623,61 @@ export class BinanceService {
     }
   }
 
+  async closeShortPosition(symbol: string, quantity: number): Promise<any> {
+    try {
+      if (!this.apiKey) {
+        throw new Error('Binance API key not configured');
+      }
+
+      const timestamp = Date.now();
+      const symbolWithUsdt = `${symbol}USDT`;
+      const rules = await this.getFuturesQuantityRules(symbolWithUsdt);
+      const adjustedQty = this.floorToStep(quantity, rules.stepSize);
+      const qtyString = adjustedQty.toFixed(rules.decimals);
+
+      const params = {
+        symbol: symbolWithUsdt,
+        side: 'BUY', // 숏 포지션 청산은 BUY
+        type: 'MARKET',
+        quantity: qtyString,
+        reduceOnly: 'true',
+        timestamp: timestamp.toString(),
+        recvWindow: '5000'
+      } as Record<string, string>;
+
+      console.log(`🔄 바이낸스 숏 포지션 청산 파라미터:`, params);
+
+      const queryString = new URLSearchParams(params).toString();
+      const signature = this.generateSignature(queryString);
+      
+      const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/order?${queryString}&signature=${signature}`, {
+        method: 'POST',
+        headers: {
+          'X-MBX-APIKEY': this.apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+      
+      if (!response.ok) {
+        const text = await response.text();
+        let detail = text;
+        try {
+          const j = JSON.parse(text);
+          detail = `${j.code || response.status}: ${j.msg || text}`;
+        } catch {}
+        console.error(`❌ 바이낸스 숏 포지션 청산 실패:`, { status: response.status, detail, params });
+        throw new Error(`Binance close short position error: ${detail}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ 바이낸스 숏 포지션 청산 성공:`, result);
+      return result;
+    } catch (error) {
+      console.error('Binance closeShortPosition error:', error);
+      throw error;
+    }
+  }
+
   async closeLongOrder(symbol: string, quantity: number): Promise<any> {
     try {
       if (!this.apiKey) {
@@ -456,44 +715,6 @@ export class BinanceService {
   }
 
   // 새로운 김프 전략용 메소드들
-  
-  // 레버리지 설정
-  async setLeverage(symbol: string, leverage: number): Promise<any> {
-    try {
-      if (!this.apiKey) {
-        throw new Error('Binance API key not configured');
-      }
-
-      const timestamp = Date.now();
-      const params = {
-        symbol: `${symbol}USDT`,
-        leverage: leverage.toString(),
-        timestamp: timestamp.toString()
-      };
-
-      const queryString = new URLSearchParams(params).toString();
-      const signature = this.generateSignature(queryString);
-      
-      const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/leverage?${queryString}&signature=${signature}`, {
-        method: 'POST',
-        headers: {
-          'X-MBX-APIKEY': this.apiKey
-        }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn(`Binance setLeverage warning (${response.status}):`, errorText);
-        // 레버리지 설정 실패는 치명적이지 않으므로 경고만 출력
-        return { success: false, message: errorText };
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Binance setLeverage error:', error);
-      return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  }
 
   // 선물 숏 포지션 진입 (시장가)
   async placeFuturesShortOrder(symbol: string, quantity: number): Promise<any> {

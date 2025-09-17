@@ -73,6 +73,41 @@ export type TradingSetting = $Result.DefaultSelection<Prisma.$TradingSettingPayl
  * 
  */
 export type TradingStrategy = $Result.DefaultSelection<Prisma.$TradingStrategyPayload>
+/**
+ * Model ApiKey
+ * 
+ */
+export type ApiKey = $Result.DefaultSelection<Prisma.$ApiKeyPayload>
+/**
+ * Model RealOrder
+ * 
+ */
+export type RealOrder = $Result.DefaultSelection<Prisma.$RealOrderPayload>
+/**
+ * Model RealPosition
+ * 
+ */
+export type RealPosition = $Result.DefaultSelection<Prisma.$RealPositionPayload>
+/**
+ * Model RealTrade
+ * 
+ */
+export type RealTrade = $Result.DefaultSelection<Prisma.$RealTradePayload>
+/**
+ * Model BalanceSnapshot
+ * 
+ */
+export type BalanceSnapshot = $Result.DefaultSelection<Prisma.$BalanceSnapshotPayload>
+/**
+ * Model ExchangeConnection
+ * 
+ */
+export type ExchangeConnection = $Result.DefaultSelection<Prisma.$ExchangeConnectionPayload>
+/**
+ * Model RealDailyStats
+ * 
+ */
+export type RealDailyStats = $Result.DefaultSelection<Prisma.$RealDailyStatsPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -311,6 +346,76 @@ export class PrismaClient<
     * ```
     */
   get tradingStrategy(): Prisma.TradingStrategyDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.apiKey`: Exposes CRUD operations for the **ApiKey** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ApiKeys
+    * const apiKeys = await prisma.apiKey.findMany()
+    * ```
+    */
+  get apiKey(): Prisma.ApiKeyDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.realOrder`: Exposes CRUD operations for the **RealOrder** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RealOrders
+    * const realOrders = await prisma.realOrder.findMany()
+    * ```
+    */
+  get realOrder(): Prisma.RealOrderDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.realPosition`: Exposes CRUD operations for the **RealPosition** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RealPositions
+    * const realPositions = await prisma.realPosition.findMany()
+    * ```
+    */
+  get realPosition(): Prisma.RealPositionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.realTrade`: Exposes CRUD operations for the **RealTrade** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RealTrades
+    * const realTrades = await prisma.realTrade.findMany()
+    * ```
+    */
+  get realTrade(): Prisma.RealTradeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.balanceSnapshot`: Exposes CRUD operations for the **BalanceSnapshot** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BalanceSnapshots
+    * const balanceSnapshots = await prisma.balanceSnapshot.findMany()
+    * ```
+    */
+  get balanceSnapshot(): Prisma.BalanceSnapshotDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.exchangeConnection`: Exposes CRUD operations for the **ExchangeConnection** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ExchangeConnections
+    * const exchangeConnections = await prisma.exchangeConnection.findMany()
+    * ```
+    */
+  get exchangeConnection(): Prisma.ExchangeConnectionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.realDailyStats`: Exposes CRUD operations for the **RealDailyStats** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RealDailyStats
+    * const realDailyStats = await prisma.realDailyStats.findMany()
+    * ```
+    */
+  get realDailyStats(): Prisma.RealDailyStatsDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -762,7 +867,14 @@ export namespace Prisma {
     SystemAlert: 'SystemAlert',
     Trade: 'Trade',
     TradingSetting: 'TradingSetting',
-    TradingStrategy: 'TradingStrategy'
+    TradingStrategy: 'TradingStrategy',
+    ApiKey: 'ApiKey',
+    RealOrder: 'RealOrder',
+    RealPosition: 'RealPosition',
+    RealTrade: 'RealTrade',
+    BalanceSnapshot: 'BalanceSnapshot',
+    ExchangeConnection: 'ExchangeConnection',
+    RealDailyStats: 'RealDailyStats'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -781,7 +893,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "tradeLog" | "user" | "cryptocurrency" | "exchange" | "kimchiPremium" | "performanceStat" | "position" | "session" | "systemAlert" | "trade" | "tradingSetting" | "tradingStrategy"
+      modelProps: "tradeLog" | "user" | "cryptocurrency" | "exchange" | "kimchiPremium" | "performanceStat" | "position" | "session" | "systemAlert" | "trade" | "tradingSetting" | "tradingStrategy" | "apiKey" | "realOrder" | "realPosition" | "realTrade" | "balanceSnapshot" | "exchangeConnection" | "realDailyStats"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1673,6 +1785,524 @@ export namespace Prisma {
           }
         }
       }
+      ApiKey: {
+        payload: Prisma.$ApiKeyPayload<ExtArgs>
+        fields: Prisma.ApiKeyFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ApiKeyFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ApiKeyFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>
+          }
+          findFirst: {
+            args: Prisma.ApiKeyFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ApiKeyFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>
+          }
+          findMany: {
+            args: Prisma.ApiKeyFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>[]
+          }
+          create: {
+            args: Prisma.ApiKeyCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>
+          }
+          createMany: {
+            args: Prisma.ApiKeyCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ApiKeyCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>[]
+          }
+          delete: {
+            args: Prisma.ApiKeyDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>
+          }
+          update: {
+            args: Prisma.ApiKeyUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>
+          }
+          deleteMany: {
+            args: Prisma.ApiKeyDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ApiKeyUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ApiKeyUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>[]
+          }
+          upsert: {
+            args: Prisma.ApiKeyUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApiKeyPayload>
+          }
+          aggregate: {
+            args: Prisma.ApiKeyAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateApiKey>
+          }
+          groupBy: {
+            args: Prisma.ApiKeyGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ApiKeyGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ApiKeyCountArgs<ExtArgs>
+            result: $Utils.Optional<ApiKeyCountAggregateOutputType> | number
+          }
+        }
+      }
+      RealOrder: {
+        payload: Prisma.$RealOrderPayload<ExtArgs>
+        fields: Prisma.RealOrderFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RealOrderFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RealOrderFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>
+          }
+          findFirst: {
+            args: Prisma.RealOrderFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RealOrderFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>
+          }
+          findMany: {
+            args: Prisma.RealOrderFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>[]
+          }
+          create: {
+            args: Prisma.RealOrderCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>
+          }
+          createMany: {
+            args: Prisma.RealOrderCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RealOrderCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>[]
+          }
+          delete: {
+            args: Prisma.RealOrderDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>
+          }
+          update: {
+            args: Prisma.RealOrderUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>
+          }
+          deleteMany: {
+            args: Prisma.RealOrderDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RealOrderUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RealOrderUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>[]
+          }
+          upsert: {
+            args: Prisma.RealOrderUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealOrderPayload>
+          }
+          aggregate: {
+            args: Prisma.RealOrderAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRealOrder>
+          }
+          groupBy: {
+            args: Prisma.RealOrderGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RealOrderGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RealOrderCountArgs<ExtArgs>
+            result: $Utils.Optional<RealOrderCountAggregateOutputType> | number
+          }
+        }
+      }
+      RealPosition: {
+        payload: Prisma.$RealPositionPayload<ExtArgs>
+        fields: Prisma.RealPositionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RealPositionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RealPositionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>
+          }
+          findFirst: {
+            args: Prisma.RealPositionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RealPositionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>
+          }
+          findMany: {
+            args: Prisma.RealPositionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>[]
+          }
+          create: {
+            args: Prisma.RealPositionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>
+          }
+          createMany: {
+            args: Prisma.RealPositionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RealPositionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>[]
+          }
+          delete: {
+            args: Prisma.RealPositionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>
+          }
+          update: {
+            args: Prisma.RealPositionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>
+          }
+          deleteMany: {
+            args: Prisma.RealPositionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RealPositionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RealPositionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>[]
+          }
+          upsert: {
+            args: Prisma.RealPositionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealPositionPayload>
+          }
+          aggregate: {
+            args: Prisma.RealPositionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRealPosition>
+          }
+          groupBy: {
+            args: Prisma.RealPositionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RealPositionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RealPositionCountArgs<ExtArgs>
+            result: $Utils.Optional<RealPositionCountAggregateOutputType> | number
+          }
+        }
+      }
+      RealTrade: {
+        payload: Prisma.$RealTradePayload<ExtArgs>
+        fields: Prisma.RealTradeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RealTradeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RealTradeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>
+          }
+          findFirst: {
+            args: Prisma.RealTradeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RealTradeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>
+          }
+          findMany: {
+            args: Prisma.RealTradeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>[]
+          }
+          create: {
+            args: Prisma.RealTradeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>
+          }
+          createMany: {
+            args: Prisma.RealTradeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RealTradeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>[]
+          }
+          delete: {
+            args: Prisma.RealTradeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>
+          }
+          update: {
+            args: Prisma.RealTradeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>
+          }
+          deleteMany: {
+            args: Prisma.RealTradeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RealTradeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RealTradeUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>[]
+          }
+          upsert: {
+            args: Prisma.RealTradeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealTradePayload>
+          }
+          aggregate: {
+            args: Prisma.RealTradeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRealTrade>
+          }
+          groupBy: {
+            args: Prisma.RealTradeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RealTradeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RealTradeCountArgs<ExtArgs>
+            result: $Utils.Optional<RealTradeCountAggregateOutputType> | number
+          }
+        }
+      }
+      BalanceSnapshot: {
+        payload: Prisma.$BalanceSnapshotPayload<ExtArgs>
+        fields: Prisma.BalanceSnapshotFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.BalanceSnapshotFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.BalanceSnapshotFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>
+          }
+          findFirst: {
+            args: Prisma.BalanceSnapshotFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.BalanceSnapshotFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>
+          }
+          findMany: {
+            args: Prisma.BalanceSnapshotFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>[]
+          }
+          create: {
+            args: Prisma.BalanceSnapshotCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>
+          }
+          createMany: {
+            args: Prisma.BalanceSnapshotCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.BalanceSnapshotCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>[]
+          }
+          delete: {
+            args: Prisma.BalanceSnapshotDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>
+          }
+          update: {
+            args: Prisma.BalanceSnapshotUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>
+          }
+          deleteMany: {
+            args: Prisma.BalanceSnapshotDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.BalanceSnapshotUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.BalanceSnapshotUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>[]
+          }
+          upsert: {
+            args: Prisma.BalanceSnapshotUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BalanceSnapshotPayload>
+          }
+          aggregate: {
+            args: Prisma.BalanceSnapshotAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBalanceSnapshot>
+          }
+          groupBy: {
+            args: Prisma.BalanceSnapshotGroupByArgs<ExtArgs>
+            result: $Utils.Optional<BalanceSnapshotGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.BalanceSnapshotCountArgs<ExtArgs>
+            result: $Utils.Optional<BalanceSnapshotCountAggregateOutputType> | number
+          }
+        }
+      }
+      ExchangeConnection: {
+        payload: Prisma.$ExchangeConnectionPayload<ExtArgs>
+        fields: Prisma.ExchangeConnectionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ExchangeConnectionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ExchangeConnectionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>
+          }
+          findFirst: {
+            args: Prisma.ExchangeConnectionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ExchangeConnectionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>
+          }
+          findMany: {
+            args: Prisma.ExchangeConnectionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>[]
+          }
+          create: {
+            args: Prisma.ExchangeConnectionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>
+          }
+          createMany: {
+            args: Prisma.ExchangeConnectionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ExchangeConnectionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>[]
+          }
+          delete: {
+            args: Prisma.ExchangeConnectionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>
+          }
+          update: {
+            args: Prisma.ExchangeConnectionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>
+          }
+          deleteMany: {
+            args: Prisma.ExchangeConnectionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ExchangeConnectionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ExchangeConnectionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>[]
+          }
+          upsert: {
+            args: Prisma.ExchangeConnectionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ExchangeConnectionPayload>
+          }
+          aggregate: {
+            args: Prisma.ExchangeConnectionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateExchangeConnection>
+          }
+          groupBy: {
+            args: Prisma.ExchangeConnectionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ExchangeConnectionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ExchangeConnectionCountArgs<ExtArgs>
+            result: $Utils.Optional<ExchangeConnectionCountAggregateOutputType> | number
+          }
+        }
+      }
+      RealDailyStats: {
+        payload: Prisma.$RealDailyStatsPayload<ExtArgs>
+        fields: Prisma.RealDailyStatsFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RealDailyStatsFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RealDailyStatsFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>
+          }
+          findFirst: {
+            args: Prisma.RealDailyStatsFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RealDailyStatsFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>
+          }
+          findMany: {
+            args: Prisma.RealDailyStatsFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>[]
+          }
+          create: {
+            args: Prisma.RealDailyStatsCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>
+          }
+          createMany: {
+            args: Prisma.RealDailyStatsCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RealDailyStatsCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>[]
+          }
+          delete: {
+            args: Prisma.RealDailyStatsDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>
+          }
+          update: {
+            args: Prisma.RealDailyStatsUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>
+          }
+          deleteMany: {
+            args: Prisma.RealDailyStatsDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RealDailyStatsUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.RealDailyStatsUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>[]
+          }
+          upsert: {
+            args: Prisma.RealDailyStatsUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RealDailyStatsPayload>
+          }
+          aggregate: {
+            args: Prisma.RealDailyStatsAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRealDailyStats>
+          }
+          groupBy: {
+            args: Prisma.RealDailyStatsGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RealDailyStatsGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RealDailyStatsCountArgs<ExtArgs>
+            result: $Utils.Optional<RealDailyStatsCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1777,6 +2407,13 @@ export namespace Prisma {
     trade?: TradeOmit
     tradingSetting?: TradingSettingOmit
     tradingStrategy?: TradingStrategyOmit
+    apiKey?: ApiKeyOmit
+    realOrder?: RealOrderOmit
+    realPosition?: RealPositionOmit
+    realTrade?: RealTradeOmit
+    balanceSnapshot?: BalanceSnapshotOmit
+    exchangeConnection?: ExchangeConnectionOmit
+    realDailyStats?: RealDailyStatsOmit
   }
 
   /* Types for Logging */
@@ -1880,6 +2517,117 @@ export namespace Prisma {
    */
   export type TradeLogCountOutputTypeCountTradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: TradeWhereInput
+  }
+
+
+  /**
+   * Count Type TradingStrategyCountOutputType
+   */
+
+  export type TradingStrategyCountOutputType = {
+    positions: number
+    orders: number
+  }
+
+  export type TradingStrategyCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    positions?: boolean | TradingStrategyCountOutputTypeCountPositionsArgs
+    orders?: boolean | TradingStrategyCountOutputTypeCountOrdersArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * TradingStrategyCountOutputType without action
+   */
+  export type TradingStrategyCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TradingStrategyCountOutputType
+     */
+    select?: TradingStrategyCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * TradingStrategyCountOutputType without action
+   */
+  export type TradingStrategyCountOutputTypeCountPositionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealPositionWhereInput
+  }
+
+  /**
+   * TradingStrategyCountOutputType without action
+   */
+  export type TradingStrategyCountOutputTypeCountOrdersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealOrderWhereInput
+  }
+
+
+  /**
+   * Count Type RealOrderCountOutputType
+   */
+
+  export type RealOrderCountOutputType = {
+    trades: number
+  }
+
+  export type RealOrderCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    trades?: boolean | RealOrderCountOutputTypeCountTradesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * RealOrderCountOutputType without action
+   */
+  export type RealOrderCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrderCountOutputType
+     */
+    select?: RealOrderCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * RealOrderCountOutputType without action
+   */
+  export type RealOrderCountOutputTypeCountTradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealTradeWhereInput
+  }
+
+
+  /**
+   * Count Type RealPositionCountOutputType
+   */
+
+  export type RealPositionCountOutputType = {
+    orders: number
+    trades: number
+  }
+
+  export type RealPositionCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    orders?: boolean | RealPositionCountOutputTypeCountOrdersArgs
+    trades?: boolean | RealPositionCountOutputTypeCountTradesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * RealPositionCountOutputType without action
+   */
+  export type RealPositionCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPositionCountOutputType
+     */
+    select?: RealPositionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * RealPositionCountOutputType without action
+   */
+  export type RealPositionCountOutputTypeCountOrdersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealOrderWhereInput
+  }
+
+  /**
+   * RealPositionCountOutputType without action
+   */
+  export type RealPositionCountOutputTypeCountTradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealTradeWhereInput
   }
 
 
@@ -14825,6 +15573,9 @@ export namespace Prisma {
     totalProfit?: boolean
     strategyType?: boolean
     toleranceRate?: boolean
+    positions?: boolean | TradingStrategy$positionsArgs<ExtArgs>
+    orders?: boolean | TradingStrategy$ordersArgs<ExtArgs>
+    _count?: boolean | TradingStrategyCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["tradingStrategy"]>
 
   export type TradingStrategySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -14891,10 +15642,20 @@ export namespace Prisma {
   }
 
   export type TradingStrategyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "entryRate" | "exitRate" | "leverage" | "investmentAmount" | "isActive" | "createdAt" | "updatedAt" | "symbol" | "tolerance" | "isAutoTrading" | "totalTrades" | "successfulTrades" | "totalProfit" | "strategyType" | "toleranceRate", ExtArgs["result"]["tradingStrategy"]>
+  export type TradingStrategyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    positions?: boolean | TradingStrategy$positionsArgs<ExtArgs>
+    orders?: boolean | TradingStrategy$ordersArgs<ExtArgs>
+    _count?: boolean | TradingStrategyCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type TradingStrategyIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type TradingStrategyIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
   export type $TradingStrategyPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "TradingStrategy"
-    objects: {}
+    objects: {
+      positions: Prisma.$RealPositionPayload<ExtArgs>[]
+      orders: Prisma.$RealOrderPayload<ExtArgs>[]
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       userId: number
@@ -15308,6 +16069,8 @@ export namespace Prisma {
    */
   export interface Prisma__TradingStrategyClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    positions<T extends TradingStrategy$positionsArgs<ExtArgs> = {}>(args?: Subset<T, TradingStrategy$positionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    orders<T extends TradingStrategy$ordersArgs<ExtArgs> = {}>(args?: Subset<T, TradingStrategy$ordersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -15372,6 +16135,10 @@ export namespace Prisma {
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    /**
      * Filter, which TradingStrategy to fetch.
      */
     where: TradingStrategyWhereUniqueInput
@@ -15390,6 +16157,10 @@ export namespace Prisma {
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    /**
      * Filter, which TradingStrategy to fetch.
      */
     where: TradingStrategyWhereUniqueInput
@@ -15407,6 +16178,10 @@ export namespace Prisma {
      * Omit specific fields from the TradingStrategy
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
     /**
      * Filter, which TradingStrategy to fetch.
      */
@@ -15456,6 +16231,10 @@ export namespace Prisma {
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    /**
      * Filter, which TradingStrategy to fetch.
      */
     where?: TradingStrategyWhereInput
@@ -15504,6 +16283,10 @@ export namespace Prisma {
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    /**
      * Filter, which TradingStrategies to fetch.
      */
     where?: TradingStrategyWhereInput
@@ -15546,6 +16329,10 @@ export namespace Prisma {
      * Omit specific fields from the TradingStrategy
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
     /**
      * The data needed to create a TradingStrategy.
      */
@@ -15594,6 +16381,10 @@ export namespace Prisma {
      * Omit specific fields from the TradingStrategy
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
     /**
      * The data needed to update a TradingStrategy.
      */
@@ -15661,6 +16452,10 @@ export namespace Prisma {
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    /**
      * The filter to search for the TradingStrategy to update in case it exists.
      */
     where: TradingStrategyWhereUniqueInput
@@ -15687,6 +16482,10 @@ export namespace Prisma {
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    /**
      * Filter which TradingStrategy to delete.
      */
     where: TradingStrategyWhereUniqueInput
@@ -15707,6 +16506,54 @@ export namespace Prisma {
   }
 
   /**
+   * TradingStrategy.positions
+   */
+  export type TradingStrategy$positionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    where?: RealPositionWhereInput
+    orderBy?: RealPositionOrderByWithRelationInput | RealPositionOrderByWithRelationInput[]
+    cursor?: RealPositionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RealPositionScalarFieldEnum | RealPositionScalarFieldEnum[]
+  }
+
+  /**
+   * TradingStrategy.orders
+   */
+  export type TradingStrategy$ordersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    where?: RealOrderWhereInput
+    orderBy?: RealOrderOrderByWithRelationInput | RealOrderOrderByWithRelationInput[]
+    cursor?: RealOrderWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RealOrderScalarFieldEnum | RealOrderScalarFieldEnum[]
+  }
+
+  /**
    * TradingStrategy without action
    */
   export type TradingStrategyDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -15718,6 +16565,8719 @@ export namespace Prisma {
      * Omit specific fields from the TradingStrategy
      */
     omit?: TradingStrategyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ApiKey
+   */
+
+  export type AggregateApiKey = {
+    _count: ApiKeyCountAggregateOutputType | null
+    _avg: ApiKeyAvgAggregateOutputType | null
+    _sum: ApiKeySumAggregateOutputType | null
+    _min: ApiKeyMinAggregateOutputType | null
+    _max: ApiKeyMaxAggregateOutputType | null
+  }
+
+  export type ApiKeyAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type ApiKeySumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type ApiKeyMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    exchange: string | null
+    apiKey: string | null
+    secretKey: string | null
+    passphrase: string | null
+    isActive: boolean | null
+    lastUsed: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ApiKeyMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    exchange: string | null
+    apiKey: string | null
+    secretKey: string | null
+    passphrase: string | null
+    isActive: boolean | null
+    lastUsed: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ApiKeyCountAggregateOutputType = {
+    id: number
+    userId: number
+    exchange: number
+    apiKey: number
+    secretKey: number
+    passphrase: number
+    permissions: number
+    isActive: number
+    lastUsed: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ApiKeyAvgAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type ApiKeySumAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type ApiKeyMinAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    apiKey?: true
+    secretKey?: true
+    passphrase?: true
+    isActive?: true
+    lastUsed?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ApiKeyMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    apiKey?: true
+    secretKey?: true
+    passphrase?: true
+    isActive?: true
+    lastUsed?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ApiKeyCountAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    apiKey?: true
+    secretKey?: true
+    passphrase?: true
+    permissions?: true
+    isActive?: true
+    lastUsed?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ApiKeyAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ApiKey to aggregate.
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApiKeys to fetch.
+     */
+    orderBy?: ApiKeyOrderByWithRelationInput | ApiKeyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ApiKeyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApiKeys from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApiKeys.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ApiKeys
+    **/
+    _count?: true | ApiKeyCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ApiKeyAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ApiKeySumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ApiKeyMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ApiKeyMaxAggregateInputType
+  }
+
+  export type GetApiKeyAggregateType<T extends ApiKeyAggregateArgs> = {
+        [P in keyof T & keyof AggregateApiKey]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateApiKey[P]>
+      : GetScalarType<T[P], AggregateApiKey[P]>
+  }
+
+
+
+
+  export type ApiKeyGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ApiKeyWhereInput
+    orderBy?: ApiKeyOrderByWithAggregationInput | ApiKeyOrderByWithAggregationInput[]
+    by: ApiKeyScalarFieldEnum[] | ApiKeyScalarFieldEnum
+    having?: ApiKeyScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ApiKeyCountAggregateInputType | true
+    _avg?: ApiKeyAvgAggregateInputType
+    _sum?: ApiKeySumAggregateInputType
+    _min?: ApiKeyMinAggregateInputType
+    _max?: ApiKeyMaxAggregateInputType
+  }
+
+  export type ApiKeyGroupByOutputType = {
+    id: number
+    userId: number
+    exchange: string
+    apiKey: string
+    secretKey: string
+    passphrase: string | null
+    permissions: JsonValue | null
+    isActive: boolean
+    lastUsed: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: ApiKeyCountAggregateOutputType | null
+    _avg: ApiKeyAvgAggregateOutputType | null
+    _sum: ApiKeySumAggregateOutputType | null
+    _min: ApiKeyMinAggregateOutputType | null
+    _max: ApiKeyMaxAggregateOutputType | null
+  }
+
+  type GetApiKeyGroupByPayload<T extends ApiKeyGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ApiKeyGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ApiKeyGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ApiKeyGroupByOutputType[P]>
+            : GetScalarType<T[P], ApiKeyGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ApiKeySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    apiKey?: boolean
+    secretKey?: boolean
+    passphrase?: boolean
+    permissions?: boolean
+    isActive?: boolean
+    lastUsed?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["apiKey"]>
+
+  export type ApiKeySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    apiKey?: boolean
+    secretKey?: boolean
+    passphrase?: boolean
+    permissions?: boolean
+    isActive?: boolean
+    lastUsed?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["apiKey"]>
+
+  export type ApiKeySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    apiKey?: boolean
+    secretKey?: boolean
+    passphrase?: boolean
+    permissions?: boolean
+    isActive?: boolean
+    lastUsed?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["apiKey"]>
+
+  export type ApiKeySelectScalar = {
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    apiKey?: boolean
+    secretKey?: boolean
+    passphrase?: boolean
+    permissions?: boolean
+    isActive?: boolean
+    lastUsed?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ApiKeyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "exchange" | "apiKey" | "secretKey" | "passphrase" | "permissions" | "isActive" | "lastUsed" | "createdAt" | "updatedAt", ExtArgs["result"]["apiKey"]>
+
+  export type $ApiKeyPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ApiKey"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      exchange: string
+      apiKey: string
+      secretKey: string
+      passphrase: string | null
+      permissions: Prisma.JsonValue | null
+      isActive: boolean
+      lastUsed: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["apiKey"]>
+    composites: {}
+  }
+
+  type ApiKeyGetPayload<S extends boolean | null | undefined | ApiKeyDefaultArgs> = $Result.GetResult<Prisma.$ApiKeyPayload, S>
+
+  type ApiKeyCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ApiKeyFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ApiKeyCountAggregateInputType | true
+    }
+
+  export interface ApiKeyDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ApiKey'], meta: { name: 'ApiKey' } }
+    /**
+     * Find zero or one ApiKey that matches the filter.
+     * @param {ApiKeyFindUniqueArgs} args - Arguments to find a ApiKey
+     * @example
+     * // Get one ApiKey
+     * const apiKey = await prisma.apiKey.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ApiKeyFindUniqueArgs>(args: SelectSubset<T, ApiKeyFindUniqueArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ApiKey that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ApiKeyFindUniqueOrThrowArgs} args - Arguments to find a ApiKey
+     * @example
+     * // Get one ApiKey
+     * const apiKey = await prisma.apiKey.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ApiKeyFindUniqueOrThrowArgs>(args: SelectSubset<T, ApiKeyFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ApiKey that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyFindFirstArgs} args - Arguments to find a ApiKey
+     * @example
+     * // Get one ApiKey
+     * const apiKey = await prisma.apiKey.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ApiKeyFindFirstArgs>(args?: SelectSubset<T, ApiKeyFindFirstArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ApiKey that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyFindFirstOrThrowArgs} args - Arguments to find a ApiKey
+     * @example
+     * // Get one ApiKey
+     * const apiKey = await prisma.apiKey.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ApiKeyFindFirstOrThrowArgs>(args?: SelectSubset<T, ApiKeyFindFirstOrThrowArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ApiKeys that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ApiKeys
+     * const apiKeys = await prisma.apiKey.findMany()
+     * 
+     * // Get first 10 ApiKeys
+     * const apiKeys = await prisma.apiKey.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const apiKeyWithIdOnly = await prisma.apiKey.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ApiKeyFindManyArgs>(args?: SelectSubset<T, ApiKeyFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ApiKey.
+     * @param {ApiKeyCreateArgs} args - Arguments to create a ApiKey.
+     * @example
+     * // Create one ApiKey
+     * const ApiKey = await prisma.apiKey.create({
+     *   data: {
+     *     // ... data to create a ApiKey
+     *   }
+     * })
+     * 
+     */
+    create<T extends ApiKeyCreateArgs>(args: SelectSubset<T, ApiKeyCreateArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ApiKeys.
+     * @param {ApiKeyCreateManyArgs} args - Arguments to create many ApiKeys.
+     * @example
+     * // Create many ApiKeys
+     * const apiKey = await prisma.apiKey.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ApiKeyCreateManyArgs>(args?: SelectSubset<T, ApiKeyCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ApiKeys and returns the data saved in the database.
+     * @param {ApiKeyCreateManyAndReturnArgs} args - Arguments to create many ApiKeys.
+     * @example
+     * // Create many ApiKeys
+     * const apiKey = await prisma.apiKey.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ApiKeys and only return the `id`
+     * const apiKeyWithIdOnly = await prisma.apiKey.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ApiKeyCreateManyAndReturnArgs>(args?: SelectSubset<T, ApiKeyCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ApiKey.
+     * @param {ApiKeyDeleteArgs} args - Arguments to delete one ApiKey.
+     * @example
+     * // Delete one ApiKey
+     * const ApiKey = await prisma.apiKey.delete({
+     *   where: {
+     *     // ... filter to delete one ApiKey
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ApiKeyDeleteArgs>(args: SelectSubset<T, ApiKeyDeleteArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ApiKey.
+     * @param {ApiKeyUpdateArgs} args - Arguments to update one ApiKey.
+     * @example
+     * // Update one ApiKey
+     * const apiKey = await prisma.apiKey.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ApiKeyUpdateArgs>(args: SelectSubset<T, ApiKeyUpdateArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ApiKeys.
+     * @param {ApiKeyDeleteManyArgs} args - Arguments to filter ApiKeys to delete.
+     * @example
+     * // Delete a few ApiKeys
+     * const { count } = await prisma.apiKey.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ApiKeyDeleteManyArgs>(args?: SelectSubset<T, ApiKeyDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ApiKeys.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ApiKeys
+     * const apiKey = await prisma.apiKey.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ApiKeyUpdateManyArgs>(args: SelectSubset<T, ApiKeyUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ApiKeys and returns the data updated in the database.
+     * @param {ApiKeyUpdateManyAndReturnArgs} args - Arguments to update many ApiKeys.
+     * @example
+     * // Update many ApiKeys
+     * const apiKey = await prisma.apiKey.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ApiKeys and only return the `id`
+     * const apiKeyWithIdOnly = await prisma.apiKey.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ApiKeyUpdateManyAndReturnArgs>(args: SelectSubset<T, ApiKeyUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ApiKey.
+     * @param {ApiKeyUpsertArgs} args - Arguments to update or create a ApiKey.
+     * @example
+     * // Update or create a ApiKey
+     * const apiKey = await prisma.apiKey.upsert({
+     *   create: {
+     *     // ... data to create a ApiKey
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ApiKey we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ApiKeyUpsertArgs>(args: SelectSubset<T, ApiKeyUpsertArgs<ExtArgs>>): Prisma__ApiKeyClient<$Result.GetResult<Prisma.$ApiKeyPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ApiKeys.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyCountArgs} args - Arguments to filter ApiKeys to count.
+     * @example
+     * // Count the number of ApiKeys
+     * const count = await prisma.apiKey.count({
+     *   where: {
+     *     // ... the filter for the ApiKeys we want to count
+     *   }
+     * })
+    **/
+    count<T extends ApiKeyCountArgs>(
+      args?: Subset<T, ApiKeyCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ApiKeyCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ApiKey.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ApiKeyAggregateArgs>(args: Subset<T, ApiKeyAggregateArgs>): Prisma.PrismaPromise<GetApiKeyAggregateType<T>>
+
+    /**
+     * Group by ApiKey.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApiKeyGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ApiKeyGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ApiKeyGroupByArgs['orderBy'] }
+        : { orderBy?: ApiKeyGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ApiKeyGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetApiKeyGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ApiKey model
+   */
+  readonly fields: ApiKeyFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ApiKey.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ApiKeyClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ApiKey model
+   */
+  interface ApiKeyFieldRefs {
+    readonly id: FieldRef<"ApiKey", 'Int'>
+    readonly userId: FieldRef<"ApiKey", 'Int'>
+    readonly exchange: FieldRef<"ApiKey", 'String'>
+    readonly apiKey: FieldRef<"ApiKey", 'String'>
+    readonly secretKey: FieldRef<"ApiKey", 'String'>
+    readonly passphrase: FieldRef<"ApiKey", 'String'>
+    readonly permissions: FieldRef<"ApiKey", 'Json'>
+    readonly isActive: FieldRef<"ApiKey", 'Boolean'>
+    readonly lastUsed: FieldRef<"ApiKey", 'DateTime'>
+    readonly createdAt: FieldRef<"ApiKey", 'DateTime'>
+    readonly updatedAt: FieldRef<"ApiKey", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ApiKey findUnique
+   */
+  export type ApiKeyFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * Filter, which ApiKey to fetch.
+     */
+    where: ApiKeyWhereUniqueInput
+  }
+
+  /**
+   * ApiKey findUniqueOrThrow
+   */
+  export type ApiKeyFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * Filter, which ApiKey to fetch.
+     */
+    where: ApiKeyWhereUniqueInput
+  }
+
+  /**
+   * ApiKey findFirst
+   */
+  export type ApiKeyFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * Filter, which ApiKey to fetch.
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApiKeys to fetch.
+     */
+    orderBy?: ApiKeyOrderByWithRelationInput | ApiKeyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ApiKeys.
+     */
+    cursor?: ApiKeyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApiKeys from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApiKeys.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ApiKeys.
+     */
+    distinct?: ApiKeyScalarFieldEnum | ApiKeyScalarFieldEnum[]
+  }
+
+  /**
+   * ApiKey findFirstOrThrow
+   */
+  export type ApiKeyFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * Filter, which ApiKey to fetch.
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApiKeys to fetch.
+     */
+    orderBy?: ApiKeyOrderByWithRelationInput | ApiKeyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ApiKeys.
+     */
+    cursor?: ApiKeyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApiKeys from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApiKeys.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ApiKeys.
+     */
+    distinct?: ApiKeyScalarFieldEnum | ApiKeyScalarFieldEnum[]
+  }
+
+  /**
+   * ApiKey findMany
+   */
+  export type ApiKeyFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * Filter, which ApiKeys to fetch.
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApiKeys to fetch.
+     */
+    orderBy?: ApiKeyOrderByWithRelationInput | ApiKeyOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ApiKeys.
+     */
+    cursor?: ApiKeyWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApiKeys from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApiKeys.
+     */
+    skip?: number
+    distinct?: ApiKeyScalarFieldEnum | ApiKeyScalarFieldEnum[]
+  }
+
+  /**
+   * ApiKey create
+   */
+  export type ApiKeyCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * The data needed to create a ApiKey.
+     */
+    data: XOR<ApiKeyCreateInput, ApiKeyUncheckedCreateInput>
+  }
+
+  /**
+   * ApiKey createMany
+   */
+  export type ApiKeyCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ApiKeys.
+     */
+    data: ApiKeyCreateManyInput | ApiKeyCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ApiKey createManyAndReturn
+   */
+  export type ApiKeyCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * The data used to create many ApiKeys.
+     */
+    data: ApiKeyCreateManyInput | ApiKeyCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ApiKey update
+   */
+  export type ApiKeyUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * The data needed to update a ApiKey.
+     */
+    data: XOR<ApiKeyUpdateInput, ApiKeyUncheckedUpdateInput>
+    /**
+     * Choose, which ApiKey to update.
+     */
+    where: ApiKeyWhereUniqueInput
+  }
+
+  /**
+   * ApiKey updateMany
+   */
+  export type ApiKeyUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ApiKeys.
+     */
+    data: XOR<ApiKeyUpdateManyMutationInput, ApiKeyUncheckedUpdateManyInput>
+    /**
+     * Filter which ApiKeys to update
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * Limit how many ApiKeys to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ApiKey updateManyAndReturn
+   */
+  export type ApiKeyUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * The data used to update ApiKeys.
+     */
+    data: XOR<ApiKeyUpdateManyMutationInput, ApiKeyUncheckedUpdateManyInput>
+    /**
+     * Filter which ApiKeys to update
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * Limit how many ApiKeys to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ApiKey upsert
+   */
+  export type ApiKeyUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * The filter to search for the ApiKey to update in case it exists.
+     */
+    where: ApiKeyWhereUniqueInput
+    /**
+     * In case the ApiKey found by the `where` argument doesn't exist, create a new ApiKey with this data.
+     */
+    create: XOR<ApiKeyCreateInput, ApiKeyUncheckedCreateInput>
+    /**
+     * In case the ApiKey was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ApiKeyUpdateInput, ApiKeyUncheckedUpdateInput>
+  }
+
+  /**
+   * ApiKey delete
+   */
+  export type ApiKeyDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+    /**
+     * Filter which ApiKey to delete.
+     */
+    where: ApiKeyWhereUniqueInput
+  }
+
+  /**
+   * ApiKey deleteMany
+   */
+  export type ApiKeyDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ApiKeys to delete
+     */
+    where?: ApiKeyWhereInput
+    /**
+     * Limit how many ApiKeys to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ApiKey without action
+   */
+  export type ApiKeyDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApiKey
+     */
+    select?: ApiKeySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ApiKey
+     */
+    omit?: ApiKeyOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RealOrder
+   */
+
+  export type AggregateRealOrder = {
+    _count: RealOrderCountAggregateOutputType | null
+    _avg: RealOrderAvgAggregateOutputType | null
+    _sum: RealOrderSumAggregateOutputType | null
+    _min: RealOrderMinAggregateOutputType | null
+    _max: RealOrderMaxAggregateOutputType | null
+  }
+
+  export type RealOrderAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    positionId: number | null
+    quantity: Decimal | null
+    filledQuantity: Decimal | null
+    remainingQuantity: Decimal | null
+    price: Decimal | null
+    averagePrice: Decimal | null
+    fee: Decimal | null
+    leverage: number | null
+  }
+
+  export type RealOrderSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    positionId: number | null
+    quantity: Decimal | null
+    filledQuantity: Decimal | null
+    remainingQuantity: Decimal | null
+    price: Decimal | null
+    averagePrice: Decimal | null
+    fee: Decimal | null
+    leverage: number | null
+  }
+
+  export type RealOrderMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    positionId: number | null
+    exchange: string | null
+    exchangeOrderId: string | null
+    symbol: string | null
+    side: string | null
+    type: string | null
+    status: string | null
+    quantity: Decimal | null
+    filledQuantity: Decimal | null
+    remainingQuantity: Decimal | null
+    price: Decimal | null
+    averagePrice: Decimal | null
+    fee: Decimal | null
+    feeCurrency: string | null
+    timeInForce: string | null
+    clientOrderId: string | null
+    leverage: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    filledAt: Date | null
+  }
+
+  export type RealOrderMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    positionId: number | null
+    exchange: string | null
+    exchangeOrderId: string | null
+    symbol: string | null
+    side: string | null
+    type: string | null
+    status: string | null
+    quantity: Decimal | null
+    filledQuantity: Decimal | null
+    remainingQuantity: Decimal | null
+    price: Decimal | null
+    averagePrice: Decimal | null
+    fee: Decimal | null
+    feeCurrency: string | null
+    timeInForce: string | null
+    clientOrderId: string | null
+    leverage: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    filledAt: Date | null
+  }
+
+  export type RealOrderCountAggregateOutputType = {
+    id: number
+    userId: number
+    strategyId: number
+    positionId: number
+    exchange: number
+    exchangeOrderId: number
+    symbol: number
+    side: number
+    type: number
+    status: number
+    quantity: number
+    filledQuantity: number
+    remainingQuantity: number
+    price: number
+    averagePrice: number
+    fee: number
+    feeCurrency: number
+    timeInForce: number
+    clientOrderId: number
+    leverage: number
+    createdAt: number
+    updatedAt: number
+    filledAt: number
+    _all: number
+  }
+
+
+  export type RealOrderAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    positionId?: true
+    quantity?: true
+    filledQuantity?: true
+    remainingQuantity?: true
+    price?: true
+    averagePrice?: true
+    fee?: true
+    leverage?: true
+  }
+
+  export type RealOrderSumAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    positionId?: true
+    quantity?: true
+    filledQuantity?: true
+    remainingQuantity?: true
+    price?: true
+    averagePrice?: true
+    fee?: true
+    leverage?: true
+  }
+
+  export type RealOrderMinAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    positionId?: true
+    exchange?: true
+    exchangeOrderId?: true
+    symbol?: true
+    side?: true
+    type?: true
+    status?: true
+    quantity?: true
+    filledQuantity?: true
+    remainingQuantity?: true
+    price?: true
+    averagePrice?: true
+    fee?: true
+    feeCurrency?: true
+    timeInForce?: true
+    clientOrderId?: true
+    leverage?: true
+    createdAt?: true
+    updatedAt?: true
+    filledAt?: true
+  }
+
+  export type RealOrderMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    positionId?: true
+    exchange?: true
+    exchangeOrderId?: true
+    symbol?: true
+    side?: true
+    type?: true
+    status?: true
+    quantity?: true
+    filledQuantity?: true
+    remainingQuantity?: true
+    price?: true
+    averagePrice?: true
+    fee?: true
+    feeCurrency?: true
+    timeInForce?: true
+    clientOrderId?: true
+    leverage?: true
+    createdAt?: true
+    updatedAt?: true
+    filledAt?: true
+  }
+
+  export type RealOrderCountAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    positionId?: true
+    exchange?: true
+    exchangeOrderId?: true
+    symbol?: true
+    side?: true
+    type?: true
+    status?: true
+    quantity?: true
+    filledQuantity?: true
+    remainingQuantity?: true
+    price?: true
+    averagePrice?: true
+    fee?: true
+    feeCurrency?: true
+    timeInForce?: true
+    clientOrderId?: true
+    leverage?: true
+    createdAt?: true
+    updatedAt?: true
+    filledAt?: true
+    _all?: true
+  }
+
+  export type RealOrderAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealOrder to aggregate.
+     */
+    where?: RealOrderWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealOrders to fetch.
+     */
+    orderBy?: RealOrderOrderByWithRelationInput | RealOrderOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RealOrderWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealOrders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealOrders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RealOrders
+    **/
+    _count?: true | RealOrderCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RealOrderAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RealOrderSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RealOrderMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RealOrderMaxAggregateInputType
+  }
+
+  export type GetRealOrderAggregateType<T extends RealOrderAggregateArgs> = {
+        [P in keyof T & keyof AggregateRealOrder]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRealOrder[P]>
+      : GetScalarType<T[P], AggregateRealOrder[P]>
+  }
+
+
+
+
+  export type RealOrderGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealOrderWhereInput
+    orderBy?: RealOrderOrderByWithAggregationInput | RealOrderOrderByWithAggregationInput[]
+    by: RealOrderScalarFieldEnum[] | RealOrderScalarFieldEnum
+    having?: RealOrderScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RealOrderCountAggregateInputType | true
+    _avg?: RealOrderAvgAggregateInputType
+    _sum?: RealOrderSumAggregateInputType
+    _min?: RealOrderMinAggregateInputType
+    _max?: RealOrderMaxAggregateInputType
+  }
+
+  export type RealOrderGroupByOutputType = {
+    id: number
+    userId: number
+    strategyId: number | null
+    positionId: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal
+    filledQuantity: Decimal
+    remainingQuantity: Decimal
+    price: Decimal | null
+    averagePrice: Decimal | null
+    fee: Decimal
+    feeCurrency: string | null
+    timeInForce: string | null
+    clientOrderId: string | null
+    leverage: number | null
+    createdAt: Date
+    updatedAt: Date
+    filledAt: Date | null
+    _count: RealOrderCountAggregateOutputType | null
+    _avg: RealOrderAvgAggregateOutputType | null
+    _sum: RealOrderSumAggregateOutputType | null
+    _min: RealOrderMinAggregateOutputType | null
+    _max: RealOrderMaxAggregateOutputType | null
+  }
+
+  type GetRealOrderGroupByPayload<T extends RealOrderGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RealOrderGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RealOrderGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RealOrderGroupByOutputType[P]>
+            : GetScalarType<T[P], RealOrderGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RealOrderSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    positionId?: boolean
+    exchange?: boolean
+    exchangeOrderId?: boolean
+    symbol?: boolean
+    side?: boolean
+    type?: boolean
+    status?: boolean
+    quantity?: boolean
+    filledQuantity?: boolean
+    remainingQuantity?: boolean
+    price?: boolean
+    averagePrice?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    timeInForce?: boolean
+    clientOrderId?: boolean
+    leverage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    filledAt?: boolean
+    strategy?: boolean | RealOrder$strategyArgs<ExtArgs>
+    position?: boolean | RealOrder$positionArgs<ExtArgs>
+    trades?: boolean | RealOrder$tradesArgs<ExtArgs>
+    _count?: boolean | RealOrderCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["realOrder"]>
+
+  export type RealOrderSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    positionId?: boolean
+    exchange?: boolean
+    exchangeOrderId?: boolean
+    symbol?: boolean
+    side?: boolean
+    type?: boolean
+    status?: boolean
+    quantity?: boolean
+    filledQuantity?: boolean
+    remainingQuantity?: boolean
+    price?: boolean
+    averagePrice?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    timeInForce?: boolean
+    clientOrderId?: boolean
+    leverage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    filledAt?: boolean
+    strategy?: boolean | RealOrder$strategyArgs<ExtArgs>
+    position?: boolean | RealOrder$positionArgs<ExtArgs>
+  }, ExtArgs["result"]["realOrder"]>
+
+  export type RealOrderSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    positionId?: boolean
+    exchange?: boolean
+    exchangeOrderId?: boolean
+    symbol?: boolean
+    side?: boolean
+    type?: boolean
+    status?: boolean
+    quantity?: boolean
+    filledQuantity?: boolean
+    remainingQuantity?: boolean
+    price?: boolean
+    averagePrice?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    timeInForce?: boolean
+    clientOrderId?: boolean
+    leverage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    filledAt?: boolean
+    strategy?: boolean | RealOrder$strategyArgs<ExtArgs>
+    position?: boolean | RealOrder$positionArgs<ExtArgs>
+  }, ExtArgs["result"]["realOrder"]>
+
+  export type RealOrderSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    positionId?: boolean
+    exchange?: boolean
+    exchangeOrderId?: boolean
+    symbol?: boolean
+    side?: boolean
+    type?: boolean
+    status?: boolean
+    quantity?: boolean
+    filledQuantity?: boolean
+    remainingQuantity?: boolean
+    price?: boolean
+    averagePrice?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    timeInForce?: boolean
+    clientOrderId?: boolean
+    leverage?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    filledAt?: boolean
+  }
+
+  export type RealOrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "strategyId" | "positionId" | "exchange" | "exchangeOrderId" | "symbol" | "side" | "type" | "status" | "quantity" | "filledQuantity" | "remainingQuantity" | "price" | "averagePrice" | "fee" | "feeCurrency" | "timeInForce" | "clientOrderId" | "leverage" | "createdAt" | "updatedAt" | "filledAt", ExtArgs["result"]["realOrder"]>
+  export type RealOrderInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    strategy?: boolean | RealOrder$strategyArgs<ExtArgs>
+    position?: boolean | RealOrder$positionArgs<ExtArgs>
+    trades?: boolean | RealOrder$tradesArgs<ExtArgs>
+    _count?: boolean | RealOrderCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type RealOrderIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    strategy?: boolean | RealOrder$strategyArgs<ExtArgs>
+    position?: boolean | RealOrder$positionArgs<ExtArgs>
+  }
+  export type RealOrderIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    strategy?: boolean | RealOrder$strategyArgs<ExtArgs>
+    position?: boolean | RealOrder$positionArgs<ExtArgs>
+  }
+
+  export type $RealOrderPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RealOrder"
+    objects: {
+      strategy: Prisma.$TradingStrategyPayload<ExtArgs> | null
+      position: Prisma.$RealPositionPayload<ExtArgs> | null
+      trades: Prisma.$RealTradePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      strategyId: number | null
+      positionId: number | null
+      exchange: string
+      exchangeOrderId: string
+      symbol: string
+      side: string
+      type: string
+      status: string
+      quantity: Prisma.Decimal
+      filledQuantity: Prisma.Decimal
+      remainingQuantity: Prisma.Decimal
+      price: Prisma.Decimal | null
+      averagePrice: Prisma.Decimal | null
+      fee: Prisma.Decimal
+      feeCurrency: string | null
+      timeInForce: string | null
+      clientOrderId: string | null
+      leverage: number | null
+      createdAt: Date
+      updatedAt: Date
+      filledAt: Date | null
+    }, ExtArgs["result"]["realOrder"]>
+    composites: {}
+  }
+
+  type RealOrderGetPayload<S extends boolean | null | undefined | RealOrderDefaultArgs> = $Result.GetResult<Prisma.$RealOrderPayload, S>
+
+  type RealOrderCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RealOrderFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RealOrderCountAggregateInputType | true
+    }
+
+  export interface RealOrderDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RealOrder'], meta: { name: 'RealOrder' } }
+    /**
+     * Find zero or one RealOrder that matches the filter.
+     * @param {RealOrderFindUniqueArgs} args - Arguments to find a RealOrder
+     * @example
+     * // Get one RealOrder
+     * const realOrder = await prisma.realOrder.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RealOrderFindUniqueArgs>(args: SelectSubset<T, RealOrderFindUniqueArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RealOrder that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RealOrderFindUniqueOrThrowArgs} args - Arguments to find a RealOrder
+     * @example
+     * // Get one RealOrder
+     * const realOrder = await prisma.realOrder.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RealOrderFindUniqueOrThrowArgs>(args: SelectSubset<T, RealOrderFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealOrder that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderFindFirstArgs} args - Arguments to find a RealOrder
+     * @example
+     * // Get one RealOrder
+     * const realOrder = await prisma.realOrder.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RealOrderFindFirstArgs>(args?: SelectSubset<T, RealOrderFindFirstArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealOrder that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderFindFirstOrThrowArgs} args - Arguments to find a RealOrder
+     * @example
+     * // Get one RealOrder
+     * const realOrder = await prisma.realOrder.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RealOrderFindFirstOrThrowArgs>(args?: SelectSubset<T, RealOrderFindFirstOrThrowArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RealOrders that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RealOrders
+     * const realOrders = await prisma.realOrder.findMany()
+     * 
+     * // Get first 10 RealOrders
+     * const realOrders = await prisma.realOrder.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const realOrderWithIdOnly = await prisma.realOrder.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RealOrderFindManyArgs>(args?: SelectSubset<T, RealOrderFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RealOrder.
+     * @param {RealOrderCreateArgs} args - Arguments to create a RealOrder.
+     * @example
+     * // Create one RealOrder
+     * const RealOrder = await prisma.realOrder.create({
+     *   data: {
+     *     // ... data to create a RealOrder
+     *   }
+     * })
+     * 
+     */
+    create<T extends RealOrderCreateArgs>(args: SelectSubset<T, RealOrderCreateArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RealOrders.
+     * @param {RealOrderCreateManyArgs} args - Arguments to create many RealOrders.
+     * @example
+     * // Create many RealOrders
+     * const realOrder = await prisma.realOrder.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RealOrderCreateManyArgs>(args?: SelectSubset<T, RealOrderCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RealOrders and returns the data saved in the database.
+     * @param {RealOrderCreateManyAndReturnArgs} args - Arguments to create many RealOrders.
+     * @example
+     * // Create many RealOrders
+     * const realOrder = await prisma.realOrder.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RealOrders and only return the `id`
+     * const realOrderWithIdOnly = await prisma.realOrder.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RealOrderCreateManyAndReturnArgs>(args?: SelectSubset<T, RealOrderCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RealOrder.
+     * @param {RealOrderDeleteArgs} args - Arguments to delete one RealOrder.
+     * @example
+     * // Delete one RealOrder
+     * const RealOrder = await prisma.realOrder.delete({
+     *   where: {
+     *     // ... filter to delete one RealOrder
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RealOrderDeleteArgs>(args: SelectSubset<T, RealOrderDeleteArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RealOrder.
+     * @param {RealOrderUpdateArgs} args - Arguments to update one RealOrder.
+     * @example
+     * // Update one RealOrder
+     * const realOrder = await prisma.realOrder.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RealOrderUpdateArgs>(args: SelectSubset<T, RealOrderUpdateArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RealOrders.
+     * @param {RealOrderDeleteManyArgs} args - Arguments to filter RealOrders to delete.
+     * @example
+     * // Delete a few RealOrders
+     * const { count } = await prisma.realOrder.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RealOrderDeleteManyArgs>(args?: SelectSubset<T, RealOrderDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealOrders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RealOrders
+     * const realOrder = await prisma.realOrder.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RealOrderUpdateManyArgs>(args: SelectSubset<T, RealOrderUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealOrders and returns the data updated in the database.
+     * @param {RealOrderUpdateManyAndReturnArgs} args - Arguments to update many RealOrders.
+     * @example
+     * // Update many RealOrders
+     * const realOrder = await prisma.realOrder.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RealOrders and only return the `id`
+     * const realOrderWithIdOnly = await prisma.realOrder.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RealOrderUpdateManyAndReturnArgs>(args: SelectSubset<T, RealOrderUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RealOrder.
+     * @param {RealOrderUpsertArgs} args - Arguments to update or create a RealOrder.
+     * @example
+     * // Update or create a RealOrder
+     * const realOrder = await prisma.realOrder.upsert({
+     *   create: {
+     *     // ... data to create a RealOrder
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RealOrder we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RealOrderUpsertArgs>(args: SelectSubset<T, RealOrderUpsertArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RealOrders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderCountArgs} args - Arguments to filter RealOrders to count.
+     * @example
+     * // Count the number of RealOrders
+     * const count = await prisma.realOrder.count({
+     *   where: {
+     *     // ... the filter for the RealOrders we want to count
+     *   }
+     * })
+    **/
+    count<T extends RealOrderCountArgs>(
+      args?: Subset<T, RealOrderCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RealOrderCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RealOrder.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RealOrderAggregateArgs>(args: Subset<T, RealOrderAggregateArgs>): Prisma.PrismaPromise<GetRealOrderAggregateType<T>>
+
+    /**
+     * Group by RealOrder.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealOrderGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RealOrderGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RealOrderGroupByArgs['orderBy'] }
+        : { orderBy?: RealOrderGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RealOrderGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRealOrderGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RealOrder model
+   */
+  readonly fields: RealOrderFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RealOrder.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RealOrderClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    strategy<T extends RealOrder$strategyArgs<ExtArgs> = {}>(args?: Subset<T, RealOrder$strategyArgs<ExtArgs>>): Prisma__TradingStrategyClient<$Result.GetResult<Prisma.$TradingStrategyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    position<T extends RealOrder$positionArgs<ExtArgs> = {}>(args?: Subset<T, RealOrder$positionArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    trades<T extends RealOrder$tradesArgs<ExtArgs> = {}>(args?: Subset<T, RealOrder$tradesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RealOrder model
+   */
+  interface RealOrderFieldRefs {
+    readonly id: FieldRef<"RealOrder", 'Int'>
+    readonly userId: FieldRef<"RealOrder", 'Int'>
+    readonly strategyId: FieldRef<"RealOrder", 'Int'>
+    readonly positionId: FieldRef<"RealOrder", 'Int'>
+    readonly exchange: FieldRef<"RealOrder", 'String'>
+    readonly exchangeOrderId: FieldRef<"RealOrder", 'String'>
+    readonly symbol: FieldRef<"RealOrder", 'String'>
+    readonly side: FieldRef<"RealOrder", 'String'>
+    readonly type: FieldRef<"RealOrder", 'String'>
+    readonly status: FieldRef<"RealOrder", 'String'>
+    readonly quantity: FieldRef<"RealOrder", 'Decimal'>
+    readonly filledQuantity: FieldRef<"RealOrder", 'Decimal'>
+    readonly remainingQuantity: FieldRef<"RealOrder", 'Decimal'>
+    readonly price: FieldRef<"RealOrder", 'Decimal'>
+    readonly averagePrice: FieldRef<"RealOrder", 'Decimal'>
+    readonly fee: FieldRef<"RealOrder", 'Decimal'>
+    readonly feeCurrency: FieldRef<"RealOrder", 'String'>
+    readonly timeInForce: FieldRef<"RealOrder", 'String'>
+    readonly clientOrderId: FieldRef<"RealOrder", 'String'>
+    readonly leverage: FieldRef<"RealOrder", 'Int'>
+    readonly createdAt: FieldRef<"RealOrder", 'DateTime'>
+    readonly updatedAt: FieldRef<"RealOrder", 'DateTime'>
+    readonly filledAt: FieldRef<"RealOrder", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RealOrder findUnique
+   */
+  export type RealOrderFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * Filter, which RealOrder to fetch.
+     */
+    where: RealOrderWhereUniqueInput
+  }
+
+  /**
+   * RealOrder findUniqueOrThrow
+   */
+  export type RealOrderFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * Filter, which RealOrder to fetch.
+     */
+    where: RealOrderWhereUniqueInput
+  }
+
+  /**
+   * RealOrder findFirst
+   */
+  export type RealOrderFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * Filter, which RealOrder to fetch.
+     */
+    where?: RealOrderWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealOrders to fetch.
+     */
+    orderBy?: RealOrderOrderByWithRelationInput | RealOrderOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealOrders.
+     */
+    cursor?: RealOrderWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealOrders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealOrders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealOrders.
+     */
+    distinct?: RealOrderScalarFieldEnum | RealOrderScalarFieldEnum[]
+  }
+
+  /**
+   * RealOrder findFirstOrThrow
+   */
+  export type RealOrderFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * Filter, which RealOrder to fetch.
+     */
+    where?: RealOrderWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealOrders to fetch.
+     */
+    orderBy?: RealOrderOrderByWithRelationInput | RealOrderOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealOrders.
+     */
+    cursor?: RealOrderWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealOrders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealOrders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealOrders.
+     */
+    distinct?: RealOrderScalarFieldEnum | RealOrderScalarFieldEnum[]
+  }
+
+  /**
+   * RealOrder findMany
+   */
+  export type RealOrderFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * Filter, which RealOrders to fetch.
+     */
+    where?: RealOrderWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealOrders to fetch.
+     */
+    orderBy?: RealOrderOrderByWithRelationInput | RealOrderOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RealOrders.
+     */
+    cursor?: RealOrderWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealOrders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealOrders.
+     */
+    skip?: number
+    distinct?: RealOrderScalarFieldEnum | RealOrderScalarFieldEnum[]
+  }
+
+  /**
+   * RealOrder create
+   */
+  export type RealOrderCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RealOrder.
+     */
+    data: XOR<RealOrderCreateInput, RealOrderUncheckedCreateInput>
+  }
+
+  /**
+   * RealOrder createMany
+   */
+  export type RealOrderCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RealOrders.
+     */
+    data: RealOrderCreateManyInput | RealOrderCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RealOrder createManyAndReturn
+   */
+  export type RealOrderCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * The data used to create many RealOrders.
+     */
+    data: RealOrderCreateManyInput | RealOrderCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RealOrder update
+   */
+  export type RealOrderUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RealOrder.
+     */
+    data: XOR<RealOrderUpdateInput, RealOrderUncheckedUpdateInput>
+    /**
+     * Choose, which RealOrder to update.
+     */
+    where: RealOrderWhereUniqueInput
+  }
+
+  /**
+   * RealOrder updateMany
+   */
+  export type RealOrderUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RealOrders.
+     */
+    data: XOR<RealOrderUpdateManyMutationInput, RealOrderUncheckedUpdateManyInput>
+    /**
+     * Filter which RealOrders to update
+     */
+    where?: RealOrderWhereInput
+    /**
+     * Limit how many RealOrders to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealOrder updateManyAndReturn
+   */
+  export type RealOrderUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * The data used to update RealOrders.
+     */
+    data: XOR<RealOrderUpdateManyMutationInput, RealOrderUncheckedUpdateManyInput>
+    /**
+     * Filter which RealOrders to update
+     */
+    where?: RealOrderWhereInput
+    /**
+     * Limit how many RealOrders to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RealOrder upsert
+   */
+  export type RealOrderUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RealOrder to update in case it exists.
+     */
+    where: RealOrderWhereUniqueInput
+    /**
+     * In case the RealOrder found by the `where` argument doesn't exist, create a new RealOrder with this data.
+     */
+    create: XOR<RealOrderCreateInput, RealOrderUncheckedCreateInput>
+    /**
+     * In case the RealOrder was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RealOrderUpdateInput, RealOrderUncheckedUpdateInput>
+  }
+
+  /**
+   * RealOrder delete
+   */
+  export type RealOrderDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    /**
+     * Filter which RealOrder to delete.
+     */
+    where: RealOrderWhereUniqueInput
+  }
+
+  /**
+   * RealOrder deleteMany
+   */
+  export type RealOrderDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealOrders to delete
+     */
+    where?: RealOrderWhereInput
+    /**
+     * Limit how many RealOrders to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealOrder.strategy
+   */
+  export type RealOrder$strategyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TradingStrategy
+     */
+    select?: TradingStrategySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TradingStrategy
+     */
+    omit?: TradingStrategyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    where?: TradingStrategyWhereInput
+  }
+
+  /**
+   * RealOrder.position
+   */
+  export type RealOrder$positionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    where?: RealPositionWhereInput
+  }
+
+  /**
+   * RealOrder.trades
+   */
+  export type RealOrder$tradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    where?: RealTradeWhereInput
+    orderBy?: RealTradeOrderByWithRelationInput | RealTradeOrderByWithRelationInput[]
+    cursor?: RealTradeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RealTradeScalarFieldEnum | RealTradeScalarFieldEnum[]
+  }
+
+  /**
+   * RealOrder without action
+   */
+  export type RealOrderDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RealPosition
+   */
+
+  export type AggregateRealPosition = {
+    _count: RealPositionCountAggregateOutputType | null
+    _avg: RealPositionAvgAggregateOutputType | null
+    _sum: RealPositionSumAggregateOutputType | null
+    _min: RealPositionMinAggregateOutputType | null
+    _max: RealPositionMaxAggregateOutputType | null
+  }
+
+  export type RealPositionAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    upbitQuantity: Decimal | null
+    upbitEntryPrice: Decimal | null
+    upbitCurrentPrice: Decimal | null
+    binanceQuantity: Decimal | null
+    binanceEntryPrice: Decimal | null
+    binanceCurrentPrice: Decimal | null
+    binanceLeverage: number | null
+    entryPremiumRate: Decimal | null
+    currentPremiumRate: Decimal | null
+    unrealizedPnl: Decimal | null
+    realizedPnl: Decimal | null
+    totalFees: Decimal | null
+  }
+
+  export type RealPositionSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    upbitQuantity: Decimal | null
+    upbitEntryPrice: Decimal | null
+    upbitCurrentPrice: Decimal | null
+    binanceQuantity: Decimal | null
+    binanceEntryPrice: Decimal | null
+    binanceCurrentPrice: Decimal | null
+    binanceLeverage: number | null
+    entryPremiumRate: Decimal | null
+    currentPremiumRate: Decimal | null
+    unrealizedPnl: Decimal | null
+    realizedPnl: Decimal | null
+    totalFees: Decimal | null
+  }
+
+  export type RealPositionMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    symbol: string | null
+    side: string | null
+    status: string | null
+    upbitQuantity: Decimal | null
+    upbitEntryPrice: Decimal | null
+    upbitCurrentPrice: Decimal | null
+    upbitOrderId: string | null
+    binanceQuantity: Decimal | null
+    binanceEntryPrice: Decimal | null
+    binanceCurrentPrice: Decimal | null
+    binanceLeverage: number | null
+    binanceOrderId: string | null
+    entryPremiumRate: Decimal | null
+    currentPremiumRate: Decimal | null
+    unrealizedPnl: Decimal | null
+    realizedPnl: Decimal | null
+    totalFees: Decimal | null
+    entryTime: Date | null
+    exitTime: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RealPositionMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    strategyId: number | null
+    symbol: string | null
+    side: string | null
+    status: string | null
+    upbitQuantity: Decimal | null
+    upbitEntryPrice: Decimal | null
+    upbitCurrentPrice: Decimal | null
+    upbitOrderId: string | null
+    binanceQuantity: Decimal | null
+    binanceEntryPrice: Decimal | null
+    binanceCurrentPrice: Decimal | null
+    binanceLeverage: number | null
+    binanceOrderId: string | null
+    entryPremiumRate: Decimal | null
+    currentPremiumRate: Decimal | null
+    unrealizedPnl: Decimal | null
+    realizedPnl: Decimal | null
+    totalFees: Decimal | null
+    entryTime: Date | null
+    exitTime: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RealPositionCountAggregateOutputType = {
+    id: number
+    userId: number
+    strategyId: number
+    symbol: number
+    side: number
+    status: number
+    upbitQuantity: number
+    upbitEntryPrice: number
+    upbitCurrentPrice: number
+    upbitOrderId: number
+    binanceQuantity: number
+    binanceEntryPrice: number
+    binanceCurrentPrice: number
+    binanceLeverage: number
+    binanceOrderId: number
+    entryPremiumRate: number
+    currentPremiumRate: number
+    unrealizedPnl: number
+    realizedPnl: number
+    totalFees: number
+    entryTime: number
+    exitTime: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type RealPositionAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    upbitQuantity?: true
+    upbitEntryPrice?: true
+    upbitCurrentPrice?: true
+    binanceQuantity?: true
+    binanceEntryPrice?: true
+    binanceCurrentPrice?: true
+    binanceLeverage?: true
+    entryPremiumRate?: true
+    currentPremiumRate?: true
+    unrealizedPnl?: true
+    realizedPnl?: true
+    totalFees?: true
+  }
+
+  export type RealPositionSumAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    upbitQuantity?: true
+    upbitEntryPrice?: true
+    upbitCurrentPrice?: true
+    binanceQuantity?: true
+    binanceEntryPrice?: true
+    binanceCurrentPrice?: true
+    binanceLeverage?: true
+    entryPremiumRate?: true
+    currentPremiumRate?: true
+    unrealizedPnl?: true
+    realizedPnl?: true
+    totalFees?: true
+  }
+
+  export type RealPositionMinAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    symbol?: true
+    side?: true
+    status?: true
+    upbitQuantity?: true
+    upbitEntryPrice?: true
+    upbitCurrentPrice?: true
+    upbitOrderId?: true
+    binanceQuantity?: true
+    binanceEntryPrice?: true
+    binanceCurrentPrice?: true
+    binanceLeverage?: true
+    binanceOrderId?: true
+    entryPremiumRate?: true
+    currentPremiumRate?: true
+    unrealizedPnl?: true
+    realizedPnl?: true
+    totalFees?: true
+    entryTime?: true
+    exitTime?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RealPositionMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    symbol?: true
+    side?: true
+    status?: true
+    upbitQuantity?: true
+    upbitEntryPrice?: true
+    upbitCurrentPrice?: true
+    upbitOrderId?: true
+    binanceQuantity?: true
+    binanceEntryPrice?: true
+    binanceCurrentPrice?: true
+    binanceLeverage?: true
+    binanceOrderId?: true
+    entryPremiumRate?: true
+    currentPremiumRate?: true
+    unrealizedPnl?: true
+    realizedPnl?: true
+    totalFees?: true
+    entryTime?: true
+    exitTime?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RealPositionCountAggregateInputType = {
+    id?: true
+    userId?: true
+    strategyId?: true
+    symbol?: true
+    side?: true
+    status?: true
+    upbitQuantity?: true
+    upbitEntryPrice?: true
+    upbitCurrentPrice?: true
+    upbitOrderId?: true
+    binanceQuantity?: true
+    binanceEntryPrice?: true
+    binanceCurrentPrice?: true
+    binanceLeverage?: true
+    binanceOrderId?: true
+    entryPremiumRate?: true
+    currentPremiumRate?: true
+    unrealizedPnl?: true
+    realizedPnl?: true
+    totalFees?: true
+    entryTime?: true
+    exitTime?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type RealPositionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealPosition to aggregate.
+     */
+    where?: RealPositionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealPositions to fetch.
+     */
+    orderBy?: RealPositionOrderByWithRelationInput | RealPositionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RealPositionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealPositions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealPositions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RealPositions
+    **/
+    _count?: true | RealPositionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RealPositionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RealPositionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RealPositionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RealPositionMaxAggregateInputType
+  }
+
+  export type GetRealPositionAggregateType<T extends RealPositionAggregateArgs> = {
+        [P in keyof T & keyof AggregateRealPosition]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRealPosition[P]>
+      : GetScalarType<T[P], AggregateRealPosition[P]>
+  }
+
+
+
+
+  export type RealPositionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealPositionWhereInput
+    orderBy?: RealPositionOrderByWithAggregationInput | RealPositionOrderByWithAggregationInput[]
+    by: RealPositionScalarFieldEnum[] | RealPositionScalarFieldEnum
+    having?: RealPositionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RealPositionCountAggregateInputType | true
+    _avg?: RealPositionAvgAggregateInputType
+    _sum?: RealPositionSumAggregateInputType
+    _min?: RealPositionMinAggregateInputType
+    _max?: RealPositionMaxAggregateInputType
+  }
+
+  export type RealPositionGroupByOutputType = {
+    id: number
+    userId: number
+    strategyId: number | null
+    symbol: string
+    side: string
+    status: string
+    upbitQuantity: Decimal
+    upbitEntryPrice: Decimal
+    upbitCurrentPrice: Decimal | null
+    upbitOrderId: string | null
+    binanceQuantity: Decimal
+    binanceEntryPrice: Decimal
+    binanceCurrentPrice: Decimal | null
+    binanceLeverage: number
+    binanceOrderId: string | null
+    entryPremiumRate: Decimal
+    currentPremiumRate: Decimal | null
+    unrealizedPnl: Decimal
+    realizedPnl: Decimal | null
+    totalFees: Decimal
+    entryTime: Date
+    exitTime: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: RealPositionCountAggregateOutputType | null
+    _avg: RealPositionAvgAggregateOutputType | null
+    _sum: RealPositionSumAggregateOutputType | null
+    _min: RealPositionMinAggregateOutputType | null
+    _max: RealPositionMaxAggregateOutputType | null
+  }
+
+  type GetRealPositionGroupByPayload<T extends RealPositionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RealPositionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RealPositionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RealPositionGroupByOutputType[P]>
+            : GetScalarType<T[P], RealPositionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RealPositionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    symbol?: boolean
+    side?: boolean
+    status?: boolean
+    upbitQuantity?: boolean
+    upbitEntryPrice?: boolean
+    upbitCurrentPrice?: boolean
+    upbitOrderId?: boolean
+    binanceQuantity?: boolean
+    binanceEntryPrice?: boolean
+    binanceCurrentPrice?: boolean
+    binanceLeverage?: boolean
+    binanceOrderId?: boolean
+    entryPremiumRate?: boolean
+    currentPremiumRate?: boolean
+    unrealizedPnl?: boolean
+    realizedPnl?: boolean
+    totalFees?: boolean
+    entryTime?: boolean
+    exitTime?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    strategy?: boolean | RealPosition$strategyArgs<ExtArgs>
+    orders?: boolean | RealPosition$ordersArgs<ExtArgs>
+    trades?: boolean | RealPosition$tradesArgs<ExtArgs>
+    _count?: boolean | RealPositionCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["realPosition"]>
+
+  export type RealPositionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    symbol?: boolean
+    side?: boolean
+    status?: boolean
+    upbitQuantity?: boolean
+    upbitEntryPrice?: boolean
+    upbitCurrentPrice?: boolean
+    upbitOrderId?: boolean
+    binanceQuantity?: boolean
+    binanceEntryPrice?: boolean
+    binanceCurrentPrice?: boolean
+    binanceLeverage?: boolean
+    binanceOrderId?: boolean
+    entryPremiumRate?: boolean
+    currentPremiumRate?: boolean
+    unrealizedPnl?: boolean
+    realizedPnl?: boolean
+    totalFees?: boolean
+    entryTime?: boolean
+    exitTime?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    strategy?: boolean | RealPosition$strategyArgs<ExtArgs>
+  }, ExtArgs["result"]["realPosition"]>
+
+  export type RealPositionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    symbol?: boolean
+    side?: boolean
+    status?: boolean
+    upbitQuantity?: boolean
+    upbitEntryPrice?: boolean
+    upbitCurrentPrice?: boolean
+    upbitOrderId?: boolean
+    binanceQuantity?: boolean
+    binanceEntryPrice?: boolean
+    binanceCurrentPrice?: boolean
+    binanceLeverage?: boolean
+    binanceOrderId?: boolean
+    entryPremiumRate?: boolean
+    currentPremiumRate?: boolean
+    unrealizedPnl?: boolean
+    realizedPnl?: boolean
+    totalFees?: boolean
+    entryTime?: boolean
+    exitTime?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    strategy?: boolean | RealPosition$strategyArgs<ExtArgs>
+  }, ExtArgs["result"]["realPosition"]>
+
+  export type RealPositionSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    strategyId?: boolean
+    symbol?: boolean
+    side?: boolean
+    status?: boolean
+    upbitQuantity?: boolean
+    upbitEntryPrice?: boolean
+    upbitCurrentPrice?: boolean
+    upbitOrderId?: boolean
+    binanceQuantity?: boolean
+    binanceEntryPrice?: boolean
+    binanceCurrentPrice?: boolean
+    binanceLeverage?: boolean
+    binanceOrderId?: boolean
+    entryPremiumRate?: boolean
+    currentPremiumRate?: boolean
+    unrealizedPnl?: boolean
+    realizedPnl?: boolean
+    totalFees?: boolean
+    entryTime?: boolean
+    exitTime?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type RealPositionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "strategyId" | "symbol" | "side" | "status" | "upbitQuantity" | "upbitEntryPrice" | "upbitCurrentPrice" | "upbitOrderId" | "binanceQuantity" | "binanceEntryPrice" | "binanceCurrentPrice" | "binanceLeverage" | "binanceOrderId" | "entryPremiumRate" | "currentPremiumRate" | "unrealizedPnl" | "realizedPnl" | "totalFees" | "entryTime" | "exitTime" | "createdAt" | "updatedAt", ExtArgs["result"]["realPosition"]>
+  export type RealPositionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    strategy?: boolean | RealPosition$strategyArgs<ExtArgs>
+    orders?: boolean | RealPosition$ordersArgs<ExtArgs>
+    trades?: boolean | RealPosition$tradesArgs<ExtArgs>
+    _count?: boolean | RealPositionCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type RealPositionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    strategy?: boolean | RealPosition$strategyArgs<ExtArgs>
+  }
+  export type RealPositionIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    strategy?: boolean | RealPosition$strategyArgs<ExtArgs>
+  }
+
+  export type $RealPositionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RealPosition"
+    objects: {
+      strategy: Prisma.$TradingStrategyPayload<ExtArgs> | null
+      orders: Prisma.$RealOrderPayload<ExtArgs>[]
+      trades: Prisma.$RealTradePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      strategyId: number | null
+      symbol: string
+      side: string
+      status: string
+      upbitQuantity: Prisma.Decimal
+      upbitEntryPrice: Prisma.Decimal
+      upbitCurrentPrice: Prisma.Decimal | null
+      upbitOrderId: string | null
+      binanceQuantity: Prisma.Decimal
+      binanceEntryPrice: Prisma.Decimal
+      binanceCurrentPrice: Prisma.Decimal | null
+      binanceLeverage: number
+      binanceOrderId: string | null
+      entryPremiumRate: Prisma.Decimal
+      currentPremiumRate: Prisma.Decimal | null
+      unrealizedPnl: Prisma.Decimal
+      realizedPnl: Prisma.Decimal | null
+      totalFees: Prisma.Decimal
+      entryTime: Date
+      exitTime: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["realPosition"]>
+    composites: {}
+  }
+
+  type RealPositionGetPayload<S extends boolean | null | undefined | RealPositionDefaultArgs> = $Result.GetResult<Prisma.$RealPositionPayload, S>
+
+  type RealPositionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RealPositionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RealPositionCountAggregateInputType | true
+    }
+
+  export interface RealPositionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RealPosition'], meta: { name: 'RealPosition' } }
+    /**
+     * Find zero or one RealPosition that matches the filter.
+     * @param {RealPositionFindUniqueArgs} args - Arguments to find a RealPosition
+     * @example
+     * // Get one RealPosition
+     * const realPosition = await prisma.realPosition.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RealPositionFindUniqueArgs>(args: SelectSubset<T, RealPositionFindUniqueArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RealPosition that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RealPositionFindUniqueOrThrowArgs} args - Arguments to find a RealPosition
+     * @example
+     * // Get one RealPosition
+     * const realPosition = await prisma.realPosition.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RealPositionFindUniqueOrThrowArgs>(args: SelectSubset<T, RealPositionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealPosition that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionFindFirstArgs} args - Arguments to find a RealPosition
+     * @example
+     * // Get one RealPosition
+     * const realPosition = await prisma.realPosition.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RealPositionFindFirstArgs>(args?: SelectSubset<T, RealPositionFindFirstArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealPosition that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionFindFirstOrThrowArgs} args - Arguments to find a RealPosition
+     * @example
+     * // Get one RealPosition
+     * const realPosition = await prisma.realPosition.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RealPositionFindFirstOrThrowArgs>(args?: SelectSubset<T, RealPositionFindFirstOrThrowArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RealPositions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RealPositions
+     * const realPositions = await prisma.realPosition.findMany()
+     * 
+     * // Get first 10 RealPositions
+     * const realPositions = await prisma.realPosition.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const realPositionWithIdOnly = await prisma.realPosition.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RealPositionFindManyArgs>(args?: SelectSubset<T, RealPositionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RealPosition.
+     * @param {RealPositionCreateArgs} args - Arguments to create a RealPosition.
+     * @example
+     * // Create one RealPosition
+     * const RealPosition = await prisma.realPosition.create({
+     *   data: {
+     *     // ... data to create a RealPosition
+     *   }
+     * })
+     * 
+     */
+    create<T extends RealPositionCreateArgs>(args: SelectSubset<T, RealPositionCreateArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RealPositions.
+     * @param {RealPositionCreateManyArgs} args - Arguments to create many RealPositions.
+     * @example
+     * // Create many RealPositions
+     * const realPosition = await prisma.realPosition.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RealPositionCreateManyArgs>(args?: SelectSubset<T, RealPositionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RealPositions and returns the data saved in the database.
+     * @param {RealPositionCreateManyAndReturnArgs} args - Arguments to create many RealPositions.
+     * @example
+     * // Create many RealPositions
+     * const realPosition = await prisma.realPosition.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RealPositions and only return the `id`
+     * const realPositionWithIdOnly = await prisma.realPosition.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RealPositionCreateManyAndReturnArgs>(args?: SelectSubset<T, RealPositionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RealPosition.
+     * @param {RealPositionDeleteArgs} args - Arguments to delete one RealPosition.
+     * @example
+     * // Delete one RealPosition
+     * const RealPosition = await prisma.realPosition.delete({
+     *   where: {
+     *     // ... filter to delete one RealPosition
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RealPositionDeleteArgs>(args: SelectSubset<T, RealPositionDeleteArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RealPosition.
+     * @param {RealPositionUpdateArgs} args - Arguments to update one RealPosition.
+     * @example
+     * // Update one RealPosition
+     * const realPosition = await prisma.realPosition.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RealPositionUpdateArgs>(args: SelectSubset<T, RealPositionUpdateArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RealPositions.
+     * @param {RealPositionDeleteManyArgs} args - Arguments to filter RealPositions to delete.
+     * @example
+     * // Delete a few RealPositions
+     * const { count } = await prisma.realPosition.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RealPositionDeleteManyArgs>(args?: SelectSubset<T, RealPositionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealPositions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RealPositions
+     * const realPosition = await prisma.realPosition.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RealPositionUpdateManyArgs>(args: SelectSubset<T, RealPositionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealPositions and returns the data updated in the database.
+     * @param {RealPositionUpdateManyAndReturnArgs} args - Arguments to update many RealPositions.
+     * @example
+     * // Update many RealPositions
+     * const realPosition = await prisma.realPosition.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RealPositions and only return the `id`
+     * const realPositionWithIdOnly = await prisma.realPosition.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RealPositionUpdateManyAndReturnArgs>(args: SelectSubset<T, RealPositionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RealPosition.
+     * @param {RealPositionUpsertArgs} args - Arguments to update or create a RealPosition.
+     * @example
+     * // Update or create a RealPosition
+     * const realPosition = await prisma.realPosition.upsert({
+     *   create: {
+     *     // ... data to create a RealPosition
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RealPosition we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RealPositionUpsertArgs>(args: SelectSubset<T, RealPositionUpsertArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RealPositions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionCountArgs} args - Arguments to filter RealPositions to count.
+     * @example
+     * // Count the number of RealPositions
+     * const count = await prisma.realPosition.count({
+     *   where: {
+     *     // ... the filter for the RealPositions we want to count
+     *   }
+     * })
+    **/
+    count<T extends RealPositionCountArgs>(
+      args?: Subset<T, RealPositionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RealPositionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RealPosition.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RealPositionAggregateArgs>(args: Subset<T, RealPositionAggregateArgs>): Prisma.PrismaPromise<GetRealPositionAggregateType<T>>
+
+    /**
+     * Group by RealPosition.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealPositionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RealPositionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RealPositionGroupByArgs['orderBy'] }
+        : { orderBy?: RealPositionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RealPositionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRealPositionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RealPosition model
+   */
+  readonly fields: RealPositionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RealPosition.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RealPositionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    strategy<T extends RealPosition$strategyArgs<ExtArgs> = {}>(args?: Subset<T, RealPosition$strategyArgs<ExtArgs>>): Prisma__TradingStrategyClient<$Result.GetResult<Prisma.$TradingStrategyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    orders<T extends RealPosition$ordersArgs<ExtArgs> = {}>(args?: Subset<T, RealPosition$ordersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    trades<T extends RealPosition$tradesArgs<ExtArgs> = {}>(args?: Subset<T, RealPosition$tradesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RealPosition model
+   */
+  interface RealPositionFieldRefs {
+    readonly id: FieldRef<"RealPosition", 'Int'>
+    readonly userId: FieldRef<"RealPosition", 'Int'>
+    readonly strategyId: FieldRef<"RealPosition", 'Int'>
+    readonly symbol: FieldRef<"RealPosition", 'String'>
+    readonly side: FieldRef<"RealPosition", 'String'>
+    readonly status: FieldRef<"RealPosition", 'String'>
+    readonly upbitQuantity: FieldRef<"RealPosition", 'Decimal'>
+    readonly upbitEntryPrice: FieldRef<"RealPosition", 'Decimal'>
+    readonly upbitCurrentPrice: FieldRef<"RealPosition", 'Decimal'>
+    readonly upbitOrderId: FieldRef<"RealPosition", 'String'>
+    readonly binanceQuantity: FieldRef<"RealPosition", 'Decimal'>
+    readonly binanceEntryPrice: FieldRef<"RealPosition", 'Decimal'>
+    readonly binanceCurrentPrice: FieldRef<"RealPosition", 'Decimal'>
+    readonly binanceLeverage: FieldRef<"RealPosition", 'Int'>
+    readonly binanceOrderId: FieldRef<"RealPosition", 'String'>
+    readonly entryPremiumRate: FieldRef<"RealPosition", 'Decimal'>
+    readonly currentPremiumRate: FieldRef<"RealPosition", 'Decimal'>
+    readonly unrealizedPnl: FieldRef<"RealPosition", 'Decimal'>
+    readonly realizedPnl: FieldRef<"RealPosition", 'Decimal'>
+    readonly totalFees: FieldRef<"RealPosition", 'Decimal'>
+    readonly entryTime: FieldRef<"RealPosition", 'DateTime'>
+    readonly exitTime: FieldRef<"RealPosition", 'DateTime'>
+    readonly createdAt: FieldRef<"RealPosition", 'DateTime'>
+    readonly updatedAt: FieldRef<"RealPosition", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RealPosition findUnique
+   */
+  export type RealPositionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * Filter, which RealPosition to fetch.
+     */
+    where: RealPositionWhereUniqueInput
+  }
+
+  /**
+   * RealPosition findUniqueOrThrow
+   */
+  export type RealPositionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * Filter, which RealPosition to fetch.
+     */
+    where: RealPositionWhereUniqueInput
+  }
+
+  /**
+   * RealPosition findFirst
+   */
+  export type RealPositionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * Filter, which RealPosition to fetch.
+     */
+    where?: RealPositionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealPositions to fetch.
+     */
+    orderBy?: RealPositionOrderByWithRelationInput | RealPositionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealPositions.
+     */
+    cursor?: RealPositionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealPositions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealPositions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealPositions.
+     */
+    distinct?: RealPositionScalarFieldEnum | RealPositionScalarFieldEnum[]
+  }
+
+  /**
+   * RealPosition findFirstOrThrow
+   */
+  export type RealPositionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * Filter, which RealPosition to fetch.
+     */
+    where?: RealPositionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealPositions to fetch.
+     */
+    orderBy?: RealPositionOrderByWithRelationInput | RealPositionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealPositions.
+     */
+    cursor?: RealPositionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealPositions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealPositions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealPositions.
+     */
+    distinct?: RealPositionScalarFieldEnum | RealPositionScalarFieldEnum[]
+  }
+
+  /**
+   * RealPosition findMany
+   */
+  export type RealPositionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * Filter, which RealPositions to fetch.
+     */
+    where?: RealPositionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealPositions to fetch.
+     */
+    orderBy?: RealPositionOrderByWithRelationInput | RealPositionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RealPositions.
+     */
+    cursor?: RealPositionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealPositions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealPositions.
+     */
+    skip?: number
+    distinct?: RealPositionScalarFieldEnum | RealPositionScalarFieldEnum[]
+  }
+
+  /**
+   * RealPosition create
+   */
+  export type RealPositionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RealPosition.
+     */
+    data: XOR<RealPositionCreateInput, RealPositionUncheckedCreateInput>
+  }
+
+  /**
+   * RealPosition createMany
+   */
+  export type RealPositionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RealPositions.
+     */
+    data: RealPositionCreateManyInput | RealPositionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RealPosition createManyAndReturn
+   */
+  export type RealPositionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * The data used to create many RealPositions.
+     */
+    data: RealPositionCreateManyInput | RealPositionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RealPosition update
+   */
+  export type RealPositionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RealPosition.
+     */
+    data: XOR<RealPositionUpdateInput, RealPositionUncheckedUpdateInput>
+    /**
+     * Choose, which RealPosition to update.
+     */
+    where: RealPositionWhereUniqueInput
+  }
+
+  /**
+   * RealPosition updateMany
+   */
+  export type RealPositionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RealPositions.
+     */
+    data: XOR<RealPositionUpdateManyMutationInput, RealPositionUncheckedUpdateManyInput>
+    /**
+     * Filter which RealPositions to update
+     */
+    where?: RealPositionWhereInput
+    /**
+     * Limit how many RealPositions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealPosition updateManyAndReturn
+   */
+  export type RealPositionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * The data used to update RealPositions.
+     */
+    data: XOR<RealPositionUpdateManyMutationInput, RealPositionUncheckedUpdateManyInput>
+    /**
+     * Filter which RealPositions to update
+     */
+    where?: RealPositionWhereInput
+    /**
+     * Limit how many RealPositions to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RealPosition upsert
+   */
+  export type RealPositionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RealPosition to update in case it exists.
+     */
+    where: RealPositionWhereUniqueInput
+    /**
+     * In case the RealPosition found by the `where` argument doesn't exist, create a new RealPosition with this data.
+     */
+    create: XOR<RealPositionCreateInput, RealPositionUncheckedCreateInput>
+    /**
+     * In case the RealPosition was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RealPositionUpdateInput, RealPositionUncheckedUpdateInput>
+  }
+
+  /**
+   * RealPosition delete
+   */
+  export type RealPositionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    /**
+     * Filter which RealPosition to delete.
+     */
+    where: RealPositionWhereUniqueInput
+  }
+
+  /**
+   * RealPosition deleteMany
+   */
+  export type RealPositionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealPositions to delete
+     */
+    where?: RealPositionWhereInput
+    /**
+     * Limit how many RealPositions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealPosition.strategy
+   */
+  export type RealPosition$strategyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TradingStrategy
+     */
+    select?: TradingStrategySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the TradingStrategy
+     */
+    omit?: TradingStrategyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TradingStrategyInclude<ExtArgs> | null
+    where?: TradingStrategyWhereInput
+  }
+
+  /**
+   * RealPosition.orders
+   */
+  export type RealPosition$ordersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealOrder
+     */
+    select?: RealOrderSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealOrder
+     */
+    omit?: RealOrderOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealOrderInclude<ExtArgs> | null
+    where?: RealOrderWhereInput
+    orderBy?: RealOrderOrderByWithRelationInput | RealOrderOrderByWithRelationInput[]
+    cursor?: RealOrderWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RealOrderScalarFieldEnum | RealOrderScalarFieldEnum[]
+  }
+
+  /**
+   * RealPosition.trades
+   */
+  export type RealPosition$tradesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    where?: RealTradeWhereInput
+    orderBy?: RealTradeOrderByWithRelationInput | RealTradeOrderByWithRelationInput[]
+    cursor?: RealTradeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RealTradeScalarFieldEnum | RealTradeScalarFieldEnum[]
+  }
+
+  /**
+   * RealPosition without action
+   */
+  export type RealPositionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RealTrade
+   */
+
+  export type AggregateRealTrade = {
+    _count: RealTradeCountAggregateOutputType | null
+    _avg: RealTradeAvgAggregateOutputType | null
+    _sum: RealTradeSumAggregateOutputType | null
+    _min: RealTradeMinAggregateOutputType | null
+    _max: RealTradeMaxAggregateOutputType | null
+  }
+
+  export type RealTradeAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    positionId: number | null
+    orderId: number | null
+    quantity: Decimal | null
+    price: Decimal | null
+    fee: Decimal | null
+  }
+
+  export type RealTradeSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    positionId: number | null
+    orderId: number | null
+    quantity: Decimal | null
+    price: Decimal | null
+    fee: Decimal | null
+  }
+
+  export type RealTradeMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    positionId: number | null
+    orderId: number | null
+    exchange: string | null
+    exchangeTradeId: string | null
+    symbol: string | null
+    side: string | null
+    quantity: Decimal | null
+    price: Decimal | null
+    fee: Decimal | null
+    feeCurrency: string | null
+    executedAt: Date | null
+    createdAt: Date | null
+  }
+
+  export type RealTradeMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    positionId: number | null
+    orderId: number | null
+    exchange: string | null
+    exchangeTradeId: string | null
+    symbol: string | null
+    side: string | null
+    quantity: Decimal | null
+    price: Decimal | null
+    fee: Decimal | null
+    feeCurrency: string | null
+    executedAt: Date | null
+    createdAt: Date | null
+  }
+
+  export type RealTradeCountAggregateOutputType = {
+    id: number
+    userId: number
+    positionId: number
+    orderId: number
+    exchange: number
+    exchangeTradeId: number
+    symbol: number
+    side: number
+    quantity: number
+    price: number
+    fee: number
+    feeCurrency: number
+    executedAt: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type RealTradeAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    positionId?: true
+    orderId?: true
+    quantity?: true
+    price?: true
+    fee?: true
+  }
+
+  export type RealTradeSumAggregateInputType = {
+    id?: true
+    userId?: true
+    positionId?: true
+    orderId?: true
+    quantity?: true
+    price?: true
+    fee?: true
+  }
+
+  export type RealTradeMinAggregateInputType = {
+    id?: true
+    userId?: true
+    positionId?: true
+    orderId?: true
+    exchange?: true
+    exchangeTradeId?: true
+    symbol?: true
+    side?: true
+    quantity?: true
+    price?: true
+    fee?: true
+    feeCurrency?: true
+    executedAt?: true
+    createdAt?: true
+  }
+
+  export type RealTradeMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    positionId?: true
+    orderId?: true
+    exchange?: true
+    exchangeTradeId?: true
+    symbol?: true
+    side?: true
+    quantity?: true
+    price?: true
+    fee?: true
+    feeCurrency?: true
+    executedAt?: true
+    createdAt?: true
+  }
+
+  export type RealTradeCountAggregateInputType = {
+    id?: true
+    userId?: true
+    positionId?: true
+    orderId?: true
+    exchange?: true
+    exchangeTradeId?: true
+    symbol?: true
+    side?: true
+    quantity?: true
+    price?: true
+    fee?: true
+    feeCurrency?: true
+    executedAt?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type RealTradeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealTrade to aggregate.
+     */
+    where?: RealTradeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealTrades to fetch.
+     */
+    orderBy?: RealTradeOrderByWithRelationInput | RealTradeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RealTradeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealTrades from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealTrades.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RealTrades
+    **/
+    _count?: true | RealTradeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RealTradeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RealTradeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RealTradeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RealTradeMaxAggregateInputType
+  }
+
+  export type GetRealTradeAggregateType<T extends RealTradeAggregateArgs> = {
+        [P in keyof T & keyof AggregateRealTrade]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRealTrade[P]>
+      : GetScalarType<T[P], AggregateRealTrade[P]>
+  }
+
+
+
+
+  export type RealTradeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealTradeWhereInput
+    orderBy?: RealTradeOrderByWithAggregationInput | RealTradeOrderByWithAggregationInput[]
+    by: RealTradeScalarFieldEnum[] | RealTradeScalarFieldEnum
+    having?: RealTradeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RealTradeCountAggregateInputType | true
+    _avg?: RealTradeAvgAggregateInputType
+    _sum?: RealTradeSumAggregateInputType
+    _min?: RealTradeMinAggregateInputType
+    _max?: RealTradeMaxAggregateInputType
+  }
+
+  export type RealTradeGroupByOutputType = {
+    id: number
+    userId: number
+    positionId: number | null
+    orderId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal
+    price: Decimal
+    fee: Decimal
+    feeCurrency: string
+    executedAt: Date
+    createdAt: Date
+    _count: RealTradeCountAggregateOutputType | null
+    _avg: RealTradeAvgAggregateOutputType | null
+    _sum: RealTradeSumAggregateOutputType | null
+    _min: RealTradeMinAggregateOutputType | null
+    _max: RealTradeMaxAggregateOutputType | null
+  }
+
+  type GetRealTradeGroupByPayload<T extends RealTradeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RealTradeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RealTradeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RealTradeGroupByOutputType[P]>
+            : GetScalarType<T[P], RealTradeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RealTradeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    positionId?: boolean
+    orderId?: boolean
+    exchange?: boolean
+    exchangeTradeId?: boolean
+    symbol?: boolean
+    side?: boolean
+    quantity?: boolean
+    price?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    executedAt?: boolean
+    createdAt?: boolean
+    order?: boolean | RealOrderDefaultArgs<ExtArgs>
+    position?: boolean | RealTrade$positionArgs<ExtArgs>
+  }, ExtArgs["result"]["realTrade"]>
+
+  export type RealTradeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    positionId?: boolean
+    orderId?: boolean
+    exchange?: boolean
+    exchangeTradeId?: boolean
+    symbol?: boolean
+    side?: boolean
+    quantity?: boolean
+    price?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    executedAt?: boolean
+    createdAt?: boolean
+    order?: boolean | RealOrderDefaultArgs<ExtArgs>
+    position?: boolean | RealTrade$positionArgs<ExtArgs>
+  }, ExtArgs["result"]["realTrade"]>
+
+  export type RealTradeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    positionId?: boolean
+    orderId?: boolean
+    exchange?: boolean
+    exchangeTradeId?: boolean
+    symbol?: boolean
+    side?: boolean
+    quantity?: boolean
+    price?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    executedAt?: boolean
+    createdAt?: boolean
+    order?: boolean | RealOrderDefaultArgs<ExtArgs>
+    position?: boolean | RealTrade$positionArgs<ExtArgs>
+  }, ExtArgs["result"]["realTrade"]>
+
+  export type RealTradeSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    positionId?: boolean
+    orderId?: boolean
+    exchange?: boolean
+    exchangeTradeId?: boolean
+    symbol?: boolean
+    side?: boolean
+    quantity?: boolean
+    price?: boolean
+    fee?: boolean
+    feeCurrency?: boolean
+    executedAt?: boolean
+    createdAt?: boolean
+  }
+
+  export type RealTradeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "positionId" | "orderId" | "exchange" | "exchangeTradeId" | "symbol" | "side" | "quantity" | "price" | "fee" | "feeCurrency" | "executedAt" | "createdAt", ExtArgs["result"]["realTrade"]>
+  export type RealTradeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | RealOrderDefaultArgs<ExtArgs>
+    position?: boolean | RealTrade$positionArgs<ExtArgs>
+  }
+  export type RealTradeIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | RealOrderDefaultArgs<ExtArgs>
+    position?: boolean | RealTrade$positionArgs<ExtArgs>
+  }
+  export type RealTradeIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | RealOrderDefaultArgs<ExtArgs>
+    position?: boolean | RealTrade$positionArgs<ExtArgs>
+  }
+
+  export type $RealTradePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RealTrade"
+    objects: {
+      order: Prisma.$RealOrderPayload<ExtArgs>
+      position: Prisma.$RealPositionPayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      positionId: number | null
+      orderId: number
+      exchange: string
+      exchangeTradeId: string
+      symbol: string
+      side: string
+      quantity: Prisma.Decimal
+      price: Prisma.Decimal
+      fee: Prisma.Decimal
+      feeCurrency: string
+      executedAt: Date
+      createdAt: Date
+    }, ExtArgs["result"]["realTrade"]>
+    composites: {}
+  }
+
+  type RealTradeGetPayload<S extends boolean | null | undefined | RealTradeDefaultArgs> = $Result.GetResult<Prisma.$RealTradePayload, S>
+
+  type RealTradeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RealTradeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RealTradeCountAggregateInputType | true
+    }
+
+  export interface RealTradeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RealTrade'], meta: { name: 'RealTrade' } }
+    /**
+     * Find zero or one RealTrade that matches the filter.
+     * @param {RealTradeFindUniqueArgs} args - Arguments to find a RealTrade
+     * @example
+     * // Get one RealTrade
+     * const realTrade = await prisma.realTrade.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RealTradeFindUniqueArgs>(args: SelectSubset<T, RealTradeFindUniqueArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RealTrade that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RealTradeFindUniqueOrThrowArgs} args - Arguments to find a RealTrade
+     * @example
+     * // Get one RealTrade
+     * const realTrade = await prisma.realTrade.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RealTradeFindUniqueOrThrowArgs>(args: SelectSubset<T, RealTradeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealTrade that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeFindFirstArgs} args - Arguments to find a RealTrade
+     * @example
+     * // Get one RealTrade
+     * const realTrade = await prisma.realTrade.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RealTradeFindFirstArgs>(args?: SelectSubset<T, RealTradeFindFirstArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealTrade that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeFindFirstOrThrowArgs} args - Arguments to find a RealTrade
+     * @example
+     * // Get one RealTrade
+     * const realTrade = await prisma.realTrade.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RealTradeFindFirstOrThrowArgs>(args?: SelectSubset<T, RealTradeFindFirstOrThrowArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RealTrades that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RealTrades
+     * const realTrades = await prisma.realTrade.findMany()
+     * 
+     * // Get first 10 RealTrades
+     * const realTrades = await prisma.realTrade.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const realTradeWithIdOnly = await prisma.realTrade.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RealTradeFindManyArgs>(args?: SelectSubset<T, RealTradeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RealTrade.
+     * @param {RealTradeCreateArgs} args - Arguments to create a RealTrade.
+     * @example
+     * // Create one RealTrade
+     * const RealTrade = await prisma.realTrade.create({
+     *   data: {
+     *     // ... data to create a RealTrade
+     *   }
+     * })
+     * 
+     */
+    create<T extends RealTradeCreateArgs>(args: SelectSubset<T, RealTradeCreateArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RealTrades.
+     * @param {RealTradeCreateManyArgs} args - Arguments to create many RealTrades.
+     * @example
+     * // Create many RealTrades
+     * const realTrade = await prisma.realTrade.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RealTradeCreateManyArgs>(args?: SelectSubset<T, RealTradeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RealTrades and returns the data saved in the database.
+     * @param {RealTradeCreateManyAndReturnArgs} args - Arguments to create many RealTrades.
+     * @example
+     * // Create many RealTrades
+     * const realTrade = await prisma.realTrade.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RealTrades and only return the `id`
+     * const realTradeWithIdOnly = await prisma.realTrade.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RealTradeCreateManyAndReturnArgs>(args?: SelectSubset<T, RealTradeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RealTrade.
+     * @param {RealTradeDeleteArgs} args - Arguments to delete one RealTrade.
+     * @example
+     * // Delete one RealTrade
+     * const RealTrade = await prisma.realTrade.delete({
+     *   where: {
+     *     // ... filter to delete one RealTrade
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RealTradeDeleteArgs>(args: SelectSubset<T, RealTradeDeleteArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RealTrade.
+     * @param {RealTradeUpdateArgs} args - Arguments to update one RealTrade.
+     * @example
+     * // Update one RealTrade
+     * const realTrade = await prisma.realTrade.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RealTradeUpdateArgs>(args: SelectSubset<T, RealTradeUpdateArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RealTrades.
+     * @param {RealTradeDeleteManyArgs} args - Arguments to filter RealTrades to delete.
+     * @example
+     * // Delete a few RealTrades
+     * const { count } = await prisma.realTrade.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RealTradeDeleteManyArgs>(args?: SelectSubset<T, RealTradeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealTrades.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RealTrades
+     * const realTrade = await prisma.realTrade.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RealTradeUpdateManyArgs>(args: SelectSubset<T, RealTradeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealTrades and returns the data updated in the database.
+     * @param {RealTradeUpdateManyAndReturnArgs} args - Arguments to update many RealTrades.
+     * @example
+     * // Update many RealTrades
+     * const realTrade = await prisma.realTrade.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RealTrades and only return the `id`
+     * const realTradeWithIdOnly = await prisma.realTrade.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RealTradeUpdateManyAndReturnArgs>(args: SelectSubset<T, RealTradeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RealTrade.
+     * @param {RealTradeUpsertArgs} args - Arguments to update or create a RealTrade.
+     * @example
+     * // Update or create a RealTrade
+     * const realTrade = await prisma.realTrade.upsert({
+     *   create: {
+     *     // ... data to create a RealTrade
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RealTrade we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RealTradeUpsertArgs>(args: SelectSubset<T, RealTradeUpsertArgs<ExtArgs>>): Prisma__RealTradeClient<$Result.GetResult<Prisma.$RealTradePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RealTrades.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeCountArgs} args - Arguments to filter RealTrades to count.
+     * @example
+     * // Count the number of RealTrades
+     * const count = await prisma.realTrade.count({
+     *   where: {
+     *     // ... the filter for the RealTrades we want to count
+     *   }
+     * })
+    **/
+    count<T extends RealTradeCountArgs>(
+      args?: Subset<T, RealTradeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RealTradeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RealTrade.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RealTradeAggregateArgs>(args: Subset<T, RealTradeAggregateArgs>): Prisma.PrismaPromise<GetRealTradeAggregateType<T>>
+
+    /**
+     * Group by RealTrade.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealTradeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RealTradeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RealTradeGroupByArgs['orderBy'] }
+        : { orderBy?: RealTradeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RealTradeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRealTradeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RealTrade model
+   */
+  readonly fields: RealTradeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RealTrade.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RealTradeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    order<T extends RealOrderDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RealOrderDefaultArgs<ExtArgs>>): Prisma__RealOrderClient<$Result.GetResult<Prisma.$RealOrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    position<T extends RealTrade$positionArgs<ExtArgs> = {}>(args?: Subset<T, RealTrade$positionArgs<ExtArgs>>): Prisma__RealPositionClient<$Result.GetResult<Prisma.$RealPositionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RealTrade model
+   */
+  interface RealTradeFieldRefs {
+    readonly id: FieldRef<"RealTrade", 'Int'>
+    readonly userId: FieldRef<"RealTrade", 'Int'>
+    readonly positionId: FieldRef<"RealTrade", 'Int'>
+    readonly orderId: FieldRef<"RealTrade", 'Int'>
+    readonly exchange: FieldRef<"RealTrade", 'String'>
+    readonly exchangeTradeId: FieldRef<"RealTrade", 'String'>
+    readonly symbol: FieldRef<"RealTrade", 'String'>
+    readonly side: FieldRef<"RealTrade", 'String'>
+    readonly quantity: FieldRef<"RealTrade", 'Decimal'>
+    readonly price: FieldRef<"RealTrade", 'Decimal'>
+    readonly fee: FieldRef<"RealTrade", 'Decimal'>
+    readonly feeCurrency: FieldRef<"RealTrade", 'String'>
+    readonly executedAt: FieldRef<"RealTrade", 'DateTime'>
+    readonly createdAt: FieldRef<"RealTrade", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RealTrade findUnique
+   */
+  export type RealTradeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * Filter, which RealTrade to fetch.
+     */
+    where: RealTradeWhereUniqueInput
+  }
+
+  /**
+   * RealTrade findUniqueOrThrow
+   */
+  export type RealTradeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * Filter, which RealTrade to fetch.
+     */
+    where: RealTradeWhereUniqueInput
+  }
+
+  /**
+   * RealTrade findFirst
+   */
+  export type RealTradeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * Filter, which RealTrade to fetch.
+     */
+    where?: RealTradeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealTrades to fetch.
+     */
+    orderBy?: RealTradeOrderByWithRelationInput | RealTradeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealTrades.
+     */
+    cursor?: RealTradeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealTrades from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealTrades.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealTrades.
+     */
+    distinct?: RealTradeScalarFieldEnum | RealTradeScalarFieldEnum[]
+  }
+
+  /**
+   * RealTrade findFirstOrThrow
+   */
+  export type RealTradeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * Filter, which RealTrade to fetch.
+     */
+    where?: RealTradeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealTrades to fetch.
+     */
+    orderBy?: RealTradeOrderByWithRelationInput | RealTradeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealTrades.
+     */
+    cursor?: RealTradeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealTrades from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealTrades.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealTrades.
+     */
+    distinct?: RealTradeScalarFieldEnum | RealTradeScalarFieldEnum[]
+  }
+
+  /**
+   * RealTrade findMany
+   */
+  export type RealTradeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * Filter, which RealTrades to fetch.
+     */
+    where?: RealTradeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealTrades to fetch.
+     */
+    orderBy?: RealTradeOrderByWithRelationInput | RealTradeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RealTrades.
+     */
+    cursor?: RealTradeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealTrades from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealTrades.
+     */
+    skip?: number
+    distinct?: RealTradeScalarFieldEnum | RealTradeScalarFieldEnum[]
+  }
+
+  /**
+   * RealTrade create
+   */
+  export type RealTradeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RealTrade.
+     */
+    data: XOR<RealTradeCreateInput, RealTradeUncheckedCreateInput>
+  }
+
+  /**
+   * RealTrade createMany
+   */
+  export type RealTradeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RealTrades.
+     */
+    data: RealTradeCreateManyInput | RealTradeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RealTrade createManyAndReturn
+   */
+  export type RealTradeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * The data used to create many RealTrades.
+     */
+    data: RealTradeCreateManyInput | RealTradeCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RealTrade update
+   */
+  export type RealTradeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RealTrade.
+     */
+    data: XOR<RealTradeUpdateInput, RealTradeUncheckedUpdateInput>
+    /**
+     * Choose, which RealTrade to update.
+     */
+    where: RealTradeWhereUniqueInput
+  }
+
+  /**
+   * RealTrade updateMany
+   */
+  export type RealTradeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RealTrades.
+     */
+    data: XOR<RealTradeUpdateManyMutationInput, RealTradeUncheckedUpdateManyInput>
+    /**
+     * Filter which RealTrades to update
+     */
+    where?: RealTradeWhereInput
+    /**
+     * Limit how many RealTrades to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealTrade updateManyAndReturn
+   */
+  export type RealTradeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * The data used to update RealTrades.
+     */
+    data: XOR<RealTradeUpdateManyMutationInput, RealTradeUncheckedUpdateManyInput>
+    /**
+     * Filter which RealTrades to update
+     */
+    where?: RealTradeWhereInput
+    /**
+     * Limit how many RealTrades to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RealTrade upsert
+   */
+  export type RealTradeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RealTrade to update in case it exists.
+     */
+    where: RealTradeWhereUniqueInput
+    /**
+     * In case the RealTrade found by the `where` argument doesn't exist, create a new RealTrade with this data.
+     */
+    create: XOR<RealTradeCreateInput, RealTradeUncheckedCreateInput>
+    /**
+     * In case the RealTrade was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RealTradeUpdateInput, RealTradeUncheckedUpdateInput>
+  }
+
+  /**
+   * RealTrade delete
+   */
+  export type RealTradeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+    /**
+     * Filter which RealTrade to delete.
+     */
+    where: RealTradeWhereUniqueInput
+  }
+
+  /**
+   * RealTrade deleteMany
+   */
+  export type RealTradeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealTrades to delete
+     */
+    where?: RealTradeWhereInput
+    /**
+     * Limit how many RealTrades to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealTrade.position
+   */
+  export type RealTrade$positionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealPosition
+     */
+    select?: RealPositionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealPosition
+     */
+    omit?: RealPositionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealPositionInclude<ExtArgs> | null
+    where?: RealPositionWhereInput
+  }
+
+  /**
+   * RealTrade without action
+   */
+  export type RealTradeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealTrade
+     */
+    select?: RealTradeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealTrade
+     */
+    omit?: RealTradeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RealTradeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model BalanceSnapshot
+   */
+
+  export type AggregateBalanceSnapshot = {
+    _count: BalanceSnapshotCountAggregateOutputType | null
+    _avg: BalanceSnapshotAvgAggregateOutputType | null
+    _sum: BalanceSnapshotSumAggregateOutputType | null
+    _min: BalanceSnapshotMinAggregateOutputType | null
+    _max: BalanceSnapshotMaxAggregateOutputType | null
+  }
+
+  export type BalanceSnapshotAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    available: Decimal | null
+    locked: Decimal | null
+    total: Decimal | null
+    usdValue: Decimal | null
+    krwValue: Decimal | null
+  }
+
+  export type BalanceSnapshotSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    available: Decimal | null
+    locked: Decimal | null
+    total: Decimal | null
+    usdValue: Decimal | null
+    krwValue: Decimal | null
+  }
+
+  export type BalanceSnapshotMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    exchange: string | null
+    currency: string | null
+    available: Decimal | null
+    locked: Decimal | null
+    total: Decimal | null
+    usdValue: Decimal | null
+    krwValue: Decimal | null
+    createdAt: Date | null
+  }
+
+  export type BalanceSnapshotMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    exchange: string | null
+    currency: string | null
+    available: Decimal | null
+    locked: Decimal | null
+    total: Decimal | null
+    usdValue: Decimal | null
+    krwValue: Decimal | null
+    createdAt: Date | null
+  }
+
+  export type BalanceSnapshotCountAggregateOutputType = {
+    id: number
+    userId: number
+    exchange: number
+    currency: number
+    available: number
+    locked: number
+    total: number
+    usdValue: number
+    krwValue: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type BalanceSnapshotAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    available?: true
+    locked?: true
+    total?: true
+    usdValue?: true
+    krwValue?: true
+  }
+
+  export type BalanceSnapshotSumAggregateInputType = {
+    id?: true
+    userId?: true
+    available?: true
+    locked?: true
+    total?: true
+    usdValue?: true
+    krwValue?: true
+  }
+
+  export type BalanceSnapshotMinAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    currency?: true
+    available?: true
+    locked?: true
+    total?: true
+    usdValue?: true
+    krwValue?: true
+    createdAt?: true
+  }
+
+  export type BalanceSnapshotMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    currency?: true
+    available?: true
+    locked?: true
+    total?: true
+    usdValue?: true
+    krwValue?: true
+    createdAt?: true
+  }
+
+  export type BalanceSnapshotCountAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    currency?: true
+    available?: true
+    locked?: true
+    total?: true
+    usdValue?: true
+    krwValue?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type BalanceSnapshotAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BalanceSnapshot to aggregate.
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BalanceSnapshots to fetch.
+     */
+    orderBy?: BalanceSnapshotOrderByWithRelationInput | BalanceSnapshotOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: BalanceSnapshotWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BalanceSnapshots from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BalanceSnapshots.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned BalanceSnapshots
+    **/
+    _count?: true | BalanceSnapshotCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: BalanceSnapshotAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: BalanceSnapshotSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: BalanceSnapshotMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: BalanceSnapshotMaxAggregateInputType
+  }
+
+  export type GetBalanceSnapshotAggregateType<T extends BalanceSnapshotAggregateArgs> = {
+        [P in keyof T & keyof AggregateBalanceSnapshot]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBalanceSnapshot[P]>
+      : GetScalarType<T[P], AggregateBalanceSnapshot[P]>
+  }
+
+
+
+
+  export type BalanceSnapshotGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BalanceSnapshotWhereInput
+    orderBy?: BalanceSnapshotOrderByWithAggregationInput | BalanceSnapshotOrderByWithAggregationInput[]
+    by: BalanceSnapshotScalarFieldEnum[] | BalanceSnapshotScalarFieldEnum
+    having?: BalanceSnapshotScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: BalanceSnapshotCountAggregateInputType | true
+    _avg?: BalanceSnapshotAvgAggregateInputType
+    _sum?: BalanceSnapshotSumAggregateInputType
+    _min?: BalanceSnapshotMinAggregateInputType
+    _max?: BalanceSnapshotMaxAggregateInputType
+  }
+
+  export type BalanceSnapshotGroupByOutputType = {
+    id: number
+    userId: number
+    exchange: string
+    currency: string
+    available: Decimal
+    locked: Decimal
+    total: Decimal
+    usdValue: Decimal | null
+    krwValue: Decimal | null
+    createdAt: Date
+    _count: BalanceSnapshotCountAggregateOutputType | null
+    _avg: BalanceSnapshotAvgAggregateOutputType | null
+    _sum: BalanceSnapshotSumAggregateOutputType | null
+    _min: BalanceSnapshotMinAggregateOutputType | null
+    _max: BalanceSnapshotMaxAggregateOutputType | null
+  }
+
+  type GetBalanceSnapshotGroupByPayload<T extends BalanceSnapshotGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<BalanceSnapshotGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof BalanceSnapshotGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], BalanceSnapshotGroupByOutputType[P]>
+            : GetScalarType<T[P], BalanceSnapshotGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type BalanceSnapshotSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    currency?: boolean
+    available?: boolean
+    locked?: boolean
+    total?: boolean
+    usdValue?: boolean
+    krwValue?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["balanceSnapshot"]>
+
+  export type BalanceSnapshotSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    currency?: boolean
+    available?: boolean
+    locked?: boolean
+    total?: boolean
+    usdValue?: boolean
+    krwValue?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["balanceSnapshot"]>
+
+  export type BalanceSnapshotSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    currency?: boolean
+    available?: boolean
+    locked?: boolean
+    total?: boolean
+    usdValue?: boolean
+    krwValue?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["balanceSnapshot"]>
+
+  export type BalanceSnapshotSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    currency?: boolean
+    available?: boolean
+    locked?: boolean
+    total?: boolean
+    usdValue?: boolean
+    krwValue?: boolean
+    createdAt?: boolean
+  }
+
+  export type BalanceSnapshotOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "exchange" | "currency" | "available" | "locked" | "total" | "usdValue" | "krwValue" | "createdAt", ExtArgs["result"]["balanceSnapshot"]>
+
+  export type $BalanceSnapshotPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "BalanceSnapshot"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      exchange: string
+      currency: string
+      available: Prisma.Decimal
+      locked: Prisma.Decimal
+      total: Prisma.Decimal
+      usdValue: Prisma.Decimal | null
+      krwValue: Prisma.Decimal | null
+      createdAt: Date
+    }, ExtArgs["result"]["balanceSnapshot"]>
+    composites: {}
+  }
+
+  type BalanceSnapshotGetPayload<S extends boolean | null | undefined | BalanceSnapshotDefaultArgs> = $Result.GetResult<Prisma.$BalanceSnapshotPayload, S>
+
+  type BalanceSnapshotCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<BalanceSnapshotFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: BalanceSnapshotCountAggregateInputType | true
+    }
+
+  export interface BalanceSnapshotDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['BalanceSnapshot'], meta: { name: 'BalanceSnapshot' } }
+    /**
+     * Find zero or one BalanceSnapshot that matches the filter.
+     * @param {BalanceSnapshotFindUniqueArgs} args - Arguments to find a BalanceSnapshot
+     * @example
+     * // Get one BalanceSnapshot
+     * const balanceSnapshot = await prisma.balanceSnapshot.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends BalanceSnapshotFindUniqueArgs>(args: SelectSubset<T, BalanceSnapshotFindUniqueArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one BalanceSnapshot that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {BalanceSnapshotFindUniqueOrThrowArgs} args - Arguments to find a BalanceSnapshot
+     * @example
+     * // Get one BalanceSnapshot
+     * const balanceSnapshot = await prisma.balanceSnapshot.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends BalanceSnapshotFindUniqueOrThrowArgs>(args: SelectSubset<T, BalanceSnapshotFindUniqueOrThrowArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BalanceSnapshot that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotFindFirstArgs} args - Arguments to find a BalanceSnapshot
+     * @example
+     * // Get one BalanceSnapshot
+     * const balanceSnapshot = await prisma.balanceSnapshot.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends BalanceSnapshotFindFirstArgs>(args?: SelectSubset<T, BalanceSnapshotFindFirstArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BalanceSnapshot that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotFindFirstOrThrowArgs} args - Arguments to find a BalanceSnapshot
+     * @example
+     * // Get one BalanceSnapshot
+     * const balanceSnapshot = await prisma.balanceSnapshot.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends BalanceSnapshotFindFirstOrThrowArgs>(args?: SelectSubset<T, BalanceSnapshotFindFirstOrThrowArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more BalanceSnapshots that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all BalanceSnapshots
+     * const balanceSnapshots = await prisma.balanceSnapshot.findMany()
+     * 
+     * // Get first 10 BalanceSnapshots
+     * const balanceSnapshots = await prisma.balanceSnapshot.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const balanceSnapshotWithIdOnly = await prisma.balanceSnapshot.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends BalanceSnapshotFindManyArgs>(args?: SelectSubset<T, BalanceSnapshotFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a BalanceSnapshot.
+     * @param {BalanceSnapshotCreateArgs} args - Arguments to create a BalanceSnapshot.
+     * @example
+     * // Create one BalanceSnapshot
+     * const BalanceSnapshot = await prisma.balanceSnapshot.create({
+     *   data: {
+     *     // ... data to create a BalanceSnapshot
+     *   }
+     * })
+     * 
+     */
+    create<T extends BalanceSnapshotCreateArgs>(args: SelectSubset<T, BalanceSnapshotCreateArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many BalanceSnapshots.
+     * @param {BalanceSnapshotCreateManyArgs} args - Arguments to create many BalanceSnapshots.
+     * @example
+     * // Create many BalanceSnapshots
+     * const balanceSnapshot = await prisma.balanceSnapshot.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends BalanceSnapshotCreateManyArgs>(args?: SelectSubset<T, BalanceSnapshotCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many BalanceSnapshots and returns the data saved in the database.
+     * @param {BalanceSnapshotCreateManyAndReturnArgs} args - Arguments to create many BalanceSnapshots.
+     * @example
+     * // Create many BalanceSnapshots
+     * const balanceSnapshot = await prisma.balanceSnapshot.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many BalanceSnapshots and only return the `id`
+     * const balanceSnapshotWithIdOnly = await prisma.balanceSnapshot.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends BalanceSnapshotCreateManyAndReturnArgs>(args?: SelectSubset<T, BalanceSnapshotCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a BalanceSnapshot.
+     * @param {BalanceSnapshotDeleteArgs} args - Arguments to delete one BalanceSnapshot.
+     * @example
+     * // Delete one BalanceSnapshot
+     * const BalanceSnapshot = await prisma.balanceSnapshot.delete({
+     *   where: {
+     *     // ... filter to delete one BalanceSnapshot
+     *   }
+     * })
+     * 
+     */
+    delete<T extends BalanceSnapshotDeleteArgs>(args: SelectSubset<T, BalanceSnapshotDeleteArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one BalanceSnapshot.
+     * @param {BalanceSnapshotUpdateArgs} args - Arguments to update one BalanceSnapshot.
+     * @example
+     * // Update one BalanceSnapshot
+     * const balanceSnapshot = await prisma.balanceSnapshot.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends BalanceSnapshotUpdateArgs>(args: SelectSubset<T, BalanceSnapshotUpdateArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more BalanceSnapshots.
+     * @param {BalanceSnapshotDeleteManyArgs} args - Arguments to filter BalanceSnapshots to delete.
+     * @example
+     * // Delete a few BalanceSnapshots
+     * const { count } = await prisma.balanceSnapshot.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends BalanceSnapshotDeleteManyArgs>(args?: SelectSubset<T, BalanceSnapshotDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BalanceSnapshots.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many BalanceSnapshots
+     * const balanceSnapshot = await prisma.balanceSnapshot.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends BalanceSnapshotUpdateManyArgs>(args: SelectSubset<T, BalanceSnapshotUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BalanceSnapshots and returns the data updated in the database.
+     * @param {BalanceSnapshotUpdateManyAndReturnArgs} args - Arguments to update many BalanceSnapshots.
+     * @example
+     * // Update many BalanceSnapshots
+     * const balanceSnapshot = await prisma.balanceSnapshot.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more BalanceSnapshots and only return the `id`
+     * const balanceSnapshotWithIdOnly = await prisma.balanceSnapshot.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends BalanceSnapshotUpdateManyAndReturnArgs>(args: SelectSubset<T, BalanceSnapshotUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one BalanceSnapshot.
+     * @param {BalanceSnapshotUpsertArgs} args - Arguments to update or create a BalanceSnapshot.
+     * @example
+     * // Update or create a BalanceSnapshot
+     * const balanceSnapshot = await prisma.balanceSnapshot.upsert({
+     *   create: {
+     *     // ... data to create a BalanceSnapshot
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the BalanceSnapshot we want to update
+     *   }
+     * })
+     */
+    upsert<T extends BalanceSnapshotUpsertArgs>(args: SelectSubset<T, BalanceSnapshotUpsertArgs<ExtArgs>>): Prisma__BalanceSnapshotClient<$Result.GetResult<Prisma.$BalanceSnapshotPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of BalanceSnapshots.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotCountArgs} args - Arguments to filter BalanceSnapshots to count.
+     * @example
+     * // Count the number of BalanceSnapshots
+     * const count = await prisma.balanceSnapshot.count({
+     *   where: {
+     *     // ... the filter for the BalanceSnapshots we want to count
+     *   }
+     * })
+    **/
+    count<T extends BalanceSnapshotCountArgs>(
+      args?: Subset<T, BalanceSnapshotCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], BalanceSnapshotCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a BalanceSnapshot.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends BalanceSnapshotAggregateArgs>(args: Subset<T, BalanceSnapshotAggregateArgs>): Prisma.PrismaPromise<GetBalanceSnapshotAggregateType<T>>
+
+    /**
+     * Group by BalanceSnapshot.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BalanceSnapshotGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends BalanceSnapshotGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: BalanceSnapshotGroupByArgs['orderBy'] }
+        : { orderBy?: BalanceSnapshotGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, BalanceSnapshotGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBalanceSnapshotGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the BalanceSnapshot model
+   */
+  readonly fields: BalanceSnapshotFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for BalanceSnapshot.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__BalanceSnapshotClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the BalanceSnapshot model
+   */
+  interface BalanceSnapshotFieldRefs {
+    readonly id: FieldRef<"BalanceSnapshot", 'Int'>
+    readonly userId: FieldRef<"BalanceSnapshot", 'Int'>
+    readonly exchange: FieldRef<"BalanceSnapshot", 'String'>
+    readonly currency: FieldRef<"BalanceSnapshot", 'String'>
+    readonly available: FieldRef<"BalanceSnapshot", 'Decimal'>
+    readonly locked: FieldRef<"BalanceSnapshot", 'Decimal'>
+    readonly total: FieldRef<"BalanceSnapshot", 'Decimal'>
+    readonly usdValue: FieldRef<"BalanceSnapshot", 'Decimal'>
+    readonly krwValue: FieldRef<"BalanceSnapshot", 'Decimal'>
+    readonly createdAt: FieldRef<"BalanceSnapshot", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * BalanceSnapshot findUnique
+   */
+  export type BalanceSnapshotFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * Filter, which BalanceSnapshot to fetch.
+     */
+    where: BalanceSnapshotWhereUniqueInput
+  }
+
+  /**
+   * BalanceSnapshot findUniqueOrThrow
+   */
+  export type BalanceSnapshotFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * Filter, which BalanceSnapshot to fetch.
+     */
+    where: BalanceSnapshotWhereUniqueInput
+  }
+
+  /**
+   * BalanceSnapshot findFirst
+   */
+  export type BalanceSnapshotFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * Filter, which BalanceSnapshot to fetch.
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BalanceSnapshots to fetch.
+     */
+    orderBy?: BalanceSnapshotOrderByWithRelationInput | BalanceSnapshotOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BalanceSnapshots.
+     */
+    cursor?: BalanceSnapshotWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BalanceSnapshots from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BalanceSnapshots.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BalanceSnapshots.
+     */
+    distinct?: BalanceSnapshotScalarFieldEnum | BalanceSnapshotScalarFieldEnum[]
+  }
+
+  /**
+   * BalanceSnapshot findFirstOrThrow
+   */
+  export type BalanceSnapshotFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * Filter, which BalanceSnapshot to fetch.
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BalanceSnapshots to fetch.
+     */
+    orderBy?: BalanceSnapshotOrderByWithRelationInput | BalanceSnapshotOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BalanceSnapshots.
+     */
+    cursor?: BalanceSnapshotWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BalanceSnapshots from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BalanceSnapshots.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BalanceSnapshots.
+     */
+    distinct?: BalanceSnapshotScalarFieldEnum | BalanceSnapshotScalarFieldEnum[]
+  }
+
+  /**
+   * BalanceSnapshot findMany
+   */
+  export type BalanceSnapshotFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * Filter, which BalanceSnapshots to fetch.
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BalanceSnapshots to fetch.
+     */
+    orderBy?: BalanceSnapshotOrderByWithRelationInput | BalanceSnapshotOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing BalanceSnapshots.
+     */
+    cursor?: BalanceSnapshotWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BalanceSnapshots from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BalanceSnapshots.
+     */
+    skip?: number
+    distinct?: BalanceSnapshotScalarFieldEnum | BalanceSnapshotScalarFieldEnum[]
+  }
+
+  /**
+   * BalanceSnapshot create
+   */
+  export type BalanceSnapshotCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * The data needed to create a BalanceSnapshot.
+     */
+    data: XOR<BalanceSnapshotCreateInput, BalanceSnapshotUncheckedCreateInput>
+  }
+
+  /**
+   * BalanceSnapshot createMany
+   */
+  export type BalanceSnapshotCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many BalanceSnapshots.
+     */
+    data: BalanceSnapshotCreateManyInput | BalanceSnapshotCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BalanceSnapshot createManyAndReturn
+   */
+  export type BalanceSnapshotCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * The data used to create many BalanceSnapshots.
+     */
+    data: BalanceSnapshotCreateManyInput | BalanceSnapshotCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BalanceSnapshot update
+   */
+  export type BalanceSnapshotUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * The data needed to update a BalanceSnapshot.
+     */
+    data: XOR<BalanceSnapshotUpdateInput, BalanceSnapshotUncheckedUpdateInput>
+    /**
+     * Choose, which BalanceSnapshot to update.
+     */
+    where: BalanceSnapshotWhereUniqueInput
+  }
+
+  /**
+   * BalanceSnapshot updateMany
+   */
+  export type BalanceSnapshotUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update BalanceSnapshots.
+     */
+    data: XOR<BalanceSnapshotUpdateManyMutationInput, BalanceSnapshotUncheckedUpdateManyInput>
+    /**
+     * Filter which BalanceSnapshots to update
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * Limit how many BalanceSnapshots to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * BalanceSnapshot updateManyAndReturn
+   */
+  export type BalanceSnapshotUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * The data used to update BalanceSnapshots.
+     */
+    data: XOR<BalanceSnapshotUpdateManyMutationInput, BalanceSnapshotUncheckedUpdateManyInput>
+    /**
+     * Filter which BalanceSnapshots to update
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * Limit how many BalanceSnapshots to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * BalanceSnapshot upsert
+   */
+  export type BalanceSnapshotUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * The filter to search for the BalanceSnapshot to update in case it exists.
+     */
+    where: BalanceSnapshotWhereUniqueInput
+    /**
+     * In case the BalanceSnapshot found by the `where` argument doesn't exist, create a new BalanceSnapshot with this data.
+     */
+    create: XOR<BalanceSnapshotCreateInput, BalanceSnapshotUncheckedCreateInput>
+    /**
+     * In case the BalanceSnapshot was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<BalanceSnapshotUpdateInput, BalanceSnapshotUncheckedUpdateInput>
+  }
+
+  /**
+   * BalanceSnapshot delete
+   */
+  export type BalanceSnapshotDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+    /**
+     * Filter which BalanceSnapshot to delete.
+     */
+    where: BalanceSnapshotWhereUniqueInput
+  }
+
+  /**
+   * BalanceSnapshot deleteMany
+   */
+  export type BalanceSnapshotDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BalanceSnapshots to delete
+     */
+    where?: BalanceSnapshotWhereInput
+    /**
+     * Limit how many BalanceSnapshots to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * BalanceSnapshot without action
+   */
+  export type BalanceSnapshotDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BalanceSnapshot
+     */
+    select?: BalanceSnapshotSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BalanceSnapshot
+     */
+    omit?: BalanceSnapshotOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ExchangeConnection
+   */
+
+  export type AggregateExchangeConnection = {
+    _count: ExchangeConnectionCountAggregateOutputType | null
+    _avg: ExchangeConnectionAvgAggregateOutputType | null
+    _sum: ExchangeConnectionSumAggregateOutputType | null
+    _min: ExchangeConnectionMinAggregateOutputType | null
+    _max: ExchangeConnectionMaxAggregateOutputType | null
+  }
+
+  export type ExchangeConnectionAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type ExchangeConnectionSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+  }
+
+  export type ExchangeConnectionMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    exchange: string | null
+    connected: boolean | null
+    lastChecked: Date | null
+    error: string | null
+    balanceAvailable: boolean | null
+    tradingEnabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ExchangeConnectionMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    exchange: string | null
+    connected: boolean | null
+    lastChecked: Date | null
+    error: string | null
+    balanceAvailable: boolean | null
+    tradingEnabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ExchangeConnectionCountAggregateOutputType = {
+    id: number
+    userId: number
+    exchange: number
+    connected: number
+    lastChecked: number
+    error: number
+    permissions: number
+    balanceAvailable: number
+    tradingEnabled: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ExchangeConnectionAvgAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type ExchangeConnectionSumAggregateInputType = {
+    id?: true
+    userId?: true
+  }
+
+  export type ExchangeConnectionMinAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    connected?: true
+    lastChecked?: true
+    error?: true
+    balanceAvailable?: true
+    tradingEnabled?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ExchangeConnectionMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    connected?: true
+    lastChecked?: true
+    error?: true
+    balanceAvailable?: true
+    tradingEnabled?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ExchangeConnectionCountAggregateInputType = {
+    id?: true
+    userId?: true
+    exchange?: true
+    connected?: true
+    lastChecked?: true
+    error?: true
+    permissions?: true
+    balanceAvailable?: true
+    tradingEnabled?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ExchangeConnectionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ExchangeConnection to aggregate.
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExchangeConnections to fetch.
+     */
+    orderBy?: ExchangeConnectionOrderByWithRelationInput | ExchangeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ExchangeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExchangeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExchangeConnections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ExchangeConnections
+    **/
+    _count?: true | ExchangeConnectionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ExchangeConnectionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ExchangeConnectionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ExchangeConnectionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ExchangeConnectionMaxAggregateInputType
+  }
+
+  export type GetExchangeConnectionAggregateType<T extends ExchangeConnectionAggregateArgs> = {
+        [P in keyof T & keyof AggregateExchangeConnection]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateExchangeConnection[P]>
+      : GetScalarType<T[P], AggregateExchangeConnection[P]>
+  }
+
+
+
+
+  export type ExchangeConnectionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ExchangeConnectionWhereInput
+    orderBy?: ExchangeConnectionOrderByWithAggregationInput | ExchangeConnectionOrderByWithAggregationInput[]
+    by: ExchangeConnectionScalarFieldEnum[] | ExchangeConnectionScalarFieldEnum
+    having?: ExchangeConnectionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ExchangeConnectionCountAggregateInputType | true
+    _avg?: ExchangeConnectionAvgAggregateInputType
+    _sum?: ExchangeConnectionSumAggregateInputType
+    _min?: ExchangeConnectionMinAggregateInputType
+    _max?: ExchangeConnectionMaxAggregateInputType
+  }
+
+  export type ExchangeConnectionGroupByOutputType = {
+    id: number
+    userId: number
+    exchange: string
+    connected: boolean
+    lastChecked: Date
+    error: string | null
+    permissions: JsonValue | null
+    balanceAvailable: boolean
+    tradingEnabled: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: ExchangeConnectionCountAggregateOutputType | null
+    _avg: ExchangeConnectionAvgAggregateOutputType | null
+    _sum: ExchangeConnectionSumAggregateOutputType | null
+    _min: ExchangeConnectionMinAggregateOutputType | null
+    _max: ExchangeConnectionMaxAggregateOutputType | null
+  }
+
+  type GetExchangeConnectionGroupByPayload<T extends ExchangeConnectionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ExchangeConnectionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ExchangeConnectionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ExchangeConnectionGroupByOutputType[P]>
+            : GetScalarType<T[P], ExchangeConnectionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ExchangeConnectionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    connected?: boolean
+    lastChecked?: boolean
+    error?: boolean
+    permissions?: boolean
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["exchangeConnection"]>
+
+  export type ExchangeConnectionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    connected?: boolean
+    lastChecked?: boolean
+    error?: boolean
+    permissions?: boolean
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["exchangeConnection"]>
+
+  export type ExchangeConnectionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    connected?: boolean
+    lastChecked?: boolean
+    error?: boolean
+    permissions?: boolean
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["exchangeConnection"]>
+
+  export type ExchangeConnectionSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    exchange?: boolean
+    connected?: boolean
+    lastChecked?: boolean
+    error?: boolean
+    permissions?: boolean
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ExchangeConnectionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "exchange" | "connected" | "lastChecked" | "error" | "permissions" | "balanceAvailable" | "tradingEnabled" | "createdAt" | "updatedAt", ExtArgs["result"]["exchangeConnection"]>
+
+  export type $ExchangeConnectionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ExchangeConnection"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      exchange: string
+      connected: boolean
+      lastChecked: Date
+      error: string | null
+      permissions: Prisma.JsonValue | null
+      balanceAvailable: boolean
+      tradingEnabled: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["exchangeConnection"]>
+    composites: {}
+  }
+
+  type ExchangeConnectionGetPayload<S extends boolean | null | undefined | ExchangeConnectionDefaultArgs> = $Result.GetResult<Prisma.$ExchangeConnectionPayload, S>
+
+  type ExchangeConnectionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ExchangeConnectionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ExchangeConnectionCountAggregateInputType | true
+    }
+
+  export interface ExchangeConnectionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ExchangeConnection'], meta: { name: 'ExchangeConnection' } }
+    /**
+     * Find zero or one ExchangeConnection that matches the filter.
+     * @param {ExchangeConnectionFindUniqueArgs} args - Arguments to find a ExchangeConnection
+     * @example
+     * // Get one ExchangeConnection
+     * const exchangeConnection = await prisma.exchangeConnection.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ExchangeConnectionFindUniqueArgs>(args: SelectSubset<T, ExchangeConnectionFindUniqueArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one ExchangeConnection that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ExchangeConnectionFindUniqueOrThrowArgs} args - Arguments to find a ExchangeConnection
+     * @example
+     * // Get one ExchangeConnection
+     * const exchangeConnection = await prisma.exchangeConnection.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ExchangeConnectionFindUniqueOrThrowArgs>(args: SelectSubset<T, ExchangeConnectionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ExchangeConnection that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionFindFirstArgs} args - Arguments to find a ExchangeConnection
+     * @example
+     * // Get one ExchangeConnection
+     * const exchangeConnection = await prisma.exchangeConnection.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ExchangeConnectionFindFirstArgs>(args?: SelectSubset<T, ExchangeConnectionFindFirstArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first ExchangeConnection that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionFindFirstOrThrowArgs} args - Arguments to find a ExchangeConnection
+     * @example
+     * // Get one ExchangeConnection
+     * const exchangeConnection = await prisma.exchangeConnection.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ExchangeConnectionFindFirstOrThrowArgs>(args?: SelectSubset<T, ExchangeConnectionFindFirstOrThrowArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more ExchangeConnections that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ExchangeConnections
+     * const exchangeConnections = await prisma.exchangeConnection.findMany()
+     * 
+     * // Get first 10 ExchangeConnections
+     * const exchangeConnections = await prisma.exchangeConnection.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const exchangeConnectionWithIdOnly = await prisma.exchangeConnection.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ExchangeConnectionFindManyArgs>(args?: SelectSubset<T, ExchangeConnectionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a ExchangeConnection.
+     * @param {ExchangeConnectionCreateArgs} args - Arguments to create a ExchangeConnection.
+     * @example
+     * // Create one ExchangeConnection
+     * const ExchangeConnection = await prisma.exchangeConnection.create({
+     *   data: {
+     *     // ... data to create a ExchangeConnection
+     *   }
+     * })
+     * 
+     */
+    create<T extends ExchangeConnectionCreateArgs>(args: SelectSubset<T, ExchangeConnectionCreateArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many ExchangeConnections.
+     * @param {ExchangeConnectionCreateManyArgs} args - Arguments to create many ExchangeConnections.
+     * @example
+     * // Create many ExchangeConnections
+     * const exchangeConnection = await prisma.exchangeConnection.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ExchangeConnectionCreateManyArgs>(args?: SelectSubset<T, ExchangeConnectionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ExchangeConnections and returns the data saved in the database.
+     * @param {ExchangeConnectionCreateManyAndReturnArgs} args - Arguments to create many ExchangeConnections.
+     * @example
+     * // Create many ExchangeConnections
+     * const exchangeConnection = await prisma.exchangeConnection.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ExchangeConnections and only return the `id`
+     * const exchangeConnectionWithIdOnly = await prisma.exchangeConnection.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ExchangeConnectionCreateManyAndReturnArgs>(args?: SelectSubset<T, ExchangeConnectionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a ExchangeConnection.
+     * @param {ExchangeConnectionDeleteArgs} args - Arguments to delete one ExchangeConnection.
+     * @example
+     * // Delete one ExchangeConnection
+     * const ExchangeConnection = await prisma.exchangeConnection.delete({
+     *   where: {
+     *     // ... filter to delete one ExchangeConnection
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ExchangeConnectionDeleteArgs>(args: SelectSubset<T, ExchangeConnectionDeleteArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one ExchangeConnection.
+     * @param {ExchangeConnectionUpdateArgs} args - Arguments to update one ExchangeConnection.
+     * @example
+     * // Update one ExchangeConnection
+     * const exchangeConnection = await prisma.exchangeConnection.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ExchangeConnectionUpdateArgs>(args: SelectSubset<T, ExchangeConnectionUpdateArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more ExchangeConnections.
+     * @param {ExchangeConnectionDeleteManyArgs} args - Arguments to filter ExchangeConnections to delete.
+     * @example
+     * // Delete a few ExchangeConnections
+     * const { count } = await prisma.exchangeConnection.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ExchangeConnectionDeleteManyArgs>(args?: SelectSubset<T, ExchangeConnectionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ExchangeConnections.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ExchangeConnections
+     * const exchangeConnection = await prisma.exchangeConnection.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ExchangeConnectionUpdateManyArgs>(args: SelectSubset<T, ExchangeConnectionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ExchangeConnections and returns the data updated in the database.
+     * @param {ExchangeConnectionUpdateManyAndReturnArgs} args - Arguments to update many ExchangeConnections.
+     * @example
+     * // Update many ExchangeConnections
+     * const exchangeConnection = await prisma.exchangeConnection.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ExchangeConnections and only return the `id`
+     * const exchangeConnectionWithIdOnly = await prisma.exchangeConnection.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ExchangeConnectionUpdateManyAndReturnArgs>(args: SelectSubset<T, ExchangeConnectionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one ExchangeConnection.
+     * @param {ExchangeConnectionUpsertArgs} args - Arguments to update or create a ExchangeConnection.
+     * @example
+     * // Update or create a ExchangeConnection
+     * const exchangeConnection = await prisma.exchangeConnection.upsert({
+     *   create: {
+     *     // ... data to create a ExchangeConnection
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ExchangeConnection we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ExchangeConnectionUpsertArgs>(args: SelectSubset<T, ExchangeConnectionUpsertArgs<ExtArgs>>): Prisma__ExchangeConnectionClient<$Result.GetResult<Prisma.$ExchangeConnectionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of ExchangeConnections.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionCountArgs} args - Arguments to filter ExchangeConnections to count.
+     * @example
+     * // Count the number of ExchangeConnections
+     * const count = await prisma.exchangeConnection.count({
+     *   where: {
+     *     // ... the filter for the ExchangeConnections we want to count
+     *   }
+     * })
+    **/
+    count<T extends ExchangeConnectionCountArgs>(
+      args?: Subset<T, ExchangeConnectionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ExchangeConnectionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ExchangeConnection.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ExchangeConnectionAggregateArgs>(args: Subset<T, ExchangeConnectionAggregateArgs>): Prisma.PrismaPromise<GetExchangeConnectionAggregateType<T>>
+
+    /**
+     * Group by ExchangeConnection.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ExchangeConnectionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ExchangeConnectionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ExchangeConnectionGroupByArgs['orderBy'] }
+        : { orderBy?: ExchangeConnectionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ExchangeConnectionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetExchangeConnectionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ExchangeConnection model
+   */
+  readonly fields: ExchangeConnectionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ExchangeConnection.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ExchangeConnectionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ExchangeConnection model
+   */
+  interface ExchangeConnectionFieldRefs {
+    readonly id: FieldRef<"ExchangeConnection", 'Int'>
+    readonly userId: FieldRef<"ExchangeConnection", 'Int'>
+    readonly exchange: FieldRef<"ExchangeConnection", 'String'>
+    readonly connected: FieldRef<"ExchangeConnection", 'Boolean'>
+    readonly lastChecked: FieldRef<"ExchangeConnection", 'DateTime'>
+    readonly error: FieldRef<"ExchangeConnection", 'String'>
+    readonly permissions: FieldRef<"ExchangeConnection", 'Json'>
+    readonly balanceAvailable: FieldRef<"ExchangeConnection", 'Boolean'>
+    readonly tradingEnabled: FieldRef<"ExchangeConnection", 'Boolean'>
+    readonly createdAt: FieldRef<"ExchangeConnection", 'DateTime'>
+    readonly updatedAt: FieldRef<"ExchangeConnection", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ExchangeConnection findUnique
+   */
+  export type ExchangeConnectionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * Filter, which ExchangeConnection to fetch.
+     */
+    where: ExchangeConnectionWhereUniqueInput
+  }
+
+  /**
+   * ExchangeConnection findUniqueOrThrow
+   */
+  export type ExchangeConnectionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * Filter, which ExchangeConnection to fetch.
+     */
+    where: ExchangeConnectionWhereUniqueInput
+  }
+
+  /**
+   * ExchangeConnection findFirst
+   */
+  export type ExchangeConnectionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * Filter, which ExchangeConnection to fetch.
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExchangeConnections to fetch.
+     */
+    orderBy?: ExchangeConnectionOrderByWithRelationInput | ExchangeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ExchangeConnections.
+     */
+    cursor?: ExchangeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExchangeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExchangeConnections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ExchangeConnections.
+     */
+    distinct?: ExchangeConnectionScalarFieldEnum | ExchangeConnectionScalarFieldEnum[]
+  }
+
+  /**
+   * ExchangeConnection findFirstOrThrow
+   */
+  export type ExchangeConnectionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * Filter, which ExchangeConnection to fetch.
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExchangeConnections to fetch.
+     */
+    orderBy?: ExchangeConnectionOrderByWithRelationInput | ExchangeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ExchangeConnections.
+     */
+    cursor?: ExchangeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExchangeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExchangeConnections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ExchangeConnections.
+     */
+    distinct?: ExchangeConnectionScalarFieldEnum | ExchangeConnectionScalarFieldEnum[]
+  }
+
+  /**
+   * ExchangeConnection findMany
+   */
+  export type ExchangeConnectionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * Filter, which ExchangeConnections to fetch.
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ExchangeConnections to fetch.
+     */
+    orderBy?: ExchangeConnectionOrderByWithRelationInput | ExchangeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ExchangeConnections.
+     */
+    cursor?: ExchangeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ExchangeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ExchangeConnections.
+     */
+    skip?: number
+    distinct?: ExchangeConnectionScalarFieldEnum | ExchangeConnectionScalarFieldEnum[]
+  }
+
+  /**
+   * ExchangeConnection create
+   */
+  export type ExchangeConnectionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * The data needed to create a ExchangeConnection.
+     */
+    data: XOR<ExchangeConnectionCreateInput, ExchangeConnectionUncheckedCreateInput>
+  }
+
+  /**
+   * ExchangeConnection createMany
+   */
+  export type ExchangeConnectionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ExchangeConnections.
+     */
+    data: ExchangeConnectionCreateManyInput | ExchangeConnectionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ExchangeConnection createManyAndReturn
+   */
+  export type ExchangeConnectionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * The data used to create many ExchangeConnections.
+     */
+    data: ExchangeConnectionCreateManyInput | ExchangeConnectionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ExchangeConnection update
+   */
+  export type ExchangeConnectionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * The data needed to update a ExchangeConnection.
+     */
+    data: XOR<ExchangeConnectionUpdateInput, ExchangeConnectionUncheckedUpdateInput>
+    /**
+     * Choose, which ExchangeConnection to update.
+     */
+    where: ExchangeConnectionWhereUniqueInput
+  }
+
+  /**
+   * ExchangeConnection updateMany
+   */
+  export type ExchangeConnectionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ExchangeConnections.
+     */
+    data: XOR<ExchangeConnectionUpdateManyMutationInput, ExchangeConnectionUncheckedUpdateManyInput>
+    /**
+     * Filter which ExchangeConnections to update
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * Limit how many ExchangeConnections to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ExchangeConnection updateManyAndReturn
+   */
+  export type ExchangeConnectionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * The data used to update ExchangeConnections.
+     */
+    data: XOR<ExchangeConnectionUpdateManyMutationInput, ExchangeConnectionUncheckedUpdateManyInput>
+    /**
+     * Filter which ExchangeConnections to update
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * Limit how many ExchangeConnections to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ExchangeConnection upsert
+   */
+  export type ExchangeConnectionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * The filter to search for the ExchangeConnection to update in case it exists.
+     */
+    where: ExchangeConnectionWhereUniqueInput
+    /**
+     * In case the ExchangeConnection found by the `where` argument doesn't exist, create a new ExchangeConnection with this data.
+     */
+    create: XOR<ExchangeConnectionCreateInput, ExchangeConnectionUncheckedCreateInput>
+    /**
+     * In case the ExchangeConnection was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ExchangeConnectionUpdateInput, ExchangeConnectionUncheckedUpdateInput>
+  }
+
+  /**
+   * ExchangeConnection delete
+   */
+  export type ExchangeConnectionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+    /**
+     * Filter which ExchangeConnection to delete.
+     */
+    where: ExchangeConnectionWhereUniqueInput
+  }
+
+  /**
+   * ExchangeConnection deleteMany
+   */
+  export type ExchangeConnectionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ExchangeConnections to delete
+     */
+    where?: ExchangeConnectionWhereInput
+    /**
+     * Limit how many ExchangeConnections to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ExchangeConnection without action
+   */
+  export type ExchangeConnectionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ExchangeConnection
+     */
+    select?: ExchangeConnectionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ExchangeConnection
+     */
+    omit?: ExchangeConnectionOmit<ExtArgs> | null
+  }
+
+
+  /**
+   * Model RealDailyStats
+   */
+
+  export type AggregateRealDailyStats = {
+    _count: RealDailyStatsCountAggregateOutputType | null
+    _avg: RealDailyStatsAvgAggregateOutputType | null
+    _sum: RealDailyStatsSumAggregateOutputType | null
+    _min: RealDailyStatsMinAggregateOutputType | null
+    _max: RealDailyStatsMaxAggregateOutputType | null
+  }
+
+  export type RealDailyStatsAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    totalTrades: number | null
+    upbitTrades: number | null
+    binanceTrades: number | null
+    activePositions: number | null
+    totalFees: Decimal | null
+    realizedPnl: Decimal | null
+    unrealizedPnl: Decimal | null
+    totalVolume: Decimal | null
+    winRate: Decimal | null
+    maxDrawdown: Decimal | null
+  }
+
+  export type RealDailyStatsSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    totalTrades: number | null
+    upbitTrades: number | null
+    binanceTrades: number | null
+    activePositions: number | null
+    totalFees: Decimal | null
+    realizedPnl: Decimal | null
+    unrealizedPnl: Decimal | null
+    totalVolume: Decimal | null
+    winRate: Decimal | null
+    maxDrawdown: Decimal | null
+  }
+
+  export type RealDailyStatsMinAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    date: string | null
+    totalTrades: number | null
+    upbitTrades: number | null
+    binanceTrades: number | null
+    activePositions: number | null
+    totalFees: Decimal | null
+    realizedPnl: Decimal | null
+    unrealizedPnl: Decimal | null
+    totalVolume: Decimal | null
+    winRate: Decimal | null
+    maxDrawdown: Decimal | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RealDailyStatsMaxAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    date: string | null
+    totalTrades: number | null
+    upbitTrades: number | null
+    binanceTrades: number | null
+    activePositions: number | null
+    totalFees: Decimal | null
+    realizedPnl: Decimal | null
+    unrealizedPnl: Decimal | null
+    totalVolume: Decimal | null
+    winRate: Decimal | null
+    maxDrawdown: Decimal | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RealDailyStatsCountAggregateOutputType = {
+    id: number
+    userId: number
+    date: number
+    totalTrades: number
+    upbitTrades: number
+    binanceTrades: number
+    activePositions: number
+    totalFees: number
+    realizedPnl: number
+    unrealizedPnl: number
+    totalVolume: number
+    winRate: number
+    maxDrawdown: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type RealDailyStatsAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    totalTrades?: true
+    upbitTrades?: true
+    binanceTrades?: true
+    activePositions?: true
+    totalFees?: true
+    realizedPnl?: true
+    unrealizedPnl?: true
+    totalVolume?: true
+    winRate?: true
+    maxDrawdown?: true
+  }
+
+  export type RealDailyStatsSumAggregateInputType = {
+    id?: true
+    userId?: true
+    totalTrades?: true
+    upbitTrades?: true
+    binanceTrades?: true
+    activePositions?: true
+    totalFees?: true
+    realizedPnl?: true
+    unrealizedPnl?: true
+    totalVolume?: true
+    winRate?: true
+    maxDrawdown?: true
+  }
+
+  export type RealDailyStatsMinAggregateInputType = {
+    id?: true
+    userId?: true
+    date?: true
+    totalTrades?: true
+    upbitTrades?: true
+    binanceTrades?: true
+    activePositions?: true
+    totalFees?: true
+    realizedPnl?: true
+    unrealizedPnl?: true
+    totalVolume?: true
+    winRate?: true
+    maxDrawdown?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RealDailyStatsMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    date?: true
+    totalTrades?: true
+    upbitTrades?: true
+    binanceTrades?: true
+    activePositions?: true
+    totalFees?: true
+    realizedPnl?: true
+    unrealizedPnl?: true
+    totalVolume?: true
+    winRate?: true
+    maxDrawdown?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RealDailyStatsCountAggregateInputType = {
+    id?: true
+    userId?: true
+    date?: true
+    totalTrades?: true
+    upbitTrades?: true
+    binanceTrades?: true
+    activePositions?: true
+    totalFees?: true
+    realizedPnl?: true
+    unrealizedPnl?: true
+    totalVolume?: true
+    winRate?: true
+    maxDrawdown?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type RealDailyStatsAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealDailyStats to aggregate.
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealDailyStats to fetch.
+     */
+    orderBy?: RealDailyStatsOrderByWithRelationInput | RealDailyStatsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RealDailyStatsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RealDailyStats
+    **/
+    _count?: true | RealDailyStatsCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RealDailyStatsAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RealDailyStatsSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RealDailyStatsMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RealDailyStatsMaxAggregateInputType
+  }
+
+  export type GetRealDailyStatsAggregateType<T extends RealDailyStatsAggregateArgs> = {
+        [P in keyof T & keyof AggregateRealDailyStats]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRealDailyStats[P]>
+      : GetScalarType<T[P], AggregateRealDailyStats[P]>
+  }
+
+
+
+
+  export type RealDailyStatsGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RealDailyStatsWhereInput
+    orderBy?: RealDailyStatsOrderByWithAggregationInput | RealDailyStatsOrderByWithAggregationInput[]
+    by: RealDailyStatsScalarFieldEnum[] | RealDailyStatsScalarFieldEnum
+    having?: RealDailyStatsScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RealDailyStatsCountAggregateInputType | true
+    _avg?: RealDailyStatsAvgAggregateInputType
+    _sum?: RealDailyStatsSumAggregateInputType
+    _min?: RealDailyStatsMinAggregateInputType
+    _max?: RealDailyStatsMaxAggregateInputType
+  }
+
+  export type RealDailyStatsGroupByOutputType = {
+    id: number
+    userId: number
+    date: string
+    totalTrades: number
+    upbitTrades: number
+    binanceTrades: number
+    activePositions: number
+    totalFees: Decimal
+    realizedPnl: Decimal
+    unrealizedPnl: Decimal
+    totalVolume: Decimal
+    winRate: Decimal
+    maxDrawdown: Decimal
+    createdAt: Date
+    updatedAt: Date
+    _count: RealDailyStatsCountAggregateOutputType | null
+    _avg: RealDailyStatsAvgAggregateOutputType | null
+    _sum: RealDailyStatsSumAggregateOutputType | null
+    _min: RealDailyStatsMinAggregateOutputType | null
+    _max: RealDailyStatsMaxAggregateOutputType | null
+  }
+
+  type GetRealDailyStatsGroupByPayload<T extends RealDailyStatsGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RealDailyStatsGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RealDailyStatsGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RealDailyStatsGroupByOutputType[P]>
+            : GetScalarType<T[P], RealDailyStatsGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RealDailyStatsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    date?: boolean
+    totalTrades?: boolean
+    upbitTrades?: boolean
+    binanceTrades?: boolean
+    activePositions?: boolean
+    totalFees?: boolean
+    realizedPnl?: boolean
+    unrealizedPnl?: boolean
+    totalVolume?: boolean
+    winRate?: boolean
+    maxDrawdown?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["realDailyStats"]>
+
+  export type RealDailyStatsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    date?: boolean
+    totalTrades?: boolean
+    upbitTrades?: boolean
+    binanceTrades?: boolean
+    activePositions?: boolean
+    totalFees?: boolean
+    realizedPnl?: boolean
+    unrealizedPnl?: boolean
+    totalVolume?: boolean
+    winRate?: boolean
+    maxDrawdown?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["realDailyStats"]>
+
+  export type RealDailyStatsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    date?: boolean
+    totalTrades?: boolean
+    upbitTrades?: boolean
+    binanceTrades?: boolean
+    activePositions?: boolean
+    totalFees?: boolean
+    realizedPnl?: boolean
+    unrealizedPnl?: boolean
+    totalVolume?: boolean
+    winRate?: boolean
+    maxDrawdown?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["realDailyStats"]>
+
+  export type RealDailyStatsSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    date?: boolean
+    totalTrades?: boolean
+    upbitTrades?: boolean
+    binanceTrades?: boolean
+    activePositions?: boolean
+    totalFees?: boolean
+    realizedPnl?: boolean
+    unrealizedPnl?: boolean
+    totalVolume?: boolean
+    winRate?: boolean
+    maxDrawdown?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type RealDailyStatsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "date" | "totalTrades" | "upbitTrades" | "binanceTrades" | "activePositions" | "totalFees" | "realizedPnl" | "unrealizedPnl" | "totalVolume" | "winRate" | "maxDrawdown" | "createdAt" | "updatedAt", ExtArgs["result"]["realDailyStats"]>
+
+  export type $RealDailyStatsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RealDailyStats"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      userId: number
+      date: string
+      totalTrades: number
+      upbitTrades: number
+      binanceTrades: number
+      activePositions: number
+      totalFees: Prisma.Decimal
+      realizedPnl: Prisma.Decimal
+      unrealizedPnl: Prisma.Decimal
+      totalVolume: Prisma.Decimal
+      winRate: Prisma.Decimal
+      maxDrawdown: Prisma.Decimal
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["realDailyStats"]>
+    composites: {}
+  }
+
+  type RealDailyStatsGetPayload<S extends boolean | null | undefined | RealDailyStatsDefaultArgs> = $Result.GetResult<Prisma.$RealDailyStatsPayload, S>
+
+  type RealDailyStatsCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<RealDailyStatsFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: RealDailyStatsCountAggregateInputType | true
+    }
+
+  export interface RealDailyStatsDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RealDailyStats'], meta: { name: 'RealDailyStats' } }
+    /**
+     * Find zero or one RealDailyStats that matches the filter.
+     * @param {RealDailyStatsFindUniqueArgs} args - Arguments to find a RealDailyStats
+     * @example
+     * // Get one RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RealDailyStatsFindUniqueArgs>(args: SelectSubset<T, RealDailyStatsFindUniqueArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one RealDailyStats that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {RealDailyStatsFindUniqueOrThrowArgs} args - Arguments to find a RealDailyStats
+     * @example
+     * // Get one RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RealDailyStatsFindUniqueOrThrowArgs>(args: SelectSubset<T, RealDailyStatsFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealDailyStats that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsFindFirstArgs} args - Arguments to find a RealDailyStats
+     * @example
+     * // Get one RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RealDailyStatsFindFirstArgs>(args?: SelectSubset<T, RealDailyStatsFindFirstArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first RealDailyStats that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsFindFirstOrThrowArgs} args - Arguments to find a RealDailyStats
+     * @example
+     * // Get one RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RealDailyStatsFindFirstOrThrowArgs>(args?: SelectSubset<T, RealDailyStatsFindFirstOrThrowArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more RealDailyStats that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.findMany()
+     * 
+     * // Get first 10 RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const realDailyStatsWithIdOnly = await prisma.realDailyStats.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RealDailyStatsFindManyArgs>(args?: SelectSubset<T, RealDailyStatsFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a RealDailyStats.
+     * @param {RealDailyStatsCreateArgs} args - Arguments to create a RealDailyStats.
+     * @example
+     * // Create one RealDailyStats
+     * const RealDailyStats = await prisma.realDailyStats.create({
+     *   data: {
+     *     // ... data to create a RealDailyStats
+     *   }
+     * })
+     * 
+     */
+    create<T extends RealDailyStatsCreateArgs>(args: SelectSubset<T, RealDailyStatsCreateArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many RealDailyStats.
+     * @param {RealDailyStatsCreateManyArgs} args - Arguments to create many RealDailyStats.
+     * @example
+     * // Create many RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RealDailyStatsCreateManyArgs>(args?: SelectSubset<T, RealDailyStatsCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RealDailyStats and returns the data saved in the database.
+     * @param {RealDailyStatsCreateManyAndReturnArgs} args - Arguments to create many RealDailyStats.
+     * @example
+     * // Create many RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RealDailyStats and only return the `id`
+     * const realDailyStatsWithIdOnly = await prisma.realDailyStats.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RealDailyStatsCreateManyAndReturnArgs>(args?: SelectSubset<T, RealDailyStatsCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a RealDailyStats.
+     * @param {RealDailyStatsDeleteArgs} args - Arguments to delete one RealDailyStats.
+     * @example
+     * // Delete one RealDailyStats
+     * const RealDailyStats = await prisma.realDailyStats.delete({
+     *   where: {
+     *     // ... filter to delete one RealDailyStats
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RealDailyStatsDeleteArgs>(args: SelectSubset<T, RealDailyStatsDeleteArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one RealDailyStats.
+     * @param {RealDailyStatsUpdateArgs} args - Arguments to update one RealDailyStats.
+     * @example
+     * // Update one RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RealDailyStatsUpdateArgs>(args: SelectSubset<T, RealDailyStatsUpdateArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more RealDailyStats.
+     * @param {RealDailyStatsDeleteManyArgs} args - Arguments to filter RealDailyStats to delete.
+     * @example
+     * // Delete a few RealDailyStats
+     * const { count } = await prisma.realDailyStats.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RealDailyStatsDeleteManyArgs>(args?: SelectSubset<T, RealDailyStatsDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealDailyStats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RealDailyStatsUpdateManyArgs>(args: SelectSubset<T, RealDailyStatsUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RealDailyStats and returns the data updated in the database.
+     * @param {RealDailyStatsUpdateManyAndReturnArgs} args - Arguments to update many RealDailyStats.
+     * @example
+     * // Update many RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more RealDailyStats and only return the `id`
+     * const realDailyStatsWithIdOnly = await prisma.realDailyStats.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends RealDailyStatsUpdateManyAndReturnArgs>(args: SelectSubset<T, RealDailyStatsUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one RealDailyStats.
+     * @param {RealDailyStatsUpsertArgs} args - Arguments to update or create a RealDailyStats.
+     * @example
+     * // Update or create a RealDailyStats
+     * const realDailyStats = await prisma.realDailyStats.upsert({
+     *   create: {
+     *     // ... data to create a RealDailyStats
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RealDailyStats we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RealDailyStatsUpsertArgs>(args: SelectSubset<T, RealDailyStatsUpsertArgs<ExtArgs>>): Prisma__RealDailyStatsClient<$Result.GetResult<Prisma.$RealDailyStatsPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of RealDailyStats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsCountArgs} args - Arguments to filter RealDailyStats to count.
+     * @example
+     * // Count the number of RealDailyStats
+     * const count = await prisma.realDailyStats.count({
+     *   where: {
+     *     // ... the filter for the RealDailyStats we want to count
+     *   }
+     * })
+    **/
+    count<T extends RealDailyStatsCountArgs>(
+      args?: Subset<T, RealDailyStatsCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RealDailyStatsCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RealDailyStats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RealDailyStatsAggregateArgs>(args: Subset<T, RealDailyStatsAggregateArgs>): Prisma.PrismaPromise<GetRealDailyStatsAggregateType<T>>
+
+    /**
+     * Group by RealDailyStats.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RealDailyStatsGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RealDailyStatsGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RealDailyStatsGroupByArgs['orderBy'] }
+        : { orderBy?: RealDailyStatsGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RealDailyStatsGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRealDailyStatsGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RealDailyStats model
+   */
+  readonly fields: RealDailyStatsFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RealDailyStats.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RealDailyStatsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RealDailyStats model
+   */
+  interface RealDailyStatsFieldRefs {
+    readonly id: FieldRef<"RealDailyStats", 'Int'>
+    readonly userId: FieldRef<"RealDailyStats", 'Int'>
+    readonly date: FieldRef<"RealDailyStats", 'String'>
+    readonly totalTrades: FieldRef<"RealDailyStats", 'Int'>
+    readonly upbitTrades: FieldRef<"RealDailyStats", 'Int'>
+    readonly binanceTrades: FieldRef<"RealDailyStats", 'Int'>
+    readonly activePositions: FieldRef<"RealDailyStats", 'Int'>
+    readonly totalFees: FieldRef<"RealDailyStats", 'Decimal'>
+    readonly realizedPnl: FieldRef<"RealDailyStats", 'Decimal'>
+    readonly unrealizedPnl: FieldRef<"RealDailyStats", 'Decimal'>
+    readonly totalVolume: FieldRef<"RealDailyStats", 'Decimal'>
+    readonly winRate: FieldRef<"RealDailyStats", 'Decimal'>
+    readonly maxDrawdown: FieldRef<"RealDailyStats", 'Decimal'>
+    readonly createdAt: FieldRef<"RealDailyStats", 'DateTime'>
+    readonly updatedAt: FieldRef<"RealDailyStats", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RealDailyStats findUnique
+   */
+  export type RealDailyStatsFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * Filter, which RealDailyStats to fetch.
+     */
+    where: RealDailyStatsWhereUniqueInput
+  }
+
+  /**
+   * RealDailyStats findUniqueOrThrow
+   */
+  export type RealDailyStatsFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * Filter, which RealDailyStats to fetch.
+     */
+    where: RealDailyStatsWhereUniqueInput
+  }
+
+  /**
+   * RealDailyStats findFirst
+   */
+  export type RealDailyStatsFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * Filter, which RealDailyStats to fetch.
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealDailyStats to fetch.
+     */
+    orderBy?: RealDailyStatsOrderByWithRelationInput | RealDailyStatsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealDailyStats.
+     */
+    cursor?: RealDailyStatsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealDailyStats.
+     */
+    distinct?: RealDailyStatsScalarFieldEnum | RealDailyStatsScalarFieldEnum[]
+  }
+
+  /**
+   * RealDailyStats findFirstOrThrow
+   */
+  export type RealDailyStatsFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * Filter, which RealDailyStats to fetch.
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealDailyStats to fetch.
+     */
+    orderBy?: RealDailyStatsOrderByWithRelationInput | RealDailyStatsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RealDailyStats.
+     */
+    cursor?: RealDailyStatsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealDailyStats.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RealDailyStats.
+     */
+    distinct?: RealDailyStatsScalarFieldEnum | RealDailyStatsScalarFieldEnum[]
+  }
+
+  /**
+   * RealDailyStats findMany
+   */
+  export type RealDailyStatsFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * Filter, which RealDailyStats to fetch.
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RealDailyStats to fetch.
+     */
+    orderBy?: RealDailyStatsOrderByWithRelationInput | RealDailyStatsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RealDailyStats.
+     */
+    cursor?: RealDailyStatsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RealDailyStats from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RealDailyStats.
+     */
+    skip?: number
+    distinct?: RealDailyStatsScalarFieldEnum | RealDailyStatsScalarFieldEnum[]
+  }
+
+  /**
+   * RealDailyStats create
+   */
+  export type RealDailyStatsCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * The data needed to create a RealDailyStats.
+     */
+    data: XOR<RealDailyStatsCreateInput, RealDailyStatsUncheckedCreateInput>
+  }
+
+  /**
+   * RealDailyStats createMany
+   */
+  export type RealDailyStatsCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RealDailyStats.
+     */
+    data: RealDailyStatsCreateManyInput | RealDailyStatsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RealDailyStats createManyAndReturn
+   */
+  export type RealDailyStatsCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * The data used to create many RealDailyStats.
+     */
+    data: RealDailyStatsCreateManyInput | RealDailyStatsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RealDailyStats update
+   */
+  export type RealDailyStatsUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * The data needed to update a RealDailyStats.
+     */
+    data: XOR<RealDailyStatsUpdateInput, RealDailyStatsUncheckedUpdateInput>
+    /**
+     * Choose, which RealDailyStats to update.
+     */
+    where: RealDailyStatsWhereUniqueInput
+  }
+
+  /**
+   * RealDailyStats updateMany
+   */
+  export type RealDailyStatsUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RealDailyStats.
+     */
+    data: XOR<RealDailyStatsUpdateManyMutationInput, RealDailyStatsUncheckedUpdateManyInput>
+    /**
+     * Filter which RealDailyStats to update
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * Limit how many RealDailyStats to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealDailyStats updateManyAndReturn
+   */
+  export type RealDailyStatsUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * The data used to update RealDailyStats.
+     */
+    data: XOR<RealDailyStatsUpdateManyMutationInput, RealDailyStatsUncheckedUpdateManyInput>
+    /**
+     * Filter which RealDailyStats to update
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * Limit how many RealDailyStats to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealDailyStats upsert
+   */
+  export type RealDailyStatsUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * The filter to search for the RealDailyStats to update in case it exists.
+     */
+    where: RealDailyStatsWhereUniqueInput
+    /**
+     * In case the RealDailyStats found by the `where` argument doesn't exist, create a new RealDailyStats with this data.
+     */
+    create: XOR<RealDailyStatsCreateInput, RealDailyStatsUncheckedCreateInput>
+    /**
+     * In case the RealDailyStats was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RealDailyStatsUpdateInput, RealDailyStatsUncheckedUpdateInput>
+  }
+
+  /**
+   * RealDailyStats delete
+   */
+  export type RealDailyStatsDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
+    /**
+     * Filter which RealDailyStats to delete.
+     */
+    where: RealDailyStatsWhereUniqueInput
+  }
+
+  /**
+   * RealDailyStats deleteMany
+   */
+  export type RealDailyStatsDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RealDailyStats to delete
+     */
+    where?: RealDailyStatsWhereInput
+    /**
+     * Limit how many RealDailyStats to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * RealDailyStats without action
+   */
+  export type RealDailyStatsDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RealDailyStats
+     */
+    select?: RealDailyStatsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the RealDailyStats
+     */
+    omit?: RealDailyStatsOmit<ExtArgs> | null
   }
 
 
@@ -15950,6 +25510,156 @@ export namespace Prisma {
   };
 
   export type TradingStrategyScalarFieldEnum = (typeof TradingStrategyScalarFieldEnum)[keyof typeof TradingStrategyScalarFieldEnum]
+
+
+  export const ApiKeyScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    exchange: 'exchange',
+    apiKey: 'apiKey',
+    secretKey: 'secretKey',
+    passphrase: 'passphrase',
+    permissions: 'permissions',
+    isActive: 'isActive',
+    lastUsed: 'lastUsed',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ApiKeyScalarFieldEnum = (typeof ApiKeyScalarFieldEnum)[keyof typeof ApiKeyScalarFieldEnum]
+
+
+  export const RealOrderScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    strategyId: 'strategyId',
+    positionId: 'positionId',
+    exchange: 'exchange',
+    exchangeOrderId: 'exchangeOrderId',
+    symbol: 'symbol',
+    side: 'side',
+    type: 'type',
+    status: 'status',
+    quantity: 'quantity',
+    filledQuantity: 'filledQuantity',
+    remainingQuantity: 'remainingQuantity',
+    price: 'price',
+    averagePrice: 'averagePrice',
+    fee: 'fee',
+    feeCurrency: 'feeCurrency',
+    timeInForce: 'timeInForce',
+    clientOrderId: 'clientOrderId',
+    leverage: 'leverage',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    filledAt: 'filledAt'
+  };
+
+  export type RealOrderScalarFieldEnum = (typeof RealOrderScalarFieldEnum)[keyof typeof RealOrderScalarFieldEnum]
+
+
+  export const RealPositionScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    strategyId: 'strategyId',
+    symbol: 'symbol',
+    side: 'side',
+    status: 'status',
+    upbitQuantity: 'upbitQuantity',
+    upbitEntryPrice: 'upbitEntryPrice',
+    upbitCurrentPrice: 'upbitCurrentPrice',
+    upbitOrderId: 'upbitOrderId',
+    binanceQuantity: 'binanceQuantity',
+    binanceEntryPrice: 'binanceEntryPrice',
+    binanceCurrentPrice: 'binanceCurrentPrice',
+    binanceLeverage: 'binanceLeverage',
+    binanceOrderId: 'binanceOrderId',
+    entryPremiumRate: 'entryPremiumRate',
+    currentPremiumRate: 'currentPremiumRate',
+    unrealizedPnl: 'unrealizedPnl',
+    realizedPnl: 'realizedPnl',
+    totalFees: 'totalFees',
+    entryTime: 'entryTime',
+    exitTime: 'exitTime',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type RealPositionScalarFieldEnum = (typeof RealPositionScalarFieldEnum)[keyof typeof RealPositionScalarFieldEnum]
+
+
+  export const RealTradeScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    positionId: 'positionId',
+    orderId: 'orderId',
+    exchange: 'exchange',
+    exchangeTradeId: 'exchangeTradeId',
+    symbol: 'symbol',
+    side: 'side',
+    quantity: 'quantity',
+    price: 'price',
+    fee: 'fee',
+    feeCurrency: 'feeCurrency',
+    executedAt: 'executedAt',
+    createdAt: 'createdAt'
+  };
+
+  export type RealTradeScalarFieldEnum = (typeof RealTradeScalarFieldEnum)[keyof typeof RealTradeScalarFieldEnum]
+
+
+  export const BalanceSnapshotScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    exchange: 'exchange',
+    currency: 'currency',
+    available: 'available',
+    locked: 'locked',
+    total: 'total',
+    usdValue: 'usdValue',
+    krwValue: 'krwValue',
+    createdAt: 'createdAt'
+  };
+
+  export type BalanceSnapshotScalarFieldEnum = (typeof BalanceSnapshotScalarFieldEnum)[keyof typeof BalanceSnapshotScalarFieldEnum]
+
+
+  export const ExchangeConnectionScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    exchange: 'exchange',
+    connected: 'connected',
+    lastChecked: 'lastChecked',
+    error: 'error',
+    permissions: 'permissions',
+    balanceAvailable: 'balanceAvailable',
+    tradingEnabled: 'tradingEnabled',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ExchangeConnectionScalarFieldEnum = (typeof ExchangeConnectionScalarFieldEnum)[keyof typeof ExchangeConnectionScalarFieldEnum]
+
+
+  export const RealDailyStatsScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    date: 'date',
+    totalTrades: 'totalTrades',
+    upbitTrades: 'upbitTrades',
+    binanceTrades: 'binanceTrades',
+    activePositions: 'activePositions',
+    totalFees: 'totalFees',
+    realizedPnl: 'realizedPnl',
+    unrealizedPnl: 'unrealizedPnl',
+    totalVolume: 'totalVolume',
+    winRate: 'winRate',
+    maxDrawdown: 'maxDrawdown',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type RealDailyStatsScalarFieldEnum = (typeof RealDailyStatsScalarFieldEnum)[keyof typeof RealDailyStatsScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -17081,6 +26791,8 @@ export namespace Prisma {
     totalProfit?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
     strategyType?: StringFilter<"TradingStrategy"> | string
     toleranceRate?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
+    positions?: RealPositionListRelationFilter
+    orders?: RealOrderListRelationFilter
   }
 
   export type TradingStrategyOrderByWithRelationInput = {
@@ -17102,6 +26814,8 @@ export namespace Prisma {
     totalProfit?: SortOrder
     strategyType?: SortOrder
     toleranceRate?: SortOrder
+    positions?: RealPositionOrderByRelationAggregateInput
+    orders?: RealOrderOrderByRelationAggregateInput
   }
 
   export type TradingStrategyWhereUniqueInput = Prisma.AtLeast<{
@@ -17126,6 +26840,8 @@ export namespace Prisma {
     totalProfit?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
     strategyType?: StringFilter<"TradingStrategy"> | string
     toleranceRate?: DecimalFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
+    positions?: RealPositionListRelationFilter
+    orders?: RealOrderListRelationFilter
   }, "id">
 
   export type TradingStrategyOrderByWithAggregationInput = {
@@ -17176,6 +26892,778 @@ export namespace Prisma {
     totalProfit?: DecimalWithAggregatesFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
     strategyType?: StringWithAggregatesFilter<"TradingStrategy"> | string
     toleranceRate?: DecimalWithAggregatesFilter<"TradingStrategy"> | Decimal | DecimalJsLike | number | string
+  }
+
+  export type ApiKeyWhereInput = {
+    AND?: ApiKeyWhereInput | ApiKeyWhereInput[]
+    OR?: ApiKeyWhereInput[]
+    NOT?: ApiKeyWhereInput | ApiKeyWhereInput[]
+    id?: IntFilter<"ApiKey"> | number
+    userId?: IntFilter<"ApiKey"> | number
+    exchange?: StringFilter<"ApiKey"> | string
+    apiKey?: StringFilter<"ApiKey"> | string
+    secretKey?: StringFilter<"ApiKey"> | string
+    passphrase?: StringNullableFilter<"ApiKey"> | string | null
+    permissions?: JsonNullableFilter<"ApiKey">
+    isActive?: BoolFilter<"ApiKey"> | boolean
+    lastUsed?: DateTimeNullableFilter<"ApiKey"> | Date | string | null
+    createdAt?: DateTimeFilter<"ApiKey"> | Date | string
+    updatedAt?: DateTimeFilter<"ApiKey"> | Date | string
+  }
+
+  export type ApiKeyOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    apiKey?: SortOrder
+    secretKey?: SortOrder
+    passphrase?: SortOrderInput | SortOrder
+    permissions?: SortOrderInput | SortOrder
+    isActive?: SortOrder
+    lastUsed?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ApiKeyWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    unique_user_exchange?: ApiKeyUnique_user_exchangeCompoundUniqueInput
+    AND?: ApiKeyWhereInput | ApiKeyWhereInput[]
+    OR?: ApiKeyWhereInput[]
+    NOT?: ApiKeyWhereInput | ApiKeyWhereInput[]
+    userId?: IntFilter<"ApiKey"> | number
+    exchange?: StringFilter<"ApiKey"> | string
+    apiKey?: StringFilter<"ApiKey"> | string
+    secretKey?: StringFilter<"ApiKey"> | string
+    passphrase?: StringNullableFilter<"ApiKey"> | string | null
+    permissions?: JsonNullableFilter<"ApiKey">
+    isActive?: BoolFilter<"ApiKey"> | boolean
+    lastUsed?: DateTimeNullableFilter<"ApiKey"> | Date | string | null
+    createdAt?: DateTimeFilter<"ApiKey"> | Date | string
+    updatedAt?: DateTimeFilter<"ApiKey"> | Date | string
+  }, "id" | "unique_user_exchange">
+
+  export type ApiKeyOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    apiKey?: SortOrder
+    secretKey?: SortOrder
+    passphrase?: SortOrderInput | SortOrder
+    permissions?: SortOrderInput | SortOrder
+    isActive?: SortOrder
+    lastUsed?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ApiKeyCountOrderByAggregateInput
+    _avg?: ApiKeyAvgOrderByAggregateInput
+    _max?: ApiKeyMaxOrderByAggregateInput
+    _min?: ApiKeyMinOrderByAggregateInput
+    _sum?: ApiKeySumOrderByAggregateInput
+  }
+
+  export type ApiKeyScalarWhereWithAggregatesInput = {
+    AND?: ApiKeyScalarWhereWithAggregatesInput | ApiKeyScalarWhereWithAggregatesInput[]
+    OR?: ApiKeyScalarWhereWithAggregatesInput[]
+    NOT?: ApiKeyScalarWhereWithAggregatesInput | ApiKeyScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"ApiKey"> | number
+    userId?: IntWithAggregatesFilter<"ApiKey"> | number
+    exchange?: StringWithAggregatesFilter<"ApiKey"> | string
+    apiKey?: StringWithAggregatesFilter<"ApiKey"> | string
+    secretKey?: StringWithAggregatesFilter<"ApiKey"> | string
+    passphrase?: StringNullableWithAggregatesFilter<"ApiKey"> | string | null
+    permissions?: JsonNullableWithAggregatesFilter<"ApiKey">
+    isActive?: BoolWithAggregatesFilter<"ApiKey"> | boolean
+    lastUsed?: DateTimeNullableWithAggregatesFilter<"ApiKey"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"ApiKey"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ApiKey"> | Date | string
+  }
+
+  export type RealOrderWhereInput = {
+    AND?: RealOrderWhereInput | RealOrderWhereInput[]
+    OR?: RealOrderWhereInput[]
+    NOT?: RealOrderWhereInput | RealOrderWhereInput[]
+    id?: IntFilter<"RealOrder"> | number
+    userId?: IntFilter<"RealOrder"> | number
+    strategyId?: IntNullableFilter<"RealOrder"> | number | null
+    positionId?: IntNullableFilter<"RealOrder"> | number | null
+    exchange?: StringFilter<"RealOrder"> | string
+    exchangeOrderId?: StringFilter<"RealOrder"> | string
+    symbol?: StringFilter<"RealOrder"> | string
+    side?: StringFilter<"RealOrder"> | string
+    type?: StringFilter<"RealOrder"> | string
+    status?: StringFilter<"RealOrder"> | string
+    quantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalNullableFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: DecimalNullableFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringNullableFilter<"RealOrder"> | string | null
+    timeInForce?: StringNullableFilter<"RealOrder"> | string | null
+    clientOrderId?: StringNullableFilter<"RealOrder"> | string | null
+    leverage?: IntNullableFilter<"RealOrder"> | number | null
+    createdAt?: DateTimeFilter<"RealOrder"> | Date | string
+    updatedAt?: DateTimeFilter<"RealOrder"> | Date | string
+    filledAt?: DateTimeNullableFilter<"RealOrder"> | Date | string | null
+    strategy?: XOR<TradingStrategyNullableScalarRelationFilter, TradingStrategyWhereInput> | null
+    position?: XOR<RealPositionNullableScalarRelationFilter, RealPositionWhereInput> | null
+    trades?: RealTradeListRelationFilter
+  }
+
+  export type RealOrderOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrderInput | SortOrder
+    positionId?: SortOrderInput | SortOrder
+    exchange?: SortOrder
+    exchangeOrderId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    type?: SortOrder
+    status?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrderInput | SortOrder
+    averagePrice?: SortOrderInput | SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrderInput | SortOrder
+    timeInForce?: SortOrderInput | SortOrder
+    clientOrderId?: SortOrderInput | SortOrder
+    leverage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    filledAt?: SortOrderInput | SortOrder
+    strategy?: TradingStrategyOrderByWithRelationInput
+    position?: RealPositionOrderByWithRelationInput
+    trades?: RealTradeOrderByRelationAggregateInput
+  }
+
+  export type RealOrderWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    unique_exchange_order?: RealOrderUnique_exchange_orderCompoundUniqueInput
+    AND?: RealOrderWhereInput | RealOrderWhereInput[]
+    OR?: RealOrderWhereInput[]
+    NOT?: RealOrderWhereInput | RealOrderWhereInput[]
+    userId?: IntFilter<"RealOrder"> | number
+    strategyId?: IntNullableFilter<"RealOrder"> | number | null
+    positionId?: IntNullableFilter<"RealOrder"> | number | null
+    exchange?: StringFilter<"RealOrder"> | string
+    exchangeOrderId?: StringFilter<"RealOrder"> | string
+    symbol?: StringFilter<"RealOrder"> | string
+    side?: StringFilter<"RealOrder"> | string
+    type?: StringFilter<"RealOrder"> | string
+    status?: StringFilter<"RealOrder"> | string
+    quantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalNullableFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: DecimalNullableFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringNullableFilter<"RealOrder"> | string | null
+    timeInForce?: StringNullableFilter<"RealOrder"> | string | null
+    clientOrderId?: StringNullableFilter<"RealOrder"> | string | null
+    leverage?: IntNullableFilter<"RealOrder"> | number | null
+    createdAt?: DateTimeFilter<"RealOrder"> | Date | string
+    updatedAt?: DateTimeFilter<"RealOrder"> | Date | string
+    filledAt?: DateTimeNullableFilter<"RealOrder"> | Date | string | null
+    strategy?: XOR<TradingStrategyNullableScalarRelationFilter, TradingStrategyWhereInput> | null
+    position?: XOR<RealPositionNullableScalarRelationFilter, RealPositionWhereInput> | null
+    trades?: RealTradeListRelationFilter
+  }, "id" | "unique_exchange_order">
+
+  export type RealOrderOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrderInput | SortOrder
+    positionId?: SortOrderInput | SortOrder
+    exchange?: SortOrder
+    exchangeOrderId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    type?: SortOrder
+    status?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrderInput | SortOrder
+    averagePrice?: SortOrderInput | SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrderInput | SortOrder
+    timeInForce?: SortOrderInput | SortOrder
+    clientOrderId?: SortOrderInput | SortOrder
+    leverage?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    filledAt?: SortOrderInput | SortOrder
+    _count?: RealOrderCountOrderByAggregateInput
+    _avg?: RealOrderAvgOrderByAggregateInput
+    _max?: RealOrderMaxOrderByAggregateInput
+    _min?: RealOrderMinOrderByAggregateInput
+    _sum?: RealOrderSumOrderByAggregateInput
+  }
+
+  export type RealOrderScalarWhereWithAggregatesInput = {
+    AND?: RealOrderScalarWhereWithAggregatesInput | RealOrderScalarWhereWithAggregatesInput[]
+    OR?: RealOrderScalarWhereWithAggregatesInput[]
+    NOT?: RealOrderScalarWhereWithAggregatesInput | RealOrderScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RealOrder"> | number
+    userId?: IntWithAggregatesFilter<"RealOrder"> | number
+    strategyId?: IntNullableWithAggregatesFilter<"RealOrder"> | number | null
+    positionId?: IntNullableWithAggregatesFilter<"RealOrder"> | number | null
+    exchange?: StringWithAggregatesFilter<"RealOrder"> | string
+    exchangeOrderId?: StringWithAggregatesFilter<"RealOrder"> | string
+    symbol?: StringWithAggregatesFilter<"RealOrder"> | string
+    side?: StringWithAggregatesFilter<"RealOrder"> | string
+    type?: StringWithAggregatesFilter<"RealOrder"> | string
+    status?: StringWithAggregatesFilter<"RealOrder"> | string
+    quantity?: DecimalWithAggregatesFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalWithAggregatesFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalWithAggregatesFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalNullableWithAggregatesFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: DecimalNullableWithAggregatesFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalWithAggregatesFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringNullableWithAggregatesFilter<"RealOrder"> | string | null
+    timeInForce?: StringNullableWithAggregatesFilter<"RealOrder"> | string | null
+    clientOrderId?: StringNullableWithAggregatesFilter<"RealOrder"> | string | null
+    leverage?: IntNullableWithAggregatesFilter<"RealOrder"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"RealOrder"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"RealOrder"> | Date | string
+    filledAt?: DateTimeNullableWithAggregatesFilter<"RealOrder"> | Date | string | null
+  }
+
+  export type RealPositionWhereInput = {
+    AND?: RealPositionWhereInput | RealPositionWhereInput[]
+    OR?: RealPositionWhereInput[]
+    NOT?: RealPositionWhereInput | RealPositionWhereInput[]
+    id?: IntFilter<"RealPosition"> | number
+    userId?: IntFilter<"RealPosition"> | number
+    strategyId?: IntNullableFilter<"RealPosition"> | number | null
+    symbol?: StringFilter<"RealPosition"> | string
+    side?: StringFilter<"RealPosition"> | string
+    status?: StringFilter<"RealPosition"> | string
+    upbitQuantity?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: StringNullableFilter<"RealPosition"> | string | null
+    binanceQuantity?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFilter<"RealPosition"> | number
+    binanceOrderId?: StringNullableFilter<"RealPosition"> | string | null
+    entryPremiumRate?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFilter<"RealPosition"> | Date | string
+    exitTime?: DateTimeNullableFilter<"RealPosition"> | Date | string | null
+    createdAt?: DateTimeFilter<"RealPosition"> | Date | string
+    updatedAt?: DateTimeFilter<"RealPosition"> | Date | string
+    strategy?: XOR<TradingStrategyNullableScalarRelationFilter, TradingStrategyWhereInput> | null
+    orders?: RealOrderListRelationFilter
+    trades?: RealTradeListRelationFilter
+  }
+
+  export type RealPositionOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrderInput | SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    status?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrderInput | SortOrder
+    upbitOrderId?: SortOrderInput | SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrderInput | SortOrder
+    binanceLeverage?: SortOrder
+    binanceOrderId?: SortOrderInput | SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrderInput | SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrderInput | SortOrder
+    totalFees?: SortOrder
+    entryTime?: SortOrder
+    exitTime?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    strategy?: TradingStrategyOrderByWithRelationInput
+    orders?: RealOrderOrderByRelationAggregateInput
+    trades?: RealTradeOrderByRelationAggregateInput
+  }
+
+  export type RealPositionWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: RealPositionWhereInput | RealPositionWhereInput[]
+    OR?: RealPositionWhereInput[]
+    NOT?: RealPositionWhereInput | RealPositionWhereInput[]
+    userId?: IntFilter<"RealPosition"> | number
+    strategyId?: IntNullableFilter<"RealPosition"> | number | null
+    symbol?: StringFilter<"RealPosition"> | string
+    side?: StringFilter<"RealPosition"> | string
+    status?: StringFilter<"RealPosition"> | string
+    upbitQuantity?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: StringNullableFilter<"RealPosition"> | string | null
+    binanceQuantity?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFilter<"RealPosition"> | number
+    binanceOrderId?: StringNullableFilter<"RealPosition"> | string | null
+    entryPremiumRate?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFilter<"RealPosition"> | Date | string
+    exitTime?: DateTimeNullableFilter<"RealPosition"> | Date | string | null
+    createdAt?: DateTimeFilter<"RealPosition"> | Date | string
+    updatedAt?: DateTimeFilter<"RealPosition"> | Date | string
+    strategy?: XOR<TradingStrategyNullableScalarRelationFilter, TradingStrategyWhereInput> | null
+    orders?: RealOrderListRelationFilter
+    trades?: RealTradeListRelationFilter
+  }, "id">
+
+  export type RealPositionOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrderInput | SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    status?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrderInput | SortOrder
+    upbitOrderId?: SortOrderInput | SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrderInput | SortOrder
+    binanceLeverage?: SortOrder
+    binanceOrderId?: SortOrderInput | SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrderInput | SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrderInput | SortOrder
+    totalFees?: SortOrder
+    entryTime?: SortOrder
+    exitTime?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: RealPositionCountOrderByAggregateInput
+    _avg?: RealPositionAvgOrderByAggregateInput
+    _max?: RealPositionMaxOrderByAggregateInput
+    _min?: RealPositionMinOrderByAggregateInput
+    _sum?: RealPositionSumOrderByAggregateInput
+  }
+
+  export type RealPositionScalarWhereWithAggregatesInput = {
+    AND?: RealPositionScalarWhereWithAggregatesInput | RealPositionScalarWhereWithAggregatesInput[]
+    OR?: RealPositionScalarWhereWithAggregatesInput[]
+    NOT?: RealPositionScalarWhereWithAggregatesInput | RealPositionScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RealPosition"> | number
+    userId?: IntWithAggregatesFilter<"RealPosition"> | number
+    strategyId?: IntNullableWithAggregatesFilter<"RealPosition"> | number | null
+    symbol?: StringWithAggregatesFilter<"RealPosition"> | string
+    side?: StringWithAggregatesFilter<"RealPosition"> | string
+    status?: StringWithAggregatesFilter<"RealPosition"> | string
+    upbitQuantity?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: DecimalNullableWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: StringNullableWithAggregatesFilter<"RealPosition"> | string | null
+    binanceQuantity?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: DecimalNullableWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntWithAggregatesFilter<"RealPosition"> | number
+    binanceOrderId?: StringNullableWithAggregatesFilter<"RealPosition"> | string | null
+    entryPremiumRate?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: DecimalNullableWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalNullableWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalWithAggregatesFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeWithAggregatesFilter<"RealPosition"> | Date | string
+    exitTime?: DateTimeNullableWithAggregatesFilter<"RealPosition"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"RealPosition"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"RealPosition"> | Date | string
+  }
+
+  export type RealTradeWhereInput = {
+    AND?: RealTradeWhereInput | RealTradeWhereInput[]
+    OR?: RealTradeWhereInput[]
+    NOT?: RealTradeWhereInput | RealTradeWhereInput[]
+    id?: IntFilter<"RealTrade"> | number
+    userId?: IntFilter<"RealTrade"> | number
+    positionId?: IntNullableFilter<"RealTrade"> | number | null
+    orderId?: IntFilter<"RealTrade"> | number
+    exchange?: StringFilter<"RealTrade"> | string
+    exchangeTradeId?: StringFilter<"RealTrade"> | string
+    symbol?: StringFilter<"RealTrade"> | string
+    side?: StringFilter<"RealTrade"> | string
+    quantity?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFilter<"RealTrade"> | string
+    executedAt?: DateTimeFilter<"RealTrade"> | Date | string
+    createdAt?: DateTimeFilter<"RealTrade"> | Date | string
+    order?: XOR<RealOrderScalarRelationFilter, RealOrderWhereInput>
+    position?: XOR<RealPositionNullableScalarRelationFilter, RealPositionWhereInput> | null
+  }
+
+  export type RealTradeOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrderInput | SortOrder
+    orderId?: SortOrder
+    exchange?: SortOrder
+    exchangeTradeId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    executedAt?: SortOrder
+    createdAt?: SortOrder
+    order?: RealOrderOrderByWithRelationInput
+    position?: RealPositionOrderByWithRelationInput
+  }
+
+  export type RealTradeWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    unique_exchange_trade?: RealTradeUnique_exchange_tradeCompoundUniqueInput
+    AND?: RealTradeWhereInput | RealTradeWhereInput[]
+    OR?: RealTradeWhereInput[]
+    NOT?: RealTradeWhereInput | RealTradeWhereInput[]
+    userId?: IntFilter<"RealTrade"> | number
+    positionId?: IntNullableFilter<"RealTrade"> | number | null
+    orderId?: IntFilter<"RealTrade"> | number
+    exchange?: StringFilter<"RealTrade"> | string
+    exchangeTradeId?: StringFilter<"RealTrade"> | string
+    symbol?: StringFilter<"RealTrade"> | string
+    side?: StringFilter<"RealTrade"> | string
+    quantity?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFilter<"RealTrade"> | string
+    executedAt?: DateTimeFilter<"RealTrade"> | Date | string
+    createdAt?: DateTimeFilter<"RealTrade"> | Date | string
+    order?: XOR<RealOrderScalarRelationFilter, RealOrderWhereInput>
+    position?: XOR<RealPositionNullableScalarRelationFilter, RealPositionWhereInput> | null
+  }, "id" | "unique_exchange_trade">
+
+  export type RealTradeOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrderInput | SortOrder
+    orderId?: SortOrder
+    exchange?: SortOrder
+    exchangeTradeId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    executedAt?: SortOrder
+    createdAt?: SortOrder
+    _count?: RealTradeCountOrderByAggregateInput
+    _avg?: RealTradeAvgOrderByAggregateInput
+    _max?: RealTradeMaxOrderByAggregateInput
+    _min?: RealTradeMinOrderByAggregateInput
+    _sum?: RealTradeSumOrderByAggregateInput
+  }
+
+  export type RealTradeScalarWhereWithAggregatesInput = {
+    AND?: RealTradeScalarWhereWithAggregatesInput | RealTradeScalarWhereWithAggregatesInput[]
+    OR?: RealTradeScalarWhereWithAggregatesInput[]
+    NOT?: RealTradeScalarWhereWithAggregatesInput | RealTradeScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RealTrade"> | number
+    userId?: IntWithAggregatesFilter<"RealTrade"> | number
+    positionId?: IntNullableWithAggregatesFilter<"RealTrade"> | number | null
+    orderId?: IntWithAggregatesFilter<"RealTrade"> | number
+    exchange?: StringWithAggregatesFilter<"RealTrade"> | string
+    exchangeTradeId?: StringWithAggregatesFilter<"RealTrade"> | string
+    symbol?: StringWithAggregatesFilter<"RealTrade"> | string
+    side?: StringWithAggregatesFilter<"RealTrade"> | string
+    quantity?: DecimalWithAggregatesFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalWithAggregatesFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    fee?: DecimalWithAggregatesFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringWithAggregatesFilter<"RealTrade"> | string
+    executedAt?: DateTimeWithAggregatesFilter<"RealTrade"> | Date | string
+    createdAt?: DateTimeWithAggregatesFilter<"RealTrade"> | Date | string
+  }
+
+  export type BalanceSnapshotWhereInput = {
+    AND?: BalanceSnapshotWhereInput | BalanceSnapshotWhereInput[]
+    OR?: BalanceSnapshotWhereInput[]
+    NOT?: BalanceSnapshotWhereInput | BalanceSnapshotWhereInput[]
+    id?: IntFilter<"BalanceSnapshot"> | number
+    userId?: IntFilter<"BalanceSnapshot"> | number
+    exchange?: StringFilter<"BalanceSnapshot"> | string
+    currency?: StringFilter<"BalanceSnapshot"> | string
+    available?: DecimalFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    locked?: DecimalFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    total?: DecimalFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    usdValue?: DecimalNullableFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string | null
+    krwValue?: DecimalNullableFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeFilter<"BalanceSnapshot"> | Date | string
+  }
+
+  export type BalanceSnapshotOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    currency?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrderInput | SortOrder
+    krwValue?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BalanceSnapshotWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: BalanceSnapshotWhereInput | BalanceSnapshotWhereInput[]
+    OR?: BalanceSnapshotWhereInput[]
+    NOT?: BalanceSnapshotWhereInput | BalanceSnapshotWhereInput[]
+    userId?: IntFilter<"BalanceSnapshot"> | number
+    exchange?: StringFilter<"BalanceSnapshot"> | string
+    currency?: StringFilter<"BalanceSnapshot"> | string
+    available?: DecimalFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    locked?: DecimalFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    total?: DecimalFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    usdValue?: DecimalNullableFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string | null
+    krwValue?: DecimalNullableFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeFilter<"BalanceSnapshot"> | Date | string
+  }, "id">
+
+  export type BalanceSnapshotOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    currency?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrderInput | SortOrder
+    krwValue?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: BalanceSnapshotCountOrderByAggregateInput
+    _avg?: BalanceSnapshotAvgOrderByAggregateInput
+    _max?: BalanceSnapshotMaxOrderByAggregateInput
+    _min?: BalanceSnapshotMinOrderByAggregateInput
+    _sum?: BalanceSnapshotSumOrderByAggregateInput
+  }
+
+  export type BalanceSnapshotScalarWhereWithAggregatesInput = {
+    AND?: BalanceSnapshotScalarWhereWithAggregatesInput | BalanceSnapshotScalarWhereWithAggregatesInput[]
+    OR?: BalanceSnapshotScalarWhereWithAggregatesInput[]
+    NOT?: BalanceSnapshotScalarWhereWithAggregatesInput | BalanceSnapshotScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"BalanceSnapshot"> | number
+    userId?: IntWithAggregatesFilter<"BalanceSnapshot"> | number
+    exchange?: StringWithAggregatesFilter<"BalanceSnapshot"> | string
+    currency?: StringWithAggregatesFilter<"BalanceSnapshot"> | string
+    available?: DecimalWithAggregatesFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    locked?: DecimalWithAggregatesFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    total?: DecimalWithAggregatesFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string
+    usdValue?: DecimalNullableWithAggregatesFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string | null
+    krwValue?: DecimalNullableWithAggregatesFilter<"BalanceSnapshot"> | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"BalanceSnapshot"> | Date | string
+  }
+
+  export type ExchangeConnectionWhereInput = {
+    AND?: ExchangeConnectionWhereInput | ExchangeConnectionWhereInput[]
+    OR?: ExchangeConnectionWhereInput[]
+    NOT?: ExchangeConnectionWhereInput | ExchangeConnectionWhereInput[]
+    id?: IntFilter<"ExchangeConnection"> | number
+    userId?: IntFilter<"ExchangeConnection"> | number
+    exchange?: StringFilter<"ExchangeConnection"> | string
+    connected?: BoolFilter<"ExchangeConnection"> | boolean
+    lastChecked?: DateTimeFilter<"ExchangeConnection"> | Date | string
+    error?: StringNullableFilter<"ExchangeConnection"> | string | null
+    permissions?: JsonNullableFilter<"ExchangeConnection">
+    balanceAvailable?: BoolFilter<"ExchangeConnection"> | boolean
+    tradingEnabled?: BoolFilter<"ExchangeConnection"> | boolean
+    createdAt?: DateTimeFilter<"ExchangeConnection"> | Date | string
+    updatedAt?: DateTimeFilter<"ExchangeConnection"> | Date | string
+  }
+
+  export type ExchangeConnectionOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    connected?: SortOrder
+    lastChecked?: SortOrder
+    error?: SortOrderInput | SortOrder
+    permissions?: SortOrderInput | SortOrder
+    balanceAvailable?: SortOrder
+    tradingEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ExchangeConnectionWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    unique_user_exchange_connection?: ExchangeConnectionUnique_user_exchange_connectionCompoundUniqueInput
+    AND?: ExchangeConnectionWhereInput | ExchangeConnectionWhereInput[]
+    OR?: ExchangeConnectionWhereInput[]
+    NOT?: ExchangeConnectionWhereInput | ExchangeConnectionWhereInput[]
+    userId?: IntFilter<"ExchangeConnection"> | number
+    exchange?: StringFilter<"ExchangeConnection"> | string
+    connected?: BoolFilter<"ExchangeConnection"> | boolean
+    lastChecked?: DateTimeFilter<"ExchangeConnection"> | Date | string
+    error?: StringNullableFilter<"ExchangeConnection"> | string | null
+    permissions?: JsonNullableFilter<"ExchangeConnection">
+    balanceAvailable?: BoolFilter<"ExchangeConnection"> | boolean
+    tradingEnabled?: BoolFilter<"ExchangeConnection"> | boolean
+    createdAt?: DateTimeFilter<"ExchangeConnection"> | Date | string
+    updatedAt?: DateTimeFilter<"ExchangeConnection"> | Date | string
+  }, "id" | "unique_user_exchange_connection">
+
+  export type ExchangeConnectionOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    connected?: SortOrder
+    lastChecked?: SortOrder
+    error?: SortOrderInput | SortOrder
+    permissions?: SortOrderInput | SortOrder
+    balanceAvailable?: SortOrder
+    tradingEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ExchangeConnectionCountOrderByAggregateInput
+    _avg?: ExchangeConnectionAvgOrderByAggregateInput
+    _max?: ExchangeConnectionMaxOrderByAggregateInput
+    _min?: ExchangeConnectionMinOrderByAggregateInput
+    _sum?: ExchangeConnectionSumOrderByAggregateInput
+  }
+
+  export type ExchangeConnectionScalarWhereWithAggregatesInput = {
+    AND?: ExchangeConnectionScalarWhereWithAggregatesInput | ExchangeConnectionScalarWhereWithAggregatesInput[]
+    OR?: ExchangeConnectionScalarWhereWithAggregatesInput[]
+    NOT?: ExchangeConnectionScalarWhereWithAggregatesInput | ExchangeConnectionScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"ExchangeConnection"> | number
+    userId?: IntWithAggregatesFilter<"ExchangeConnection"> | number
+    exchange?: StringWithAggregatesFilter<"ExchangeConnection"> | string
+    connected?: BoolWithAggregatesFilter<"ExchangeConnection"> | boolean
+    lastChecked?: DateTimeWithAggregatesFilter<"ExchangeConnection"> | Date | string
+    error?: StringNullableWithAggregatesFilter<"ExchangeConnection"> | string | null
+    permissions?: JsonNullableWithAggregatesFilter<"ExchangeConnection">
+    balanceAvailable?: BoolWithAggregatesFilter<"ExchangeConnection"> | boolean
+    tradingEnabled?: BoolWithAggregatesFilter<"ExchangeConnection"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"ExchangeConnection"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ExchangeConnection"> | Date | string
+  }
+
+  export type RealDailyStatsWhereInput = {
+    AND?: RealDailyStatsWhereInput | RealDailyStatsWhereInput[]
+    OR?: RealDailyStatsWhereInput[]
+    NOT?: RealDailyStatsWhereInput | RealDailyStatsWhereInput[]
+    id?: IntFilter<"RealDailyStats"> | number
+    userId?: IntFilter<"RealDailyStats"> | number
+    date?: StringFilter<"RealDailyStats"> | string
+    totalTrades?: IntFilter<"RealDailyStats"> | number
+    upbitTrades?: IntFilter<"RealDailyStats"> | number
+    binanceTrades?: IntFilter<"RealDailyStats"> | number
+    activePositions?: IntFilter<"RealDailyStats"> | number
+    totalFees?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFilter<"RealDailyStats"> | Date | string
+    updatedAt?: DateTimeFilter<"RealDailyStats"> | Date | string
+  }
+
+  export type RealDailyStatsOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    date?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealDailyStatsWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    unique_user_date_stats?: RealDailyStatsUnique_user_date_statsCompoundUniqueInput
+    AND?: RealDailyStatsWhereInput | RealDailyStatsWhereInput[]
+    OR?: RealDailyStatsWhereInput[]
+    NOT?: RealDailyStatsWhereInput | RealDailyStatsWhereInput[]
+    userId?: IntFilter<"RealDailyStats"> | number
+    date?: StringFilter<"RealDailyStats"> | string
+    totalTrades?: IntFilter<"RealDailyStats"> | number
+    upbitTrades?: IntFilter<"RealDailyStats"> | number
+    binanceTrades?: IntFilter<"RealDailyStats"> | number
+    activePositions?: IntFilter<"RealDailyStats"> | number
+    totalFees?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFilter<"RealDailyStats"> | Date | string
+    updatedAt?: DateTimeFilter<"RealDailyStats"> | Date | string
+  }, "id" | "unique_user_date_stats">
+
+  export type RealDailyStatsOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    date?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: RealDailyStatsCountOrderByAggregateInput
+    _avg?: RealDailyStatsAvgOrderByAggregateInput
+    _max?: RealDailyStatsMaxOrderByAggregateInput
+    _min?: RealDailyStatsMinOrderByAggregateInput
+    _sum?: RealDailyStatsSumOrderByAggregateInput
+  }
+
+  export type RealDailyStatsScalarWhereWithAggregatesInput = {
+    AND?: RealDailyStatsScalarWhereWithAggregatesInput | RealDailyStatsScalarWhereWithAggregatesInput[]
+    OR?: RealDailyStatsScalarWhereWithAggregatesInput[]
+    NOT?: RealDailyStatsScalarWhereWithAggregatesInput | RealDailyStatsScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"RealDailyStats"> | number
+    userId?: IntWithAggregatesFilter<"RealDailyStats"> | number
+    date?: StringWithAggregatesFilter<"RealDailyStats"> | string
+    totalTrades?: IntWithAggregatesFilter<"RealDailyStats"> | number
+    upbitTrades?: IntWithAggregatesFilter<"RealDailyStats"> | number
+    binanceTrades?: IntWithAggregatesFilter<"RealDailyStats"> | number
+    activePositions?: IntWithAggregatesFilter<"RealDailyStats"> | number
+    totalFees?: DecimalWithAggregatesFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalWithAggregatesFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalWithAggregatesFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalWithAggregatesFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalWithAggregatesFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalWithAggregatesFilter<"RealDailyStats"> | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeWithAggregatesFilter<"RealDailyStats"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"RealDailyStats"> | Date | string
   }
 
   export type TradeLogCreateInput = {
@@ -18289,6 +28777,8 @@ export namespace Prisma {
     totalProfit?: Decimal | DecimalJsLike | number | string
     strategyType?: string
     toleranceRate?: Decimal | DecimalJsLike | number | string
+    positions?: RealPositionCreateNestedManyWithoutStrategyInput
+    orders?: RealOrderCreateNestedManyWithoutStrategyInput
   }
 
   export type TradingStrategyUncheckedCreateInput = {
@@ -18310,6 +28800,8 @@ export namespace Prisma {
     totalProfit?: Decimal | DecimalJsLike | number | string
     strategyType?: string
     toleranceRate?: Decimal | DecimalJsLike | number | string
+    positions?: RealPositionUncheckedCreateNestedManyWithoutStrategyInput
+    orders?: RealOrderUncheckedCreateNestedManyWithoutStrategyInput
   }
 
   export type TradingStrategyUpdateInput = {
@@ -18330,6 +28822,8 @@ export namespace Prisma {
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     strategyType?: StringFieldUpdateOperationsInput | string
     toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    positions?: RealPositionUpdateManyWithoutStrategyNestedInput
+    orders?: RealOrderUpdateManyWithoutStrategyNestedInput
   }
 
   export type TradingStrategyUncheckedUpdateInput = {
@@ -18351,6 +28845,8 @@ export namespace Prisma {
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     strategyType?: StringFieldUpdateOperationsInput | string
     toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    positions?: RealPositionUncheckedUpdateManyWithoutStrategyNestedInput
+    orders?: RealOrderUncheckedUpdateManyWithoutStrategyNestedInput
   }
 
   export type TradingStrategyCreateManyInput = {
@@ -18413,6 +28909,895 @@ export namespace Prisma {
     totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     strategyType?: StringFieldUpdateOperationsInput | string
     toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+  }
+
+  export type ApiKeyCreateInput = {
+    userId: number
+    exchange: string
+    apiKey: string
+    secretKey: string
+    passphrase?: string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: boolean
+    lastUsed?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ApiKeyUncheckedCreateInput = {
+    id?: number
+    userId: number
+    exchange: string
+    apiKey: string
+    secretKey: string
+    passphrase?: string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: boolean
+    lastUsed?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ApiKeyUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    apiKey?: StringFieldUpdateOperationsInput | string
+    secretKey?: StringFieldUpdateOperationsInput | string
+    passphrase?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    lastUsed?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApiKeyUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    apiKey?: StringFieldUpdateOperationsInput | string
+    secretKey?: StringFieldUpdateOperationsInput | string
+    passphrase?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    lastUsed?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApiKeyCreateManyInput = {
+    id?: number
+    userId: number
+    exchange: string
+    apiKey: string
+    secretKey: string
+    passphrase?: string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: boolean
+    lastUsed?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ApiKeyUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    apiKey?: StringFieldUpdateOperationsInput | string
+    secretKey?: StringFieldUpdateOperationsInput | string
+    passphrase?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    lastUsed?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApiKeyUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    apiKey?: StringFieldUpdateOperationsInput | string
+    secretKey?: StringFieldUpdateOperationsInput | string
+    passphrase?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    lastUsed?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealOrderCreateInput = {
+    userId: number
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    strategy?: TradingStrategyCreateNestedOneWithoutOrdersInput
+    position?: RealPositionCreateNestedOneWithoutOrdersInput
+    trades?: RealTradeCreateNestedManyWithoutOrderInput
+  }
+
+  export type RealOrderUncheckedCreateInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    positionId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    trades?: RealTradeUncheckedCreateNestedManyWithoutOrderInput
+  }
+
+  export type RealOrderUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    strategy?: TradingStrategyUpdateOneWithoutOrdersNestedInput
+    position?: RealPositionUpdateOneWithoutOrdersNestedInput
+    trades?: RealTradeUpdateManyWithoutOrderNestedInput
+  }
+
+  export type RealOrderUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trades?: RealTradeUncheckedUpdateManyWithoutOrderNestedInput
+  }
+
+  export type RealOrderCreateManyInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    positionId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+  }
+
+  export type RealOrderUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RealOrderUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RealPositionCreateInput = {
+    userId: number
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    strategy?: TradingStrategyCreateNestedOneWithoutPositionsInput
+    orders?: RealOrderCreateNestedManyWithoutPositionInput
+    trades?: RealTradeCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionUncheckedCreateInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    orders?: RealOrderUncheckedCreateNestedManyWithoutPositionInput
+    trades?: RealTradeUncheckedCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    strategy?: TradingStrategyUpdateOneWithoutPositionsNestedInput
+    orders?: RealOrderUpdateManyWithoutPositionNestedInput
+    trades?: RealTradeUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealPositionUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    orders?: RealOrderUncheckedUpdateManyWithoutPositionNestedInput
+    trades?: RealTradeUncheckedUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealPositionCreateManyInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RealPositionUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealPositionUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealTradeCreateInput = {
+    userId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+    order: RealOrderCreateNestedOneWithoutTradesInput
+    position?: RealPositionCreateNestedOneWithoutTradesInput
+  }
+
+  export type RealTradeUncheckedCreateInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    orderId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+  }
+
+  export type RealTradeUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    order?: RealOrderUpdateOneRequiredWithoutTradesNestedInput
+    position?: RealPositionUpdateOneWithoutTradesNestedInput
+  }
+
+  export type RealTradeUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    orderId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealTradeCreateManyInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    orderId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+  }
+
+  export type RealTradeUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealTradeUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    orderId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BalanceSnapshotCreateInput = {
+    userId: number
+    exchange: string
+    currency: string
+    available: Decimal | DecimalJsLike | number | string
+    locked?: Decimal | DecimalJsLike | number | string
+    total: Decimal | DecimalJsLike | number | string
+    usdValue?: Decimal | DecimalJsLike | number | string | null
+    krwValue?: Decimal | DecimalJsLike | number | string | null
+    createdAt?: Date | string
+  }
+
+  export type BalanceSnapshotUncheckedCreateInput = {
+    id?: number
+    userId: number
+    exchange: string
+    currency: string
+    available: Decimal | DecimalJsLike | number | string
+    locked?: Decimal | DecimalJsLike | number | string
+    total: Decimal | DecimalJsLike | number | string
+    usdValue?: Decimal | DecimalJsLike | number | string | null
+    krwValue?: Decimal | DecimalJsLike | number | string | null
+    createdAt?: Date | string
+  }
+
+  export type BalanceSnapshotUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    available?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    locked?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    usdValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    krwValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BalanceSnapshotUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    available?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    locked?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    usdValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    krwValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BalanceSnapshotCreateManyInput = {
+    id?: number
+    userId: number
+    exchange: string
+    currency: string
+    available: Decimal | DecimalJsLike | number | string
+    locked?: Decimal | DecimalJsLike | number | string
+    total: Decimal | DecimalJsLike | number | string
+    usdValue?: Decimal | DecimalJsLike | number | string | null
+    krwValue?: Decimal | DecimalJsLike | number | string | null
+    createdAt?: Date | string
+  }
+
+  export type BalanceSnapshotUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    available?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    locked?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    usdValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    krwValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BalanceSnapshotUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    currency?: StringFieldUpdateOperationsInput | string
+    available?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    locked?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    usdValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    krwValue?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExchangeConnectionCreateInput = {
+    userId: number
+    exchange: string
+    connected?: boolean
+    lastChecked: Date | string
+    error?: string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ExchangeConnectionUncheckedCreateInput = {
+    id?: number
+    userId: number
+    exchange: string
+    connected?: boolean
+    lastChecked: Date | string
+    error?: string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ExchangeConnectionUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    connected?: BoolFieldUpdateOperationsInput | boolean
+    lastChecked?: DateTimeFieldUpdateOperationsInput | Date | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: BoolFieldUpdateOperationsInput | boolean
+    tradingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExchangeConnectionUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    connected?: BoolFieldUpdateOperationsInput | boolean
+    lastChecked?: DateTimeFieldUpdateOperationsInput | Date | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: BoolFieldUpdateOperationsInput | boolean
+    tradingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExchangeConnectionCreateManyInput = {
+    id?: number
+    userId: number
+    exchange: string
+    connected?: boolean
+    lastChecked: Date | string
+    error?: string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: boolean
+    tradingEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ExchangeConnectionUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    connected?: BoolFieldUpdateOperationsInput | boolean
+    lastChecked?: DateTimeFieldUpdateOperationsInput | Date | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: BoolFieldUpdateOperationsInput | boolean
+    tradingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ExchangeConnectionUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    connected?: BoolFieldUpdateOperationsInput | boolean
+    lastChecked?: DateTimeFieldUpdateOperationsInput | Date | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    permissions?: NullableJsonNullValueInput | InputJsonValue
+    balanceAvailable?: BoolFieldUpdateOperationsInput | boolean
+    tradingEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealDailyStatsCreateInput = {
+    userId: number
+    date: string
+    totalTrades?: number
+    upbitTrades?: number
+    binanceTrades?: number
+    activePositions?: number
+    totalFees?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    totalVolume?: Decimal | DecimalJsLike | number | string
+    winRate?: Decimal | DecimalJsLike | number | string
+    maxDrawdown?: Decimal | DecimalJsLike | number | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RealDailyStatsUncheckedCreateInput = {
+    id?: number
+    userId: number
+    date: string
+    totalTrades?: number
+    upbitTrades?: number
+    binanceTrades?: number
+    activePositions?: number
+    totalFees?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    totalVolume?: Decimal | DecimalJsLike | number | string
+    winRate?: Decimal | DecimalJsLike | number | string
+    maxDrawdown?: Decimal | DecimalJsLike | number | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RealDailyStatsUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    date?: StringFieldUpdateOperationsInput | string
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    upbitTrades?: IntFieldUpdateOperationsInput | number
+    binanceTrades?: IntFieldUpdateOperationsInput | number
+    activePositions?: IntFieldUpdateOperationsInput | number
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealDailyStatsUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    date?: StringFieldUpdateOperationsInput | string
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    upbitTrades?: IntFieldUpdateOperationsInput | number
+    binanceTrades?: IntFieldUpdateOperationsInput | number
+    activePositions?: IntFieldUpdateOperationsInput | number
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealDailyStatsCreateManyInput = {
+    id?: number
+    userId: number
+    date: string
+    totalTrades?: number
+    upbitTrades?: number
+    binanceTrades?: number
+    activePositions?: number
+    totalFees?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    totalVolume?: Decimal | DecimalJsLike | number | string
+    winRate?: Decimal | DecimalJsLike | number | string
+    maxDrawdown?: Decimal | DecimalJsLike | number | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RealDailyStatsUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    date?: StringFieldUpdateOperationsInput | string
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    upbitTrades?: IntFieldUpdateOperationsInput | number
+    binanceTrades?: IntFieldUpdateOperationsInput | number
+    activePositions?: IntFieldUpdateOperationsInput | number
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealDailyStatsUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    date?: StringFieldUpdateOperationsInput | string
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    upbitTrades?: IntFieldUpdateOperationsInput | number
+    binanceTrades?: IntFieldUpdateOperationsInput | number
+    activePositions?: IntFieldUpdateOperationsInput | number
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    totalVolume?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    winRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    maxDrawdown?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -19457,6 +30842,26 @@ export namespace Prisma {
     maxPositionSize?: SortOrder
   }
 
+  export type RealPositionListRelationFilter = {
+    every?: RealPositionWhereInput
+    some?: RealPositionWhereInput
+    none?: RealPositionWhereInput
+  }
+
+  export type RealOrderListRelationFilter = {
+    every?: RealOrderWhereInput
+    some?: RealOrderWhereInput
+    none?: RealOrderWhereInput
+  }
+
+  export type RealPositionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RealOrderOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type TradingStrategyCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
@@ -19546,6 +30951,593 @@ export namespace Prisma {
     successfulTrades?: SortOrder
     totalProfit?: SortOrder
     toleranceRate?: SortOrder
+  }
+
+  export type ApiKeyUnique_user_exchangeCompoundUniqueInput = {
+    userId: number
+    exchange: string
+  }
+
+  export type ApiKeyCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    apiKey?: SortOrder
+    secretKey?: SortOrder
+    passphrase?: SortOrder
+    permissions?: SortOrder
+    isActive?: SortOrder
+    lastUsed?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ApiKeyAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type ApiKeyMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    apiKey?: SortOrder
+    secretKey?: SortOrder
+    passphrase?: SortOrder
+    isActive?: SortOrder
+    lastUsed?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ApiKeyMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    apiKey?: SortOrder
+    secretKey?: SortOrder
+    passphrase?: SortOrder
+    isActive?: SortOrder
+    lastUsed?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ApiKeySumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type TradingStrategyNullableScalarRelationFilter = {
+    is?: TradingStrategyWhereInput | null
+    isNot?: TradingStrategyWhereInput | null
+  }
+
+  export type RealPositionNullableScalarRelationFilter = {
+    is?: RealPositionWhereInput | null
+    isNot?: RealPositionWhereInput | null
+  }
+
+  export type RealTradeListRelationFilter = {
+    every?: RealTradeWhereInput
+    some?: RealTradeWhereInput
+    none?: RealTradeWhereInput
+  }
+
+  export type RealTradeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RealOrderUnique_exchange_orderCompoundUniqueInput = {
+    exchange: string
+    exchangeOrderId: string
+  }
+
+  export type RealOrderCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    positionId?: SortOrder
+    exchange?: SortOrder
+    exchangeOrderId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    type?: SortOrder
+    status?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrder
+    averagePrice?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    timeInForce?: SortOrder
+    clientOrderId?: SortOrder
+    leverage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    filledAt?: SortOrder
+  }
+
+  export type RealOrderAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    positionId?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrder
+    averagePrice?: SortOrder
+    fee?: SortOrder
+    leverage?: SortOrder
+  }
+
+  export type RealOrderMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    positionId?: SortOrder
+    exchange?: SortOrder
+    exchangeOrderId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    type?: SortOrder
+    status?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrder
+    averagePrice?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    timeInForce?: SortOrder
+    clientOrderId?: SortOrder
+    leverage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    filledAt?: SortOrder
+  }
+
+  export type RealOrderMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    positionId?: SortOrder
+    exchange?: SortOrder
+    exchangeOrderId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    type?: SortOrder
+    status?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrder
+    averagePrice?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    timeInForce?: SortOrder
+    clientOrderId?: SortOrder
+    leverage?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    filledAt?: SortOrder
+  }
+
+  export type RealOrderSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    positionId?: SortOrder
+    quantity?: SortOrder
+    filledQuantity?: SortOrder
+    remainingQuantity?: SortOrder
+    price?: SortOrder
+    averagePrice?: SortOrder
+    fee?: SortOrder
+    leverage?: SortOrder
+  }
+
+  export type RealPositionCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    status?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrder
+    upbitOrderId?: SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrder
+    binanceLeverage?: SortOrder
+    binanceOrderId?: SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrder
+    totalFees?: SortOrder
+    entryTime?: SortOrder
+    exitTime?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealPositionAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrder
+    binanceLeverage?: SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrder
+    totalFees?: SortOrder
+  }
+
+  export type RealPositionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    status?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrder
+    upbitOrderId?: SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrder
+    binanceLeverage?: SortOrder
+    binanceOrderId?: SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrder
+    totalFees?: SortOrder
+    entryTime?: SortOrder
+    exitTime?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealPositionMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    status?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrder
+    upbitOrderId?: SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrder
+    binanceLeverage?: SortOrder
+    binanceOrderId?: SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrder
+    totalFees?: SortOrder
+    entryTime?: SortOrder
+    exitTime?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealPositionSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    strategyId?: SortOrder
+    upbitQuantity?: SortOrder
+    upbitEntryPrice?: SortOrder
+    upbitCurrentPrice?: SortOrder
+    binanceQuantity?: SortOrder
+    binanceEntryPrice?: SortOrder
+    binanceCurrentPrice?: SortOrder
+    binanceLeverage?: SortOrder
+    entryPremiumRate?: SortOrder
+    currentPremiumRate?: SortOrder
+    unrealizedPnl?: SortOrder
+    realizedPnl?: SortOrder
+    totalFees?: SortOrder
+  }
+
+  export type RealOrderScalarRelationFilter = {
+    is?: RealOrderWhereInput
+    isNot?: RealOrderWhereInput
+  }
+
+  export type RealTradeUnique_exchange_tradeCompoundUniqueInput = {
+    exchange: string
+    exchangeTradeId: string
+  }
+
+  export type RealTradeCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrder
+    orderId?: SortOrder
+    exchange?: SortOrder
+    exchangeTradeId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    executedAt?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RealTradeAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrder
+    orderId?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+  }
+
+  export type RealTradeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrder
+    orderId?: SortOrder
+    exchange?: SortOrder
+    exchangeTradeId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    executedAt?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RealTradeMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrder
+    orderId?: SortOrder
+    exchange?: SortOrder
+    exchangeTradeId?: SortOrder
+    symbol?: SortOrder
+    side?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+    feeCurrency?: SortOrder
+    executedAt?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type RealTradeSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    positionId?: SortOrder
+    orderId?: SortOrder
+    quantity?: SortOrder
+    price?: SortOrder
+    fee?: SortOrder
+  }
+
+  export type BalanceSnapshotCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    currency?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrder
+    krwValue?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BalanceSnapshotAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrder
+    krwValue?: SortOrder
+  }
+
+  export type BalanceSnapshotMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    currency?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrder
+    krwValue?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BalanceSnapshotMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    currency?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrder
+    krwValue?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BalanceSnapshotSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    available?: SortOrder
+    locked?: SortOrder
+    total?: SortOrder
+    usdValue?: SortOrder
+    krwValue?: SortOrder
+  }
+
+  export type ExchangeConnectionUnique_user_exchange_connectionCompoundUniqueInput = {
+    userId: number
+    exchange: string
+  }
+
+  export type ExchangeConnectionCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    connected?: SortOrder
+    lastChecked?: SortOrder
+    error?: SortOrder
+    permissions?: SortOrder
+    balanceAvailable?: SortOrder
+    tradingEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ExchangeConnectionAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type ExchangeConnectionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    connected?: SortOrder
+    lastChecked?: SortOrder
+    error?: SortOrder
+    balanceAvailable?: SortOrder
+    tradingEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ExchangeConnectionMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    exchange?: SortOrder
+    connected?: SortOrder
+    lastChecked?: SortOrder
+    error?: SortOrder
+    balanceAvailable?: SortOrder
+    tradingEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ExchangeConnectionSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+  }
+
+  export type RealDailyStatsUnique_user_date_statsCompoundUniqueInput = {
+    userId: number
+    date: string
+  }
+
+  export type RealDailyStatsCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    date?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealDailyStatsAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
+  }
+
+  export type RealDailyStatsMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    date?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealDailyStatsMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    date?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RealDailyStatsSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    totalTrades?: SortOrder
+    upbitTrades?: SortOrder
+    binanceTrades?: SortOrder
+    activePositions?: SortOrder
+    totalFees?: SortOrder
+    realizedPnl?: SortOrder
+    unrealizedPnl?: SortOrder
+    totalVolume?: SortOrder
+    winRate?: SortOrder
+    maxDrawdown?: SortOrder
   }
 
   export type TradeCreateNestedManyWithoutTradeLogInput = {
@@ -19664,6 +31656,294 @@ export namespace Prisma {
     delete?: TradeLogWhereInput | boolean
     connect?: TradeLogWhereUniqueInput
     update?: XOR<XOR<TradeLogUpdateToOneWithWhereWithoutTradesInput, TradeLogUpdateWithoutTradesInput>, TradeLogUncheckedUpdateWithoutTradesInput>
+  }
+
+  export type RealPositionCreateNestedManyWithoutStrategyInput = {
+    create?: XOR<RealPositionCreateWithoutStrategyInput, RealPositionUncheckedCreateWithoutStrategyInput> | RealPositionCreateWithoutStrategyInput[] | RealPositionUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealPositionCreateOrConnectWithoutStrategyInput | RealPositionCreateOrConnectWithoutStrategyInput[]
+    createMany?: RealPositionCreateManyStrategyInputEnvelope
+    connect?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+  }
+
+  export type RealOrderCreateNestedManyWithoutStrategyInput = {
+    create?: XOR<RealOrderCreateWithoutStrategyInput, RealOrderUncheckedCreateWithoutStrategyInput> | RealOrderCreateWithoutStrategyInput[] | RealOrderUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutStrategyInput | RealOrderCreateOrConnectWithoutStrategyInput[]
+    createMany?: RealOrderCreateManyStrategyInputEnvelope
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+  }
+
+  export type RealPositionUncheckedCreateNestedManyWithoutStrategyInput = {
+    create?: XOR<RealPositionCreateWithoutStrategyInput, RealPositionUncheckedCreateWithoutStrategyInput> | RealPositionCreateWithoutStrategyInput[] | RealPositionUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealPositionCreateOrConnectWithoutStrategyInput | RealPositionCreateOrConnectWithoutStrategyInput[]
+    createMany?: RealPositionCreateManyStrategyInputEnvelope
+    connect?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+  }
+
+  export type RealOrderUncheckedCreateNestedManyWithoutStrategyInput = {
+    create?: XOR<RealOrderCreateWithoutStrategyInput, RealOrderUncheckedCreateWithoutStrategyInput> | RealOrderCreateWithoutStrategyInput[] | RealOrderUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutStrategyInput | RealOrderCreateOrConnectWithoutStrategyInput[]
+    createMany?: RealOrderCreateManyStrategyInputEnvelope
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+  }
+
+  export type RealPositionUpdateManyWithoutStrategyNestedInput = {
+    create?: XOR<RealPositionCreateWithoutStrategyInput, RealPositionUncheckedCreateWithoutStrategyInput> | RealPositionCreateWithoutStrategyInput[] | RealPositionUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealPositionCreateOrConnectWithoutStrategyInput | RealPositionCreateOrConnectWithoutStrategyInput[]
+    upsert?: RealPositionUpsertWithWhereUniqueWithoutStrategyInput | RealPositionUpsertWithWhereUniqueWithoutStrategyInput[]
+    createMany?: RealPositionCreateManyStrategyInputEnvelope
+    set?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    disconnect?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    delete?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    connect?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    update?: RealPositionUpdateWithWhereUniqueWithoutStrategyInput | RealPositionUpdateWithWhereUniqueWithoutStrategyInput[]
+    updateMany?: RealPositionUpdateManyWithWhereWithoutStrategyInput | RealPositionUpdateManyWithWhereWithoutStrategyInput[]
+    deleteMany?: RealPositionScalarWhereInput | RealPositionScalarWhereInput[]
+  }
+
+  export type RealOrderUpdateManyWithoutStrategyNestedInput = {
+    create?: XOR<RealOrderCreateWithoutStrategyInput, RealOrderUncheckedCreateWithoutStrategyInput> | RealOrderCreateWithoutStrategyInput[] | RealOrderUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutStrategyInput | RealOrderCreateOrConnectWithoutStrategyInput[]
+    upsert?: RealOrderUpsertWithWhereUniqueWithoutStrategyInput | RealOrderUpsertWithWhereUniqueWithoutStrategyInput[]
+    createMany?: RealOrderCreateManyStrategyInputEnvelope
+    set?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    disconnect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    delete?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    update?: RealOrderUpdateWithWhereUniqueWithoutStrategyInput | RealOrderUpdateWithWhereUniqueWithoutStrategyInput[]
+    updateMany?: RealOrderUpdateManyWithWhereWithoutStrategyInput | RealOrderUpdateManyWithWhereWithoutStrategyInput[]
+    deleteMany?: RealOrderScalarWhereInput | RealOrderScalarWhereInput[]
+  }
+
+  export type RealPositionUncheckedUpdateManyWithoutStrategyNestedInput = {
+    create?: XOR<RealPositionCreateWithoutStrategyInput, RealPositionUncheckedCreateWithoutStrategyInput> | RealPositionCreateWithoutStrategyInput[] | RealPositionUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealPositionCreateOrConnectWithoutStrategyInput | RealPositionCreateOrConnectWithoutStrategyInput[]
+    upsert?: RealPositionUpsertWithWhereUniqueWithoutStrategyInput | RealPositionUpsertWithWhereUniqueWithoutStrategyInput[]
+    createMany?: RealPositionCreateManyStrategyInputEnvelope
+    set?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    disconnect?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    delete?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    connect?: RealPositionWhereUniqueInput | RealPositionWhereUniqueInput[]
+    update?: RealPositionUpdateWithWhereUniqueWithoutStrategyInput | RealPositionUpdateWithWhereUniqueWithoutStrategyInput[]
+    updateMany?: RealPositionUpdateManyWithWhereWithoutStrategyInput | RealPositionUpdateManyWithWhereWithoutStrategyInput[]
+    deleteMany?: RealPositionScalarWhereInput | RealPositionScalarWhereInput[]
+  }
+
+  export type RealOrderUncheckedUpdateManyWithoutStrategyNestedInput = {
+    create?: XOR<RealOrderCreateWithoutStrategyInput, RealOrderUncheckedCreateWithoutStrategyInput> | RealOrderCreateWithoutStrategyInput[] | RealOrderUncheckedCreateWithoutStrategyInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutStrategyInput | RealOrderCreateOrConnectWithoutStrategyInput[]
+    upsert?: RealOrderUpsertWithWhereUniqueWithoutStrategyInput | RealOrderUpsertWithWhereUniqueWithoutStrategyInput[]
+    createMany?: RealOrderCreateManyStrategyInputEnvelope
+    set?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    disconnect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    delete?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    update?: RealOrderUpdateWithWhereUniqueWithoutStrategyInput | RealOrderUpdateWithWhereUniqueWithoutStrategyInput[]
+    updateMany?: RealOrderUpdateManyWithWhereWithoutStrategyInput | RealOrderUpdateManyWithWhereWithoutStrategyInput[]
+    deleteMany?: RealOrderScalarWhereInput | RealOrderScalarWhereInput[]
+  }
+
+  export type TradingStrategyCreateNestedOneWithoutOrdersInput = {
+    create?: XOR<TradingStrategyCreateWithoutOrdersInput, TradingStrategyUncheckedCreateWithoutOrdersInput>
+    connectOrCreate?: TradingStrategyCreateOrConnectWithoutOrdersInput
+    connect?: TradingStrategyWhereUniqueInput
+  }
+
+  export type RealPositionCreateNestedOneWithoutOrdersInput = {
+    create?: XOR<RealPositionCreateWithoutOrdersInput, RealPositionUncheckedCreateWithoutOrdersInput>
+    connectOrCreate?: RealPositionCreateOrConnectWithoutOrdersInput
+    connect?: RealPositionWhereUniqueInput
+  }
+
+  export type RealTradeCreateNestedManyWithoutOrderInput = {
+    create?: XOR<RealTradeCreateWithoutOrderInput, RealTradeUncheckedCreateWithoutOrderInput> | RealTradeCreateWithoutOrderInput[] | RealTradeUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutOrderInput | RealTradeCreateOrConnectWithoutOrderInput[]
+    createMany?: RealTradeCreateManyOrderInputEnvelope
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+  }
+
+  export type RealTradeUncheckedCreateNestedManyWithoutOrderInput = {
+    create?: XOR<RealTradeCreateWithoutOrderInput, RealTradeUncheckedCreateWithoutOrderInput> | RealTradeCreateWithoutOrderInput[] | RealTradeUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutOrderInput | RealTradeCreateOrConnectWithoutOrderInput[]
+    createMany?: RealTradeCreateManyOrderInputEnvelope
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+  }
+
+  export type TradingStrategyUpdateOneWithoutOrdersNestedInput = {
+    create?: XOR<TradingStrategyCreateWithoutOrdersInput, TradingStrategyUncheckedCreateWithoutOrdersInput>
+    connectOrCreate?: TradingStrategyCreateOrConnectWithoutOrdersInput
+    upsert?: TradingStrategyUpsertWithoutOrdersInput
+    disconnect?: TradingStrategyWhereInput | boolean
+    delete?: TradingStrategyWhereInput | boolean
+    connect?: TradingStrategyWhereUniqueInput
+    update?: XOR<XOR<TradingStrategyUpdateToOneWithWhereWithoutOrdersInput, TradingStrategyUpdateWithoutOrdersInput>, TradingStrategyUncheckedUpdateWithoutOrdersInput>
+  }
+
+  export type RealPositionUpdateOneWithoutOrdersNestedInput = {
+    create?: XOR<RealPositionCreateWithoutOrdersInput, RealPositionUncheckedCreateWithoutOrdersInput>
+    connectOrCreate?: RealPositionCreateOrConnectWithoutOrdersInput
+    upsert?: RealPositionUpsertWithoutOrdersInput
+    disconnect?: RealPositionWhereInput | boolean
+    delete?: RealPositionWhereInput | boolean
+    connect?: RealPositionWhereUniqueInput
+    update?: XOR<XOR<RealPositionUpdateToOneWithWhereWithoutOrdersInput, RealPositionUpdateWithoutOrdersInput>, RealPositionUncheckedUpdateWithoutOrdersInput>
+  }
+
+  export type RealTradeUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<RealTradeCreateWithoutOrderInput, RealTradeUncheckedCreateWithoutOrderInput> | RealTradeCreateWithoutOrderInput[] | RealTradeUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutOrderInput | RealTradeCreateOrConnectWithoutOrderInput[]
+    upsert?: RealTradeUpsertWithWhereUniqueWithoutOrderInput | RealTradeUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: RealTradeCreateManyOrderInputEnvelope
+    set?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    disconnect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    delete?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    update?: RealTradeUpdateWithWhereUniqueWithoutOrderInput | RealTradeUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: RealTradeUpdateManyWithWhereWithoutOrderInput | RealTradeUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: RealTradeScalarWhereInput | RealTradeScalarWhereInput[]
+  }
+
+  export type RealTradeUncheckedUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<RealTradeCreateWithoutOrderInput, RealTradeUncheckedCreateWithoutOrderInput> | RealTradeCreateWithoutOrderInput[] | RealTradeUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutOrderInput | RealTradeCreateOrConnectWithoutOrderInput[]
+    upsert?: RealTradeUpsertWithWhereUniqueWithoutOrderInput | RealTradeUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: RealTradeCreateManyOrderInputEnvelope
+    set?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    disconnect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    delete?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    update?: RealTradeUpdateWithWhereUniqueWithoutOrderInput | RealTradeUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: RealTradeUpdateManyWithWhereWithoutOrderInput | RealTradeUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: RealTradeScalarWhereInput | RealTradeScalarWhereInput[]
+  }
+
+  export type TradingStrategyCreateNestedOneWithoutPositionsInput = {
+    create?: XOR<TradingStrategyCreateWithoutPositionsInput, TradingStrategyUncheckedCreateWithoutPositionsInput>
+    connectOrCreate?: TradingStrategyCreateOrConnectWithoutPositionsInput
+    connect?: TradingStrategyWhereUniqueInput
+  }
+
+  export type RealOrderCreateNestedManyWithoutPositionInput = {
+    create?: XOR<RealOrderCreateWithoutPositionInput, RealOrderUncheckedCreateWithoutPositionInput> | RealOrderCreateWithoutPositionInput[] | RealOrderUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutPositionInput | RealOrderCreateOrConnectWithoutPositionInput[]
+    createMany?: RealOrderCreateManyPositionInputEnvelope
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+  }
+
+  export type RealTradeCreateNestedManyWithoutPositionInput = {
+    create?: XOR<RealTradeCreateWithoutPositionInput, RealTradeUncheckedCreateWithoutPositionInput> | RealTradeCreateWithoutPositionInput[] | RealTradeUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutPositionInput | RealTradeCreateOrConnectWithoutPositionInput[]
+    createMany?: RealTradeCreateManyPositionInputEnvelope
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+  }
+
+  export type RealOrderUncheckedCreateNestedManyWithoutPositionInput = {
+    create?: XOR<RealOrderCreateWithoutPositionInput, RealOrderUncheckedCreateWithoutPositionInput> | RealOrderCreateWithoutPositionInput[] | RealOrderUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutPositionInput | RealOrderCreateOrConnectWithoutPositionInput[]
+    createMany?: RealOrderCreateManyPositionInputEnvelope
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+  }
+
+  export type RealTradeUncheckedCreateNestedManyWithoutPositionInput = {
+    create?: XOR<RealTradeCreateWithoutPositionInput, RealTradeUncheckedCreateWithoutPositionInput> | RealTradeCreateWithoutPositionInput[] | RealTradeUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutPositionInput | RealTradeCreateOrConnectWithoutPositionInput[]
+    createMany?: RealTradeCreateManyPositionInputEnvelope
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+  }
+
+  export type TradingStrategyUpdateOneWithoutPositionsNestedInput = {
+    create?: XOR<TradingStrategyCreateWithoutPositionsInput, TradingStrategyUncheckedCreateWithoutPositionsInput>
+    connectOrCreate?: TradingStrategyCreateOrConnectWithoutPositionsInput
+    upsert?: TradingStrategyUpsertWithoutPositionsInput
+    disconnect?: TradingStrategyWhereInput | boolean
+    delete?: TradingStrategyWhereInput | boolean
+    connect?: TradingStrategyWhereUniqueInput
+    update?: XOR<XOR<TradingStrategyUpdateToOneWithWhereWithoutPositionsInput, TradingStrategyUpdateWithoutPositionsInput>, TradingStrategyUncheckedUpdateWithoutPositionsInput>
+  }
+
+  export type RealOrderUpdateManyWithoutPositionNestedInput = {
+    create?: XOR<RealOrderCreateWithoutPositionInput, RealOrderUncheckedCreateWithoutPositionInput> | RealOrderCreateWithoutPositionInput[] | RealOrderUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutPositionInput | RealOrderCreateOrConnectWithoutPositionInput[]
+    upsert?: RealOrderUpsertWithWhereUniqueWithoutPositionInput | RealOrderUpsertWithWhereUniqueWithoutPositionInput[]
+    createMany?: RealOrderCreateManyPositionInputEnvelope
+    set?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    disconnect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    delete?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    update?: RealOrderUpdateWithWhereUniqueWithoutPositionInput | RealOrderUpdateWithWhereUniqueWithoutPositionInput[]
+    updateMany?: RealOrderUpdateManyWithWhereWithoutPositionInput | RealOrderUpdateManyWithWhereWithoutPositionInput[]
+    deleteMany?: RealOrderScalarWhereInput | RealOrderScalarWhereInput[]
+  }
+
+  export type RealTradeUpdateManyWithoutPositionNestedInput = {
+    create?: XOR<RealTradeCreateWithoutPositionInput, RealTradeUncheckedCreateWithoutPositionInput> | RealTradeCreateWithoutPositionInput[] | RealTradeUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutPositionInput | RealTradeCreateOrConnectWithoutPositionInput[]
+    upsert?: RealTradeUpsertWithWhereUniqueWithoutPositionInput | RealTradeUpsertWithWhereUniqueWithoutPositionInput[]
+    createMany?: RealTradeCreateManyPositionInputEnvelope
+    set?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    disconnect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    delete?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    update?: RealTradeUpdateWithWhereUniqueWithoutPositionInput | RealTradeUpdateWithWhereUniqueWithoutPositionInput[]
+    updateMany?: RealTradeUpdateManyWithWhereWithoutPositionInput | RealTradeUpdateManyWithWhereWithoutPositionInput[]
+    deleteMany?: RealTradeScalarWhereInput | RealTradeScalarWhereInput[]
+  }
+
+  export type RealOrderUncheckedUpdateManyWithoutPositionNestedInput = {
+    create?: XOR<RealOrderCreateWithoutPositionInput, RealOrderUncheckedCreateWithoutPositionInput> | RealOrderCreateWithoutPositionInput[] | RealOrderUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealOrderCreateOrConnectWithoutPositionInput | RealOrderCreateOrConnectWithoutPositionInput[]
+    upsert?: RealOrderUpsertWithWhereUniqueWithoutPositionInput | RealOrderUpsertWithWhereUniqueWithoutPositionInput[]
+    createMany?: RealOrderCreateManyPositionInputEnvelope
+    set?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    disconnect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    delete?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    connect?: RealOrderWhereUniqueInput | RealOrderWhereUniqueInput[]
+    update?: RealOrderUpdateWithWhereUniqueWithoutPositionInput | RealOrderUpdateWithWhereUniqueWithoutPositionInput[]
+    updateMany?: RealOrderUpdateManyWithWhereWithoutPositionInput | RealOrderUpdateManyWithWhereWithoutPositionInput[]
+    deleteMany?: RealOrderScalarWhereInput | RealOrderScalarWhereInput[]
+  }
+
+  export type RealTradeUncheckedUpdateManyWithoutPositionNestedInput = {
+    create?: XOR<RealTradeCreateWithoutPositionInput, RealTradeUncheckedCreateWithoutPositionInput> | RealTradeCreateWithoutPositionInput[] | RealTradeUncheckedCreateWithoutPositionInput[]
+    connectOrCreate?: RealTradeCreateOrConnectWithoutPositionInput | RealTradeCreateOrConnectWithoutPositionInput[]
+    upsert?: RealTradeUpsertWithWhereUniqueWithoutPositionInput | RealTradeUpsertWithWhereUniqueWithoutPositionInput[]
+    createMany?: RealTradeCreateManyPositionInputEnvelope
+    set?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    disconnect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    delete?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    connect?: RealTradeWhereUniqueInput | RealTradeWhereUniqueInput[]
+    update?: RealTradeUpdateWithWhereUniqueWithoutPositionInput | RealTradeUpdateWithWhereUniqueWithoutPositionInput[]
+    updateMany?: RealTradeUpdateManyWithWhereWithoutPositionInput | RealTradeUpdateManyWithWhereWithoutPositionInput[]
+    deleteMany?: RealTradeScalarWhereInput | RealTradeScalarWhereInput[]
+  }
+
+  export type RealOrderCreateNestedOneWithoutTradesInput = {
+    create?: XOR<RealOrderCreateWithoutTradesInput, RealOrderUncheckedCreateWithoutTradesInput>
+    connectOrCreate?: RealOrderCreateOrConnectWithoutTradesInput
+    connect?: RealOrderWhereUniqueInput
+  }
+
+  export type RealPositionCreateNestedOneWithoutTradesInput = {
+    create?: XOR<RealPositionCreateWithoutTradesInput, RealPositionUncheckedCreateWithoutTradesInput>
+    connectOrCreate?: RealPositionCreateOrConnectWithoutTradesInput
+    connect?: RealPositionWhereUniqueInput
+  }
+
+  export type RealOrderUpdateOneRequiredWithoutTradesNestedInput = {
+    create?: XOR<RealOrderCreateWithoutTradesInput, RealOrderUncheckedCreateWithoutTradesInput>
+    connectOrCreate?: RealOrderCreateOrConnectWithoutTradesInput
+    upsert?: RealOrderUpsertWithoutTradesInput
+    connect?: RealOrderWhereUniqueInput
+    update?: XOR<XOR<RealOrderUpdateToOneWithWhereWithoutTradesInput, RealOrderUpdateWithoutTradesInput>, RealOrderUncheckedUpdateWithoutTradesInput>
+  }
+
+  export type RealPositionUpdateOneWithoutTradesNestedInput = {
+    create?: XOR<RealPositionCreateWithoutTradesInput, RealPositionUncheckedCreateWithoutTradesInput>
+    connectOrCreate?: RealPositionCreateOrConnectWithoutTradesInput
+    upsert?: RealPositionUpsertWithoutTradesInput
+    disconnect?: RealPositionWhereInput | boolean
+    delete?: RealPositionWhereInput | boolean
+    connect?: RealPositionWhereUniqueInput
+    update?: XOR<XOR<RealPositionUpdateToOneWithWhereWithoutTradesInput, RealPositionUpdateWithoutTradesInput>, RealPositionUncheckedUpdateWithoutTradesInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -20113,6 +32393,1008 @@ export namespace Prisma {
     result?: StringFieldUpdateOperationsInput | string
   }
 
+  export type RealPositionCreateWithoutStrategyInput = {
+    userId: number
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    orders?: RealOrderCreateNestedManyWithoutPositionInput
+    trades?: RealTradeCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionUncheckedCreateWithoutStrategyInput = {
+    id?: number
+    userId: number
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    orders?: RealOrderUncheckedCreateNestedManyWithoutPositionInput
+    trades?: RealTradeUncheckedCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionCreateOrConnectWithoutStrategyInput = {
+    where: RealPositionWhereUniqueInput
+    create: XOR<RealPositionCreateWithoutStrategyInput, RealPositionUncheckedCreateWithoutStrategyInput>
+  }
+
+  export type RealPositionCreateManyStrategyInputEnvelope = {
+    data: RealPositionCreateManyStrategyInput | RealPositionCreateManyStrategyInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RealOrderCreateWithoutStrategyInput = {
+    userId: number
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    position?: RealPositionCreateNestedOneWithoutOrdersInput
+    trades?: RealTradeCreateNestedManyWithoutOrderInput
+  }
+
+  export type RealOrderUncheckedCreateWithoutStrategyInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    trades?: RealTradeUncheckedCreateNestedManyWithoutOrderInput
+  }
+
+  export type RealOrderCreateOrConnectWithoutStrategyInput = {
+    where: RealOrderWhereUniqueInput
+    create: XOR<RealOrderCreateWithoutStrategyInput, RealOrderUncheckedCreateWithoutStrategyInput>
+  }
+
+  export type RealOrderCreateManyStrategyInputEnvelope = {
+    data: RealOrderCreateManyStrategyInput | RealOrderCreateManyStrategyInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RealPositionUpsertWithWhereUniqueWithoutStrategyInput = {
+    where: RealPositionWhereUniqueInput
+    update: XOR<RealPositionUpdateWithoutStrategyInput, RealPositionUncheckedUpdateWithoutStrategyInput>
+    create: XOR<RealPositionCreateWithoutStrategyInput, RealPositionUncheckedCreateWithoutStrategyInput>
+  }
+
+  export type RealPositionUpdateWithWhereUniqueWithoutStrategyInput = {
+    where: RealPositionWhereUniqueInput
+    data: XOR<RealPositionUpdateWithoutStrategyInput, RealPositionUncheckedUpdateWithoutStrategyInput>
+  }
+
+  export type RealPositionUpdateManyWithWhereWithoutStrategyInput = {
+    where: RealPositionScalarWhereInput
+    data: XOR<RealPositionUpdateManyMutationInput, RealPositionUncheckedUpdateManyWithoutStrategyInput>
+  }
+
+  export type RealPositionScalarWhereInput = {
+    AND?: RealPositionScalarWhereInput | RealPositionScalarWhereInput[]
+    OR?: RealPositionScalarWhereInput[]
+    NOT?: RealPositionScalarWhereInput | RealPositionScalarWhereInput[]
+    id?: IntFilter<"RealPosition"> | number
+    userId?: IntFilter<"RealPosition"> | number
+    strategyId?: IntNullableFilter<"RealPosition"> | number | null
+    symbol?: StringFilter<"RealPosition"> | string
+    side?: StringFilter<"RealPosition"> | string
+    status?: StringFilter<"RealPosition"> | string
+    upbitQuantity?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: StringNullableFilter<"RealPosition"> | string | null
+    binanceQuantity?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFilter<"RealPosition"> | number
+    binanceOrderId?: StringNullableFilter<"RealPosition"> | string | null
+    entryPremiumRate?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    realizedPnl?: DecimalNullableFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFilter<"RealPosition"> | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFilter<"RealPosition"> | Date | string
+    exitTime?: DateTimeNullableFilter<"RealPosition"> | Date | string | null
+    createdAt?: DateTimeFilter<"RealPosition"> | Date | string
+    updatedAt?: DateTimeFilter<"RealPosition"> | Date | string
+  }
+
+  export type RealOrderUpsertWithWhereUniqueWithoutStrategyInput = {
+    where: RealOrderWhereUniqueInput
+    update: XOR<RealOrderUpdateWithoutStrategyInput, RealOrderUncheckedUpdateWithoutStrategyInput>
+    create: XOR<RealOrderCreateWithoutStrategyInput, RealOrderUncheckedCreateWithoutStrategyInput>
+  }
+
+  export type RealOrderUpdateWithWhereUniqueWithoutStrategyInput = {
+    where: RealOrderWhereUniqueInput
+    data: XOR<RealOrderUpdateWithoutStrategyInput, RealOrderUncheckedUpdateWithoutStrategyInput>
+  }
+
+  export type RealOrderUpdateManyWithWhereWithoutStrategyInput = {
+    where: RealOrderScalarWhereInput
+    data: XOR<RealOrderUpdateManyMutationInput, RealOrderUncheckedUpdateManyWithoutStrategyInput>
+  }
+
+  export type RealOrderScalarWhereInput = {
+    AND?: RealOrderScalarWhereInput | RealOrderScalarWhereInput[]
+    OR?: RealOrderScalarWhereInput[]
+    NOT?: RealOrderScalarWhereInput | RealOrderScalarWhereInput[]
+    id?: IntFilter<"RealOrder"> | number
+    userId?: IntFilter<"RealOrder"> | number
+    strategyId?: IntNullableFilter<"RealOrder"> | number | null
+    positionId?: IntNullableFilter<"RealOrder"> | number | null
+    exchange?: StringFilter<"RealOrder"> | string
+    exchangeOrderId?: StringFilter<"RealOrder"> | string
+    symbol?: StringFilter<"RealOrder"> | string
+    side?: StringFilter<"RealOrder"> | string
+    type?: StringFilter<"RealOrder"> | string
+    status?: StringFilter<"RealOrder"> | string
+    quantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalNullableFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: DecimalNullableFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFilter<"RealOrder"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringNullableFilter<"RealOrder"> | string | null
+    timeInForce?: StringNullableFilter<"RealOrder"> | string | null
+    clientOrderId?: StringNullableFilter<"RealOrder"> | string | null
+    leverage?: IntNullableFilter<"RealOrder"> | number | null
+    createdAt?: DateTimeFilter<"RealOrder"> | Date | string
+    updatedAt?: DateTimeFilter<"RealOrder"> | Date | string
+    filledAt?: DateTimeNullableFilter<"RealOrder"> | Date | string | null
+  }
+
+  export type TradingStrategyCreateWithoutOrdersInput = {
+    userId: number
+    name: string
+    entryRate: Decimal | DecimalJsLike | number | string
+    exitRate: Decimal | DecimalJsLike | number | string
+    leverage?: number
+    investmentAmount: Decimal | DecimalJsLike | number | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    symbol: string
+    tolerance?: Decimal | DecimalJsLike | number | string
+    isAutoTrading?: boolean
+    totalTrades?: number
+    successfulTrades?: number
+    totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
+    positions?: RealPositionCreateNestedManyWithoutStrategyInput
+  }
+
+  export type TradingStrategyUncheckedCreateWithoutOrdersInput = {
+    id?: number
+    userId: number
+    name: string
+    entryRate: Decimal | DecimalJsLike | number | string
+    exitRate: Decimal | DecimalJsLike | number | string
+    leverage?: number
+    investmentAmount: Decimal | DecimalJsLike | number | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    symbol: string
+    tolerance?: Decimal | DecimalJsLike | number | string
+    isAutoTrading?: boolean
+    totalTrades?: number
+    successfulTrades?: number
+    totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
+    positions?: RealPositionUncheckedCreateNestedManyWithoutStrategyInput
+  }
+
+  export type TradingStrategyCreateOrConnectWithoutOrdersInput = {
+    where: TradingStrategyWhereUniqueInput
+    create: XOR<TradingStrategyCreateWithoutOrdersInput, TradingStrategyUncheckedCreateWithoutOrdersInput>
+  }
+
+  export type RealPositionCreateWithoutOrdersInput = {
+    userId: number
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    strategy?: TradingStrategyCreateNestedOneWithoutPositionsInput
+    trades?: RealTradeCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionUncheckedCreateWithoutOrdersInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    trades?: RealTradeUncheckedCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionCreateOrConnectWithoutOrdersInput = {
+    where: RealPositionWhereUniqueInput
+    create: XOR<RealPositionCreateWithoutOrdersInput, RealPositionUncheckedCreateWithoutOrdersInput>
+  }
+
+  export type RealTradeCreateWithoutOrderInput = {
+    userId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+    position?: RealPositionCreateNestedOneWithoutTradesInput
+  }
+
+  export type RealTradeUncheckedCreateWithoutOrderInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+  }
+
+  export type RealTradeCreateOrConnectWithoutOrderInput = {
+    where: RealTradeWhereUniqueInput
+    create: XOR<RealTradeCreateWithoutOrderInput, RealTradeUncheckedCreateWithoutOrderInput>
+  }
+
+  export type RealTradeCreateManyOrderInputEnvelope = {
+    data: RealTradeCreateManyOrderInput | RealTradeCreateManyOrderInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type TradingStrategyUpsertWithoutOrdersInput = {
+    update: XOR<TradingStrategyUpdateWithoutOrdersInput, TradingStrategyUncheckedUpdateWithoutOrdersInput>
+    create: XOR<TradingStrategyCreateWithoutOrdersInput, TradingStrategyUncheckedCreateWithoutOrdersInput>
+    where?: TradingStrategyWhereInput
+  }
+
+  export type TradingStrategyUpdateToOneWithWhereWithoutOrdersInput = {
+    where?: TradingStrategyWhereInput
+    data: XOR<TradingStrategyUpdateWithoutOrdersInput, TradingStrategyUncheckedUpdateWithoutOrdersInput>
+  }
+
+  export type TradingStrategyUpdateWithoutOrdersInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    entryRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    exitRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    leverage?: IntFieldUpdateOperationsInput | number
+    investmentAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    tolerance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isAutoTrading?: BoolFieldUpdateOperationsInput | boolean
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    successfulTrades?: IntFieldUpdateOperationsInput | number
+    totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    positions?: RealPositionUpdateManyWithoutStrategyNestedInput
+  }
+
+  export type TradingStrategyUncheckedUpdateWithoutOrdersInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    entryRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    exitRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    leverage?: IntFieldUpdateOperationsInput | number
+    investmentAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    tolerance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isAutoTrading?: BoolFieldUpdateOperationsInput | boolean
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    successfulTrades?: IntFieldUpdateOperationsInput | number
+    totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    positions?: RealPositionUncheckedUpdateManyWithoutStrategyNestedInput
+  }
+
+  export type RealPositionUpsertWithoutOrdersInput = {
+    update: XOR<RealPositionUpdateWithoutOrdersInput, RealPositionUncheckedUpdateWithoutOrdersInput>
+    create: XOR<RealPositionCreateWithoutOrdersInput, RealPositionUncheckedCreateWithoutOrdersInput>
+    where?: RealPositionWhereInput
+  }
+
+  export type RealPositionUpdateToOneWithWhereWithoutOrdersInput = {
+    where?: RealPositionWhereInput
+    data: XOR<RealPositionUpdateWithoutOrdersInput, RealPositionUncheckedUpdateWithoutOrdersInput>
+  }
+
+  export type RealPositionUpdateWithoutOrdersInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    strategy?: TradingStrategyUpdateOneWithoutPositionsNestedInput
+    trades?: RealTradeUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealPositionUncheckedUpdateWithoutOrdersInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    trades?: RealTradeUncheckedUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealTradeUpsertWithWhereUniqueWithoutOrderInput = {
+    where: RealTradeWhereUniqueInput
+    update: XOR<RealTradeUpdateWithoutOrderInput, RealTradeUncheckedUpdateWithoutOrderInput>
+    create: XOR<RealTradeCreateWithoutOrderInput, RealTradeUncheckedCreateWithoutOrderInput>
+  }
+
+  export type RealTradeUpdateWithWhereUniqueWithoutOrderInput = {
+    where: RealTradeWhereUniqueInput
+    data: XOR<RealTradeUpdateWithoutOrderInput, RealTradeUncheckedUpdateWithoutOrderInput>
+  }
+
+  export type RealTradeUpdateManyWithWhereWithoutOrderInput = {
+    where: RealTradeScalarWhereInput
+    data: XOR<RealTradeUpdateManyMutationInput, RealTradeUncheckedUpdateManyWithoutOrderInput>
+  }
+
+  export type RealTradeScalarWhereInput = {
+    AND?: RealTradeScalarWhereInput | RealTradeScalarWhereInput[]
+    OR?: RealTradeScalarWhereInput[]
+    NOT?: RealTradeScalarWhereInput | RealTradeScalarWhereInput[]
+    id?: IntFilter<"RealTrade"> | number
+    userId?: IntFilter<"RealTrade"> | number
+    positionId?: IntNullableFilter<"RealTrade"> | number | null
+    orderId?: IntFilter<"RealTrade"> | number
+    exchange?: StringFilter<"RealTrade"> | string
+    exchangeTradeId?: StringFilter<"RealTrade"> | string
+    symbol?: StringFilter<"RealTrade"> | string
+    side?: StringFilter<"RealTrade"> | string
+    quantity?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    price?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFilter<"RealTrade"> | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFilter<"RealTrade"> | string
+    executedAt?: DateTimeFilter<"RealTrade"> | Date | string
+    createdAt?: DateTimeFilter<"RealTrade"> | Date | string
+  }
+
+  export type TradingStrategyCreateWithoutPositionsInput = {
+    userId: number
+    name: string
+    entryRate: Decimal | DecimalJsLike | number | string
+    exitRate: Decimal | DecimalJsLike | number | string
+    leverage?: number
+    investmentAmount: Decimal | DecimalJsLike | number | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    symbol: string
+    tolerance?: Decimal | DecimalJsLike | number | string
+    isAutoTrading?: boolean
+    totalTrades?: number
+    successfulTrades?: number
+    totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
+    orders?: RealOrderCreateNestedManyWithoutStrategyInput
+  }
+
+  export type TradingStrategyUncheckedCreateWithoutPositionsInput = {
+    id?: number
+    userId: number
+    name: string
+    entryRate: Decimal | DecimalJsLike | number | string
+    exitRate: Decimal | DecimalJsLike | number | string
+    leverage?: number
+    investmentAmount: Decimal | DecimalJsLike | number | string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    symbol: string
+    tolerance?: Decimal | DecimalJsLike | number | string
+    isAutoTrading?: boolean
+    totalTrades?: number
+    successfulTrades?: number
+    totalProfit?: Decimal | DecimalJsLike | number | string
+    strategyType?: string
+    toleranceRate?: Decimal | DecimalJsLike | number | string
+    orders?: RealOrderUncheckedCreateNestedManyWithoutStrategyInput
+  }
+
+  export type TradingStrategyCreateOrConnectWithoutPositionsInput = {
+    where: TradingStrategyWhereUniqueInput
+    create: XOR<TradingStrategyCreateWithoutPositionsInput, TradingStrategyUncheckedCreateWithoutPositionsInput>
+  }
+
+  export type RealOrderCreateWithoutPositionInput = {
+    userId: number
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    strategy?: TradingStrategyCreateNestedOneWithoutOrdersInput
+    trades?: RealTradeCreateNestedManyWithoutOrderInput
+  }
+
+  export type RealOrderUncheckedCreateWithoutPositionInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    trades?: RealTradeUncheckedCreateNestedManyWithoutOrderInput
+  }
+
+  export type RealOrderCreateOrConnectWithoutPositionInput = {
+    where: RealOrderWhereUniqueInput
+    create: XOR<RealOrderCreateWithoutPositionInput, RealOrderUncheckedCreateWithoutPositionInput>
+  }
+
+  export type RealOrderCreateManyPositionInputEnvelope = {
+    data: RealOrderCreateManyPositionInput | RealOrderCreateManyPositionInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RealTradeCreateWithoutPositionInput = {
+    userId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+    order: RealOrderCreateNestedOneWithoutTradesInput
+  }
+
+  export type RealTradeUncheckedCreateWithoutPositionInput = {
+    id?: number
+    userId: number
+    orderId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+  }
+
+  export type RealTradeCreateOrConnectWithoutPositionInput = {
+    where: RealTradeWhereUniqueInput
+    create: XOR<RealTradeCreateWithoutPositionInput, RealTradeUncheckedCreateWithoutPositionInput>
+  }
+
+  export type RealTradeCreateManyPositionInputEnvelope = {
+    data: RealTradeCreateManyPositionInput | RealTradeCreateManyPositionInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type TradingStrategyUpsertWithoutPositionsInput = {
+    update: XOR<TradingStrategyUpdateWithoutPositionsInput, TradingStrategyUncheckedUpdateWithoutPositionsInput>
+    create: XOR<TradingStrategyCreateWithoutPositionsInput, TradingStrategyUncheckedCreateWithoutPositionsInput>
+    where?: TradingStrategyWhereInput
+  }
+
+  export type TradingStrategyUpdateToOneWithWhereWithoutPositionsInput = {
+    where?: TradingStrategyWhereInput
+    data: XOR<TradingStrategyUpdateWithoutPositionsInput, TradingStrategyUncheckedUpdateWithoutPositionsInput>
+  }
+
+  export type TradingStrategyUpdateWithoutPositionsInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    entryRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    exitRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    leverage?: IntFieldUpdateOperationsInput | number
+    investmentAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    tolerance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isAutoTrading?: BoolFieldUpdateOperationsInput | boolean
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    successfulTrades?: IntFieldUpdateOperationsInput | number
+    totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    orders?: RealOrderUpdateManyWithoutStrategyNestedInput
+  }
+
+  export type TradingStrategyUncheckedUpdateWithoutPositionsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    entryRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    exitRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    leverage?: IntFieldUpdateOperationsInput | number
+    investmentAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    tolerance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    isAutoTrading?: BoolFieldUpdateOperationsInput | boolean
+    totalTrades?: IntFieldUpdateOperationsInput | number
+    successfulTrades?: IntFieldUpdateOperationsInput | number
+    totalProfit?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    strategyType?: StringFieldUpdateOperationsInput | string
+    toleranceRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    orders?: RealOrderUncheckedUpdateManyWithoutStrategyNestedInput
+  }
+
+  export type RealOrderUpsertWithWhereUniqueWithoutPositionInput = {
+    where: RealOrderWhereUniqueInput
+    update: XOR<RealOrderUpdateWithoutPositionInput, RealOrderUncheckedUpdateWithoutPositionInput>
+    create: XOR<RealOrderCreateWithoutPositionInput, RealOrderUncheckedCreateWithoutPositionInput>
+  }
+
+  export type RealOrderUpdateWithWhereUniqueWithoutPositionInput = {
+    where: RealOrderWhereUniqueInput
+    data: XOR<RealOrderUpdateWithoutPositionInput, RealOrderUncheckedUpdateWithoutPositionInput>
+  }
+
+  export type RealOrderUpdateManyWithWhereWithoutPositionInput = {
+    where: RealOrderScalarWhereInput
+    data: XOR<RealOrderUpdateManyMutationInput, RealOrderUncheckedUpdateManyWithoutPositionInput>
+  }
+
+  export type RealTradeUpsertWithWhereUniqueWithoutPositionInput = {
+    where: RealTradeWhereUniqueInput
+    update: XOR<RealTradeUpdateWithoutPositionInput, RealTradeUncheckedUpdateWithoutPositionInput>
+    create: XOR<RealTradeCreateWithoutPositionInput, RealTradeUncheckedCreateWithoutPositionInput>
+  }
+
+  export type RealTradeUpdateWithWhereUniqueWithoutPositionInput = {
+    where: RealTradeWhereUniqueInput
+    data: XOR<RealTradeUpdateWithoutPositionInput, RealTradeUncheckedUpdateWithoutPositionInput>
+  }
+
+  export type RealTradeUpdateManyWithWhereWithoutPositionInput = {
+    where: RealTradeScalarWhereInput
+    data: XOR<RealTradeUpdateManyMutationInput, RealTradeUncheckedUpdateManyWithoutPositionInput>
+  }
+
+  export type RealOrderCreateWithoutTradesInput = {
+    userId: number
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+    strategy?: TradingStrategyCreateNestedOneWithoutOrdersInput
+    position?: RealPositionCreateNestedOneWithoutOrdersInput
+  }
+
+  export type RealOrderUncheckedCreateWithoutTradesInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    positionId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+  }
+
+  export type RealOrderCreateOrConnectWithoutTradesInput = {
+    where: RealOrderWhereUniqueInput
+    create: XOR<RealOrderCreateWithoutTradesInput, RealOrderUncheckedCreateWithoutTradesInput>
+  }
+
+  export type RealPositionCreateWithoutTradesInput = {
+    userId: number
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    strategy?: TradingStrategyCreateNestedOneWithoutPositionsInput
+    orders?: RealOrderCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionUncheckedCreateWithoutTradesInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    orders?: RealOrderUncheckedCreateNestedManyWithoutPositionInput
+  }
+
+  export type RealPositionCreateOrConnectWithoutTradesInput = {
+    where: RealPositionWhereUniqueInput
+    create: XOR<RealPositionCreateWithoutTradesInput, RealPositionUncheckedCreateWithoutTradesInput>
+  }
+
+  export type RealOrderUpsertWithoutTradesInput = {
+    update: XOR<RealOrderUpdateWithoutTradesInput, RealOrderUncheckedUpdateWithoutTradesInput>
+    create: XOR<RealOrderCreateWithoutTradesInput, RealOrderUncheckedCreateWithoutTradesInput>
+    where?: RealOrderWhereInput
+  }
+
+  export type RealOrderUpdateToOneWithWhereWithoutTradesInput = {
+    where?: RealOrderWhereInput
+    data: XOR<RealOrderUpdateWithoutTradesInput, RealOrderUncheckedUpdateWithoutTradesInput>
+  }
+
+  export type RealOrderUpdateWithoutTradesInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    strategy?: TradingStrategyUpdateOneWithoutOrdersNestedInput
+    position?: RealPositionUpdateOneWithoutOrdersNestedInput
+  }
+
+  export type RealOrderUncheckedUpdateWithoutTradesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RealPositionUpsertWithoutTradesInput = {
+    update: XOR<RealPositionUpdateWithoutTradesInput, RealPositionUncheckedUpdateWithoutTradesInput>
+    create: XOR<RealPositionCreateWithoutTradesInput, RealPositionUncheckedCreateWithoutTradesInput>
+    where?: RealPositionWhereInput
+  }
+
+  export type RealPositionUpdateToOneWithWhereWithoutTradesInput = {
+    where?: RealPositionWhereInput
+    data: XOR<RealPositionUpdateWithoutTradesInput, RealPositionUncheckedUpdateWithoutTradesInput>
+  }
+
+  export type RealPositionUpdateWithoutTradesInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    strategy?: TradingStrategyUpdateOneWithoutPositionsNestedInput
+    orders?: RealOrderUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealPositionUncheckedUpdateWithoutTradesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    orders?: RealOrderUncheckedUpdateManyWithoutPositionNestedInput
+  }
+
   export type TradeCreateManyTradeLogInput = {
     id?: number
     userId: number
@@ -20176,6 +33458,441 @@ export namespace Prisma {
     orderType?: StringFieldUpdateOperationsInput | string
     exchangeOrderId?: NullableStringFieldUpdateOperationsInput | string | null
     exchangeTradeId?: NullableStringFieldUpdateOperationsInput | string | null
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealPositionCreateManyStrategyInput = {
+    id?: number
+    userId: number
+    symbol: string
+    side: string
+    status?: string
+    upbitQuantity: Decimal | DecimalJsLike | number | string
+    upbitEntryPrice: Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: string | null
+    binanceQuantity: Decimal | DecimalJsLike | number | string
+    binanceEntryPrice: Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: number
+    binanceOrderId?: string | null
+    entryPremiumRate: Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: Decimal | DecimalJsLike | number | string
+    realizedPnl?: Decimal | DecimalJsLike | number | string | null
+    totalFees?: Decimal | DecimalJsLike | number | string
+    entryTime?: Date | string
+    exitTime?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RealOrderCreateManyStrategyInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+  }
+
+  export type RealPositionUpdateWithoutStrategyInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    orders?: RealOrderUpdateManyWithoutPositionNestedInput
+    trades?: RealTradeUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealPositionUncheckedUpdateWithoutStrategyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    orders?: RealOrderUncheckedUpdateManyWithoutPositionNestedInput
+    trades?: RealTradeUncheckedUpdateManyWithoutPositionNestedInput
+  }
+
+  export type RealPositionUncheckedUpdateManyWithoutStrategyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    upbitQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    upbitCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    upbitOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    binanceQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceEntryPrice?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    binanceCurrentPrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    binanceLeverage?: IntFieldUpdateOperationsInput | number
+    binanceOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    entryPremiumRate?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    currentPremiumRate?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    unrealizedPnl?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    realizedPnl?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    totalFees?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    entryTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    exitTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealOrderUpdateWithoutStrategyInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    position?: RealPositionUpdateOneWithoutOrdersNestedInput
+    trades?: RealTradeUpdateManyWithoutOrderNestedInput
+  }
+
+  export type RealOrderUncheckedUpdateWithoutStrategyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trades?: RealTradeUncheckedUpdateManyWithoutOrderNestedInput
+  }
+
+  export type RealOrderUncheckedUpdateManyWithoutStrategyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RealTradeCreateManyOrderInput = {
+    id?: number
+    userId: number
+    positionId?: number | null
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+  }
+
+  export type RealTradeUpdateWithoutOrderInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    position?: RealPositionUpdateOneWithoutTradesNestedInput
+  }
+
+  export type RealTradeUncheckedUpdateWithoutOrderInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealTradeUncheckedUpdateManyWithoutOrderInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    positionId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealOrderCreateManyPositionInput = {
+    id?: number
+    userId: number
+    strategyId?: number | null
+    exchange: string
+    exchangeOrderId: string
+    symbol: string
+    side: string
+    type: string
+    status: string
+    quantity: Decimal | DecimalJsLike | number | string
+    filledQuantity?: Decimal | DecimalJsLike | number | string
+    remainingQuantity?: Decimal | DecimalJsLike | number | string
+    price?: Decimal | DecimalJsLike | number | string | null
+    averagePrice?: Decimal | DecimalJsLike | number | string | null
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency?: string | null
+    timeInForce?: string | null
+    clientOrderId?: string | null
+    leverage?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    filledAt?: Date | string | null
+  }
+
+  export type RealTradeCreateManyPositionInput = {
+    id?: number
+    userId: number
+    orderId: number
+    exchange: string
+    exchangeTradeId: string
+    symbol: string
+    side: string
+    quantity: Decimal | DecimalJsLike | number | string
+    price: Decimal | DecimalJsLike | number | string
+    fee?: Decimal | DecimalJsLike | number | string
+    feeCurrency: string
+    executedAt: Date | string
+    createdAt?: Date | string
+  }
+
+  export type RealOrderUpdateWithoutPositionInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    strategy?: TradingStrategyUpdateOneWithoutOrdersNestedInput
+    trades?: RealTradeUpdateManyWithoutOrderNestedInput
+  }
+
+  export type RealOrderUncheckedUpdateWithoutPositionInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trades?: RealTradeUncheckedUpdateManyWithoutOrderNestedInput
+  }
+
+  export type RealOrderUncheckedUpdateManyWithoutPositionInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    strategyId?: NullableIntFieldUpdateOperationsInput | number | null
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeOrderId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    type?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    filledQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    remainingQuantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    averagePrice?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    timeInForce?: NullableStringFieldUpdateOperationsInput | string | null
+    clientOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    leverage?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    filledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RealTradeUpdateWithoutPositionInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    order?: RealOrderUpdateOneRequiredWithoutTradesNestedInput
+  }
+
+  export type RealTradeUncheckedUpdateWithoutPositionInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    orderId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
+    executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RealTradeUncheckedUpdateManyWithoutPositionInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    orderId?: IntFieldUpdateOperationsInput | number
+    exchange?: StringFieldUpdateOperationsInput | string
+    exchangeTradeId?: StringFieldUpdateOperationsInput | string
+    symbol?: StringFieldUpdateOperationsInput | string
+    side?: StringFieldUpdateOperationsInput | string
+    quantity?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    fee?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    feeCurrency?: StringFieldUpdateOperationsInput | string
     executedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

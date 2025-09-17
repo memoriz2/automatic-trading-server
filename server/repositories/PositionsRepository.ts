@@ -292,4 +292,82 @@ export class PositionsRepository extends BaseRepository {
     
     return this.query<PositionDto>(query, [strategyId]);
   }
+
+  // ===== 재진입 방지 관련 메서드들 =====
+
+  /**
+   * 전략+심볼로 OPEN 상태 포지션 조회 (재진입 방지용)
+   */
+  async getOpenPositionByStrategyAndSymbol(strategyId: number, symbol: string): Promise<PositionDto | null> {
+    const query = `
+      SELECT 
+        id,
+        user_id as "userId",
+        strategy_id as "strategyId",
+        symbol,
+        side,
+        status,
+        quantity as "upbitQuantity",
+        entry_price as "upbitEntryPrice",
+        current_price as "upbitCurrentPrice",
+        upbit_order_id as "upbitOrderId",
+        binance_quantity as "binanceQuantity",
+        binance_entry_price as "binanceEntryPrice",
+        binance_leverage as "binanceLeverage",
+        binance_order_id as "binanceOrderId",
+        entry_premium_rate as "entryPremiumRate",
+        current_premium_rate as "currentPremiumRate",
+        unrealized_pnl as "unrealizedPnl",
+        realized_pnl as "realizedPnl",
+        total_fees as "totalFees",
+        entry_time as "entryTime",
+        exit_time as "exitTime",
+        COALESCE(remaining_quantity, quantity, binance_quantity) as "remainingQuantity",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM positions 
+      WHERE strategy_id = $1 AND symbol = $2 AND status = 'open' AND is_mock = false
+      LIMIT 1
+    `;
+    
+    return this.queryOne<PositionDto>(query, [strategyId, symbol]);
+  }
+
+  /**
+   * 포지션 부분 청산 (remaining_quantity 업데이트)
+   */
+  async updateRemainingQuantity(id: number, remainingQuantity: number): Promise<boolean> {
+    const query = `
+      UPDATE positions 
+      SET remaining_quantity = $2, updated_at = NOW()
+      WHERE id = $1 AND is_mock = false
+    `;
+    
+    const result = await this.pool.query(query, [id, remainingQuantity]);
+    return (result.rowCount || 0) > 0;
+  }
+
+  /**
+   * 포지션 완전 청산 (remaining_quantity도 0으로 설정)
+   */
+  async closeWithRemaining(
+    id: number,
+    exitPrice: number,
+    exitPremiumRate: number,
+    realizedPnl: number,
+    totalFees: number
+  ): Promise<boolean> {
+    const updates = {
+      status: 'closed',
+      exit_price: exitPrice,
+      exit_premium_rate: exitPremiumRate,
+      realized_pnl: realizedPnl,
+      total_fees: totalFees,
+      remaining_quantity: 0, // 완전 청산 시 0으로 설정
+      exit_time: new Date()
+    };
+
+    const updatedRows = await this.safeUpdate('positions', updates, { id, is_mock: false });
+    return updatedRows > 0;
+  }
 }

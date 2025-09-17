@@ -1450,18 +1450,31 @@ const LegacyAutoTradingPage = () => {
           };
           
           const safeString = (value: any, defaultValue: string) => {
+            // null이나 undefined인 경우에만 기본값 사용
+            if (value === null || value === undefined) return defaultValue;
+            // 0도 유효한 값으로 처리
             const num = parseFloat(value);
             return isNaN(num) ? defaultValue : String(num);
           };
           
+          const entryValue = safeString(s.entry_rate, '0');
+          const exitValue = safeString(s.exit_rate, '0');
+          
+          console.log(`🔍 [legacy-auto-trading] 전략 ${s.id} 변환:`, {
+            'DB entry_rate': s.entry_rate,
+            'DB exit_rate': s.exit_rate,
+            'safeString entry': entryValue,
+            'safeString exit': exitValue
+          });
+
           return {
             id: String(s.id),
             name: s.name || '이름 없음',
             crypto: s.symbol || 'BTC',
-            entryCondition: safeString(s.entry_rate, '3.0'),
-            takeProfitCondition: safeString(s.exit_rate, '2.0'),
+            entryCondition: entryValue,
+            takeProfitCondition: exitValue,
             investmentAmount: safeString(s.investment_amount, '0.001'),
-            leverage: safeString(s.leverage, '3'),
+            leverage: safeString(s.leverage, '5'),
             tolerance: safeString(s.tolerance_rate || s.tolerance, '0.05'),
             riskLevel: 'moderate',
             isActive: Boolean(s.is_active),
@@ -1833,15 +1846,17 @@ const LegacyAutoTradingPage = () => {
                 isLoadingStrategies={isLoadingStrategies}
                 onStrategyUpdate={setRealStrategies} // 실거래에서는 realStrategies 업데이트
                 onStrategyEdit={(strategy: any) => {
+                  console.log('🔍 [onStrategyEdit] 편집할 전략 데이터:', strategy);
+                  
                   setNewStrategy({
                     name: strategy.name || '',
                     crypto: strategy.crypto || '',
-                    entryCondition: strategy.entryCondition || '0',
-                    takeProfitCondition: strategy.takeProfitCondition || '0',
-                    baseAmount: strategy.baseAmount || '0',
-                    investmentAmount: strategy.investmentAmount || '0',
-                    leverage: strategy.leverage || '1',
-                    tolerance: strategy.tolerance || '0.05', // 허용오차 복원 (기본값 0.05%)
+                    entryCondition: String(strategy.entryCondition || 0),
+                    takeProfitCondition: String(strategy.takeProfitCondition || 0),
+                    baseAmount: String(strategy.baseAmount || 0),
+                    investmentAmount: String(strategy.investmentAmount || 0),
+                    leverage: String(strategy.leverage || 5),
+                    tolerance: String(strategy.tolerance || 0.05),
                     riskLevel: strategy.riskLevel || 'moderate',
                     activateImmediately: strategy.isActive || false
                   });
@@ -2234,14 +2249,7 @@ const LegacyAutoTradingPage = () => {
                   aria-invalid="false"
                   value={newStrategy.entryCondition}
                   onChange={(e) => {
-                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
                     setNewStrategy(prev => ({...prev, entryCondition: e.target.value}));
-                  }}
-                  onBlur={(e) => {
-                    // 입력 완료 시에만 포맷팅 적용
-                    const rawValue = parseFloat(e.target.value) || 0;
-                    const formattedValue = formatPercent(rawValue);
-                    setNewStrategy(prev => ({...prev, entryCondition: formattedValue}));
                   }}
                 />
               </div>
@@ -2262,14 +2270,7 @@ const LegacyAutoTradingPage = () => {
                   aria-invalid="false"
                   value={newStrategy.takeProfitCondition}
                   onChange={(e) => {
-                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
                     setNewStrategy(prev => ({...prev, takeProfitCondition: e.target.value}));
-                  }}
-                  onBlur={(e) => {
-                    // 입력 완료 시에만 포맷팅 적용
-                    const rawValue = parseFloat(e.target.value) || 0;
-                    const formattedValue = formatPercent(rawValue);
-                    setNewStrategy(prev => ({...prev, takeProfitCondition: formattedValue}));
                   }}
                 />
               </div>
@@ -2302,14 +2303,7 @@ const LegacyAutoTradingPage = () => {
                   id="tolerance-input"
                   value={newStrategy.tolerance}
                   onChange={(e) => {
-                    // 입력 중에는 원본값 유지 (소수점 입력 허용)
                     setNewStrategy(prev => ({...prev, tolerance: e.target.value}));
-                  }}
-                  onBlur={(e) => {
-                    // 입력 완료 시에만 포맷팅 적용
-                    const rawValue = parseFloat(e.target.value) || parseFloat(STRATEGY_DEFAULTS.TOLERANCE);
-                    const formattedValue = formatPercent(rawValue);
-                    setNewStrategy(prev => ({...prev, tolerance: formattedValue}));
                   }}
                 />
                 <p className="text-xs text-muted-foreground">

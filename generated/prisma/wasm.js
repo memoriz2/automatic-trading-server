@@ -301,6 +301,135 @@ exports.Prisma.TradingStrategyScalarFieldEnum = {
   toleranceRate: 'toleranceRate'
 };
 
+exports.Prisma.ApiKeyScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  exchange: 'exchange',
+  apiKey: 'apiKey',
+  secretKey: 'secretKey',
+  passphrase: 'passphrase',
+  permissions: 'permissions',
+  isActive: 'isActive',
+  lastUsed: 'lastUsed',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RealOrderScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  strategyId: 'strategyId',
+  positionId: 'positionId',
+  exchange: 'exchange',
+  exchangeOrderId: 'exchangeOrderId',
+  symbol: 'symbol',
+  side: 'side',
+  type: 'type',
+  status: 'status',
+  quantity: 'quantity',
+  filledQuantity: 'filledQuantity',
+  remainingQuantity: 'remainingQuantity',
+  price: 'price',
+  averagePrice: 'averagePrice',
+  fee: 'fee',
+  feeCurrency: 'feeCurrency',
+  timeInForce: 'timeInForce',
+  clientOrderId: 'clientOrderId',
+  leverage: 'leverage',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  filledAt: 'filledAt'
+};
+
+exports.Prisma.RealPositionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  strategyId: 'strategyId',
+  symbol: 'symbol',
+  side: 'side',
+  status: 'status',
+  upbitQuantity: 'upbitQuantity',
+  upbitEntryPrice: 'upbitEntryPrice',
+  upbitCurrentPrice: 'upbitCurrentPrice',
+  upbitOrderId: 'upbitOrderId',
+  binanceQuantity: 'binanceQuantity',
+  binanceEntryPrice: 'binanceEntryPrice',
+  binanceCurrentPrice: 'binanceCurrentPrice',
+  binanceLeverage: 'binanceLeverage',
+  binanceOrderId: 'binanceOrderId',
+  entryPremiumRate: 'entryPremiumRate',
+  currentPremiumRate: 'currentPremiumRate',
+  unrealizedPnl: 'unrealizedPnl',
+  realizedPnl: 'realizedPnl',
+  totalFees: 'totalFees',
+  entryTime: 'entryTime',
+  exitTime: 'exitTime',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RealTradeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  positionId: 'positionId',
+  orderId: 'orderId',
+  exchange: 'exchange',
+  exchangeTradeId: 'exchangeTradeId',
+  symbol: 'symbol',
+  side: 'side',
+  quantity: 'quantity',
+  price: 'price',
+  fee: 'fee',
+  feeCurrency: 'feeCurrency',
+  executedAt: 'executedAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.BalanceSnapshotScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  exchange: 'exchange',
+  currency: 'currency',
+  available: 'available',
+  locked: 'locked',
+  total: 'total',
+  usdValue: 'usdValue',
+  krwValue: 'krwValue',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ExchangeConnectionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  exchange: 'exchange',
+  connected: 'connected',
+  lastChecked: 'lastChecked',
+  error: 'error',
+  permissions: 'permissions',
+  balanceAvailable: 'balanceAvailable',
+  tradingEnabled: 'tradingEnabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RealDailyStatsScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  date: 'date',
+  totalTrades: 'totalTrades',
+  upbitTrades: 'upbitTrades',
+  binanceTrades: 'binanceTrades',
+  activePositions: 'activePositions',
+  totalFees: 'totalFees',
+  realizedPnl: 'realizedPnl',
+  unrealizedPnl: 'unrealizedPnl',
+  totalVolume: 'totalVolume',
+  winRate: 'winRate',
+  maxDrawdown: 'maxDrawdown',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -344,7 +473,14 @@ exports.Prisma.ModelName = {
   SystemAlert: 'SystemAlert',
   Trade: 'Trade',
   TradingSetting: 'TradingSetting',
-  TradingStrategy: 'TradingStrategy'
+  TradingStrategy: 'TradingStrategy',
+  ApiKey: 'ApiKey',
+  RealOrder: 'RealOrder',
+  RealPosition: 'RealPosition',
+  RealTrade: 'RealTrade',
+  BalanceSnapshot: 'BalanceSnapshot',
+  ExchangeConnection: 'ExchangeConnection',
+  RealDailyStats: 'RealDailyStats'
 };
 
 /**

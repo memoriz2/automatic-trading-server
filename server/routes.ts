@@ -18,6 +18,7 @@ import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
 import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
+import { PositionsRepository } from "./repositories/PositionsRepository.js";
 import { TRADING_CONFIG } from "./config/trading-config.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
 import { proxyManager } from "./utils/proxy-manager.js";
@@ -132,6 +133,29 @@ async function findActiveUserWithApiKeys(): Promise<string> {
   }
 }
 
+// 숫자 파서
+const toNum = (v: any, d = 0) => {
+  if (v === null || v === undefined) return d;
+  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+  return Number.isFinite(n) ? n : d;
+};
+
+// DB row → 프론트 DTO (원본 값 최대한 보존)
+const toStrategyResponse = (row: any) => ({
+  id: row.id,
+  name: row.name || `전략 #${row.id}`,
+  crypto: row.symbol || row.crypto || 'BTC',
+  entryCondition: row.entry_rate ?? row.entryCondition ?? 0,
+  takeProfitCondition: row.exit_rate ?? row.takeProfitCondition ?? 0,
+  tolerance: row.tolerance ?? row.tolerance_rate ?? row.kimchi_tolerance_rate ?? 0.1,
+  leverage: String(row.leverage ?? row.binance_leverage ?? 3),
+  investmentAmount: String(row.investment_amount ?? row.max_investment_amount ?? row.investmentAmount ?? 0),
+  isActive: Boolean(row.is_active ?? row.isAutoTrading ?? row.is_auto_trading ?? row.isActive),
+  profitRate: String(row.total_profit_rate ?? row.profitRate ?? 0),
+  executionCount: row.executions ?? row.executionCount ?? 0,
+  strategyType: row.strategy_type || row.strategyType || 'positive_kimchi',
+});
+
 export async function registerRoutes(
   app: Express,
   server: Server
@@ -141,6 +165,7 @@ export async function registerRoutes(
   const simpleKimchiService = new SimpleKimchiService();
   const backtestService = new BacktestService();
   const errorTrackingService = new ErrorTrackingService();
+  const positionsRepo = new PositionsRepository();
   
   // 🚀 웹소켓 서비스 인스턴스 생성 및 자동 구독 시작
   const upbitWebSocketService = new UpbitWebSocketService();
@@ -318,13 +343,11 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/kimpga/balance", async (req, res) => {
+  app.get("/api/kimpga/balance", authenticateSession, async (req: any, res) => {
     try {
-      // 헤더에서 사용자 ID 가져오기 (우선순위: X-User-ID > 세션 > 기본값)
-      const headerUserId = req.headers['x-user-id'] as string;
-      const sessionUserId = getUserIdFromRequest(req);
-      const userId = headerUserId || sessionUserId;
-      console.log(`🔍 [잔고 조회] 요청 사용자 ID: ${userId} (헤더: ${headerUserId}, 세션: ${sessionUserId})`);
+      // 세션에서 인증된 사용자 ID 가져오기
+      const userId = req.user.id;
+      console.log(`🔍 [잔고 조회] 인증된 사용자 ID: ${userId}`);
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
@@ -1692,7 +1715,27 @@ export async function registerRoutes(
         console.log(`⚠️ 사용자 ${effectiveUserId}의 전략이 없습니다`);
       }
       
-      res.json(strategies);
+      const responseData = strategies.map(toStrategyResponse);
+      
+      console.log('🔍 [GET /api/trading-strategies] 원본 DB 데이터:', strategies.map(s => ({
+        id: s.id,
+        name: s.name,
+        entry_rate: s.entry_rate,
+        exit_rate: s.exit_rate,
+        tolerance: s.tolerance,
+        symbol: s.symbol
+      })));
+      
+      console.log('🔍 [GET /api/trading-strategies] DTO 변환 후:', responseData.map(s => ({
+        id: s.id,
+        name: s.name,
+        entryCondition: s.entryCondition,
+        takeProfitCondition: s.takeProfitCondition,
+        tolerance: s.tolerance,
+        crypto: s.crypto
+      })));
+      
+      res.json(responseData);
     } catch (error) {
       console.error("❌ 거래 전략 조회 오류:", {
         error: error,
@@ -1753,9 +1796,41 @@ export async function registerRoutes(
     try {
       const authenticatedUserId = req.user.id; // 인증된 사용자 ID 사용
       const strategyId = parseInt(req.params.id);
-      const strategyData = { ...req.body, userId: authenticatedUserId };
+      
+      // 프론트 camelCase → DB snake_case 매핑 (보수적 접근)
+      const u = req.body || {};
+      const updates: any = {};
 
-      console.log('🔄 전략 수정 요청:', { strategyId, strategyData });
+      // 명시적으로 전달된 값만 업데이트 (undefined/null 값 무시)
+      if (u.name !== undefined && u.name !== null) updates.name = u.name;
+      if (u.entryRate !== undefined && u.entryRate !== null) updates.entry_rate = u.entryRate;
+      if (u.entryCondition !== undefined && u.entryCondition !== null) updates.entry_rate = u.entryCondition;
+      if (u.exitRate !== undefined && u.exitRate !== null) updates.exit_rate = u.exitRate;
+      if (u.takeProfitCondition !== undefined && u.takeProfitCondition !== null) updates.exit_rate = u.takeProfitCondition;
+      if (u.tolerance !== undefined && u.tolerance !== null) updates.tolerance = u.tolerance;
+      if (u.toleranceRate !== undefined && u.toleranceRate !== null) updates.tolerance_rate = u.toleranceRate;
+      if (u.leverage !== undefined && u.leverage !== null) updates.leverage = u.leverage;
+      if (u.investmentAmount !== undefined && u.investmentAmount !== null) updates.investment_amount = u.investmentAmount;
+      if (u.symbol !== undefined && u.symbol !== null) updates.symbol = u.symbol;
+      if (u.crypto !== undefined && u.crypto !== null) updates.symbol = u.crypto;
+      if (u.isAutoTrading !== undefined && u.isAutoTrading !== null) updates.is_auto_trading = u.isAutoTrading;
+      if (u.isActive !== undefined && u.isActive !== null) updates.is_active = u.isActive;
+      if (u.strategyType !== undefined && u.strategyType !== null) updates.strategy_type = u.strategyType;
+
+      // 항상 userId는 포함
+      updates.userId = authenticatedUserId;
+
+      console.log('🔄 전략 수정 요청:', { 
+        strategyId, 
+        originalBody: req.body,
+        mappedUpdates: updates,
+        updateFieldCount: Object.keys(updates).length - 1 // userId 제외
+      });
+
+      // 업데이트할 필드가 없으면 중단
+      if (Object.keys(updates).length <= 1) { // userId만 있는 경우
+        return res.status(400).json({ error: '수정할 데이터가 없습니다.' });
+      }
 
       // 기존 전략이 해당 사용자 소유인지 확인
       const existingStrategies = await storage.getTradingStrategiesByUserId(authenticatedUserId);
@@ -1765,11 +1840,42 @@ export async function registerRoutes(
         return res.status(404).json({ error: '전략을 찾을 수 없거나 권한이 없습니다.' });
       }
 
+      console.log('📋 기존 전략 정보:', {
+        id: existingStrategy.id,
+        name: existingStrategy.name,
+        entry_rate: existingStrategy.entry_rate,
+        exit_rate: existingStrategy.exit_rate,
+        is_active: existingStrategy.is_active
+      });
+
       // 전략 업데이트
-      await storage.updateTradingStrategy(strategyId, strategyData);
+      await storage.updateTradingStrategy(strategyId, updates);
 
       console.log('✅ 전략 수정 완료:', strategyId);
-      res.json({ message: '전략이 성공적으로 수정되었습니다.', strategyId });
+
+      // 🚀 실시간 거래 시스템에 전략 변경 알림 (비동기)
+      try {
+        // 특정 전략 조건 즉시 업데이트
+        multiStrategyTradingService.updateStrategyConditions(strategyId).catch(err => {
+          console.error('❌ 전략 조건 업데이트 실패:', err);
+        });
+        
+        // 해당 사용자의 모든 전략 새로고침
+        multiStrategyTradingService.refreshStrategies(authenticatedUserId).catch(err => {
+          console.error('❌ 전략 새로고침 실패:', err);
+        });
+
+        console.log('🔄 실시간 거래 시스템에 전략 변경 알림 완료');
+      } catch (error) {
+        console.error('❌ 전략 업데이트 알림 실패:', error);
+        // 전략 수정은 성공했으므로 에러로 처리하지 않음
+      }
+
+      res.json({ 
+        message: '전략이 성공적으로 수정되었습니다. 실시간 거래에 즉시 반영됩니다.', 
+        strategyId,
+        updated: Object.keys(updates).filter(key => key !== 'userId')
+      });
     } catch (error) {
       console.error('전략 수정 오류:', error);
       res.status(500).json({ error: '전략 수정 중 오류가 발생했습니다.' });
@@ -2798,15 +2904,805 @@ export async function registerRoutes(
     }
   });
 
+  // ===== 잔고 테스트 API =====
+
+  // 업비트 잔고 직접 조회 테스트
+  app.get("/api/test/upbit-balance", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      console.log(`🔍 [테스트] 업비트 잔고 직접 조회: 사용자 ${userId}`);
+      
+      // 사용자의 업비트 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'upbit');
+      if (!exchange) {
+        return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+      }
+      
+      console.log(`🔑 [테스트] API 키 확인: ${exchange.apiKey ? '있음' : '없음'}`);
+      
+      // 업비트 서비스로 잔고 조회
+      const { UpbitService } = await import('./services/upbit.js');
+      const upbitService = new UpbitService(exchange.apiKey, exchange.apiSecret);
+      
+      const accounts = await upbitService.getAccounts();
+      console.log(`💰 [테스트] 업비트 계좌 개수: ${accounts.length}`);
+      
+      const krwAccount = accounts.find((account: any) => account.currency === 'KRW');
+      const btcAccount = accounts.find((account: any) => account.currency === 'BTC');
+      
+      const result = {
+        success: true,
+        userId: userId,
+        timestamp: new Date().toISOString(),
+        raw: accounts,
+        summary: {
+          krw: krwAccount ? {
+            balance: parseFloat(krwAccount.balance || '0'),
+            locked: parseFloat(krwAccount.locked || '0'),
+            avgBuyPrice: parseFloat(krwAccount.avg_buy_price || '0'),
+            avgBuyPriceModified: krwAccount.avg_buy_price_modified || false,
+            unitCurrency: krwAccount.unit_currency || 'KRW'
+          } : null,
+          btc: btcAccount ? {
+            balance: parseFloat(btcAccount.balance || '0'),
+            locked: parseFloat(btcAccount.locked || '0'),
+            avgBuyPrice: parseFloat(btcAccount.avg_buy_price || '0'),
+            avgBuyPriceModified: btcAccount.avg_buy_price_modified || false,
+            unitCurrency: btcAccount.unit_currency || 'KRW'
+          } : null,
+          totalAccounts: accounts.length
+        }
+      };
+      
+      console.log(`💰 [테스트] 업비트 잔고 요약:`, {
+        krw: result.summary.krw?.balance || 0,
+        btc: result.summary.btc?.balance || 0,
+        totalAccounts: result.summary.totalAccounts
+      });
+      
+      res.json(result);
+      
+    } catch (error: any) {
+      console.error('❌ [테스트] 업비트 잔고 조회 실패:', error);
+      res.status(500).json({ 
+        success: false,
+        error: '업비트 잔고 조회 실패', 
+        details: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // 바이낸스 선물 잔고 직접 조회 테스트
+  app.get("/api/test/binance-balance", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      console.log(`🔍 [테스트] 바이낸스 선물 잔고 직접 조회: 사용자 ${userId}`);
+      
+      // 사용자의 바이낸스 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'binance');
+      if (!exchange) {
+        return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+      }
+      
+      console.log(`🔑 [테스트] API 키 확인: ${exchange.apiKey ? '있음' : '없음'}`);
+      
+      // 바이낸스 서비스로 선물 계정 정보 조회
+      const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
+      
+      const accountInfo = await binanceService.getFuturesAccountInfo();
+      console.log(`💰 [테스트] 바이낸스 선물 계정 정보 조회 완료`);
+      
+      const result = {
+        success: true,
+        userId: userId,
+        timestamp: new Date().toISOString(),
+        summary: {
+          totalWalletBalance: parseFloat(accountInfo.totalWalletBalance || '0'),
+          availableBalance: parseFloat(accountInfo.availableBalance || '0'),
+          totalUnrealizedProfit: parseFloat(accountInfo.totalUnrealizedProfit || '0'),
+          totalMarginBalance: parseFloat(accountInfo.totalMarginBalance || '0'),
+          totalInitialMargin: parseFloat(accountInfo.totalInitialMargin || '0'),
+          totalMaintMargin: parseFloat(accountInfo.totalMaintMargin || '0'),
+          canTrade: accountInfo.canTrade || false,
+          canWithdraw: accountInfo.canWithdraw || false,
+          feeTier: accountInfo.feeTier || 0,
+          maxWithdrawAmount: parseFloat(accountInfo.maxWithdrawAmount || '0'),
+          assets: accountInfo.assets?.map((asset: any) => ({
+            asset: asset.asset,
+            walletBalance: parseFloat(asset.walletBalance || '0'),
+            unrealizedProfit: parseFloat(asset.unrealizedProfit || '0'),
+            marginBalance: parseFloat(asset.marginBalance || '0'),
+            maintMargin: parseFloat(asset.maintMargin || '0'),
+            initialMargin: parseFloat(asset.initialMargin || '0'),
+            positionInitialMargin: parseFloat(asset.positionInitialMargin || '0'),
+            openOrderInitialMargin: parseFloat(asset.openOrderInitialMargin || '0'),
+            crossWalletBalance: parseFloat(asset.crossWalletBalance || '0'),
+            crossUnPnl: parseFloat(asset.crossUnPnl || '0'),
+            availableBalance: parseFloat(asset.availableBalance || '0'),
+            maxWithdrawAmount: parseFloat(asset.maxWithdrawAmount || '0'),
+            marginAvailable: asset.marginAvailable || false,
+            updateTime: asset.updateTime || 0
+          })) || [],
+          positions: accountInfo.positions?.filter((pos: any) => parseFloat(pos.positionAmt || '0') !== 0).map((pos: any) => ({
+            symbol: pos.symbol,
+            initialMargin: parseFloat(pos.initialMargin || '0'),
+            maintMargin: parseFloat(pos.maintMargin || '0'),
+            unrealizedProfit: parseFloat(pos.unrealizedProfit || '0'),
+            positionInitialMargin: parseFloat(pos.positionInitialMargin || '0'),
+            openOrderInitialMargin: parseFloat(pos.openOrderInitialMargin || '0'),
+            leverage: pos.leverage,
+            isolated: pos.isolated,
+            entryPrice: parseFloat(pos.entryPrice || '0'),
+            breakEvenPrice: parseFloat(pos.breakEvenPrice || '0'),
+            maxNotional: parseFloat(pos.maxNotional || '0'),
+            positionSide: pos.positionSide,
+            positionAmt: parseFloat(pos.positionAmt || '0'),
+            notional: parseFloat(pos.notional || '0'),
+            isolatedWallet: parseFloat(pos.isolatedWallet || '0'),
+            updateTime: pos.updateTime
+          })) || []
+        }
+      };
+      
+      console.log(`💰 [테스트] 바이낸스 선물 잔고 요약:`, {
+        totalWalletBalance: result.summary.totalWalletBalance,
+        availableBalance: result.summary.availableBalance,
+        totalUnrealizedProfit: result.summary.totalUnrealizedProfit,
+        activePositions: result.summary.positions.length
+      });
+      
+      res.json(result);
+      
+    } catch (error: any) {
+      console.error('❌ [테스트] 바이낸스 선물 잔고 조회 실패:', error);
+      res.status(500).json({ 
+        success: false,
+        error: '바이낸스 선물 잔고 조회 실패', 
+        details: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // 포지션 불균형 감지 및 자동 롤백 API
+  app.post("/api/rollback/positions", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { symbol = 'BTC', tolerance = 0.001, autoExecute = false } = req.body;
+      
+      console.log(`🚨 [롤백] 포지션 불균형 감지 시작: 사용자 ${userId}, 심볼 ${symbol}`);
+      
+      // 1. 바이낸스 포지션 조회
+      const binanceExchange = await storage.getDecryptedExchange(userId, 'binance');
+      if (!binanceExchange) {
+        return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+      }
+      
+      const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+      const accountInfo = await binanceService.getFuturesAccountInfo();
+      
+      // 활성 포지션 찾기
+      const activePosition = accountInfo.positions?.find((pos: any) => 
+        pos.symbol === `${symbol}USDT` && parseFloat(pos.positionAmt || '0') !== 0
+      );
+      
+      const positionQty = activePosition ? parseFloat(activePosition.positionAmt || '0') : 0;
+      const positionSide = positionQty > 0 ? 'LONG' : positionQty < 0 ? 'SHORT' : 'NONE';
+      const absPositionQty = Math.abs(positionQty);
+      
+      console.log(`📊 [롤백] 바이낸스 ${symbol} 포지션: ${positionQty} (${positionSide})`);
+      
+      // 2. 업비트 현물 잔고 조회
+      const upbitExchange = await storage.getDecryptedExchange(userId, 'upbit');
+      if (!upbitExchange) {
+        return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+      }
+      
+      const { UpbitService } = await import('./services/upbit.js');
+      const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+      const accounts = await upbitService.getAccounts();
+      
+      const btcAccount = accounts.find((account: any) => account.currency === symbol);
+      const upbitHolding = btcAccount ? parseFloat(btcAccount.balance || '0') : 0;
+      
+      console.log(`📊 [롤백] 업비트 ${symbol} 보유: ${upbitHolding}`);
+      
+      // 3. 불균형 분석
+      const imbalance = absPositionQty - upbitHolding;
+      const imbalanceRatio = absPositionQty > 0 ? (imbalance / absPositionQty) * 100 : 0;
+      const isUnbalanced = Math.abs(imbalance) > tolerance;
+      
+      console.log(`⚠️ [롤백] 불균형 분석: 차이 ${imbalance}, 비율 ${imbalanceRatio.toFixed(2)}%`);
+      
+      const result: any = {
+        success: true,
+        analysis: {
+          binancePosition: {
+            quantity: positionQty,
+            absQuantity: absPositionQty,
+            side: positionSide,
+            symbol: activePosition?.symbol || `${symbol}USDT`,
+            unrealizedPnl: activePosition ? parseFloat(activePosition.unrealizedProfit || '0') : 0
+          },
+          upbitHolding: {
+            quantity: upbitHolding,
+            symbol: `KRW-${symbol}`
+          },
+          imbalance: {
+            difference: imbalance,
+            ratio: imbalanceRatio,
+            tolerance: tolerance,
+            isUnbalanced: isUnbalanced,
+            riskLevel: imbalanceRatio > 80 ? 'HIGH' : imbalanceRatio > 50 ? 'MEDIUM' : 'LOW'
+          }
+        }
+      };
+      
+      // 4. 롤백 권장사항
+      if (isUnbalanced) {
+        const currentPrice = await upbitService.getTicker([`KRW-${symbol}`]).then(t => t[0]?.trade_price || 0);
+        const positionValue = absPositionQty * currentPrice;
+        
+        result.recommendation = {
+          action: 'rollback_all',
+          reason: `포지션 불균형 감지 (${imbalanceRatio.toFixed(1)}% 불일치)`,
+          description: `즉시 전체 청산 권장 - 헤지 실패로 인한 리스크 노출`,
+          steps: [
+            `1. 바이낸스 ${symbol} ${positionSide} 포지션 전량 청산 (${absPositionQty} ${symbol})`,
+            upbitHolding > 0 ? `2. 업비트 ${symbol} 현물 전량 매도 (${upbitHolding} ${symbol})` : '2. 업비트 추가 액션 불필요',
+            '3. 포지션 정리 완료 후 새로운 기회 대기'
+          ],
+          estimatedLoss: activePosition ? parseFloat(activePosition.unrealizedProfit || '0') : 0,
+          positionValue: positionValue
+        };
+      } else {
+        result.recommendation = {
+          action: 'maintain',
+          description: '포지션 균형 양호 - 유지 권장',
+          riskLevel: 'LOW'
+        };
+      }
+      
+      // 5. 자동 롤백 실행 (autoExecute=true인 경우)
+      if (autoExecute && isUnbalanced && absPositionQty > 0) {
+        try {
+          console.log(`🚨 [롤백] 자동 청산 시작...`);
+          
+          // 바이낸스 포지션 청산
+          let closeResult;
+          if (positionSide === 'SHORT') {
+            closeResult = await binanceService.closeShortPosition(`${symbol}USDT`, absPositionQty);
+          } else {
+            // LONG 청산 로직 (향후 구현)
+            throw new Error('LONG 포지션 자동 청산은 아직 구현되지 않았습니다');
+          }
+          
+          result.execution = {
+            binanceClose: {
+              success: true,
+              order: closeResult,
+              message: `바이낸스 ${symbol} ${positionSide} 포지션 청산 완료`
+            }
+          };
+          
+          // 업비트 현물 매도 (보유량이 있으면)
+          if (upbitHolding > 0.0001) {
+            try {
+              const sellOrder = await upbitService.placeSellOrder(`KRW-${symbol}`, upbitHolding);
+              result.execution.upbitSell = {
+                success: true,
+                order: sellOrder,
+                message: `업비트 ${symbol} 현물 매도 완료`
+              };
+            } catch (sellError: any) {
+              result.execution.upbitSell = {
+                success: false,
+                error: sellError.message,
+                message: '업비트 현물 매도 실패'
+              };
+            }
+          }
+          
+          console.log(`✅ [롤백] 자동 청산 완료`);
+          
+        } catch (executionError: any) {
+          console.error(`❌ [롤백] 자동 청산 실패:`, executionError);
+          result.execution = {
+            success: false,
+            error: executionError.message,
+            message: '자동 롤백 실행 중 오류 발생'
+          };
+        }
+      }
+      
+      res.json(result);
+      
+    } catch (error: any) {
+      console.error('❌ [롤백] 실패:', error);
+      res.status(500).json({
+        success: false,
+        error: '포지션 롤백 분석 중 오류 발생',
+        details: error.message
+      });
+    }
+  });
+
+  // 포지션 롤백 테스트 페이지
+  app.get("/test/rollback", authenticateSession, async (req: any, res) => {
+    const html = `<!doctype html>
+<meta charset="utf-8" />
+<title>🚨 포지션 롤백 (안전 청산)</title>
+<style>
+  body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #fff; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .status { padding: 15px; margin: 15px 0; border-radius: 8px; }
+  .info { background: #0d47a1; }
+  .success { background: #2e7d32; }
+  .error { background: #d32f2f; }
+  .warning { background: #f57c00; }
+  .danger { background: #c62828; }
+  button { padding: 12px 24px; margin: 8px; font-size: 16px; cursor: pointer; border-radius: 6px; }
+  .btn-primary { background: #1976d2; color: white; border: none; }
+  .btn-warning { background: #f57c00; color: white; border: none; }
+  .btn-danger { background: #d32f2f; color: white; border: none; }
+  .btn-success { background: #2e7d32; color: white; border: none; }
+  pre { background: #2d2d2d; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .card { background: #2d2d2d; padding: 20px; border-radius: 8px; }
+  .metric { font-size: 28px; font-weight: bold; color: #4caf50; }
+  .risk-high { color: #f44336; }
+  .risk-medium { color: #ff9800; }
+  .risk-low { color: #4caf50; }
+  h1 { color: #f44336; text-align: center; }
+</style>
+
+<div class="container">
+  <h1>🚨 포지션 롤백 (안전 청산)</h1>
+  
+  <div class="status danger">
+    <strong>⚠️ 경고: 불균형 포지션 감지 시 즉시 청산으로 리스크를 제거합니다</strong>
+    <div id="status">분석 중...</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>🟡 바이낸스 선물</h3>
+      <div>포지션: <span id="binancePosition" class="metric">-</span></div>
+      <div>사이드: <span id="binanceSide">-</span></div>
+      <div>미실현PnL: <span id="binancePnl">-</span></div>
+    </div>
+    <div class="card">
+      <h3>🔵 업비트 현물</h3>
+      <div>보유량: <span id="upbitHolding" class="metric">-</span></div>
+      <div>평가금액: <span id="upbitValue">-</span></div>
+    </div>
+  </div>
+
+  <div class="status warning">
+    <strong>⚖️ 불균형 분석</strong>
+    <div>수량 차이: <span id="difference" class="metric">-</span></div>
+    <div>불균형 비율: <span id="imbalanceRatio" class="metric">-</span></div>
+    <div>리스크 레벨: <span id="riskLevel" class="metric">-</span></div>
+    <div>권장 액션: <span id="recommendation">-</span></div>
+  </div>
+
+  <div style="text-align: center; margin: 30px 0;">
+    <button class="btn-primary" onclick="analyze()">📊 불균형 분석</button>
+    <button class="btn-danger" onclick="rollback()">🚨 즉시 전체 청산</button>
+    <button class="btn-success" onclick="location.reload()">🔄 새로고침</button>
+  </div>
+
+  <div class="status info">
+    <strong>📝 실행 로그</strong>
+    <pre id="log">포지션 불균형 감지 시 안전을 위해 즉시 청산을 권장합니다...\\n</pre>
+  </div>
+</div>
+
+<script>
+const log = (msg) => {
+  const logEl = document.getElementById('log');
+  const timestamp = new Date().toLocaleTimeString();
+  logEl.textContent += \`[\${timestamp}] \${typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2)}\\n\`;
+  logEl.scrollTop = logEl.scrollHeight;
+};
+
+const updateUI = (data) => {
+  if (data.analysis) {
+    const pos = data.analysis.binancePosition;
+    const upbit = data.analysis.upbitHolding;
+    const imb = data.analysis.imbalance;
+    
+    document.getElementById('binancePosition').textContent = pos.absQuantity + ' BTC';
+    document.getElementById('binanceSide').textContent = pos.side;
+    document.getElementById('binancePnl').textContent = pos.unrealizedPnl.toFixed(4) + ' USDT';
+    document.getElementById('upbitHolding').textContent = upbit.quantity + ' BTC';
+    document.getElementById('difference').textContent = imb.difference.toFixed(8) + ' BTC';
+    document.getElementById('imbalanceRatio').textContent = imb.ratio.toFixed(1) + '%';
+    
+    const riskEl = document.getElementById('riskLevel');
+    riskEl.textContent = imb.riskLevel;
+    riskEl.className = 'metric risk-' + imb.riskLevel.toLowerCase();
+  }
+  if (data.recommendation) {
+    document.getElementById('recommendation').textContent = data.recommendation.description;
+  }
+};
+
+const analyze = async () => {
+  log('📊 포지션 불균형 분석 시작...');
+  document.getElementById('status').textContent = '분석 중...';
+  
+  try {
+    const response = await fetch('/api/rollback/positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ symbol: 'BTC', tolerance: 0.001, autoExecute: false })
+    });
+    
+    const result = await response.json();
+    log('분석 완료:');
+    log(result);
+    
+    if (result.success) {
+      updateUI(result);
+      document.getElementById('status').textContent = result.recommendation.description;
+    } else {
+      document.getElementById('status').textContent = '분석 실패: ' + result.error;
+    }
+  } catch (error) {
+    log('❌ 분석 실패: ' + error.message);
+    document.getElementById('status').textContent = '분석 실패';
+  }
+};
+
+const rollback = async () => {
+  if (!confirm('🚨 경고: 모든 포지션을 즉시 청산합니다. 계속하시겠습니까?\\n\\n이 작업은 되돌릴 수 없습니다.')) {
+    return;
+  }
+  
+  log('🚨 포지션 롤백 실행 시작...');
+  document.getElementById('status').textContent = '🚨 전체 청산 실행 중...';
+  
+  try {
+    const response = await fetch('/api/rollback/positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ symbol: 'BTC', tolerance: 0.001, autoExecute: true })
+    });
+    
+    const result = await response.json();
+    log('롤백 완료:');
+    log(result);
+    
+    if (result.success) {
+      updateUI(result);
+      if (result.execution) {
+        let status = '✅ 롤백 완료: ';
+        if (result.execution.binanceClose?.success) status += '바이낸스 청산 성공 ';
+        if (result.execution.upbitSell?.success) status += '업비트 매도 성공';
+        document.getElementById('status').textContent = status;
+      } else {
+        document.getElementById('status').textContent = result.recommendation.description;
+      }
+    } else {
+      document.getElementById('status').textContent = '롤백 실패: ' + result.error;
+    }
+  } catch (error) {
+    log('❌ 롤백 실패: ' + error.message);
+    document.getElementById('status').textContent = '롤백 실패';
+  }
+};
+
+// 페이지 로드 시 자동 분석
+window.onload = () => {
+  setTimeout(analyze, 1000);
+};
+</script>`;
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  });
+
+  // 롤백 설정 페이지
+  app.get("/test/rollback-settings", authenticateSession, async (req: any, res) => {
+    const html = `<!doctype html>
+<meta charset="utf-8" />
+<title>🛡️ 롤백 설정</title>
+<style>
+  body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #fff; }
+  .container { max-width: 800px; margin: 0 auto; }
+  .card { background: #2d2d2d; padding: 20px; border-radius: 8px; margin: 15px 0; }
+  .form-group { margin: 15px 0; }
+  .form-group label { display: block; margin-bottom: 5px; color: #ccc; font-weight: bold; }
+  .form-group input, .form-group select { 
+    width: 100%; padding: 8px; background: #1a1a1a; color: #fff; 
+    border: 1px solid #555; border-radius: 4px; 
+  }
+  .form-group .help { font-size: 12px; color: #888; margin-top: 3px; }
+  button { padding: 10px 20px; margin: 5px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; }
+  .btn-primary { background: #1976d2; color: white; }
+  .btn-success { background: #2e7d32; color: white; }
+  .btn-warning { background: #f57c00; color: white; }
+  .btn-danger { background: #d32f2f; color: white; }
+  .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+  .info { background: #0d47a1; }
+  .success { background: #2e7d32; }
+  .warning { background: #f57c00; }
+  .error { background: #d32f2f; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+  .risk-indicator { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  .risk-high { background: #d32f2f; color: white; }
+  .risk-medium { background: #f57c00; color: white; }
+  .risk-low { background: #2e7d32; color: white; }
+  pre { background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 12px; }
+</style>
+
+<div class="container">
+  <h1>🛡️ 자동 롤백 설정</h1>
+  
+  <div class="status info">
+    <strong>📋 현재 기준 (기본값)</strong>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+      <li><span class="risk-indicator risk-high">80% 이상</span> HIGH 리스크 → 🚨 자동 롤백 실행</li>
+      <li><span class="risk-indicator risk-medium">50% ~ 80%</span> MEDIUM 리스크 → ⚠️ 경고만 표시</li>
+      <li><span class="risk-indicator risk-low">50% 미만</span> LOW 리스크 → ✅ 정상 유지</li>
+      <li>허용 오차: 0.001 BTC (0.1% 차이 이하는 무시)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>⚙️ 롤백 설정 조정</h2>
+    
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="autoRollbackEnabled" checked> 자동 롤백 활성화
+      </label>
+      <div class="help">체크 해제 시 수동으로만 롤백 가능</div>
+    </div>
+
+    <div class="grid">
+      <div class="form-group">
+        <label for="highRiskThreshold">HIGH 리스크 임계값 (%)</label>
+        <input type="number" id="highRiskThreshold" value="80" min="10" max="100" step="5">
+        <div class="help">이 값 이상 시 자동 롤백 실행</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="mediumRiskThreshold">MEDIUM 리스크 임계값 (%)</label>
+        <input type="number" id="mediumRiskThreshold" value="50" min="5" max="99" step="5">
+        <div class="help">이 값 이상 시 경고 표시</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="form-group">
+        <label for="tolerance">허용 오차 (BTC)</label>
+        <input type="number" id="tolerance" value="0.001" min="0.0001" max="1" step="0.0001">
+        <div class="help">이 값 이하의 차이는 무시</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="autoExecuteDelay">자동 실행 지연 (초)</label>
+        <input type="number" id="autoExecuteDelay" value="3" min="1" max="30" step="1">
+        <div class="help">주문 후 몇 초 뒤에 체크할지</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin: 20px 0;">
+      <button class="btn-primary" onclick="loadSettings()">🔄 현재 설정 로드</button>
+      <button class="btn-success" onclick="saveSettings()">💾 설정 저장</button>
+      <button class="btn-warning" onclick="resetToDefault()">🔧 기본값 복원</button>
+      <button class="btn-danger" onclick="testRollback()">🧪 롤백 테스트</button>
+    </div>
+  </div>
+
+  <div class="status info">
+    <strong>📝 로그</strong>
+    <pre id="log">롤백 설정 페이지가 로드되었습니다...\\n</pre>
+  </div>
+</div>
+
+<script>
+const log = (msg) => {
+  const logEl = document.getElementById('log');
+  const timestamp = new Date().toLocaleTimeString();
+  logEl.textContent += \`[\${timestamp}] \${typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2)}\\n\`;
+  logEl.scrollTop = logEl.scrollHeight;
+};
+
+const loadSettings = async () => {
+  try {
+    log('설정 로드 중...');
+    const response = await fetch('/api/rollback/settings', { credentials: 'include' });
+    const result = await response.json();
+    
+    if (result.success) {
+      const s = result.settings;
+      document.getElementById('autoRollbackEnabled').checked = s.autoRollbackEnabled;
+      document.getElementById('highRiskThreshold').value = s.highRiskThreshold;
+      document.getElementById('mediumRiskThreshold').value = s.mediumRiskThreshold;
+      document.getElementById('tolerance').value = s.tolerance;
+      document.getElementById('autoExecuteDelay').value = s.autoExecuteDelay / 1000;
+      
+      log('설정 로드 완료');
+      log(s);
+    } else {
+      log('설정 로드 실패: ' + result.error);
+    }
+  } catch (error) {
+    log('설정 로드 오류: ' + error.message);
+  }
+};
+
+const saveSettings = async () => {
+  try {
+    const settings = {
+      autoRollbackEnabled: document.getElementById('autoRollbackEnabled').checked,
+      highRiskThreshold: parseFloat(document.getElementById('highRiskThreshold').value),
+      mediumRiskThreshold: parseFloat(document.getElementById('mediumRiskThreshold').value),
+      tolerance: parseFloat(document.getElementById('tolerance').value),
+      autoExecuteDelay: parseInt(document.getElementById('autoExecuteDelay').value) * 1000
+    };
+    
+    log('설정 저장 중...');
+    log(settings);
+    
+    const response = await fetch('/api/rollback/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(settings)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      log('✅ 설정 저장 완료');
+      alert('롤백 설정이 저장되었습니다!');
+    } else {
+      log('❌ 설정 저장 실패: ' + result.error);
+      alert('설정 저장 실패: ' + result.error);
+    }
+  } catch (error) {
+    log('설정 저장 오류: ' + error.message);
+    alert('설정 저장 오류: ' + error.message);
+  }
+};
+
+const resetToDefault = () => {
+  document.getElementById('autoRollbackEnabled').checked = true;
+  document.getElementById('highRiskThreshold').value = '80';
+  document.getElementById('mediumRiskThreshold').value = '50';
+  document.getElementById('tolerance').value = '0.001';
+  document.getElementById('autoExecuteDelay').value = '3';
+  log('기본값으로 복원됨');
+};
+
+const testRollback = async () => {
+  if (!confirm('현재 포지션에 대해 롤백 테스트를 실행하시겠습니까?')) return;
+  
+  try {
+    log('롤백 테스트 실행 중...');
+    const response = await fetch('/api/rollback/positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ symbol: 'BTC', autoExecute: false })
+    });
+    
+    const result = await response.json();
+    log('롤백 테스트 결과:');
+    log(result);
+    
+    if (result.analysis?.imbalance) {
+      const imb = result.analysis.imbalance;
+      alert(\`불균형 분석 결과:\\n차이: \${imb.difference.toFixed(8)} BTC\\n비율: \${imb.ratio.toFixed(1)}%\\n리스크: \${imb.riskLevel}\\n롤백 필요: \${imb.isUnbalanced ? '예' : '아니오'}\`);
+    }
+  } catch (error) {
+    log('롤백 테스트 오류: ' + error.message);
+    alert('롤백 테스트 오류: ' + error.message);
+  }
+};
+
+// 페이지 로드 시 설정 로드
+window.onload = () => {
+  loadSettings();
+};
+</script>`;
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  });
+  
+  // ===== 롤백 설정 관리 API =====
+
+  // 사용자 롤백 설정 조회
+  app.get("/api/rollback/settings", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      
+      // 기본 설정값
+      const defaultSettings = {
+        autoRollbackEnabled: true,
+        highRiskThreshold: 80,
+        mediumRiskThreshold: 50,
+        tolerance: 0.001,
+        autoExecuteDelay: 3000
+      };
+      
+      // 사용자 설정이 있으면 가져오기 (향후 DB 저장 시)
+      // 현재는 기본값 반환
+      res.json({
+        success: true,
+        settings: defaultSettings,
+        description: {
+          autoRollbackEnabled: "자동 롤백 활성화 여부",
+          highRiskThreshold: "HIGH 리스크 임계값 (%) - 이상 시 자동 롤백",
+          mediumRiskThreshold: "MEDIUM 리스크 임계값 (%) - 경고만 표시", 
+          tolerance: "허용 오차 (BTC) - 이하는 무시",
+          autoExecuteDelay: "자동 실행 지연 시간 (ms)"
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('❌ 롤백 설정 조회 실패:', error);
+      res.status(500).json({ error: '롤백 설정 조회 실패', details: error.message });
+    }
+  });
+
+  // 사용자 롤백 설정 업데이트
+  app.put("/api/rollback/settings", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { autoRollbackEnabled, highRiskThreshold, mediumRiskThreshold, tolerance, autoExecuteDelay } = req.body;
+      
+      console.log(`🔧 [롤백설정] 사용자 ${userId} 설정 업데이트:`, req.body);
+      
+      // 유효성 검증
+      const settings = {
+        autoRollbackEnabled: Boolean(autoRollbackEnabled),
+        highRiskThreshold: Math.max(10, Math.min(100, parseFloat(highRiskThreshold) || 80)),
+        mediumRiskThreshold: Math.max(5, Math.min(99, parseFloat(mediumRiskThreshold) || 50)),
+        tolerance: Math.max(0.0001, Math.min(1, parseFloat(tolerance) || 0.001)),
+        autoExecuteDelay: Math.max(1000, Math.min(30000, parseInt(autoExecuteDelay) || 3000))
+      };
+      
+      // 논리적 검증
+      if (settings.highRiskThreshold <= settings.mediumRiskThreshold) {
+        return res.status(400).json({ 
+          error: "HIGH 리스크 임계값은 MEDIUM 리스크 임계값보다 커야 합니다" 
+        });
+      }
+      
+      // 향후 DB 저장 로직 추가 예정
+      // await storage.updateUserRollbackSettings(userId, settings);
+      
+      console.log(`✅ [롤백설정] 설정 업데이트 완료:`, settings);
+      
+      res.json({
+        success: true,
+        message: "롤백 설정이 업데이트되었습니다",
+        settings: settings
+      });
+      
+    } catch (error: any) {
+      console.error('❌ 롤백 설정 업데이트 실패:', error);
+      res.status(500).json({ error: '롤백 설정 업데이트 실패', details: error.message });
+    }
+  });
+  
   // ===== 실거래 주문 API =====
 
   // 업비트 BTC 매수 주문
   app.post("/api/trading/upbit/buy", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const { market, volume, ord_type } = req.body;
+      const { market, volume, price, ord_type } = req.body;
       
-      console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, ord_type });
+      console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type });
       
       if (!TRADING_CONFIG.isRealTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
@@ -2821,7 +3717,30 @@ export async function registerRoutes(
       // 업비트 서비스로 실제 주문 실행
       const upbitService = new UpbitService(exchange.apiKey, exchange.apiSecret);
       
-      const orderResult = await upbitService.placeBuyOrder(market, parseFloat(volume));
+      // 시장가 매수는 price(원화 금액), 지정가 매수는 volume(수량) 사용
+      let orderAmount: number;
+      let orderType: 'limit' | 'price' = 'price';
+      
+      if (ord_type === 'market' || !ord_type) {
+        // 시장가 매수: price 파라미터 사용 (원화 금액)
+        orderAmount = price ? parseFloat(price) : 10000; // 기본 1만원
+        orderType = 'price';
+        
+        // 최소 주문 금액 체크
+        if (orderAmount < 5000) {
+          return res.status(400).json({ 
+            error: `주문 금액 ${orderAmount}원이 최소 주문 금액 5,000원 미달입니다` 
+          });
+        }
+      } else {
+        // 지정가 매수: volume 파라미터 사용 (코인 수량)
+        orderAmount = parseFloat(volume);
+        orderType = 'limit';
+      }
+      
+      console.log(`📊 주문 실행: ${orderType} 방식, 금액/수량: ${orderAmount}`);
+      
+      const orderResult = await upbitService.placeBuyOrder(market, orderAmount, orderType);
       
       console.log(`✅ 업비트 매수 주문 성공:`, orderResult);
       
@@ -2873,13 +3792,13 @@ export async function registerRoutes(
     }
   });
 
-  // 바이낸스 BTC 숏 주문
-  app.post("/api/trading/binance/short", authenticateSession, async (req: any, res) => {
+  // 바이낸스 숏 포지션 청산 (remaining_quantity 업데이트 포함)
+  app.post("/api/trading/binance/close-short", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const { symbol, quantity, leverage } = req.body;
+      const { symbol, quantity, strategyId } = req.body;
       
-      console.log(`🚨 실거래 바이낸스 숏 주문:`, { userId, symbol, quantity, leverage });
+      console.log(`🔄 바이낸스 숏 포지션 청산 요청:`, { userId, symbol, quantity, strategyId });
       
       if (!TRADING_CONFIG.isRealTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
@@ -2891,10 +3810,270 @@ export async function registerRoutes(
         return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
       }
       
+      // 바이낸스 서비스로 포지션 청산
+      const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
+      const closeResult = await binanceService.closeShortPosition(symbol.replace('USDT', ''), parseFloat(quantity));
+      
+      console.log(`✅ 바이낸스 숏 포지션 청산 성공:`, closeResult);
+
+      // 포지션 상태 업데이트 (strategyId가 있으면)
+      if (strategyId) {
+        try {
+          const symbolOnly = symbol.replace('USDT', '');
+          const openPosition = await positionsRepo.getOpenPositionByStrategyAndSymbol(strategyId, symbolOnly);
+          
+          if (openPosition) {
+            const closedQty = parseFloat(quantity);
+            const newRemainingQty = Math.max(0, (openPosition.remainingQuantity || openPosition.binanceQuantity) - closedQty);
+            
+            if (newRemainingQty <= 0) {
+              // 전량 청산
+              const exitPrice = parseFloat(closeResult.price || closeResult.avgPrice || '0');
+              const pnl = (openPosition.binanceEntryPrice - exitPrice) * (openPosition.remainingQuantity || openPosition.binanceQuantity);
+              
+              await positionsRepo.closeWithRemaining(openPosition.id, exitPrice, 0, pnl, 0);
+              console.log(`✅ 포지션 완전 청산: ID=${openPosition.id}, PnL=${pnl}`);
+            } else {
+              // 부분 청산
+              await positionsRepo.updateRemainingQuantity(openPosition.id, newRemainingQty);
+              console.log(`✅ 포지션 부분 청산: ID=${openPosition.id}, 남은수량=${newRemainingQty}`);
+            }
+          }
+        } catch (positionError: any) {
+          console.error(`❌ 포지션 상태 업데이트 실패:`, positionError);
+          // 포지션 업데이트 실패는 청산은 성공했으므로 에러로 처리하지 않음
+        }
+      }
+      
+      res.json({ 
+        message: "숏 포지션 청산 완료", 
+        result: closeResult 
+      });
+    } catch (error: any) {
+      console.error('❌ 바이낸스 숏 포지션 청산 실패:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // 테스트 페이지: 접속 시 BTC 숏 전량 청산(시장가/Reduce-Only) 실행 후 결과 표시
+  app.get("/test/close-short", authenticateSession, async (req: any, res) => {
+    // 심볼 쿼리로 변경 가능 (기본 BTC)
+    const symbolParam = (req.query.symbol as string) || 'BTC';
+    const symbolUsdt = `${symbolParam}USDT`;
+    const html = `<!doctype html>
+<meta charset="utf-8" />
+<title>Close Short Test</title>
+<style>body{font-family:system-ui,Segoe UI,Roboto,Apple Color Emoji,Noto Color Emoji,sans-serif;background:#0b1220;color:#e5ecff;padding:24px} pre{white-space:pre-wrap;background:#0f172a;padding:12px;border-radius:8px}</style>
+<h1>Close Short Test - ${symbolParam}</h1>
+<p>페이지 진입 시 ${symbolParam} 숏 포지션을 전량 시장가(Reduce-Only)로 청산합니다.</p>
+<div id="status">진행 중…</div>
+<pre id="log"></pre>
+<script>
+(async () => {
+  const log = (m)=>{document.getElementById('log').textContent += (typeof m==='string'?m:JSON.stringify(m,null,2))+'\n'};
+  try{
+    document.getElementById('status').textContent = '포지션 조회 중…';
+    const posRes = await fetch('/api/positions',{credentials:'include'});
+    if(!posRes.ok){ throw new Error('positions fetch failed: '+posRes.status); }
+    const positions = await posRes.json();
+    const p = positions.find(x=>x && (x.symbol===${JSON.stringify(symbolUsdt)}));
+    log({positionsCount: positions?.length, found: !!p, position: p});
+    if(!p){ document.getElementById('status').textContent='포지션 없음'; return; }
+    const amt = parseFloat(p.positionAmt||'0');
+    if(amt===0){ document.getElementById('status').textContent='이미 포지션 없음'; return; }
+    if(amt>=0){ document.getElementById('status').textContent='숏 포지션이 아닙니다(음수 아님).'; return; }
+    const qty = Math.abs(amt);
+    document.getElementById('status').textContent = '전량 청산 실행 중… ('+qty+' '+${JSON.stringify(symbolParam)}+')';
+    const r = await fetch('/api/trading/binance/close-short',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body:JSON.stringify({symbol:${JSON.stringify(symbolParam)}, quantity: qty})
+    });
+    const j = await r.json().catch(()=>({}));
+    log({closeResponseStatus:r.status, body:j});
+    if(!r.ok){ document.getElementById('status').textContent='청산 실패'; return; }
+    document.getElementById('status').textContent='청산 완료! 잔고 증가를 확인하세요.';
+  }catch(e){
+    document.getElementById('status').textContent='오류: '+(e?.message||e);
+    log(e);
+  }
+})();
+</script>`;
+    res.setHeader('Content-Type','text/html; charset=utf-8');
+    res.send(html);
+  });
+
+  // 바이낸스 선물 계정 정보 (마진/지갑/포지션) 조회
+  app.get("/api/trading/binance/account-info", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+
+      // 사용자의 바이낸스 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'binance');
+      if (!exchange) {
+        return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+      }
+
+      const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
+      const info = await binanceService.getFuturesAccountInfo();
+
+      const toNum = (v: any, d = 0) => {
+        const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+        return Number.isFinite(n) ? n : d;
+      };
+
+      res.json({
+        availableBalance: toNum(info?.availableBalance),
+        totalWalletBalance: toNum(info?.totalWalletBalance),
+        totalUnrealizedProfit: toNum(info?.totalUnrealizedProfit),
+        assets: Array.isArray(info?.assets) ? info.assets : [],
+        positions: Array.isArray(info?.positions) ? info.positions : []
+      });
+    } catch (error: any) {
+      console.error('❌ 선물 계정 정보 조회 실패:', error?.message || error);
+      res.status(500).json({ error: error?.message || 'Account info error' });
+    }
+  });
+
+  // 테스트 페이지: 선물 계정 마진 현황
+  app.get("/test/margin", authenticateSession, async (_req: any, res) => {
+    const html = `<!doctype html>
+<meta charset="utf-8" />
+<title>Margin Status</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Apple Color Emoji,Noto Color Emoji,sans-serif;background:#0b1220;color:#e5ecff;padding:24px}
+  .card{background:#0f172a;padding:16px;border-radius:12px;max-width:820px}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .label{color:#8aa0ff}
+  .val{font-weight:600}
+  table{border-collapse:collapse;width:100%;margin-top:12px}
+  th,td{border-bottom:1px solid #223; padding:8px; text-align:left; font-size:14px}
+  th{color:#9ab}
+  caption{caption-side:top;text-align:left;color:#789;margin:6px 0}
+  .muted{color:#9ab}
+  .pill{display:inline-block;background:#1b2440;border:1px solid #25305c;padding:2px 8px;border-radius:999px;font-size:12px;margin-left:8px}
+  .row{display:flex;align-items:center;gap:6px}
+  .ok{color:#67e8f9}
+  .warn{color:#fbbf24}
+  .bad{color:#f87171}
+  pre{white-space:pre-wrap;background:#0f172a;padding:12px;border-radius:8px}
+  a{color:#93c5fd}
+  a:hover{color:#bfdbfe}
+  footer{margin-top:20px;color:#9ab}
+  footer a{color:#9ab}
+  footer a:hover{color:#cbd5e1}
+</style>
+<main class="card" role="main" aria-labelledby="h1">
+  <h1 id="h1">선물 계정 마진 현황 <span class="pill" id="ts"></span></h1>
+  <p class="muted">로그인 세션 기준으로 바이낸스 선물 계정의 여유 마진을 조회합니다.</p>
+  <section aria-label="요약" style="margin-top:12px">
+    <div class="grid">
+      <div><div class="label">Available Balance</div><div id="avail" class="val">-</div></div>
+      <div><div class="label">Total Wallet Balance</div><div id="wallet" class="val">-</div></div>
+      <div><div class="label">Total Unrealized PnL</div><div id="uPnl" class="val">-</div></div>
+    </div>
+  </section>
+  <section aria-label="포지션" style="margin-top:20px">
+    <div class="row"><h2 style="margin:0;font-size:16px">보유 포지션</h2><span class="pill muted" id="posCnt">0</span></div>
+    <table aria-describedby="positions-desc">
+      <caption id="positions-desc">심볼 · 포지션 수량 · 레버리지 · 미실현손익</caption>
+      <thead><tr><th>Symbol</th><th>Amt</th><th>Lev</th><th>uPnL</th></tr></thead>
+      <tbody id="posBody"></tbody>
+    </table>
+  </section>
+  <section aria-label="로그" style="margin-top:20px">
+    <h2 style="margin:0 0 8px 0;font-size:16px">로그</h2>
+    <pre id="log"></pre>
+  </section>
+  <footer>
+    <div>청산 테스트 페이지: <a href="/test/close-short?symbol=BTC">/test/close-short?symbol=BTC</a></div>
+  </footer>
+</main>
+<script>
+(async () => {
+  const fmt = (n) => (typeof n === 'number' && isFinite(n)) ? n.toFixed(4) : String(n ?? '-');
+  const log = (m) => { document.getElementById('log').textContent += (typeof m==='string'?m:JSON.stringify(m,null,2))+'\n'; };
+  const setText = (id, v)=>{ const el=document.getElementById(id); if(el) el.textContent = v; };
+  const nowIso = ()=> new Date().toLocaleString();
+
+  try {
+    setText('ts', nowIso());
+    const r = await fetch('/api/trading/binance/account-info', { credentials: 'include' });
+    const j = await r.json().catch(()=>({}));
+    log({ status: r.status, body: j });
+
+    if (!r.ok) {
+      setText('avail', 'Error');
+      return;
+    }
+    setText('avail', fmt(j.availableBalance));
+    setText('wallet', fmt(j.totalWalletBalance));
+    setText('uPnl', fmt(j.totalUnrealizedProfit));
+
+    const tb = document.getElementById('posBody');
+    let count = 0;
+    (j.positions || []).forEach(p => {
+      if(!p) return;
+      const tr = document.createElement('tr');
+      const td = (t)=>{ const x=document.createElement('td'); x.textContent = String(t ?? '-'); return x; };
+      tr.appendChild(td(p.symbol || '-'));
+      tr.appendChild(td(p.positionAmt || '0'));
+      tr.appendChild(td(p.leverage || '-'));
+      tr.appendChild(td(p.unrealizedProfit || '0'));
+      tb.appendChild(tr);
+      count++;
+    });
+    setText('posCnt', String(count));
+  } catch (e) {
+    log(e);
+  }
+})();
+</script>`;
+    res.setHeader('Content-Type','text/html; charset=utf-8');
+    res.send(html);
+  });
+
+  // 바이낸스 BTC 숏 주문 (재진입 방지 포함)
+  app.post("/api/trading/binance/short", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { symbol, quantity, leverage, strategyId } = req.body;
+      
+      console.log(`🚨 실거래 바이낸스 숏 주문:`, { userId, symbol, quantity, leverage, strategyId });
+      
+      if (!TRADING_CONFIG.isRealTradingEnabled) {
+        return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+      }
+
+      // 재진입 방지: strategyId가 있으면 중복 체크
+      if (strategyId) {
+        const symbolOnly = symbol.replace('USDT', '');
+        const existingPosition = await positionsRepo.getOpenPositionByStrategyAndSymbol(strategyId, symbolOnly);
+        
+        if (existingPosition && (existingPosition.remainingQuantity || 0) > 0) {
+          console.log(`❌ 재진입 차단: 전략 ${strategyId}, 심볼 ${symbolOnly}에 이미 OPEN 포지션 존재`);
+          return res.status(409).json({ 
+            error: "이미 해당 전략에 진행 중인 포지션이 있습니다", 
+            existingPosition: {
+              id: existingPosition.id,
+              remainingQuantity: existingPosition.remainingQuantity,
+              entryTime: existingPosition.entryTime
+            }
+          });
+        }
+      }
+      
+      // 사용자의 바이낸스 API 키 조회
+      const exchange = await storage.getDecryptedExchange(userId, 'binance');
+      if (!exchange) {
+        return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+      }
+      
       // 바이낸스 서비스로 실제 주문 실행
       const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
       
-      const orderResult = await binanceService.placeShortOrder(symbol.replace('USDT', ''), parseFloat(quantity));
+      const orderResult = await binanceService.placeShortOrder(symbol.replace('USDT', ''), parseFloat(quantity), leverage);
       
       console.log(`✅ 바이낸스 숏 주문 성공:`, orderResult);
       
@@ -2916,6 +4095,96 @@ export async function registerRoutes(
         console.log(`✅ 바이낸스 거래 기록 DB 저장 성공`);
       } catch (dbError: any) {
         console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);
+      }
+
+      // 포지션 생성 (재진입 방지를 위해)
+      if (strategyId) {
+        try {
+          const positionData = {
+            userId: userId,
+            strategyId: strategyId,
+            symbol: symbol.replace('USDT', ''),
+            side: 'short' as 'short',
+            status: 'open' as 'open',
+            upbitQuantity: 0, // 업비트 수량 (선물만 사용 시 0)
+            upbitEntryPrice: 0, // 업비트 진입가 (선물만 사용 시 0)
+            binanceQuantity: parseFloat(orderResult.origQty || quantity),
+            binanceEntryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
+            binanceLeverage: leverage,
+            binanceOrderId: orderResult.orderId,
+            entryPremiumRate: 0, // 김치 프리미엄 아닌 경우 0
+            unrealizedPnl: 0, // 초기 미실현손익 0
+            totalFees: parseFloat(orderResult.commission || '0'),
+            entryTime: new Date()
+          };
+
+          const createdPosition = await positionsRepo.create(positionData);
+          console.log(`✅ 포지션 생성 완료: ID=${createdPosition.id}`);
+          
+          // remaining_quantity 초기화
+          await positionsRepo.updateRemainingQuantity(createdPosition.id, positionData.binanceQuantity);
+          
+        } catch (positionError: any) {
+          console.error(`❌ 포지션 생성 실패:`, positionError);
+          // 포지션 생성 실패는 주문은 성공했으므로 에러로 처리하지 않음
+        }
+      }
+
+      // 🚨 자동 불균형 체크 및 롤백 (비동기)
+      if (strategyId) {
+        setTimeout(async () => {
+          try {
+            console.log(`🔍 [자동체크] 포지션 불균형 분석 시작: 전략 ${strategyId}`);
+            
+            // 불균형 분석 실행
+            const rollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Cookie': req.headers.cookie || ''
+              },
+              body: JSON.stringify({ 
+                symbol: symbol.replace('USDT', ''), 
+                tolerance: 0.001, 
+                autoExecute: false 
+              })
+            });
+            
+            if (rollbackResponse.ok) {
+              const rollbackData = await rollbackResponse.json();
+              const imbalance = rollbackData.analysis?.imbalance;
+              
+              if (imbalance?.isUnbalanced && imbalance.ratio > 80) {
+                console.log(`🚨 [자동체크] 심각한 불균형 감지: ${imbalance.ratio.toFixed(1)}% - 자동 롤백 실행`);
+                
+                // 자동 롤백 실행
+                const autoRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Cookie': req.headers.cookie || ''
+                  },
+                  body: JSON.stringify({ 
+                    symbol: symbol.replace('USDT', ''), 
+                    tolerance: 0.001, 
+                    autoExecute: true 
+                  })
+                });
+                
+                if (autoRollbackResponse.ok) {
+                  const rollbackResult = await autoRollbackResponse.json();
+                  console.log(`✅ [자동체크] 자동 롤백 완료:`, rollbackResult.execution);
+                } else {
+                  console.error(`❌ [자동체크] 자동 롤백 실패:`, autoRollbackResponse.status);
+                }
+              } else {
+                console.log(`✅ [자동체크] 포지션 균형 양호: ${imbalance?.ratio?.toFixed(1) || 0}%`);
+              }
+            }
+          } catch (autoCheckError: any) {
+            console.error(`❌ [자동체크] 불균형 체크 실패:`, autoCheckError.message);
+          }
+        }, 3000); // 3초 후 실행 (주문 완전 정착 대기)
       }
       
       res.json(orderResult);
