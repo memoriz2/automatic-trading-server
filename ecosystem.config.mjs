@@ -9,7 +9,8 @@ export default {
     env: {
       NODE_ENV: 'development',
       PORT: 5001,
-      ENCRYPTION_KEY: 'kimchi-premium-master-key-2025'
+      ENCRYPTION_KEY: 'kimchi-premium-master-key-2025',
+      ENABLE_REAL_TRADING: 'false'
     },
     watch: ['server', 'client'],
     ignore_watch: ['node_modules', 'dist', 'logs'],

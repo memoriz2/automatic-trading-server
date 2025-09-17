@@ -270,7 +270,7 @@ export class DatabaseStorage {
     // === 트레이딩 설정 관련 메서드들 ===
     async getTradingStrategies(userId) {
         try {
-            const result = await this.pool.query('SELECT * FROM trading_strategies WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC, id DESC', [userId]);
+            const result = await this.pool.query('SELECT * FROM trading_strategies WHERE user_id = $1 ORDER BY is_active DESC, created_at DESC, id DESC', [userId]);
             return result.rows;
         }
         catch (error) {

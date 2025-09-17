@@ -91,8 +91,46 @@ export const StrategyList: React.FC<StrategyListProps> = ({
       }
     }
 
-    // 2. 부모 컴포넌트에 상태 변경 요청 (가장 중요!)
-    // 전체 전략 목록을 만들어서 전달하면 부모가 알아서 처리합니다.
+    // 2. DB에 상태 변경 저장 (실거래 모드)
+    try {
+      const payload = {
+        name: strategy.name,
+        strategyType: strategy.strategyType || 'positive_kimchi',
+        entryRate: strategy.entryCondition,
+        exitRate: strategy.takeProfitCondition,
+        toleranceRate: strategy.tolerance || strategy.toleranceRate || '0.05',
+        leverage: parseInt(strategy.leverage) || 3,
+        investmentAmount: strategy.investmentAmount,
+        symbol: strategy.crypto || 'BTC',
+        isActive: newActiveState,
+        isAutoTrading: newActiveState,
+        tolerance: strategy.tolerance || strategy.toleranceRate || '0.05'
+      };
+      
+      console.log('🔄 전략 활성화 상태 변경:', { strategyId: strategy.id, newActiveState, payload });
+      
+      await fetchJson(`/api/trading-strategies/${strategy.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('✅ 전략 상태 변경 DB 저장 성공');
+      toast({
+        title: newActiveState ? '전략 활성화' : '전략 비활성화',
+        description: `${strategy.name} 전략이 ${newActiveState ? '활성화' : '비활성화'}되었습니다.`
+      });
+    } catch (error) {
+      console.error('❌ 전략 상태 변경 DB 저장 실패:', error);
+      toast({ 
+        title: '전략 상태 변경 실패', 
+        description: '서버 저장에 실패했습니다.', 
+        variant: 'destructive' 
+      });
+      return; // 실패 시 UI 업데이트 중단
+    }
+
+    // 3. 부모 컴포넌트에 상태 변경 요청 (DB 저장 성공 후)
     const updatedStrategies = strategies.map(s =>
       s.id === strategy.id ? { ...s, isActive: newActiveState } : s
     );

@@ -8,7 +8,8 @@ export default {
     env: {
       NODE_ENV: 'production',
       PORT: 5000,
-      ENCRYPTION_KEY: 'kimchi-premium-master-key-2025'
+      ENCRYPTION_KEY: 'kimchi-premium-master-key-2025',
+      ENABLE_REAL_TRADING: 'true'
     },
     log_file: './logs/combined.log',
     out_file: './logs/out.log',
