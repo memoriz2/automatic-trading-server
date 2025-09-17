@@ -3240,7 +3240,24 @@ window.onload = () => {
             let orderType = 'price';
             if (ord_type === 'market' || !ord_type) {
                 // 시장가 매수: price 파라미터 사용 (원화 금액)
-                orderAmount = price ? parseFloat(price) : 10000; // 기본 1만원
+                if (price && parseFloat(price) > 0) {
+                    // price가 명시적으로 제공된 경우
+                    orderAmount = parseFloat(price);
+                }
+                else if (volume && parseFloat(volume) > 0) {
+                    // volume(BTC 수량)이 제공된 경우 → 원화로 변환
+                    const btcQuantity = parseFloat(volume);
+                    // 현재 BTC 가격 조회
+                    const ticker = await upbitService.getTicker([market]);
+                    const currentPrice = ticker[0]?.trade_price || 160000000; // 기본값
+                    orderAmount = Math.round(btcQuantity * currentPrice);
+                    console.log(`💰 BTC 수량 → 원화 변환: ${btcQuantity} BTC × ₩${currentPrice.toLocaleString()} = ₩${orderAmount.toLocaleString()}`);
+                }
+                else {
+                    // 둘 다 없으면 기본값
+                    orderAmount = 10000;
+                    console.warn('⚠️ price, volume 모두 없음 - 기본값 1만원 사용');
+                }
                 orderType = 'price';
                 // 최소 주문 금액 체크
                 if (orderAmount < 5000) {
@@ -3615,12 +3632,12 @@ window.onload = () => {
                     // 포지션 생성 실패는 주문은 성공했으므로 에러로 처리하지 않음
                 }
             }
-            // 🚨 자동 불균형 체크 및 롤백 (비동기)
+            // 🔄 자동 리밸런싱 → 롤백 시스템 (비동기)
             if (strategyId) {
                 setTimeout(async () => {
                     try {
                         console.log(`🔍 [자동체크] 포지션 불균형 분석 시작: 전략 ${strategyId}`);
-                        // 불균형 분석 실행
+                        // 1단계: 불균형 분석
                         const rollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
                             method: 'POST',
                             headers: {
@@ -3633,41 +3650,131 @@ window.onload = () => {
                                 autoExecute: false
                             })
                         });
-                        if (rollbackResponse.ok) {
-                            const rollbackData = await rollbackResponse.json();
-                            const imbalance = rollbackData.analysis?.imbalance;
-                            if (imbalance?.isUnbalanced && imbalance.ratio > 80) {
-                                console.log(`🚨 [자동체크] 심각한 불균형 감지: ${imbalance.ratio.toFixed(1)}% - 자동 롤백 실행`);
-                                // 자동 롤백 실행
-                                const autoRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Cookie': req.headers.cookie || ''
-                                    },
-                                    body: JSON.stringify({
-                                        symbol: symbol.replace('USDT', ''),
-                                        tolerance: 0.001,
-                                        autoExecute: true
-                                    })
-                                });
-                                if (autoRollbackResponse.ok) {
-                                    const rollbackResult = await autoRollbackResponse.json();
-                                    console.log(`✅ [자동체크] 자동 롤백 완료:`, rollbackResult.execution);
+                        if (!rollbackResponse.ok) {
+                            console.error(`❌ [자동체크] 불균형 분석 실패:`, rollbackResponse.status);
+                            return;
+                        }
+                        const rollbackData = await rollbackResponse.json();
+                        const imbalance = rollbackData.analysis?.imbalance;
+                        if (!imbalance?.isUnbalanced) {
+                            console.log(`✅ [자동체크] 포지션 균형 양호: ${imbalance?.ratio?.toFixed(1) || 0}%`);
+                            return;
+                        }
+                        console.log(`⚠️ [자동체크] 불균형 감지: ${imbalance.ratio.toFixed(1)}% (차이: ${imbalance.difference.toFixed(8)} BTC)`);
+                        // 2단계: 리밸런싱 시도 (불균형이 있지만 심각하지 않은 경우)
+                        if (imbalance.ratio <= 80) {
+                            console.log(`🔄 [자동체크] 리밸런싱 시도 (${imbalance.ratio.toFixed(1)}% 불균형)`);
+                            // 업비트에서 부족한 수량 추가 매수
+                            const symbolOnly = symbol.replace('USDT', '');
+                            const shortageQty = imbalance.difference;
+                            if (shortageQty > 0.0001) { // 최소 수량 체크
+                                try {
+                                    // BTC 현재가 조회
+                                    const upbitExchange = await storage.getDecryptedExchange(userId, 'upbit');
+                                    if (upbitExchange) {
+                                        const { UpbitService } = await import('./services/upbit.js');
+                                        const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+                                        const ticker = await upbitService.getTicker([`KRW-${symbolOnly}`]);
+                                        const currentPrice = ticker[0]?.trade_price || 0;
+                                        if (currentPrice > 0) {
+                                            const buyAmount = Math.round(shortageQty * currentPrice * 0.99); // 1% 여유분
+                                            if (buyAmount >= 5000) { // 최소 주문 금액 체크
+                                                console.log(`💰 [자동체크] 리밸런싱 매수 시도: ${buyAmount}원 (${shortageQty.toFixed(8)} BTC)`);
+                                                const buyOrder = await upbitService.placeBuyOrder(`KRW-${symbolOnly}`, buyAmount, 'price');
+                                                console.log(`✅ [자동체크] 리밸런싱 매수 완료:`, buyOrder);
+                                                // 5초 후 재검사
+                                                setTimeout(async () => {
+                                                    try {
+                                                        console.log(`🔍 [자동체크] 리밸런싱 후 재검사...`);
+                                                        // 재검사 실행
+                                                        const recheckResponse = await fetch('http://localhost:5000/api/rollback/positions', {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Content-Type': 'application/json',
+                                                                'Cookie': req.headers.cookie || ''
+                                                            },
+                                                            body: JSON.stringify({
+                                                                symbol: symbolOnly,
+                                                                tolerance: 0.001,
+                                                                autoExecute: false
+                                                            })
+                                                        });
+                                                        if (recheckResponse.ok) {
+                                                            const recheckData = await recheckResponse.json();
+                                                            const newImbalance = recheckData.analysis?.imbalance;
+                                                            if (newImbalance?.isUnbalanced && newImbalance.ratio > 50) {
+                                                                console.log(`🚨 [자동체크] 리밸런싱 후에도 불균형: ${newImbalance.ratio.toFixed(1)}% - 최종 롤백 실행`);
+                                                                // 최종 롤백 실행
+                                                                const finalRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
+                                                                    method: 'POST',
+                                                                    headers: {
+                                                                        'Content-Type': 'application/json',
+                                                                        'Cookie': req.headers.cookie || ''
+                                                                    },
+                                                                    body: JSON.stringify({
+                                                                        symbol: symbolOnly,
+                                                                        tolerance: 0.001,
+                                                                        autoExecute: true
+                                                                    })
+                                                                });
+                                                                if (finalRollbackResponse.ok) {
+                                                                    console.log(`✅ [자동체크] 최종 롤백 완료`);
+                                                                }
+                                                                else {
+                                                                    console.error(`❌ [자동체크] 최종 롤백 실패`);
+                                                                }
+                                                            }
+                                                            else {
+                                                                console.log(`✅ [자동체크] 리밸런싱 성공 - 포지션 균형 달성: ${newImbalance?.ratio?.toFixed(1) || 0}%`);
+                                                            }
+                                                        }
+                                                    }
+                                                    catch (recheckError) {
+                                                        console.error(`❌ [자동체크] 재검사 실패:`, recheckError.message);
+                                                    }
+                                                }, 5000);
+                                                return; // 리밸런싱 시도했으므로 롤백하지 않음
+                                            }
+                                        }
+                                    }
                                 }
-                                else {
-                                    console.error(`❌ [자동체크] 자동 롤백 실패:`, autoRollbackResponse.status);
+                                catch (rebalanceError) {
+                                    console.error(`❌ [자동체크] 리밸런싱 실패:`, rebalanceError.message);
+                                    // 리밸런싱 실패 시 롤백으로 진행
                                 }
+                            }
+                        }
+                        // 3단계: 심각한 불균형이거나 리밸런싱 실패 시 롤백
+                        if (imbalance.ratio > 80) {
+                            console.log(`🚨 [자동체크] 심각한 불균형 감지: ${imbalance.ratio.toFixed(1)}% - 자동 롤백 실행`);
+                            const autoRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Cookie': req.headers.cookie || ''
+                                },
+                                body: JSON.stringify({
+                                    symbol: symbol.replace('USDT', ''),
+                                    tolerance: 0.001,
+                                    autoExecute: true
+                                })
+                            });
+                            if (autoRollbackResponse.ok) {
+                                const rollbackResult = await autoRollbackResponse.json();
+                                console.log(`✅ [자동체크] 자동 롤백 완료:`, rollbackResult.execution);
                             }
                             else {
-                                console.log(`✅ [자동체크] 포지션 균형 양호: ${imbalance?.ratio?.toFixed(1) || 0}%`);
+                                console.error(`❌ [자동체크] 자동 롤백 실패:`, autoRollbackResponse.status);
                             }
+                        }
+                        else {
+                            console.log(`⚠️ [자동체크] 중간 불균형 감지했지만 리밸런싱 불가 - 모니터링 계속`);
                         }
                     }
                     catch (autoCheckError) {
-                        console.error(`❌ [자동체크] 불균형 체크 실패:`, autoCheckError.message);
+                        console.error(`❌ [자동체크] 자동 처리 실패:`, autoCheckError.message);
                     }
-                }, 3000); // 3초 후 실행 (주문 완전 정착 대기)
+                }, 3000); // 3초 후 실행
             }
             res.json(orderResult);
         }

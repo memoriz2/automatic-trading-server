@@ -8,6 +8,9 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
   const [tradingMode, setTradingMode] = useState<'real' | 'mock'>('real');
   const [isAdmin, setIsAdmin] = useState(false);
   const [realStrategies, setRealStrategies] = useState<any[]>([]);
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
+  const [strategiesError, setStrategiesError] = useState<string | null>(null);
+  const [lastLoadTime, setLastLoadTime] = useState<Date | null>(null);
 
   // 안전 숫자 변환기
   const toNum = (v: any, d = 0) => {
@@ -62,40 +65,80 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
   const loadRealStrategies = useCallback(async () => {
     if (tradingMode === 'real' && user) {
       try {
+        setIsLoadingStrategies(true);
+        setStrategiesError(null);
         console.log('🔍 실거래 전략 DB 조회 중...');
         
-        // 모든 전략 조회 (활성화/비활성화 포함)
-        const response = await fetch('/api/trading-strategies', { credentials: 'include' });
-        if (response.ok) {
-          const data = await response.json();
-          
-          console.log('🔍 [useTradingMode] 서버 응답 원본:', data.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            entryCondition: s.entryCondition,
-            takeProfitCondition: s.takeProfitCondition,
-            tolerance: s.tolerance
-          })));
-          
-          const list = Array.isArray(data) ? normalizeStrategies(data) : [];
-          
-          console.log('🔍 [useTradingMode] 정규화 후:', list.map(s => ({
-            id: s.id,
-            name: s.name,
-            entryCondition: s.entryCondition,
-            takeProfitCondition: s.takeProfitCondition,
-            tolerance: s.tolerance
-          })));
-          
-          setRealStrategies(list);
-          console.log('✅ 전략 조회 완료:', list.length, '개 (활성화/비활성화 모두 포함)');
-        } else {
-          setRealStrategies([]);
-          console.log('❌ 전략 조회 API 실패 - 빈 배열로 설정');
+        // 재시도 로직 포함 (최대 3회)
+        let lastError: any = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            console.log(`📡 전략 조회 시도 ${attempt}/3...`);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+            
+            const response = await fetch('/api/trading-strategies', { 
+              credentials: 'include',
+              signal: controller.signal,
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+              const data = await response.json();
+              
+              console.log(`🔍 [useTradingMode] 시도 ${attempt} - 서버 응답:`, {
+                count: Array.isArray(data) ? data.length : 0,
+                sample: Array.isArray(data) ? data.slice(0, 2).map((s: any) => ({
+                  id: s.id,
+                  name: s.name,
+                  entryCondition: s.entryCondition,
+                  takeProfitCondition: s.takeProfitCondition
+                })) : null
+              });
+              
+              const list = Array.isArray(data) ? normalizeStrategies(data) : [];
+              
+              setRealStrategies(list);
+              setLastLoadTime(new Date());
+              console.log(`✅ 전략 조회 성공 (시도 ${attempt}):`, list.length, '개');
+              return; // 성공 시 루프 종료
+              
+            } else {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+          } catch (attemptError: any) {
+            lastError = attemptError;
+            console.warn(`⚠️ 전략 조회 시도 ${attempt} 실패:`, attemptError.message);
+            
+            if (attempt < 3) {
+              // 재시도 전 대기 (지수 백오프)
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+              console.log(`⏳ ${delay}ms 후 재시도...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
         }
-      } catch (error) {
-        console.error('❌ 실거래 전략 조회 실패:', error);
-        setRealStrategies([]);
+        
+        // 모든 시도 실패
+        throw lastError || new Error('전략 조회 실패');
+        
+      } catch (error: any) {
+        console.error('❌ 전략 조회 최종 실패:', error);
+        setStrategiesError(error.message || '전략 조회 중 오류가 발생했습니다');
+        
+        // 기존 데이터 유지 (완전 초기화하지 않음)
+        if (realStrategies.length === 0) {
+          setRealStrategies([]);
+        }
+      } finally {
+        setIsLoadingStrategies(false);
       }
     } else {
       // Mock 모드이거나 유저 없음 - 실거래 전략 초기화
@@ -128,6 +171,9 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
     canUseMock,
     realStrategies,
     setRealStrategies,
-    loadRealStrategies
+    loadRealStrategies,
+    isLoadingStrategies,
+    strategiesError,
+    lastLoadTime
   };
 };

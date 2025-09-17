@@ -177,6 +177,8 @@ interface LiveTradingSystemProps {
   isLiveMode?: boolean; // 실거래 모드 여부
   liveBalances?: any; // 실제 잔고 데이터 (실거래 모드용)
   onStrategyStatsUpdate?: (stats: Record<string, { executionCount: number; realizedPnlKRW: number; investedKRW: number; profitRate: number; }>) => void;
+  isLoadingStrategies?: boolean; // 전략 로딩 상태
+  strategiesError?: string | null; // 전략 로딩 에러
 }
 
 export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({ 
@@ -187,7 +189,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   onDailyStatsUpdate,
   isLiveMode = false, // 기본값은 Mock 모드
   liveBalances, // 실제 잔고 데이터
-  onStrategyStatsUpdate
+  onStrategyStatsUpdate,
+  isLoadingStrategies = false,
+  strategiesError = null
 }) => {
   const { toast } = useToast();
   
@@ -832,6 +836,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             body: JSON.stringify({
               market: 'KRW-BTC',
               volume: upbitBuyAmountBTC,
+              price: Math.round(upbitBuyAmountBTC * (currentKimchiData?.upbit_price || 160000000)), // BTC 수량을 원화로 변환
               ord_type: 'market'
             })
           });
@@ -1944,8 +1949,22 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               variant={isTrading ? "destructive" : strategies.some(s => s.isActive) ? "default" : "outline"}
               size="sm"
               disabled
+              className="min-w-[200px]"
             >
-              {isTrading ? `🔄 ${actualTradingMode === 'real' ? '실거래' : 'Mock 거래'} 실행 중...` : strategies.some(s => s.isActive) ? `✅ ${strategies.filter(s => s.isActive).length}개 전략 활성 (${actualTradingMode === 'real' ? '실거래' : 'Mock'})` : "❌ 활성 전략 없음"}
+              {isTrading ? (
+                `🔄 ${actualTradingMode === 'real' ? '실거래' : 'Mock 거래'} 실행 중...`
+              ) : isLoadingStrategies ? (
+                <span className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  전략 로딩 중...
+                </span>
+              ) : strategiesError ? (
+                <span className="text-red-400">⚠️ 전략 로드 실패</span>
+              ) : strategies.some(s => s.isActive) ? (
+                `✅ ${strategies.filter(s => s.isActive).length}개 전략 활성 (${actualTradingMode === 'real' ? '실거래' : 'Mock'})`
+              ) : (
+                "❌ 활성 전략 없음"
+              )}
             </Button>
             <Button 
               variant="secondary" 

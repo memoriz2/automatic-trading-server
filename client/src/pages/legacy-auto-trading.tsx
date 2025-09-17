@@ -462,7 +462,6 @@ const LegacyAutoTradingPage = () => {
   });
   
   // 실제 DB 기반 통계는 DailyStatsPanel 컴포넌트로 이동됨
-  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
 
   // 거래 모드 관리 (커스텀 훅)
   const {
@@ -471,7 +470,10 @@ const LegacyAutoTradingPage = () => {
     isAdmin,
     canUseMock,
     realStrategies,
-    setRealStrategies
+    setRealStrategies,
+    isLoadingStrategies,
+    strategiesError,
+    lastLoadTime
   } = useTradingMode({ user });
 
 
@@ -1423,7 +1425,7 @@ const LegacyAutoTradingPage = () => {
       return [];
     }
     
-    setIsLoadingStrategies(true);
+    // 로딩 상태는 useTradingMode 훅에서 관리
     try {
       if (!user?.id) {
         console.log('❌ [전략로드] 사용자 ID 없음');
@@ -1495,7 +1497,7 @@ const LegacyAutoTradingPage = () => {
       console.error('❌ [전략로드] 전략 로드 실패:', error);
       return [];
     } finally {
-      setIsLoadingStrategies(false);
+      // 로딩 상태는 useTradingMode 훅에서 관리
     }
   }, [fetchJson, user?.id]);
 
@@ -1841,6 +1843,30 @@ const LegacyAutoTradingPage = () => {
             /* 실거래 모드: DB 조회 기반 전략 표시 */
             <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
               <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
+                {/* 전략 로딩 에러 표시 */}
+                {strategiesError && (
+                  <div className="mb-4 p-3 bg-red-900/20 border border-red-600 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-400">
+                      <span>⚠️</span>
+                      <span className="font-medium">전략 로딩 실패</span>
+                    </div>
+                    <p className="text-sm text-red-300 mt-1">{strategiesError}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button 
+                        className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded"
+                        onClick={() => window.location.reload()}
+                      >
+                        🔄 페이지 새로고침
+                      </button>
+                      {lastLoadTime && (
+                        <span className="text-xs text-red-400">
+                          마지막 성공: {lastLoadTime.toLocaleTimeString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <StrategyList
                 strategies={realStrategies} // 실거래 모드: DB 조회 전략
                 isLoadingStrategies={isLoadingStrategies}
