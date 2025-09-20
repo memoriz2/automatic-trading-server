@@ -1637,15 +1637,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 김프 데이터 업데이트 및 저장 (무한 루프 방지 - 값 기반 비교)
   useEffect(() => {
     if (currentKimchiData && typeof currentKimchiData.kimp === 'number') {
-      // 값 기반 비교로 불필요한 업데이트 방지
-      const hasChanged = !lastKimchiData || 
-        lastKimchiData.kimp !== currentKimchiData.kimp ||
-        lastKimchiData.upbit_price !== currentKimchiData.upbit_price ||
-        lastKimchiData.binance_price !== currentKimchiData.binance_price;
-        
-      if (hasChanged) {
-        setLastKimchiData(currentKimchiData);
-      }
+      setLastKimchiData(prev => {
+        // 이전 값과 비교하여 실제 변화가 있을 때만 업데이트
+        if (!prev || 
+            prev.kimp !== currentKimchiData.kimp ||
+            prev.upbit_price !== currentKimchiData.upbit_price ||
+            prev.binance_price !== currentKimchiData.binance_price) {
+          return currentKimchiData;
+        }
+        return prev; // 변화 없으면 이전 값 유지
+      });
     }
   }, [currentKimchiData?.kimp, currentKimchiData?.upbit_price, currentKimchiData?.binance_price]);
 
@@ -1979,12 +1980,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     };
   }, [liveTrades, livePositions, currentUsdKrw, currentKimchiData]);
 
-  // 일일 통계가 변경될 때 부모 컴포넌트에 전달
+  // 일일 통계가 변경될 때 부모 컴포넌트에 전달 (무한 루프 방지)
   useEffect(() => {
-    if (onDailyStatsUpdate) {
+    if (onDailyStatsUpdate && dailyStats) {
       onDailyStatsUpdate(dailyStats);
     }
-  }, [dailyStats, onDailyStatsUpdate]);
+  }, [dailyStats.totalFees, dailyStats.totalTrades, dailyStats.realizedPnl]); // 특정 값만 의존성으로
 
   // 최근 거래(진입+청산) 10건 (시간 내림차순)
   const recentTrades = useMemo(() => {
