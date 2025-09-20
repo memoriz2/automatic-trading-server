@@ -68,40 +68,80 @@ export class BalanceService {
 
       for (const apiKey of apiKeys) {
         try {
-          const adapter = getExchangeAdapter(apiKey.exchange);
-          adapter.setCredentials(apiKey.apiKey, apiKey.secretKey, apiKey.passphrase);
-
-          // 연결 테스트
-          const connectionTest = await adapter.testConnection();
-          connectionResults[apiKey.exchange] = connectionTest.success;
-
-          if (connectionTest.success) {
-            // 잔고 조회
-            const balances = await adapter.getBalances();
-            allBalances.push(...balances);
-
-            // 잔고 스냅샷 저장 (비동기)
-            this.saveBalanceSnapshot(userId, balances).catch(console.error);
-
-            // 연결 상태 업데이트
-            await this.exchangeConnectionRepository.upsertConnection(userId, {
-              exchange: apiKey.exchange as 'upbit' | 'binance',
-              connected: true,
-              lastChecked: new Date(),
-              permissions: connectionTest.permissions,
-              balanceAvailable: true,
-              tradingEnabled: connectionTest.permissions.includes('spot') || connectionTest.permissions.includes('futures')
-            });
+          // 바이낸스의 경우 exchangeTestService 사용 (성공하는 방식)
+          if (apiKey.exchange === 'binance') {
+            const { exchangeTestService } = await import('./exchange-test.js');
+            const testResult = await exchangeTestService.testExchangeConnection(
+              'binance',
+              apiKey.apiKey,
+              apiKey.secretKey
+            );
+            
+            connectionResults[apiKey.exchange] = testResult.success;
+            
+            if (testResult.success) {
+              // exchangeTestService 결과에서 USDT 잔고 추출
+              const usdtBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
+              if (usdtBalance > 0) {
+                allBalances.push({
+                  exchange: 'binance',
+                  currency: 'USDT',
+                  available: usdtBalance,
+                  locked: 0,
+                  total: usdtBalance
+                });
+                console.log(`✅ 바이낸스 선물 USDT 잔고 (exchangeTestService): ${usdtBalance}`);
+              }
+            }
           } else {
-            // 연결 실패 상태 기록
+            // 업비트 등 다른 거래소는 기존 방식 사용
+            const adapter = getExchangeAdapter(apiKey.exchange);
+            adapter.setCredentials(apiKey.apiKey, apiKey.secretKey, apiKey.passphrase);
+
+            // 연결 테스트
+            const connectionTest = await adapter.testConnection();
+            connectionResults[apiKey.exchange] = connectionTest.success;
+
+            if (connectionTest.success) {
+              // 잔고 조회
+              const balances = await adapter.getBalances();
+              allBalances.push(...balances);
+
+              // 잔고 스냅샷 저장 (비동기)
+              this.saveBalanceSnapshot(userId, balances).catch(console.error);
+
+              // 연결 상태 업데이트
+              await this.exchangeConnectionRepository.upsertConnection(userId, {
+                exchange: apiKey.exchange as 'upbit' | 'binance',
+                connected: true,
+                lastChecked: new Date(),
+                permissions: connectionTest.permissions,
+                balanceAvailable: true,
+                tradingEnabled: connectionTest.permissions.includes('spot') || connectionTest.permissions.includes('futures')
+              });
+            } else {
+              // 연결 실패 상태 기록
+              await this.exchangeConnectionRepository.upsertConnection(userId, {
+                exchange: apiKey.exchange as 'upbit' | 'binance',
+                connected: false,
+                lastChecked: new Date(),
+                error: connectionTest.error,
+                permissions: [],
+                balanceAvailable: false,
+                tradingEnabled: false
+              });
+            }
+          }
+          
+          // 바이낸스 연결 상태 업데이트
+          if (apiKey.exchange === 'binance') {
             await this.exchangeConnectionRepository.upsertConnection(userId, {
-              exchange: apiKey.exchange as 'upbit' | 'binance',
-              connected: false,
+              exchange: 'binance',
+              connected: connectionResults[apiKey.exchange],
               lastChecked: new Date(),
-              error: connectionTest.error,
-              permissions: [],
-              balanceAvailable: false,
-              tradingEnabled: false
+              permissions: connectionResults[apiKey.exchange] ? ['futures'] : [],
+              balanceAvailable: connectionResults[apiKey.exchange],
+              tradingEnabled: connectionResults[apiKey.exchange]
             });
           }
         } catch (error: any) {

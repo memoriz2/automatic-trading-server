@@ -2177,12 +2177,52 @@ export async function registerRoutes(
           const binanceBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
           console.log(`💰 [연동테스트] ${exchange} USDT 잔고: ${binanceBalance} (details에서 직접 사용)`);
           
-          // BalanceService도 호출하여 캐시 업데이트
+          // BalanceService 캐시에 성공한 잔고 데이터 병합 저장
           try {
-            const balanceService = new BalanceService();
-            await balanceService.getUserBalances(authenticatedUserId);
-          } catch (balanceError) {
-            console.warn('⚠️ 잔고 캐시 업데이트 실패:', balanceError);
+            const { BalanceService } = await import('./services/BalanceService.js');
+            
+            // 기존 캐시 데이터 가져오기
+            const existingCache = (BalanceService as any).balanceCache.get(authenticatedUserId);
+            const existingData = existingCache?.data || {
+              real: {},
+              connected: { upbit: false, binance: false },
+              balances: { upbit: [], binance: [] },
+              lastUpdated: new Date()
+            };
+            
+            // 바이낸스 데이터만 업데이트하여 병합
+            const updatedBalanceResponse = {
+              ...existingData,
+              real: {
+                ...existingData.real,
+                usdt: binanceBalance  // 바이낸스 USDT 업데이트
+              },
+              connected: {
+                ...existingData.connected,
+                binance: true  // 바이낸스 연결 상태 업데이트
+              },
+              balances: {
+                ...existingData.balances,
+                binance: [{
+                  exchange: 'binance',
+                  currency: 'USDT',
+                  available: binanceBalance,
+                  locked: 0,
+                  total: binanceBalance
+                }]
+              },
+              lastUpdated: new Date()
+            };
+            
+            // 캐시에 병합된 데이터 저장
+            (BalanceService as any).balanceCache.set(authenticatedUserId, {
+              data: updatedBalanceResponse,
+              timestamp: Date.now()
+            });
+            
+            console.log(`✅ 바이낸스 잔고 캐시 병합 업데이트: ${binanceBalance} USDT (기존 데이터 유지)`);
+          } catch (cacheError) {
+            console.warn('⚠️ 잔고 캐시 병합 업데이트 실패:', cacheError);
           }
           
           res.json({
