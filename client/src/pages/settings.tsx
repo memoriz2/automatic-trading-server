@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { logger } from "@/utils/logger";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -83,14 +84,16 @@ export default function Settings() {
     enabled: !!userId,
   });
 
-  // 디버깅 로그
-  console.log('🔍 [settings.tsx] 쿼리 상태:', {
-    userId,
-    exchanges,
-    isLoading,
-    error,
-    queryKey: `/api/exchanges/${userId}`
-  });
+  // 디버깅 로그 (개발 환경에서만, 상태 변경 시에만)
+  useEffect(() => {
+    logger.debug('🔍 [settings.tsx] 쿼리 상태 변경:', {
+      userId,
+      exchangesCount: exchanges?.length || 0,
+      isLoading,
+      error: error?.message || null,
+      queryKey: `/api/exchanges/${userId}`
+    });
+  }, [userId, exchanges?.length, isLoading, error]);
 
   const { data: balances, refetch: refetchBalances } = useQuery<BalanceInfo>({
     queryKey: [`/api/balances/${userId}`],
@@ -124,11 +127,47 @@ export default function Settings() {
     enabled: !!userId,
   });
 
-  const isExchangeConnected = (exchangeName: 'upbit' | 'binance') => {
-    const map: any = liveStatus?.exchanges ?? liveStatus;
-    const serverConnected = map?.[exchangeName]?.connected === true;
-    return !!(serverConnected || overrideConnected[exchangeName]);
-  };
+  const isExchangeConnected = useCallback((exchangeName: 'upbit' | 'binance') => {
+    // 서버 응답 구조: { exchanges: { upbit: {...}, binance: {...} } }
+    const exchangesData = liveStatus?.exchanges;
+    const serverConnected = exchangesData?.[exchangeName]?.connected === true;
+    
+    // DB에 API 키가 저장되어 있는지 확인
+    const hasApiKeys = exchanges?.some(ex => 
+      ex.name === exchangeName && 
+      ex.hasApiKey && 
+      ex.hasApiSecret && 
+      ex.isActive !== false
+    );
+    
+    // 연동 상태 판단: 서버 연결 상태 OR 수동 오버라이드 OR API 키 존재
+    const result = !!(serverConnected || overrideConnected[exchangeName] || hasApiKeys);
+    
+    return result;
+  }, [liveStatus?.exchanges, exchanges, overrideConnected]);
+  
+  // 연동 상태 변경 시에만 디버그 로그 출력
+  useEffect(() => {
+    if (exchanges?.length > 0 || liveStatus) {
+      const upbitConnected = isExchangeConnected('upbit');
+      const binanceConnected = isExchangeConnected('binance');
+      
+      logger.debug('🔍 [settings] 연동 상태 업데이트:', {
+        upbit: {
+          connected: upbitConnected,
+          serverConnected: liveStatus?.exchanges?.upbit?.connected,
+          hasApiKeys: exchanges?.some(ex => ex.name === 'upbit' && ex.hasApiKey && ex.hasApiSecret)
+        },
+        binance: {
+          connected: binanceConnected,
+          serverConnected: liveStatus?.exchanges?.binance?.connected,
+          hasApiKeys: exchanges?.some(ex => ex.name === 'binance' && ex.hasApiKey && ex.hasApiSecret)
+        },
+        exchangeCount: exchanges?.length || 0,
+        liveStatusLoaded: !!liveStatus
+      });
+    }
+  }, [exchanges?.length, liveStatus?.exchanges?.upbit?.connected, liveStatus?.exchanges?.binance?.connected, isExchangeConnected]);
 
   // 연동 테스트 함수 (DB에서 기존 API 키 조회)
   const testExchangeConnection = async (exchangeName: string) => {
@@ -175,7 +214,11 @@ export default function Settings() {
           description: response.message + (response.balance ? ` (USDT: ${response.balance.usdt})` : ""),
           variant: "default"
         });
-        await refetchLiveStatus();
+        // 서버 상태와 exchanges 데이터 모두 새로고침
+        await Promise.all([
+          refetchLiveStatus(),
+          refetchExchanges()
+        ]);
       } else {
         setOverrideConnected((prev) => ({ ...prev, [exchangeName]: false }));
         toast({

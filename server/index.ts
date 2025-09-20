@@ -296,10 +296,10 @@ app.get("/healthz", (_req: Request, res: Response) => {
 
   logInfo(`🌐 환경 설정 중... NODE_ENV: ${app.get("env")}`);
   if (app.get("env") === "development") {
-    logInfo(`⚡ Vite 개발 서버 설정 스킵 (임시)`);
-    // const { setupVite } = await import('./vite');
-    // await setupVite(app, server);
-    // logInfo(`✅ Vite 개발 서버 설정 완료`);
+    logInfo(`⚡ Vite 개발 서버 설정 중...`);
+    const { setupVite } = await import('./vite.js');
+    await setupVite(app, server);
+    logInfo(`✅ Vite 개발 서버 설정 완료`);
   } else {
     logInfo(`📁 정적 파일 서빙 설정 중...`);
     const distPath = path.resolve(process.cwd(), 'dist', 'public');

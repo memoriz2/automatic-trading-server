@@ -2,7 +2,7 @@ import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import { LEVERAGE_CONFIG, parseLeverage } from '@/utils/trading/leverage';
-import { formatBTC } from '@/utils/trading/formatters';
+import { formatBTC, formatPercent } from '@/utils/trading/formatters';
 import { STRATEGY_DEFAULTS } from '@/config/strategy-defaults';
 import { userIdManager } from '@/utils/user-id-manager';
 import { markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
@@ -55,11 +55,6 @@ export const StrategyList: React.FC<StrategyListProps> = ({
 }) => {
   const { toast } = useToast();
   
-  // 퍼센트 안전 포맷터
-  const pct = (v: any, digits = 3) => {
-    const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-    return Number.isFinite(n) ? `${n.toFixed(digits)}%` : `0.000%`;
-  };
 
   const handleStrategyToggle = async (strategy: Strategy) => {
     console.log('🔄 전략 토글 시작:', { strategyId: strategy.id, name: strategy.name, currentState: strategy.isActive });
@@ -391,13 +386,13 @@ export const StrategyList: React.FC<StrategyListProps> = ({
                 <div>
                   <p className="text-muted-foreground">진입 조건 (정확한 일치)</p>
                   <p className="font-medium text-green-500" data-testid={`text-entry-${strategy.id}`}>
-                    {pct(strategy.entryCondition, 3)} ± {pct(strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE, 3)}
+                    {formatPercent(Number(strategy.entryCondition))}% ± {formatPercent(Number(strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE))}%
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">익절 조건 (이상이면 청산)</p>
                   <p className="font-medium text-primary" data-testid={`text-take-profit-${strategy.id}`}>
-                    {pct(strategy.takeProfitCondition, 3)} ≤ 김프율
+                    {formatPercent(Number(strategy.takeProfitCondition))}% ≤ 김프율
                   </p>
                 </div>
                 <div>

@@ -133,36 +133,26 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
         console.error('❌ 전략 조회 최종 실패:', error);
         setStrategiesError(error.message || '전략 조회 중 오류가 발생했습니다');
         
-        // 기존 데이터 유지 (완전 초기화하지 않음)
-        if (realStrategies.length === 0) {
-          setRealStrategies([]);
-        }
+        // 기존 데이터 유지 - 에러 시 전략을 초기화하지 않음
+        console.log('⚠️ 전략 조회 실패했지만 기존 전략 유지:', realStrategies.length, '개');
       } finally {
         setIsLoadingStrategies(false);
       }
-    } else {
-      // Mock 모드이거나 유저 없음 - 실거래 전략 초기화
+    } else if (tradingMode === 'mock') {
+      // Mock 모드일 때만 실거래 전략 초기화 (유저 없음 상태에서는 초기화하지 않음)
       setRealStrategies([]);
-      console.log('🧪 Mock 모드 또는 비로그인 - 실거래 전략 초기화');
+      console.log('🧪 Mock 모드 - 실거래 전략 초기화');
+    } else {
+      console.log('⏳ 유저 정보 로딩 중 - 전략 초기화 보류');
     }
   }, [tradingMode, user]);
 
-  // 실거래 전략 조회 실행
-  useEffect(() => {
-    loadRealStrategies();
-  }, [loadRealStrategies]);
+  // 실거래 전략 조회 실행 (자동 로드 비활성화 - legacy-auto-trading.tsx에서 수동 호출)
+  // useEffect(() => {
+  //   loadRealStrategies();
+  // }, [loadRealStrategies]);
 
-  // 디버깅 로그
-  console.log('🔍 거래 모드 상태:', { 
-    tradingMode, 
-    isAdmin, 
-    isLocalhost,
-    canUseMock,
-    hostname: window.location.hostname,
-    user: user?.username,
-    realStrategiesCount: realStrategies.length,
-    realStrategiesData: realStrategies
-  });
+  // 거래 모드 상태 확인 완료
 
   return {
     tradingMode,

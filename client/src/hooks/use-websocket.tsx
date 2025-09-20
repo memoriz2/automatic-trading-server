@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { WebSocketMessage } from '@/types/trading';
 import { formatKoreanTime } from '@/utils/datetime';
+import { logger } from '@/utils/logger';
 
 export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);
@@ -39,7 +40,7 @@ export function useWebSocket() {
         const port = window.location.port || '5001';
         const host = `${baseHostname}:${port}`;
         
-        console.log(`🔍 WebSocket 연결 시도 #${connectionAttempts + 1}:`, {
+        logger.websocket.debug(`🔍 WebSocket 연결 시도 #${connectionAttempts + 1}:`, {
           protocol,
           hostname: baseHostname,
           port,
@@ -70,7 +71,7 @@ export function useWebSocket() {
           setConnectionAttempts(0); // 성공 시 카운터 리셋
           setLastHeartbeat(new Date());
           
-          console.log('✅ WebSocket 연결 성공:', {
+          logger.websocket.info('✅ WebSocket 연결 성공:', {
             timestamp: formatKoreanTime(),
             attempts: connectionAttempts + 1
           });
@@ -111,12 +112,12 @@ export function useWebSocket() {
             // 메시지 수신 시 heartbeat 업데이트
             setLastHeartbeat(new Date());
             
-            console.log('📨 WebSocket 메시지 수신:', message.type, message.data);
+            // WebSocket 메시지 수신
             setLastMessage(message);
             
             // pong 메시지 처리
             if (message.type === 'pong') {
-              console.log('💓 Heartbeat pong 수신');
+              logger.websocket.debug('💓 Heartbeat pong 수신');
               return;
             }
             
@@ -139,16 +140,16 @@ export function useWebSocket() {
           setIsConnecting(false);
           setIsConnected(false);
           
-          console.log('❌ WebSocket 연결 종료:', {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-            timestamp: formatKoreanTime()
-          });
+        logger.websocket.warn('❌ WebSocket 연결 종료:', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          timestamp: formatKoreanTime()
+        });
           
           // 재연결 지연 시간 계산 (지수 백오프)
-          const delay = Math.min(1000 * Math.pow(2, Math.min(connectionAttempts, 5)), 30000);
-          console.log(`🔄 ${delay}ms 후 재연결 시도...`);
+          const delay = Math.min(3000 * Math.pow(2, Math.min(connectionAttempts, 5)), 30000);
+          logger.websocket.info(`🔄 ${delay}ms 후 재연결 시도...`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connectWebSocket();
@@ -156,7 +157,7 @@ export function useWebSocket() {
         };
 
         ws.current.onerror = (error) => {
-          console.error('❌ WebSocket 오류:', error);
+          logger.websocket.error('❌ WebSocket 오류:', error);
           clearTimeout(connectionTimeout);
           setIsConnecting(false);
           setIsConnected(false);
@@ -180,13 +181,13 @@ export function useWebSocket() {
     const heartbeatInterval = setInterval(() => {
       if (ws.current?.readyState === WebSocket.OPEN) {
         ws.current.send(JSON.stringify({ type: 'ping' }));
-        console.log('💓 Heartbeat ping 전송');
+        logger.websocket.debug('💓 Heartbeat ping 전송');
         
-        // Heartbeat 타임아웃 설정 (5초 내 응답 없으면 재연결)
+        // Heartbeat 타임아웃 설정 (10초 내 응답 없으면 재연결)
         heartbeatTimeoutRef.current = setTimeout(() => {
-          console.warn('💔 Heartbeat 응답 없음 - 재연결 시도');
+          logger.websocket.warn('💔 Heartbeat 응답 없음 - 재연결 시도');
           ws.current?.close();
-        }, 5000);
+        }, 10000);
       }
     }, 15000); // 15초마다 heartbeat (기존 30초에서 단축)
 

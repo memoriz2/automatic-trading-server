@@ -315,8 +315,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             );
             
             if (validTrades.length > 0) {
-              console.log('✅ 거래 기록 로드 성공:', validTrades.length, '건');
-              console.log('📊 로드된 거래:', validTrades);
+              // 거래 기록 로드 성공
               return validTrades;
             }
           }
@@ -343,8 +342,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     };
     
     // 콘솔과 localStorage 둘 다에 저장
-    console.log('🔄 liveTrades 상태 변경:', debugInfo);
-    localStorage.setItem('debug-liveTrades-changes', JSON.stringify(debugInfo));
+    // liveTrades 상태 변경 (로그 제거)
   }, [liveTrades]);
 
   // Live 포지션 (실거래: DB, Mock: 로컬스토리지)
@@ -586,7 +584,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             timestamp: new Date(ts),
           };
         });
-        console.log('📈 거래 기록 로드:', normalizedTrades.length, '건');
+        // 거래 기록 로드
         setLiveTrades(normalizedTrades);
       }
       
@@ -610,18 +608,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const tradeKey = `mock-trades-${userId}`;
       const savedTrades = localStorage.getItem(tradeKey);
       
-      console.log('🔄 forceSyncTrades 실행:', {
-        tradeKey,
-        hasSavedTrades: !!savedTrades,
-        savedTrades,
-        currentMockTrades: liveTrades.length
-      });
+      // forceSyncTrades 실행
       
       if (savedTrades && savedTrades !== '[]' && savedTrades !== 'null') {
         try {
           const parsed = JSON.parse(savedTrades);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log('🔄 거래 기록 강제 동기화:', parsed.length, '건', parsed);
+            // 거래 기록 강제 동기화
             setLiveTrades(parsed);
             return true;
           }
@@ -647,7 +640,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     
     // 1초 후 한번 더 시도 (컴포넌트 완전 로드 후)
     const syncTimeout = setTimeout(() => {
-      console.log('🔄 1초 후 재동기화 시도, 현재 거래 수:', liveTrades.length);
+      // 1초 후 재동기화 시도
       if (liveTrades.length === 0) {
         forceSyncTrades();
       }
@@ -685,25 +678,18 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   useEffect(() => {
     const storageKey = `mock-trades-${userId}`;
-    console.log('💾 거래 기록 로컬스토리지 저장:', {
-      userId,
-      storageKey,
-      tradesCount: liveTrades.length,
-      recentTradesCount: liveTrades.filter(t => ['buy', 'sell', 'short', 'cover'].includes(t.type?.toLowerCase() || '')).length,
-      timestamp: new Date().toISOString(),
-      stack: new Error().stack?.split('\n')[1] // 호출 위치 추적
-    });
+    // 거래 기록 로컬스토리지 저장
     
     // 빈 배열로 덮어쓰는 것을 방지 (기존 데이터가 있는 경우)
     const existing = localStorage.getItem(storageKey);
     if (liveTrades.length === 0 && existing && existing !== '[]' && existing !== 'null') {
-      console.warn('⚠️ 빈 배열로 덮어쓰기 방지 - 기존 데이터 유지:', existing);
+      // 빈 배열로 덮어쓰기 방지
       
       // 기존 데이터를 다시 로드하여 상태와 동기화
       try {
         const existingParsed = JSON.parse(existing);
         if (Array.isArray(existingParsed) && existingParsed.length > 0) {
-          console.log('🔄 덮어쓰기 방지 중 자동 복원:', existingParsed.length, '건');
+          // 덮어쓰기 방지 중 자동 복원
           setLiveTrades(existingParsed);
         }
       } catch (error) {
@@ -1722,11 +1708,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   useEffect(() => {
     const activeStrategies = strategies.filter(s => s.isActive);
     
-    console.log('🔄 전략 상태 변경 감지:', {
-      totalStrategies: strategies.length,
-      activeStrategies: activeStrategies.length,
-      activeNames: activeStrategies.map(s => s.name)
-    });
+    // 전략 상태 변경 감지
     
     // 즉시 한번 체크 (전략 활성화 직후)
     if (activeStrategies.length > 0 && currentKimchiData) {
@@ -1881,13 +1863,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const activePositions = livePositions.filter(p => p.status === 'open');
   const closedPositions = livePositions.filter(p => p.status === 'closed');
   
-  console.log('🔍 포지션 상태 확인:', {
-    전체포지션: livePositions.length,
-    활성포지션: activePositions.length,
-    청산포지션: closedPositions.length,
-    활성포지션ID: activePositions.map(p => p.id),
-    청산포지션ID: closedPositions.map(p => p.id)
-  });
+  // 포지션 상태 확인 완료
   
   // === 💰 총 순투자금 계산 (수수료 제외 방식으로 일관성 유지) ===
   const totalActiveInvestment = activePositions
@@ -1917,36 +1893,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     ? ((totalPnl / totalActiveInvestment) * 100)                              // 현재 포지션 손익만으로 수익률 계산
     : 0;
   
-  console.log('📊 수익률 계산 (활성 포지션만):', {
-    활성포지션PnL: totalPositionPnl.toLocaleString(),
-    실현손익_제외됨: realizedPnl.toLocaleString(),
-    활성투자금: totalActiveInvestment.toLocaleString(),
-    수익률: `${profitRate.toFixed(3)}%`
-  });
+  // 수익률 계산 완료 (로그 제거)
     
-  // 디버깅 로그 (상세)
-  console.log('💰 수익률 계산 디버깅:', {
-    초기자산: {
-      총합: initialTotalValue.toLocaleString(),
-      KRW: INITIAL_KRW.toLocaleString(),
-      USDT: INITIAL_USDT.toLocaleString() + ' ($' + (INITIAL_USDT * currentUsdKrw).toLocaleString() + ')'
-    },
-    현재자산: {
-      총합: (initialTotalValue + totalPnl).toLocaleString(),
-      KRW: liveBalance.krw.toLocaleString() + ' (변화: ' + (liveBalance.krw - INITIAL_KRW).toLocaleString() + ')',
-      업비트BTC: liveBalance.btc.toFixed(6) + ' BTC (₩' + (liveBalance.btc * currentBtcPrice).toLocaleString() + ')',
-      바이낸스BTC: liveBalance.binanceBtc.toFixed(6) + ' BTC (₩' + (liveBalance.binanceBtc * currentBtcPrice).toLocaleString() + ')',
-      USDT: liveBalance.usdt.toFixed(2) + ' USDT (₩' + (liveBalance.usdt * currentUsdKrw).toLocaleString() + ', 변화: ' + (liveBalance.usdt - INITIAL_USDT).toFixed(2) + ')'
-    },
-    손익분석: {
-      총손익: totalPnl.toLocaleString(),
-      수익률: profitRate.toFixed(2) + '%',
-      KRW변화: (liveBalance.krw - INITIAL_KRW).toLocaleString(),
-      USDT손실KRW: ((INITIAL_USDT - liveBalance.usdt) * currentUsdKrw).toLocaleString(),
-      업비트BTC가치: (liveBalance.btc * currentBtcPrice).toLocaleString(),
-      바이낸스BTC가치: (liveBalance.binanceBtc * currentBtcPrice).toLocaleString()
-    }
-  });
+  // 수익률 계산 완료 (상세 로그 제거)
 
   // 실제 투자 기준 수익률도 계산 (청산된 포지션들의 투자액 대비)
   const realizedTrades = liveTrades.filter(t => t.type === 'sell' || t.type === 'cover');
@@ -2022,21 +1971,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // 최근 거래(진입+청산) 10건 (시간 내림차순)
   const recentTrades = useMemo(() => {
-    console.log('📊 최근 거래 계산 시작:', {
-      liveTradesLength: liveTrades.length,
-      liveTradesData: liveTrades,
-      timestamp: new Date().toISOString()
-    });
+    // 최근 거래 계산 시작
     
     const filteredTrades = liveTrades
       .filter(t => {
         const isValidType = ['buy', 'sell', 'short', 'cover'].includes((t.type || '').toLowerCase());
-        console.log('🔍 거래 필터링:', {
-          id: t.id,
-          type: t.type,
-          isValidType,
-          exchange: t.exchange
-        });
+        // 거래 필터링
         return isValidType;
       })
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -2049,8 +1989,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       timestamp: new Date().toISOString()
     };
     
-    console.log('📊 최근 거래 계산 완료:', recentTradesDebug);
-    localStorage.setItem('debug-recentTrades-calculation', JSON.stringify(recentTradesDebug));
+    // 최근 거래 계산 완료
     
     return filteredTrades;
   }, [liveTrades]);

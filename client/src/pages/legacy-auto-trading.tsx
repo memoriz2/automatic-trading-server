@@ -11,6 +11,7 @@ import { useTradingMode } from '@/hooks/useTradingMode';
 import { useApiConnection } from '@/hooks/useApiConnection';
 import { TRADING_CONSTANTS } from '@/lib/utils';
 import { isNum, fx, loc, formatKRW, formatUSD, formatCompact, floorQty, formatBTC, formatPercent } from '@/utils/trading/formatters';
+import { logger } from '@/utils/logger';
 import { normalizeAmountBtc, mapStrategyToBand } from '@/utils/trading/calculations';
 import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
 import { LEVERAGE_CONFIG, parseLeverage, normalizeLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
@@ -359,7 +360,7 @@ const LegacyAutoTradingPage = () => {
     const originalClear = localStorage.clear;
     
     localStorage.setItem = function(key, value) {
-      console.log('📝 localStorage.setItem:', key, value?.slice(0, 100) + '...');
+      // localStorage.setItem 호출
       return originalSetItem.call(this, key, value);
     };
     
@@ -778,7 +779,7 @@ const LegacyAutoTradingPage = () => {
           if (filtered.length % 100 === 0 || Date.now() % 300000 < 1000) {
             try {
               localStorage.setItem(`kimchi-chart-data-${effectiveUserId}`, JSON.stringify(filtered));
-              console.log('📊 김치프리미엄 차트 데이터 저장:', filtered.length, '개 포인트');
+                  // 김치프리미엄 차트 데이터 저장
             } catch (error) {
               console.error('차트 데이터 저장 실패:', error);
             }
@@ -1414,11 +1415,13 @@ const LegacyAutoTradingPage = () => {
   }, []);
 
   // 간단한 전략 로드 함수
-  const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean } = {}) => {
-    console.log('📋 [전략로드] loadStrategiesFromDB 시작:', { 
+  const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean; userId?: string | number } = {}) => {
+    const targetUserId = opts.userId || user?.id;
+    logger.debug('📋 [전략로드] loadStrategiesFromDB 시작:', { 
       force: opts.force, 
       hasLoaded: hasLoadedStrategiesRef.current,
-      userId: user?.id 
+      userId: targetUserId,
+      providedUserId: opts.userId 
     });
     
     if (!opts.force && hasLoadedStrategiesRef.current) {
@@ -1428,24 +1431,40 @@ const LegacyAutoTradingPage = () => {
     
     // 로딩 상태는 useTradingMode 훅에서 관리
     try {
-      if (!user?.id) {
-        console.log('❌ [전략로드] 사용자 ID 없음');
+      if (!targetUserId) {
+        logger.warn('❌ [전략로드] 사용자 ID 없음');
         return [];
       }
       
-      const userId = String(user.id);
+      const userId = String(targetUserId);
       console.log('🔍 [전략로드] API 호출:', `/api/trading-strategies/${userId}`);
       
-      const dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
-      console.log('📥 [전략로드] DB 응답:', { 
-        type: typeof dbStrategies, 
-        isArray: Array.isArray(dbStrategies),
-        length: Array.isArray(dbStrategies) ? dbStrategies.length : 'N/A',
-        data: dbStrategies 
-      });
+      let dbStrategies: any;
+      try {
+        dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
+        console.log('📥 [전략로드] DB 응답:', { 
+          type: typeof dbStrategies, 
+          isArray: Array.isArray(dbStrategies),
+          length: Array.isArray(dbStrategies) ? dbStrategies.length : 'N/A',
+          data: dbStrategies 
+        });
+        
+        if (Array.isArray(dbStrategies) && dbStrategies.length > 0) {
+          console.log('📋 [전략로드] 첫 번째 전략 상세:', {
+            id: dbStrategies[0].id,
+            name: dbStrategies[0].name,
+            entryCondition: dbStrategies[0].entryCondition,
+            takeProfitCondition: dbStrategies[0].takeProfitCondition,
+            isActive: dbStrategies[0].isActive
+          });
+        }
+      } catch (fetchError) {
+        console.error('❌ [전략로드] fetchJson 에러:', fetchError);
+        throw fetchError;
+      }
       
       if (Array.isArray(dbStrategies)) {
-        const formattedStrategies = dbStrategies.map(s => {
+        const formattedStrategies = dbStrategies.map((s: any) => {
           // 안전한 숫자 변환 함수
           const safeNumber = (value: any, defaultValue: number) => {
             const num = parseFloat(value);
@@ -1489,7 +1508,7 @@ const LegacyAutoTradingPage = () => {
         
         hasLoadedStrategiesRef.current = true;
         console.log('✅ [전략로드] 포맷팅 완료:', formattedStrategies.length, '개 전략');
-        console.log('📋 [전략로드] 전략 목록:', formattedStrategies.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })));
+        console.log('📋 [전략로드] 전략 목록:', formattedStrategies.map((s: any) => ({ id: s.id, name: s.name, isActive: s.isActive })));
         return formattedStrategies;
       }
       console.log('❌ [전략로드] DB 응답이 배열이 아님');
@@ -1512,26 +1531,19 @@ const LegacyAutoTradingPage = () => {
       hasScheduledInitialLoadRef.current = true;
       setTimeout(async () => {
         try {
-          console.log('🔄 [DEBUG] 페이지 로드 - 세션 직접 확인 시작');
+          logger.debug('🔄 [DEBUG] 페이지 로드 - 세션 직접 확인 시작');
           const sessionData = await apiFetchJson('/api/auth/me');
-          console.log('🔄 [DEBUG] 세션 데이터 응답:', sessionData);
+          logger.debug('🔄 [DEBUG] 세션 데이터 응답:', sessionData);
           
           if (sessionData.id) {
-            console.log('✅ [DEBUG] 페이지 로드 - 세션 확인됨:', sessionData.id);
+            logger.success('✅ 페이지 로드 - 세션 확인됨:', sessionData.id);
             
-            // 실시간 거래 모드: DB에서 전략 로드
-            console.log('🚀 [DEBUG] 실시간 거래 모드 - loadStrategiesFromDB 호출');
-            loadStrategiesFromDB({ force: true }).then(strategies => {
-              console.log('🔄 [전략로드] 로드 결과:', { 
-                strategiesLength: strategies?.length || 0,
-                strategies: strategies?.map(s => ({ id: s.id, name: s.name })) || []
-              });
-              if (strategies && strategies.length > 0) {
-                setRealStrategies(strategies);
-                console.log('✅ [전략로드] realStrategies 상태 업데이트 완료');
-              } else {
-                console.log('⚠️ [전략로드] 전략이 없어서 상태 업데이트 안함');
-              }
+            // 실시간 거래 모드: DB에서 전략 로드 (useTradingMode 훅 사용)
+            logger.debug('🚀 [DEBUG] 실시간 거래 모드 - loadRealStrategies 호출');
+            loadRealStrategies().then(() => {
+              console.log('✅ [전략로드] loadRealStrategies 완료');
+            }).catch(error => {
+              console.error('❌ [전략로드] loadRealStrategies 실패:', error);
             });
           } else {
             console.log('❌ [DEBUG] 페이지 로드 - 세션 없음, 로그인 필요');
@@ -1552,30 +1564,23 @@ const LegacyAutoTradingPage = () => {
     if (user?.id) {
       console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
       
-      // 실시간 거래 모드: DB에서 전략 로드
-      hasLoadedStrategiesRef.current = false;
-      loadStrategiesFromDB({ force: true }).then(strategies => {
-        console.log('🔄 [전략로드] 사용자 변경 시 로드 결과:', { 
-          strategiesLength: strategies?.length || 0,
-          strategies: strategies?.map(s => ({ id: s.id, name: s.name })) || []
-        });
-        if (strategies && strategies.length > 0) {
-          setRealStrategies(strategies);
-          console.log('✅ [전략로드] realStrategies 상태 업데이트 완료 (사용자 변경)');
-        } else {
-          console.log('⚠️ [전략로드] 전략이 없어서 상태 업데이트 안함 (사용자 변경)');
-        }
+      // 실시간 거래 모드: DB에서 전략 로드 (useTradingMode 훅 사용)
+      console.log('🔄 [전략로드] 사용자 변경 - loadRealStrategies 호출');
+      loadRealStrategies().then(() => {
+        console.log('✅ [전략로드] 사용자 변경 시 loadRealStrategies 완료');
+      }).catch(error => {
+        console.error('❌ [전략로드] 사용자 변경 시 loadRealStrategies 실패:', error);
       });
       console.log('🔄 실시간 거래 모드 - DB에서 전략 로드');
     } else {
       console.log('⚠️ 세션에 사용자 정보가 없습니다. 조회 보류');
     }
-  }, [user?.id, loadStrategiesFromDB, setRealStrategies]);
+  }, [user?.id, loadRealStrategies]);
 
   // 웹소켓 메시지 핸들러 등록
   useEffect(() => {
     const unsubscribeKimchi = subscribe('kimchi-premium', (data: any[]) => {
-      console.log('📨 김치프리미엄 데이터 수신:', data.length, '개');
+      // 김치프리미엄 데이터 수신
       // 실시간 김치프리미엄 데이터를 kimp 상태에 반영
       if (data && data.length > 0) {
         const btcData = data.find(item => item.symbol === 'BTC');
@@ -1604,7 +1609,7 @@ const LegacyAutoTradingPage = () => {
               if (filtered.length % 100 === 0) {
                 try {
                   localStorage.setItem(`kimchi-chart-data-${effectiveUserId}`, JSON.stringify(filtered));
-                  console.log('📊 웹소켓 김프 데이터 저장:', filtered.length, '개 포인트');
+                  // 웹소켓 김프 데이터 저장
                 } catch (error) {
                   console.error('웹소켓 차트 데이터 저장 실패:', error);
                 }
@@ -1646,7 +1651,7 @@ const LegacyAutoTradingPage = () => {
       try {
         const currentSparkData = JSON.parse(localStorage.getItem(`kimchi-chart-data-${effectiveUserId}`) || '[]');
         if (currentSparkData.length > 0) {
-          console.log('📊 페이지 종료 시 차트 데이터 유지:', currentSparkData.length, '개 포인트');
+          // 페이지 종료 시 차트 데이터 유지
         }
       } catch (error) {
         console.error('페이지 종료 시 차트 데이터 확인 실패:', error);
@@ -1657,13 +1662,7 @@ const LegacyAutoTradingPage = () => {
 
   // 차트 그리기 로직은 KimchiChart 컴포넌트로 이동됨
 
-  // 디버깅 로그
-  console.log('🔍 LegacyAutoTradingPage 상태:', { 
-    isLoading, 
-    isAuthenticated, 
-    user: user?.id,
-    effectiveUserId 
-  });
+  // 페이지 상태 확인 완료
 
   // 로딩 중이거나 인증되지 않은 경우 처리
   if (isLoading) {
