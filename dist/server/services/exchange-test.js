@@ -7,7 +7,6 @@ export class ExchangeTestService {
     // 업비트 연동 테스트
     async testUpbitConnection(apiKey, apiSecret) {
         try {
-            console.log('🔍 업비트 연동 테스트 시작...');
             // 업비트 JWT 토큰 생성
             const payload = {
                 access_key: apiKey,
@@ -15,7 +14,6 @@ export class ExchangeTestService {
                 timestamp: Date.now()
             };
             const token = jwt.sign(payload, apiSecret);
-            console.log('🔑 업비트 JWT 토큰 생성 완료');
             // 업비트 API로 계정 정보 조회 시도
             const response = await fetch('https://api.upbit.com/v1/accounts', {
                 method: 'GET',
@@ -24,10 +22,8 @@ export class ExchangeTestService {
                     'Content-Type': 'application/json'
                 }
             });
-            console.log(`📡 업비트 API 응답: ${response.status} ${response.statusText}`);
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ 업비트 연동 성공:', data);
                 return {
                     success: true,
                     message: '업비트 연동 성공! 계정 정보를 정상적으로 조회했습니다.',
@@ -61,13 +57,11 @@ export class ExchangeTestService {
     // 바이낸스 연동 테스트
     async testBinanceConnection(apiKey, apiSecret) {
         try {
-            console.log('🔍 바이낸스 연동 테스트 시작...');
             // 바이낸스 API로 계정 정보 조회 시도
             const timestamp = Date.now();
             const queryString = `timestamp=${timestamp}`;
             // HMAC-SHA256 서명 생성
             const signature = this.generateBinanceSignature(queryString, apiSecret);
-            console.log(`📡 바이낸스 API 요청: timestamp=${timestamp}, signature=${signature}`);
             const response = await fetch(`https://fapi.binance.com/fapi/v2/account?${queryString}&signature=${signature}`, {
                 method: 'GET',
                 headers: {
@@ -75,16 +69,16 @@ export class ExchangeTestService {
                     'Content-Type': 'application/json'
                 }
             });
-            console.log(`📡 바이낸스 API 응답: ${response.status} ${response.statusText}`);
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ 바이낸스 연동 성공:', data);
+                // 바이낸스 연동 성공 로그 제거
                 return {
                     success: true,
                     message: '바이낸스 연동 성공! 계정 정보를 정상적으로 조회했습니다.',
                     details: {
                         canTrade: data.canTrade,
-                        totalWalletBalance: data.totalWalletBalance
+                        totalWalletBalance: data.totalWalletBalance,
+                        availableBalance: data.availableBalance
                     }
                 };
             }

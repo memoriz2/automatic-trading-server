@@ -41,10 +41,10 @@ export class BalanceService {
             const cached = BalanceService.balanceCache.get(userId);
             const now = Date.now();
             if (cached && (now - cached.timestamp) < BalanceService.CACHE_TTL_MS) {
-                console.log(`🚀 [BalanceService] 사용자 ${userId} 캐시된 잔고 반환 (${Math.floor((now - cached.timestamp) / 1000)}초 전)`);
+                // 캐시 반환 로그 완전 제거
                 return cached.data;
             }
-            console.log(`🔄 [BalanceService] 사용자 ${userId} 새로운 잔고 조회 시작`);
+            // 새로운 잔고 조회 시작 로그 제거
             // 1. 사용자의 활성 API 키 조회
             const apiKeys = await this.apiKeysRepository.findActiveByUserId(userId);
             if (apiKeys.length === 0) {
@@ -55,37 +55,74 @@ export class BalanceService {
             const connectionResults = {};
             for (const apiKey of apiKeys) {
                 try {
-                    const adapter = getExchangeAdapter(apiKey.exchange);
-                    adapter.setCredentials(apiKey.apiKey, apiKey.secretKey, apiKey.passphrase);
-                    // 연결 테스트
-                    const connectionTest = await adapter.testConnection();
-                    connectionResults[apiKey.exchange] = connectionTest.success;
-                    if (connectionTest.success) {
-                        // 잔고 조회
-                        const balances = await adapter.getBalances();
-                        allBalances.push(...balances);
-                        // 잔고 스냅샷 저장 (비동기)
-                        this.saveBalanceSnapshot(userId, balances).catch(console.error);
-                        // 연결 상태 업데이트
-                        await this.exchangeConnectionRepository.upsertConnection(userId, {
-                            exchange: apiKey.exchange,
-                            connected: true,
-                            lastChecked: new Date(),
-                            permissions: connectionTest.permissions,
-                            balanceAvailable: true,
-                            tradingEnabled: connectionTest.permissions.includes('spot') || connectionTest.permissions.includes('futures')
-                        });
+                    // 바이낸스의 경우 exchangeTestService 사용 (성공하는 방식)
+                    if (apiKey.exchange === 'binance') {
+                        const { exchangeTestService } = await import('./exchange-test.js');
+                        const testResult = await exchangeTestService.testExchangeConnection('binance', apiKey.apiKey, apiKey.secretKey);
+                        connectionResults[apiKey.exchange] = testResult.success;
+                        if (testResult.success) {
+                            // exchangeTestService 결과에서 사용 가능한 USDT 잔고 추출
+                            const availableBalance = parseFloat(testResult.details?.availableBalance || '0');
+                            const totalBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
+                            // 사용 가능 잔고 우선, 없으면 총 잔고 사용
+                            const usdtBalance = availableBalance > 0 ? availableBalance : totalBalance;
+                            if (usdtBalance > 0) {
+                                allBalances.push({
+                                    exchange: 'binance',
+                                    currency: 'USDT',
+                                    available: usdtBalance,
+                                    locked: totalBalance - availableBalance, // 사용 중인 금액
+                                    total: totalBalance
+                                });
+                                // 바이낸스 USDT 잔고 로그 제거
+                            }
+                        }
                     }
                     else {
-                        // 연결 실패 상태 기록
+                        // 업비트 등 다른 거래소는 기존 방식 사용
+                        const adapter = getExchangeAdapter(apiKey.exchange);
+                        adapter.setCredentials(apiKey.apiKey, apiKey.secretKey, apiKey.passphrase);
+                        // 연결 테스트
+                        const connectionTest = await adapter.testConnection();
+                        connectionResults[apiKey.exchange] = connectionTest.success;
+                        if (connectionTest.success) {
+                            // 잔고 조회
+                            const balances = await adapter.getBalances();
+                            allBalances.push(...balances);
+                            // 잔고 스냅샷 저장 (비동기)
+                            this.saveBalanceSnapshot(userId, balances).catch(console.error);
+                            // 연결 상태 업데이트
+                            await this.exchangeConnectionRepository.upsertConnection(userId, {
+                                exchange: apiKey.exchange,
+                                connected: true,
+                                lastChecked: new Date(),
+                                permissions: connectionTest.permissions,
+                                balanceAvailable: true,
+                                tradingEnabled: connectionTest.permissions.includes('spot') || connectionTest.permissions.includes('futures')
+                            });
+                        }
+                        else {
+                            // 연결 실패 상태 기록
+                            await this.exchangeConnectionRepository.upsertConnection(userId, {
+                                exchange: apiKey.exchange,
+                                connected: false,
+                                lastChecked: new Date(),
+                                error: connectionTest.error,
+                                permissions: [],
+                                balanceAvailable: false,
+                                tradingEnabled: false
+                            });
+                        }
+                    }
+                    // 바이낸스 연결 상태 업데이트
+                    if (apiKey.exchange === 'binance') {
                         await this.exchangeConnectionRepository.upsertConnection(userId, {
-                            exchange: apiKey.exchange,
-                            connected: false,
+                            exchange: 'binance',
+                            connected: connectionResults[apiKey.exchange],
                             lastChecked: new Date(),
-                            error: connectionTest.error,
-                            permissions: [],
-                            balanceAvailable: false,
-                            tradingEnabled: false
+                            permissions: connectionResults[apiKey.exchange] ? ['futures'] : [],
+                            balanceAvailable: connectionResults[apiKey.exchange],
+                            tradingEnabled: connectionResults[apiKey.exchange]
                         });
                     }
                 }
@@ -103,7 +140,7 @@ export class BalanceService {
                 data: result,
                 timestamp: Date.now()
             });
-            console.log(`✅ [BalanceService] 사용자 ${userId} 잔고 조회 완료 및 캐시 저장`);
+            // 잔고 조회 완료 로그 제거
             return result;
         }
         catch (error) {
@@ -270,10 +307,12 @@ export class BalanceService {
             else if (balance.exchange === 'binance') {
                 balanceDetails.binance.push(balance);
                 if (balance.currency === 'USDT') {
-                    real.usdt = balance.total;
+                    // 현물과 선물 USDT 잔고를 합산하거나, 더 큰 값을 사용
+                    real.usdt = Math.max(real.usdt || 0, balance.total);
                 }
             }
         });
+        // 포맷팅된 잔고 데이터 로그 제거
         return {
             real,
             connected,
@@ -300,7 +339,7 @@ export class BalanceService {
      * 캐시를 우회하여 실제 API에서 직접 잔고 조회 (거래 후 사용)
      */
     async getUserBalancesDirect(userId) {
-        console.log(`🔥 [BalanceService] 캐시 우회 - 실제 API 직접 호출 (사용자: ${userId})`);
+        // 캐시 우회 로그 제거
         try {
             // 1. 사용자의 활성 API 키 조회
             const apiKeys = await this.apiKeysRepository.findActiveByUserId(userId);

@@ -294,7 +294,8 @@ export class BinanceService {
             }
             const futuresAccount = await response.json();
             const usdtAsset = futuresAccount.assets?.find((asset) => asset.asset === 'USDT');
-            const futuresBalance = usdtAsset ? parseFloat(usdtAsset.walletBalance) : 0;
+            // 선물 계정에서 사용가능한 잔고 사용 (availableBalance 우선, 없으면 walletBalance)
+            const futuresBalance = usdtAsset ? parseFloat(usdtAsset.availableBalance || usdtAsset.walletBalance) : 0;
             console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
             return futuresBalance;
         }
@@ -764,7 +765,8 @@ export class BinanceService {
             }
             const futuresAccount = await response.json();
             const usdtAsset = futuresAccount.assets?.find((asset) => asset.asset === 'USDT');
-            const futuresBalance = usdtAsset ? parseFloat(usdtAsset.walletBalance) : 0;
+            // 선물 계정에서 사용가능한 잔고 사용 (availableBalance 우선, 없으면 walletBalance)
+            const futuresBalance = usdtAsset ? parseFloat(usdtAsset.availableBalance || usdtAsset.walletBalance) : 0;
             console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
             return futuresBalance;
         }

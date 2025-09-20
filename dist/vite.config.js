@@ -24,6 +24,9 @@ export default defineConfig({
     build: {
         outDir: path.resolve(import.meta.dirname, "dist/public"),
         emptyOutDir: true,
+        target: 'esnext',
+        minify: 'terser',
+        sourcemap: false,
         rollupOptions: {
             external: [
                 "@prisma/client",
@@ -33,6 +36,20 @@ export default defineConfig({
                 "os",
                 "crypto",
             ],
+            output: {
+                manualChunks: {
+                    'vendor': ['react', 'react-dom'],
+                    'ui': ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-tabs'],
+                    'charts': ['recharts'],
+                    'query': ['@tanstack/react-query'],
+                }
+            }
+        },
+        terserOptions: {
+            compress: {
+                drop_console: true,
+                drop_debugger: true,
+            },
         },
     },
     server: {
