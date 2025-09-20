@@ -771,7 +771,7 @@ const LegacyAutoTradingPage = () => {
   // ===== Data Fetching & Polling Functions =====
   const tickLight = useCallback(async () => {
     try {
-      const k = await fetchJson('/current');
+      const k = await fetchJson('/api/kimpga/current');
       if (!k) return; // Abort 등으로 undefined일 때 조용히 무시
       setKimp(k);
       if (isNum(k.kimp)) {

@@ -986,6 +986,43 @@ export class DatabaseStorage {
     }
   }
 
+  // 오늘 거래만 조회 (간단한 날짜 비교)
+  async getTodayTradesByUserId(userId: string | number): Promise<any[]> {
+    try {
+      const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
+      const result = await this.pool.query(`
+        SELECT * FROM trades 
+        WHERE user_id = $1 
+        AND DATE(executed_at) = CURRENT_DATE
+        ORDER BY executed_at DESC
+      `, [userIdNum]);
+      
+      console.log(`🔍 [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘 거래: ${result.rows.length}개`);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ [getTodayTradesByUserId] SQL 오류:', error);
+      return [];
+    }
+  }
+
+  // 오늘 포지션만 조회 (간단한 날짜 비교)
+  async getTodayPositionsByUserId(userId: number): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT * FROM positions 
+        WHERE user_id = $1 
+        AND DATE(entry_time) = CURRENT_DATE
+        ORDER BY entry_time DESC
+      `, [userId]);
+      
+      console.log(`🔍 [getTodayPositionsByUserId] 사용자 ${userId} 오늘 포지션: ${result.rows.length}개`);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ [getTodayPositionsByUserId] SQL 오류:', error);
+      return [];
+    }
+  }
+
   async getSystemAlerts(limit: number = 100): Promise<any[]> {
     try {
       const result = await this.pool.query(

@@ -298,30 +298,55 @@ export async function registerRoutes(
       const userId = req.user.id;
       const minutes = parseInt(req.query.minutes as string) || 1440; // 기본 24시간
       
-      // 한국시간 기준 시작 시간 계산
+      // 한국시간 기준 오늘 자정 계산 (더 정확한 방법)
       const now = new Date();
-      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       
-      // 오늘 자정 계산 (한국시간)
-      const kstToday = new Date(kstNow);
-      kstToday.setHours(0, 0, 0, 0);
-      const startTime = new Date(kstToday.getTime() - 9 * 60 * 60 * 1000); // UTC로 변환
+      // 한국시간 오늘 자정 (KST 기준)
+      const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+      const kstMidnight = new Date(kstNow);
+      kstMidnight.setHours(0, 0, 0, 0);
       
-      // 실제 거래 내역에서 통계 계산
-      const trades = await storage.getTradesByUserId(String(userId), 1000);
-      const positions = await storage.getPositions({ user_id: userId });
-      
-      // 오늘 거래 필터링
-      const todayTrades = trades.filter(trade => {
-        const tradeTime = new Date(trade.created_at || trade.timestamp);
-        return tradeTime >= startTime;
+      console.log(`🔍 [daily-stats] 한국시간 기준:`, {
+        현재UTC: now.toISOString(),
+        현재한국시간: kstNow.toISOString(),
+        오늘자정한국시간: kstMidnight.toISOString(),
+        필터링기준: kstMidnight.toISOString()
       });
       
-      // 오늘 포지션 필터링
-      const todayPositions = positions.filter(position => {
-        const positionTime = new Date(position.created_at || position.entry_time);
-        return positionTime >= startTime;
+      // 🚀 SQL에서 직접 한국시간 기준 오늘 데이터만 조회 (더 정확하고 효율적)
+      const todayTrades = await storage.getTodayTradesByUserId(String(userId));
+      const todayPositions = await storage.getTodayPositionsByUserId(userId);
+      
+      // 전체 데이터도 조회 (비교용)
+      const allTrades = await storage.getTradesByUserId(String(userId), 100);
+      const allPositions = await storage.getPositions({ user_id: userId });
+      
+      console.log(`🔍 [daily-stats] SQL 직접 조회 결과:`, {
+        전체거래: allTrades.length,
+        오늘거래: todayTrades.length,
+        전체포지션: allPositions.length,
+        오늘포지션: todayPositions.length,
+        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
       });
+      
+      // 포지션 시간 상세 확인
+      if (allPositions.length > 0) {
+        console.log(`🔍 [daily-stats] 포지션 시간 상세:`, allPositions.map(p => {
+          const positionTime = new Date(p.created_at || p.entry_time);
+          const positionKst = new Date(positionTime.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+          const positionDate = positionKst.toDateString();
+          const todayDate = kstMidnight.toDateString();
+          
+          return {
+            id: p.id,
+            status: p.status,
+            entry_time: p.entry_time,
+            created_at: p.created_at,
+            한국시간: positionKst.toISOString(),
+            오늘포함여부: positionDate === todayDate
+          };
+        }));
+      }
       
       // 진입/청산 거래만 필터링 (실제 의미있는 거래)
       const entryTrades = todayTrades.filter(t => 
@@ -354,13 +379,13 @@ export async function registerRoutes(
             return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
           }, 0);
           
-          // 🔄 활성 포지션의 실시간 예상 매도 수수료 추가 (최적화)
+          // 🔄 오늘 활성 포지션의 실시간 예상 매도 수수료 추가 (수정)
           let activePositionFees = 0;
-          const activePositions = positions.filter(p => p.status === 'open');
+          const todayActivePositions = todayPositions.filter(p => p.status === 'open');
           
-          console.log(`🔍 [daily-stats] 활성 포지션: ${activePositions.length}개`);
+          console.log(`🔍 [daily-stats] 오늘 활성 포지션: ${todayActivePositions.length}개`);
           
-          if (activePositions.length > 0) {
+          if (todayActivePositions.length > 0) {
             // 실시간 김치 데이터 한 번만 조회
             const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
             const btcData = realtimeData.find(d => d.symbol === 'BTC');
@@ -376,7 +401,7 @@ export async function registerRoutes(
             const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
             
             // 모든 활성 포지션에 대해 수수료 계산 (캐시된 가격 사용)
-            activePositionFees = activePositions.reduce((sum, position, index) => {
+            activePositionFees = todayActivePositions.reduce((sum, position, index) => {
               // 업비트 예상 매도 수수료 (실시간) - 올바른 필드명 사용
               const upbitQuantity = position.quantity || position.upbitQuantity || 0;
               const upbitSellAmount = upbitQuantity * currentUpbitPrice;
