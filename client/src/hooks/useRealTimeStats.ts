@@ -63,7 +63,6 @@ export const useRealTimeStats = (userId?: number) => {
 
         if (res.ok) {
           const metrics = await res.json();
-          console.log('📊 [useRealTimeStats] 서버 응답 원본:', metrics);
           
           const calculatedTotalTrades = Number(metrics.total_orders || 0); // 서버에서 이미 계산됨
           
@@ -79,17 +78,8 @@ export const useRealTimeStats = (userId?: number) => {
             totalProfitRate: Number(metrics.total_profit_rate || 0)
           };
           
-          console.log('📊 [useRealTimeStats] 상세 계산:', {
-            'total_orders': metrics.total_orders,
-            'entries': metrics.entries, 
-            'exits': metrics.exits,
-            '계산결과': calculatedTotalTrades,
-            '이전상태': stats.totalTrades,
-            '새상태': realStats.totalTrades
-          });
-          
           setStats(realStats);
-          console.log('📊 [useRealTimeStats] DB 통계 업데이트:', realStats);
+          // 모든 useRealTimeStats 로그 제거
       } else {
         throw new Error(`API 응답 오류: ${res.status}`);
       }

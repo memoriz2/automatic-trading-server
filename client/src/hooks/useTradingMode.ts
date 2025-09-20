@@ -67,13 +67,13 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
       try {
         setIsLoadingStrategies(true);
         setStrategiesError(null);
-        console.log('🔍 실거래 전략 DB 조회 중...');
+        // 실거래 전략 DB 조회 중
         
         // 재시도 로직 포함 (최대 3회)
         let lastError: any = null;
         for (let attempt = 1; attempt <= 3; attempt++) {
           try {
-            console.log(`📡 전략 조회 시도 ${attempt}/3...`);
+            // 전략 조회 시도
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
@@ -92,21 +92,13 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
             if (response.ok) {
               const data = await response.json();
               
-              console.log(`🔍 [useTradingMode] 시도 ${attempt} - 서버 응답:`, {
-                count: Array.isArray(data) ? data.length : 0,
-                sample: Array.isArray(data) ? data.slice(0, 2).map((s: any) => ({
-                  id: s.id,
-                  name: s.name,
-                  entryCondition: s.entryCondition,
-                  takeProfitCondition: s.takeProfitCondition
-                })) : null
-              });
+              // 서버 응답 확인
               
               const list = Array.isArray(data) ? normalizeStrategies(data) : [];
               
               setRealStrategies(list);
               setLastLoadTime(new Date());
-              console.log(`✅ 전략 조회 성공 (시도 ${attempt}):`, list.length, '개');
+              // 전략 조회 성공
               return; // 성공 시 루프 종료
               
             } else {
@@ -141,9 +133,9 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
     } else if (tradingMode === 'mock') {
       // Mock 모드일 때만 실거래 전략 초기화 (유저 없음 상태에서는 초기화하지 않음)
       setRealStrategies([]);
-      console.log('🧪 Mock 모드 - 실거래 전략 초기화');
+      // Mock 모드 - 실거래 전략 초기화
     } else {
-      console.log('⏳ 유저 정보 로딩 중 - 전략 초기화 보류');
+      // 유저 정보 로딩 중 - 전략 초기화 보류
     }
   }, [tradingMode, user]);
 

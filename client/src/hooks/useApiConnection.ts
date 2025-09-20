@@ -17,8 +17,6 @@ export const useApiConnection = ({ tradingMode }: UseApiConnectionProps) => {
         
         // 거래소 API 연결 상태 확인
         try {
-          console.log('🔍 거래소 API 연결 상태 확인 중...');
-          
           const response = await fetch('/api/v2/exchanges/status', { 
             credentials: 'include'
           });
@@ -26,29 +24,32 @@ export const useApiConnection = ({ tradingMode }: UseApiConnectionProps) => {
           if (response.ok) {
             const data = await response.json();
             const isConnected = data.connected && data.connectedExchanges > 0;
+            const wasConnected = apiConnected;
             
             setApiConnected(isConnected);
             setIsConnecting(false);
             
-            console.log('✅ 거래소 API 연결 상태:', {
-              connected: isConnected,
-              totalExchanges: data.totalExchanges,
-              connectedExchanges: data.connectedExchanges,
-              exchanges: data.exchanges
-            });
-            
-            if (!isConnected) {
-              console.warn('⚠️ 거래소 API 연결 실패:', data.message);
+            // 연결 상태 변경 시에만 로그 출력
+            if (wasConnected !== isConnected) {
+              if (isConnected) {
+                console.log(`✅ 거래소 API 연결 성공 (${data.connectedExchanges}/${data.totalExchanges})`);
+              } else {
+                console.warn('⚠️ 거래소 API 연결 실패:', data.message);
+              }
             }
           } else {
             setApiConnected(false);
-            setIsConnecting(true); // API 확인 실패하면 계속 스피닝
-            console.error('❌ API 연결 확인 실패:', response.status, response.statusText);
+            setIsConnecting(true);
+            if (apiConnected) { // 이전에 연결되어 있었다면 로그 출력
+              console.error('❌ API 연결 확인 실패:', response.status, response.statusText);
+            }
           }
         } catch (error) {
-          console.error('❌ API 연결 확인 오류:', error);
           setApiConnected(false);
-          setIsConnecting(true); // 오류 발생하면 계속 스피닝
+          setIsConnecting(true);
+          if (apiConnected) { // 이전에 연결되어 있었다면 로그 출력
+            console.error('❌ API 연결 확인 오류:', error);
+          }
         }
       } else {
         // Mock 모드에서는 연결 상태 초기화

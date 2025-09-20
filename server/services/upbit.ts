@@ -84,7 +84,12 @@ export class UpbitService {
     try {
       const accounts = await this.getAccounts();
       const krwAccount = accounts.find(account => account.currency === 'KRW');
-      return krwAccount ? parseFloat(krwAccount.balance) : 0;
+      if (!krwAccount) return 0;
+      
+      // 사용가능한 잔고 = 총 잔고 - 잠긴 잔고
+      const totalBalance = parseFloat(krwAccount.balance);
+      const lockedBalance = parseFloat(krwAccount.locked || 0);
+      return totalBalance - lockedBalance;
     } catch (error) {
       console.error('Upbit getKRWBalance error:', error);
       return 0;

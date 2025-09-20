@@ -49,14 +49,11 @@ export class BalanceService {
       const now = Date.now();
       
       if (cached && (now - cached.timestamp) < BalanceService.CACHE_TTL_MS) {
-        // 캐시 로그는 5분마다만 출력 (로그 스팸 방지)
-        if (Math.random() < 0.02) {
-          console.log(`🚀 [BalanceService] 사용자 ${userId} 캐시된 잔고 반환 (${Math.floor((now - cached.timestamp) / 1000)}초 전)`);
-        }
+        // 캐시 반환 로그 완전 제거
         return cached.data;
       }
 
-      console.log(`🔄 [BalanceService] 사용자 ${userId} 새로운 잔고 조회 시작`);
+      // 새로운 잔고 조회 시작 로그 제거
       
       // 1. 사용자의 활성 API 키 조회
       const apiKeys = await this.apiKeysRepository.findActiveByUserId(userId);
@@ -83,17 +80,22 @@ export class BalanceService {
             connectionResults[apiKey.exchange] = testResult.success;
             
             if (testResult.success) {
-              // exchangeTestService 결과에서 USDT 잔고 추출
-              const usdtBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
+              // exchangeTestService 결과에서 사용 가능한 USDT 잔고 추출
+              const availableBalance = parseFloat(testResult.details?.availableBalance || '0');
+              const totalBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
+              
+              // 사용 가능 잔고 우선, 없으면 총 잔고 사용
+              const usdtBalance = availableBalance > 0 ? availableBalance : totalBalance;
+              
               if (usdtBalance > 0) {
                 allBalances.push({
                   exchange: 'binance',
                   currency: 'USDT',
                   available: usdtBalance,
-                  locked: 0,
-                  total: usdtBalance
+                  locked: totalBalance - availableBalance, // 사용 중인 금액
+                  total: totalBalance
                 });
-                console.log(`✅ 바이낸스 선물 USDT 잔고 (exchangeTestService): ${usdtBalance}`);
+                // 바이낸스 USDT 잔고 로그 제거
               }
             }
           } else {
@@ -165,7 +167,7 @@ export class BalanceService {
         timestamp: Date.now()
       });
       
-      console.log(`✅ [BalanceService] 사용자 ${userId} 잔고 조회 완료 및 캐시 저장`);
+      // 잔고 조회 완료 로그 제거
       return result;
 
     } catch (error) {
@@ -374,14 +376,7 @@ export class BalanceService {
       }
     });
 
-    console.log(`🔍 [BalanceService] 포맷팅된 잔고 데이터:`, {
-      real,
-      connected,
-      balanceCount: {
-        upbit: balanceDetails.upbit.length,
-        binance: balanceDetails.binance.length
-      }
-    });
+    // 포맷팅된 잔고 데이터 로그 제거
 
     return {
       real,
@@ -411,7 +406,7 @@ export class BalanceService {
    * 캐시를 우회하여 실제 API에서 직접 잔고 조회 (거래 후 사용)
    */
   async getUserBalancesDirect(userId: number): Promise<BalanceResponseDto> {
-    console.log(`🔥 [BalanceService] 캐시 우회 - 실제 API 직접 호출 (사용자: ${userId})`);
+    // 캐시 우회 로그 제거
     
     try {
       // 1. 사용자의 활성 API 키 조회

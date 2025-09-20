@@ -60,12 +60,7 @@ class StrategyBackupManager {
       !deletedStrategies.includes(strategy.id)
     );
     
-    console.log('📝 백업 데이터 수집:', {
-      전체전략: (strategies || []).length,
-      삭제된전략: deletedStrategies.length,
-      필터된전략: filteredStrategies.length,
-      삭제목록: deletedStrategies
-    });
+    // 백업 데이터 수집 완료
     
     return {
       strategies: filteredStrategies,
@@ -118,12 +113,7 @@ class StrategyBackupManager {
       const backupKey = `${this.BACKUP_KEY_PREFIX}${Date.now()}-${currentUserId}`;
       localStorage.setItem(backupKey, JSON.stringify(backup));
       
-      console.log('💾 전략 데이터 백업 생성:', {
-        key: backupKey,
-        strategiesCount: data.strategies.length,
-        positionsCount: data.positions.length,
-        tradesCount: data.trades.length
-      });
+      // 전략 데이터 백업 생성 완료
 
       // 오래된 백업 정리
       this.cleanupOldBackups();
@@ -231,10 +221,10 @@ class StrategyBackupManager {
       
       for (const backup of toDelete) {
         localStorage.removeItem(backup.key);
-        console.log('🗑️ 오래된 백업 삭제:', backup.key);
+        // 오래된 백업 삭제
       }
       
-      console.log(`🧹 백업 정리 완료: ${toDelete.length}개 삭제`);
+      // 백업 정리 완료
     }
   }
 

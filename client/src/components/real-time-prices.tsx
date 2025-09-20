@@ -73,7 +73,6 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
   // 새로운 환율 데이터가 오면 이전 값 업데이트
   useEffect(() => {
     if (currentExchangeRate && currentExchangeRate !== previousExchangeRate) {
-      console.log('🔄 RealTimePrices 환율 업데이트:', previousExchangeRate, '→', currentExchangeRate);
       setPreviousExchangeRate(currentExchangeRate);
     }
   }, [currentExchangeRate, previousExchangeRate]);

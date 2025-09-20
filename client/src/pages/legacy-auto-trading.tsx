@@ -257,7 +257,7 @@ const LegacyAutoTradingPage = () => {
           const restoredTrades: any[] = [];
           
           positions.forEach((position: any) => {
-            console.log('🔄 포지션 복원 중:', position.id);
+            // 포지션 복원 중
             const tradeId = `trade-${position.id}`;
             
             // 업비트 매수 거래
@@ -297,8 +297,7 @@ const LegacyAutoTradingPage = () => {
           
           // Local Storage에 거래 기록 저장
           localStorage.setItem(tradeKey, JSON.stringify(restoredTrades));
-          console.log('✅ 포지션에서 거래 기록 복원 완료:', restoredTrades.length, '개');
-          console.log('📋 복원된 거래 목록:', restoredTrades);
+          // 포지션에서 거래 기록 복원 완료
           
           return restoredTrades;
         }
@@ -307,7 +306,7 @@ const LegacyAutoTradingPage = () => {
       // 기존 거래 기록이 있다면 반환
       if (savedTrades && savedTrades !== '[]') {
         const existingTrades = JSON.parse(savedTrades);
-        console.log('📋 기존 거래 기록 사용:', existingTrades.length, '개');
+        // 기존 거래 기록 사용
         return existingTrades;
       }
       
@@ -323,7 +322,7 @@ const LegacyAutoTradingPage = () => {
     try {
       const strategyKey = `mock-strategies-${effectiveUserId}`;
       localStorage.setItem(strategyKey, JSON.stringify(strategiesToSave));
-      console.log('💾 전략 목록 로컬 저장 완료:', strategiesToSave.length, '개');
+      // 전략 목록 로컬 저장 완료
     } catch (error) {
       console.error('❌ 전략 목록 저장 실패:', error);
     }
@@ -331,21 +330,20 @@ const LegacyAutoTradingPage = () => {
 
   const loadStrategiesFromLocal = useCallback(() => {
     try {
-      console.log('📋 loadStrategiesFromLocal 시작 - effectiveUserId:', effectiveUserId);
+      // loadStrategiesFromLocal 시작
       
       const strategyKey = `mock-strategies-${effectiveUserId}`;
       const savedStrategies = localStorage.getItem(strategyKey);
       
-      console.log('전략 키:', strategyKey);
-      console.log('저장된 전략 원본:', savedStrategies);
+      // 전략 키 및 저장된 전략 확인
       
       if (savedStrategies && savedStrategies !== '[]') {
         const strategies = JSON.parse(savedStrategies);
-        console.log('📋 로컬 전략 목록 복원:', strategies.length, '개');
+        // 로컬 전략 목록 복원 완료
         return strategies;
       }
       
-      console.log('📋 실시간 거래 모드: DB에서 전략 조회, 복원 로직 건너뜀');
+      // 실시간 거래 모드: DB에서 전략 조회
       return [];
     } catch (error) {
       console.error('❌ 전략 목록 복원 실패:', error);
@@ -365,12 +363,12 @@ const LegacyAutoTradingPage = () => {
     };
     
     localStorage.removeItem = function(key) {
-      console.log('🗑️ localStorage.removeItem:', key);
+      // localStorage.removeItem 호출
       return originalRemoveItem.call(this, key);
     };
     
     localStorage.clear = function() {
-      console.log('💥 localStorage.clear() 호출됨!');
+      // localStorage.clear() 호출
       return originalClear.call(this);
     };
     
@@ -383,14 +381,14 @@ const LegacyAutoTradingPage = () => {
 
   // 컴포넌트 마운트 시 거래 기록 및 전략 복원
   useEffect(() => {
-    console.log('🚀 컴포넌트 마운트 - 데이터 복원 시작');
+    // 컴포넌트 마운트 - 데이터 복원 시작
     
     // 거래 기록 복원 (즉시 + 1초 후 한번 더)
     const restoredTrades = restoreTradesFromPositions();
     
     // 1초 후 한번 더 시도 (컴포넌트가 완전히 로드된 후)
     const retryTimeout = setTimeout(() => {
-      console.log('🔄 거래 기록 복원 재시도');
+      // 거래 기록 복원 재시도
       restoreTradesFromPositions();
     }, 1000);
     
@@ -398,10 +396,10 @@ const LegacyAutoTradingPage = () => {
     const restoredStrategies = loadStrategiesFromLocal();
     if (restoredStrategies.length > 0) {
       setStrategies(restoredStrategies);
-      console.log('📋 전략 목록 복원 완료:', restoredStrategies.length, '개');
+      // 전략 목록 복원 완료
     }
     
-    console.log('✅ 데이터 복원 완료');
+    // 데이터 복원 완료
     
     return () => clearTimeout(retryTimeout);
   }, []); // 마운트 시 한 번만 실행
@@ -482,7 +480,7 @@ const LegacyAutoTradingPage = () => {
   // 실시간 거래 모드: 전략 변경 시 자동 DB 동기화
   useEffect(() => {
     if (effectiveUserId && strategies.length > 0) {
-      console.log('🔄 전략 상태 변경 감지:', { count: strategies.length });
+      // 전략 상태 변경 감지
       // 실시간 거래에서는 DB가 단일 진실 소스이므로 별도 저장 불필요
     }
   }, [strategies, effectiveUserId]);
@@ -642,7 +640,7 @@ const LegacyAutoTradingPage = () => {
           credentials: 'include', // 세션 쿠키 포함
           signal: (opt as any)?.signal ?? ctrl.signal,
         });
-        console.log('📥 API 응답 상태:', r.status, r.statusText);
+        // API 응답 상태 로그 제거
         if (!r.ok) {
           const errorBody = await r.text();
           setErrCount(c => c + 1);
@@ -672,7 +670,7 @@ const LegacyAutoTradingPage = () => {
     try {
       const serverData = await fetchJson(`/api/trading-strategies/${effectiveUserId}`);
       if (serverData == null) {
-        console.log('⏭️ 서버 밴드 조회가 취소/중단되어 UI 업데이트를 건너뜁니다.');
+        // 서버 밴드 조회가 취소/중단됨
         return;
       }
       setServerBands(serverData || []);
@@ -680,7 +678,7 @@ const LegacyAutoTradingPage = () => {
     } catch (e: any) {
       // AbortError는 정상적인 취소이므로 오류 로그 생략
       if (e?.name === 'AbortError' || /aborted/i.test(String(e?.message))) {
-        console.log('📋 서버 밴드 조회가 취소됨 (정상)');
+        // 서버 밴드 조회가 취소됨
       } else {
         console.error('❌ 서버 밴드 조회 실패:', e);
       }
@@ -1073,13 +1071,13 @@ const LegacyAutoTradingPage = () => {
         isActive: true,
         symbol: 'BTC',
       } as const;
-      console.log('🔍 서버 등록 요청:', payload);
+      // 서버 등록 요청
       const result = await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      console.log('✅ 서버 등록 성공:', result);
+      // 서버 등록 성공
       toast({ title: '서버 등록 완료', description: `${band.name} 전략이 서버에 저장되었습니다.` });
       // 서버 ID를 즉시 로컬 상태에 반영하고 상태 배지를 갱신
       const newId = result?.strategy?.id ?? result?.id;
@@ -1150,17 +1148,17 @@ const LegacyAutoTradingPage = () => {
   }, []);
 
   const handleBoardClose = useCallback(async (id: string | number) => {
-    console.log(`[레거시 클라이언트] '청산' 버튼 클릭. 전략 ID: ${id}`);
+    // 청산 버튼 클릭
     try {
       setBoardActingId(id);
-      console.log(`[레거시 클라이언트] 서버에 청산 요청 전송: DELETE /api/trading-strategies/${id}`);
+      // 서버에 청산 요청 전송
       // 서버에서 전략 삭제
       await fetchJson(`/api/trading-strategies/${id}`, { method: 'DELETE' });
       // 삭제된 전략 기록 (복원 방지)
       markStrategyAsDeleted(effectiveUserId, String(id));
       // 낙관적 제거
       removeBoardRowOptimistic(id);
-      console.log(`[레거시 클라이언트] 서버 요청 성공 후 UI에서 해당 전략 제거됨.`);
+      // 서버 요청 성공 후 UI에서 해당 전략 제거
       toast({ title: '청산 완료', description: `전략 #${id}가 삭제되었습니다.` });
     } catch (e) {
       console.error(`[레거시 클라이언트] 청산 요청 실패. 전략 ID: ${id}`, e);
@@ -1168,7 +1166,7 @@ const LegacyAutoTradingPage = () => {
     } finally {
       setBoardActingId(null);
       try { 
-        console.log(`[레거시 클라이언트] 청산 프로세스 완료 후 데이터 새로고침 시도.`);
+        // 청산 프로세스 완료 후 데이터 새로고침
         tickHeavy(); 
       } catch {}
     }
@@ -1531,25 +1529,17 @@ const LegacyAutoTradingPage = () => {
       hasScheduledInitialLoadRef.current = true;
       setTimeout(async () => {
         try {
-          logger.debug('🔄 [DEBUG] 페이지 로드 - 세션 직접 확인 시작');
+          // 페이지 로드 - 세션 직접 확인 시작
           const sessionData = await apiFetchJson('/api/auth/me');
-          logger.debug('🔄 [DEBUG] 세션 데이터 응답:', sessionData);
           
           if (sessionData.id) {
-            logger.success('✅ 페이지 로드 - 세션 확인됨:', sessionData.id);
-            
             // 실시간 거래 모드: DB에서 전략 로드 (useTradingMode 훅 사용)
-            logger.debug('🚀 [DEBUG] 실시간 거래 모드 - loadRealStrategies 호출');
-            loadRealStrategies().then(() => {
-              console.log('✅ [전략로드] loadRealStrategies 완료');
-            }).catch(error => {
+            loadRealStrategies().catch(error => {
               console.error('❌ [전략로드] loadRealStrategies 실패:', error);
             });
-          } else {
-            console.log('❌ [DEBUG] 페이지 로드 - 세션 없음, 로그인 필요');
           }
         } catch (error) {
-          console.log('❌ [DEBUG] 페이지 로드 - 세션 확인 실패:', error);
+          // 페이지 로드 - 세션 확인 실패
         }
       }, 500); // 0.5초 후 시도
     }
@@ -1557,23 +1547,17 @@ const LegacyAutoTradingPage = () => {
 
   // 사용자 정보나 effectiveUserId가 변경될 때 전략 목록 다시 로드
   useEffect(() => {
-    console.log('👤 [DEBUG] 사용자 정보 변경 감지 useEffect 실행됨');
-    console.log('👤 [DEBUG] user?.id 변경 감지:', user?.id);
+    // 사용자 정보 변경 감지
     
     // 세션에서 사용자 정보가 있을 때만 전략 로드
     if (user?.id) {
-      console.log('🚀 세션 사용자 기반으로 전략 로드 시도:', user.id);
-      
       // 실시간 거래 모드: DB에서 전략 로드 (useTradingMode 훅 사용)
-      console.log('🔄 [전략로드] 사용자 변경 - loadRealStrategies 호출');
-      loadRealStrategies().then(() => {
-        console.log('✅ [전략로드] 사용자 변경 시 loadRealStrategies 완료');
-      }).catch(error => {
+      loadRealStrategies().catch(error => {
         console.error('❌ [전략로드] 사용자 변경 시 loadRealStrategies 실패:', error);
       });
-      console.log('🔄 실시간 거래 모드 - DB에서 전략 로드');
+      // 실시간 거래 모드 - DB에서 전략 로드
     } else {
-      console.log('⚠️ 세션에 사용자 정보가 없습니다. 조회 보류');
+      // 세션에 사용자 정보가 없음
     }
   }, [user?.id, loadRealStrategies]);
 

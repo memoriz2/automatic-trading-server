@@ -33,7 +33,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 const saveLiveTradeToDB = async (trade: LiveTrade, userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
-    console.log(`🧪 Mock 거래 - 로컬스토리지만 사용:`, trade.id);
+    // Mock 거래는 로컬스토리지만 사용
     return;
   }
   
@@ -57,7 +57,7 @@ const saveLiveTradeToDB = async (trade: LiveTrade, userId: string, isLiveMode: b
         strategyName: trade.strategyName || 'Unknown'
       })
     });
-    console.log(`✅ 실거래 DB 저장 성공:`, trade.id);
+    // 실거래 DB 저장 성공
   } catch (error) {
     console.error(`❌ 실거래 DB 저장 실패:`, error);
   }
@@ -66,7 +66,7 @@ const saveLiveTradeToDB = async (trade: LiveTrade, userId: string, isLiveMode: b
 const saveLivePositionToDB = async (position: LivePosition, userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
-    console.log(`🧪 Mock 포지션 - 로컬스토리지만 사용:`, position.id);
+    // Mock 포지션은 로컬스토리지만 사용
     return;
   }
   
@@ -82,7 +82,7 @@ const saveLivePositionToDB = async (position: LivePosition, userId: string, isLi
         isMock: false // 실거래는 항상 false
       })
     });
-    console.log('✅ 실거래 포지션 DB 저장 성공:', position.id);
+    // 실거래 포지션 DB 저장 성공
   } catch (error) {
     console.error('❌ 실거래 포지션 DB 저장 실패:', error);
   }
@@ -91,7 +91,7 @@ const saveLivePositionToDB = async (position: LivePosition, userId: string, isLi
 const updateLivePositionInDB = async (position: LivePosition, userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: DB 업데이트 안함
-    console.log(`🧪 Mock 포지션 업데이트 - 로컬스토리지만 사용:`, position.id);
+    // Mock 포지션 업데이트는 로컬스토리지만 사용
     return;
   }
   
@@ -106,7 +106,7 @@ const updateLivePositionInDB = async (position: LivePosition, userId: string, is
         realizedPnl: position.realizedPnl
       })
     });
-    console.log('✅ 실거래 포지션 DB 업데이트 성공:', position.id);
+    // 실거래 포지션 DB 업데이트 성공
   } catch (error) {
     console.error('❌ 실거래 포지션 DB 업데이트 실패:', error);
   }
@@ -201,7 +201,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 컴포넌트 초기화 시 거래 모드 로그
   useEffect(() => {
     logClientTradingMode();
-    console.log(`🎯 LiveTradingSystem 모드: ${actualTradingMode}`);
+    // LiveTradingSystem 모드 초기화
   }, []);
 
   // 실거래 모드에서는 liveBalances를 직접 사용 (변환 불필요)
@@ -251,7 +251,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const [liveBalance, setLiveBalance] = useState<LiveBalance>(() => {
     // 실거래 모드: 실제 거래소 잔고 사용 (로컬스토리지 무시)
     if (isLiveMode) {
-      console.log('🚨 실거래 모드: 실제 거래소 잔고 사용, 로컬스토리지 무시');
+      // 실거래 모드: 실제 거래소 잔고 사용
       return {
         krw: 0, // 실제 잔고는 liveBalances에서 가져옴
         btc: 0,
@@ -280,7 +280,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const [liveTrades, setLiveTrades] = useState<LiveTrade[]>(() => {
     // 실거래 모드: DB에서 조회하므로 빈 배열로 시작
     if (isLiveMode) {
-      console.log('🚨 실거래 모드: 거래 기록은 DB에서 조회');
+      // 실거래 모드: 거래 기록은 DB에서 조회
       return [];
     }
     
@@ -350,8 +350,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     const storageKey = `live-positions-${userId}`;
     const saved = localStorage.getItem(storageKey);
     const positions = saved ? JSON.parse(saved) : [];
-    console.log('🎯 로컬 스토리지 포지션 로드:', positions);
-    console.log('🎯 활성 포지션 개수:', positions.filter((p: LivePosition) => p.status === 'open').length);
+    // 로컬 스토리지 포지션 로드 완료
     return positions;
   });
 
@@ -561,7 +560,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 서버에서 거래 데이터 가져오기
   const fetchTradingData = useCallback(async () => {
     try {
-      console.log('🔄 거래 데이터 동기화 시작...');
+      // 거래 데이터 동기화 시작
       
       // 거래 기록 가져오기 (수신 시 숫자 필드 정규화)
       const tradesResponse = await apiFetch('/api/trades');
@@ -648,7 +647,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     
     // 5초 후 마지막 시도
     const finalSyncTimeout = setTimeout(() => {
-      console.log('🔄 5초 후 최종 동기화 시도, 현재 거래 수:', liveTrades.length);
+      // 5초 후 최종 동기화 시도
       if (liveTrades.length === 0) {
         forceSyncTrades();
       }
@@ -779,7 +778,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       
       if (isLiveMode) {
         try {
-          console.log('🚨 실거래 모드 - 실제 거래소 주문 실행 시작 (바이낸스 → 업비트 순서)');
+          // 실거래 모드 - 실제 거래소 주문 실행 시작
           
           // 1. 바이낸스 BTC 숏 주문 (먼저 실행 - 중요!)
           console.log('📉 바이낸스 BTC 숏 주문 (1단계):', {
@@ -1563,12 +1562,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     }
 
     try {
-      console.log('🚀 executeMockTrade 호출:', {
-        strategy: strategy.name,
-        forceEntry,
-        isTrading,
-        currentPremium: currentKimchiData.kimp
-      });
+      // executeMockTrade 호출 로그 제거
 
       const currentPremium = currentKimchiData.kimp || 0;
       const prevPremium = prevPremiumRef.current ?? currentPremium;
@@ -1630,29 +1624,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         lastActionAtRef.current[strategy.id] = now;
       } else if (currentPosition) {
         // 포지션이 있지만 청산 조건 불만족
-        console.log(`🔒 전략 "${strategy.name}" 포지션 보유 중 - 청산 대기 (익절${exitRate}% > 김프${currentPremium.toFixed(3)}%)`);
+        // 포지션 보유 중 로그 제거
       }
       prevPremiumRef.current = currentPremium; // 마지막에 갱신
       
-      // 디버깅: 조건 확인
-      const entryDiff = Math.abs(currentPremium - entryRate);
-      console.log(`\n🔍 ===== ${strategy.name} 조건 확인 =====`);
-      console.log(`📈 현재 김프율: ${currentPremium.toFixed(3)}%`);
-      console.log(`🎯 진입 조건: ${entryRate}%`);
-      console.log(`📏 차이: ${entryDiff.toFixed(3)}%`);
-      console.log(`⚖️ 허용 오차: ${tolerance}%`);
-      console.log(`🔍 진입 가능: ${entryDiff.toFixed(3)}% <= ${tolerance}% = ${entryDiff <= tolerance ? 'YES' : 'NO'}`);
-      
-      // 스크롤2 전략 특별 확인
-      if (strategy.name === '스크롤2') {
-        console.log(`🚨 스크롤2 전략: 김프율 ${currentPremium.toFixed(3)}%, 조건 ${entryRate}%, 진입 ${entryDiff <= tolerance ? 'OK' : 'NO'}`);
-      }
-      
-      if (currentPosition) {
-        const exitDiff = Math.abs(currentPremium - exitRate);
-        console.log(`💰 청산 조건: ${exitRate}% (현재: ${currentPremium.toFixed(3)}%, 청산가능: ${exitRate <= currentPremium ? 'YES' : 'NO'})`);
-      }
-      console.log(`===============================\n`);
+      // 모든 디버깅 로그 제거
       // 그 외에는 대기 (정확한 조건 만족 시에만 거래)
     } finally {
       processingEntryRef.current.delete(strategyId);
@@ -1672,11 +1648,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const activeStrategies = strategies.filter(s => s.isActive);
       
       if (activeStrategies.length > 0) {
-        console.log('⚡ 실시간 김프 변경 감지 - 즉시 매매 체크:', {
-          currentPremium: currentKimchiData.kimp?.toFixed(3),
-          activeStrategies: activeStrategies.length,
-          currentTime: formatKoreanTime()
-        });
+        // 실시간 김프 변경 감지 로그 제거
         
         // 비동기로 즉시 병렬 실행
         Promise.all(activeStrategies.map(strategy => executeMockTrade(strategy)));
@@ -1712,10 +1684,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     
     // 즉시 한번 체크 (전략 활성화 직후)
     if (activeStrategies.length > 0 && currentKimchiData) {
-      console.log('⚡ 즉시 자동매매 체크 (전략 변경):', {
-        activeStrategies: activeStrategies.length,
-        currentPremium: currentKimchiData.kimp?.toFixed(3)
-      });
+      // 즉시 자동매매 체크 로그 제거
       
       // 비동기로 즉시 병렬 실행
       Promise.all(activeStrategies.map(strategy => executeMockTrade(strategy)));
@@ -1725,10 +1694,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     if (activeStrategies.length > 0) {
       const interval = setInterval(() => {
         if (currentKimchiData) {
-          console.log('⏰ 주기적 자동매매 체크 (2초):', {
-            activeStrategies: activeStrategies.length,
-            currentPremium: currentKimchiData.kimp?.toFixed(3)
-          });
+          // 주기적 자동매매 체크 로그 제거
           
           // 비동기로 병렬 실행
           Promise.all(activeStrategies.map(strategy => executeMockTrade(strategy)));

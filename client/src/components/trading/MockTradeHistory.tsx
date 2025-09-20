@@ -32,20 +32,18 @@ export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
   recentTrades,
   strategies
 }) => {
-  // 디버깅: recentTrades 변화 추적
+  // 개발 환경에서만 의미 있는 경고 출력 (컴포넌트 로드 후 5초 뒤에도 거래 기록이 없을 때만)
   React.useEffect(() => {
-    console.log('🎯 MockTradeHistory recentTrades 업데이트:', {
-      count: recentTrades.length,
-      trades: recentTrades,
-      isEmpty: recentTrades.length === 0,
-      timestamp: new Date().toISOString()
-    });
-    
-    // 거래 기록이 비어있으면 경고
-    if (recentTrades.length === 0) {
-      console.warn('⚠️ MockTradeHistory: 거래 기록이 비어있습니다!');
+    if (process.env.NODE_ENV === 'development') {
+      const timer = setTimeout(() => {
+        if (recentTrades.length === 0) {
+          console.warn('⚠️ MockTradeHistory: 5초 후에도 거래 기록이 없습니다. 거래 시스템 상태를 확인하세요.');
+        }
+      }, 5000);
+      
+      return () => clearTimeout(timer);
     }
-  }, [recentTrades]);
+  }, []); // 의존성 배열을 빈 배열로 변경하여 마운트 시 한 번만 실행
   const getTradeTypeDisplay = (trade: MockTrade, strategy?: Strategy) => {
     return trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN');
   };

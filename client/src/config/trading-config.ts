@@ -35,11 +35,11 @@ export const getServerTradingMode = async (): Promise<'mock' | 'real'> => {
     const response = await fetch('/api/server-info');
     if (response.ok) {
       const serverInfo = await response.json();
-      console.log('🔍 서버 거래 모드 확인:', serverInfo);
+      // 서버 거래 모드 확인
       return serverInfo.tradingMode === 'real' ? 'real' : 'mock';
     }
   } catch (error) {
-    console.warn('⚠️ 서버 거래 모드 확인 실패, 클라이언트 설정 사용:', error);
+    // 서버 거래 모드 확인 실패, 클라이언트 설정 사용
   }
   
   // 서버 확인 실패 시 클라이언트 설정 사용
@@ -55,15 +55,17 @@ export const isRealTradingMode = (): boolean => {
   return !CLIENT_TRADING_CONFIG.isMockMode;
 };
 
-// 환경 정보 로그
+// 환경 정보 로그 (개발 환경에서만)
 export const logClientTradingMode = (): void => {
-  console.log(`🎯 클라이언트 거래 모드: ${CLIENT_TRADING_CONFIG.tradingMode.toUpperCase()}`);
-  console.log(`🔧 Mock 모드: ${CLIENT_TRADING_CONFIG.isMockMode}`);
-  console.log(`🌐 API 엔드포인트: ${CLIENT_TRADING_CONFIG.apiEndpoint}`);
-  
-  if (CLIENT_TRADING_CONFIG.isMockMode) {
-    console.log(`✅ 🛡️  안전한 Mock 모드 - 시뮬레이션 거래만 실행`);
-  } else {
-    console.log(`⚠️  🚨 실거래 모드 - 실제 자금으로 거래 실행! 🚨`);
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🎯 클라이언트 거래 모드: ${CLIENT_TRADING_CONFIG.tradingMode.toUpperCase()}`);
+    console.log(`🔧 Mock 모드: ${CLIENT_TRADING_CONFIG.isMockMode}`);
+    console.log(`🌐 API 엔드포인트: ${CLIENT_TRADING_CONFIG.apiEndpoint}`);
+    
+    if (CLIENT_TRADING_CONFIG.isMockMode) {
+      console.log(`✅ 🛡️  안전한 Mock 모드 - 시뮬레이션 거래만 실행`);
+    } else {
+      console.log(`⚠️  🚨 실거래 모드 - 실제 자금으로 거래 실행! 🚨`);
+    }
   }
 };

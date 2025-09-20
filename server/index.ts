@@ -191,17 +191,7 @@ app.use((req, res, next) => {
 
   // 개발 환경에서만 상세 요청 로그 출력 (빈번한 API 제외)
   const isDev = process.env.NODE_ENV === 'development';
-  const isFrequentApi = [
-    '/api/kimpga/current',
-    '/api/kimpga/metrics', 
-    '/api/kimpga/status',
-    '/api/v2/balance',
-    '/api/trading/status',
-    '/api/trading/daily-stats',
-    '/api/trades',
-    '/api/activity',
-    '/api/v2/exchanges/status'
-  ].some(endpoint => path.startsWith(endpoint));
+  const isFrequentApi = path.startsWith('/api'); // 모든 API 로그 제거
   
   if (isDev && !isFrequentApi) {
     console.log(
@@ -222,37 +212,12 @@ app.use((req, res, next) => {
     );
   }
 
-  // API 요청 로그 (빈번한 API 제외)
-  if (path.startsWith("/api") && !isFrequentApi) {
-    // 실제 클라이언트 IP 추출 (프록시 고려)
-    const clientIP = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
-                    req.headers['x-real-ip']?.toString() ||
-                    req.headers['cf-connecting-ip']?.toString() ||
-                    req.ip ||
-                    req.connection.remoteAddress ||
-                    req.socket.remoteAddress ||
-                    '알 수 없음';
-    
-    logInfo(
-      `🔌 API 요청: ${req.method} ${path} - IP: ${clientIP}`
-    );
-  }
+  // API 요청 로그 (에러가 아닌 이상 출력 안함)
+  // 개발 중 디버깅이 필요할 때만 주석 해제
 
   res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api") && !isFrequentApi) {
-      logInfo(
-        `✅ API 응답: ${req.method} ${path} ${res.statusCode} - ${duration}ms`
-      );
-    } else if (
-      path.startsWith("/settings") ||
-      path.startsWith("/dashboard") ||
-      path.startsWith("/trading")
-    ) {
-      logInfo(
-        `✅ 페이지 응답: ${req.method} ${path} ${res.statusCode} - ${duration}ms`
-      );
-    }
+    // 모든 응답 로그 제거 (에러가 아닌 이상 출력 안함)
+    // 개발 중 디버깅이 필요할 때만 주석 해제
   });
 
   next();
@@ -283,18 +248,7 @@ app.get("/healthz", (_req: Request, res: Response) => {
 
   try {
     await registerRoutes(app, server); // ✅ 2) 동일 server를 전달하여 WS 부착
-    console.log(
-      `🔍 [${new Date().toISOString()}] registerRoutes 함수 실행 완료`
-    );
-
-    // 등록된 라우트 확인
-    const routes =
-      app._router?.stack?.filter((layer: any) => layer.route) || [];
-    console.log(
-      `🔍 [${new Date().toISOString()}] 등록된 라우트 개수: ${routes.length}`
-    );
-
-    logInfo(`✅ 라우트 등록 완료`);
+    // 라우트 등록 로그 제거
   } catch (error) {
     console.error(`💥 [${new Date().toISOString()}] 라우트 등록 실패:`, error);
     throw error;
@@ -309,14 +263,11 @@ app.get("/healthz", (_req: Request, res: Response) => {
     console.error(err);
   });
 
-  logInfo(`🌐 환경 설정 중... NODE_ENV: ${app.get("env")}`);
+  // 환경 설정 로그 제거
   if (app.get("env") === "development") {
-    logInfo(`⚡ Vite 개발 서버 설정 중...`);
     const { setupVite } = await import('./vite.js');
     await setupVite(app, server);
-    logInfo(`✅ Vite 개발 서버 설정 완료`);
   } else {
-    logInfo(`📁 정적 파일 서빙 설정 중...`);
     const distPath = path.resolve(process.cwd(), 'dist', 'public');
     if (!fs.existsSync(distPath)) {
       console.warn(`정적 빌드 디렉토리가 없습니다: ${distPath}. 클라이언트 빌드를 먼저 수행하세요.`);
@@ -329,7 +280,6 @@ app.get("/healthz", (_req: Request, res: Response) => {
         res.sendFile(path.resolve(distPath, 'index.html'));
       });
     }
-    logInfo(`✅ 정적 파일 서빙 설정 완료`);
   }
 
   // 환경별 포트 설정
@@ -355,16 +305,11 @@ app.get("/healthz", (_req: Request, res: Response) => {
   };
 
   const port = await getPort();
-  logInfo(`🚀 서버 시작 중... 포트: ${port} (환경: ${process.env.NODE_ENV})`);
-
+  
   // Windows 환경 호환성을 위해 host와 reusePort 옵션 제거
   server.listen(port, () => {
-    console.log(
-      `🎉 [${new Date().toISOString()}] 서버가 성공적으로 시작되었습니다!`
-    );
-    logInfo(`🌐 서버 주소: http://localhost:${port}`);
-    logInfo(`🔗 API 엔드포인트: http://localhost:${port}/api`);
-    logInfo(`serving on port ${port}`);
+    // 서버 시작 로그 최소화
+    console.log(`✅ 서버 시작: http://localhost:${port}`);
   });
 
   // ✅ 서버 에러 핸들링 추가
@@ -410,13 +355,11 @@ app.get("/healthz", (_req: Request, res: Response) => {
             }
           }
           
-          if (cleanedCount > 0) {
-            console.log(`🧹 비활성 세션 정리 완료: ${cleanedCount}개 세션 삭제 (24시간 이상 미사용)`);
-          }
+          // 세션 정리 로그 제거
         }
       } else {
         // 메모리 세션은 express-session이 자동으로 만료된 것들을 정리함
-        console.log(`📝 메모리 세션 사용 중 - 자동 만료 처리됨 (TTL: ${SESSION_TTL_MS / 1000 / 60 / 60}시간)`);
+        // 메모리 세션 로그 제거
       }
     } catch (error) {
       console.error('❌ 세션 정리 중 오류:', error);
@@ -427,5 +370,5 @@ app.get("/healthz", (_req: Request, res: Response) => {
   setInterval(cleanupInactiveSessions, 60 * 60 * 1000); // 1시간마다 실행
   setTimeout(cleanupInactiveSessions, 10000); // 서버 시작 10초 후 첫 실행
 
-  console.log(`⏰ 세션 자동 정리 스케줄러 시작: 24시간 이상 미사용 세션 1시간마다 정리`);
+  // 세션 스케줄러 시작 로그 제거
 })();

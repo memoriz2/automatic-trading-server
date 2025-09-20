@@ -59,14 +59,10 @@ export const BalanceDisplay = React.memo(() => {
   // 현재 값 또는 이전 값 사용 (부드러운 전환)
   const stableBalances = balances || previousBalances;
 
-  // 디버깅 로그 추가
-  console.log('🔍 BalanceDisplay 상태:', {
-    userId,
-    isLoading,
-    balances,
-    error,
-    queryKey: `/api/balances/${userId}`
-  });
+  // 개발 환경에서만 디버깅 로그 출력
+  if (process.env.NODE_ENV === 'development' && error) {
+    console.error('❌ BalanceDisplay 오류:', error);
+  }
 
   // 로그인하지 않은 경우
   if (!userId) {
