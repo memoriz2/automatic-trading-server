@@ -37,13 +37,6 @@ const insertTradingSettingsSchema = z.object({
   binanceLeverage: z.number().int().optional(),
   upbitEntryAmount: z.string().optional(),
 });
-const insertExchangeSchema = z.object({
-  userId: z.number(),
-  exchange: z.string(),
-  apiKey: z.string(),
-  apiSecret: z.string(),
-  passphrase: z.string().optional(),
-});
 const insertUserSchema = z.object({
   username: z.string(),
   password: z.string(),
@@ -53,10 +46,11 @@ const loginUserSchema = z.object({
   password: z.string(),
 });
 import { getCurrentServerIP, isReplit } from "./utils/ip.js";
+import { registerAuthRoutes, authenticateSession } from "./routes/auth.js";
+import { registerTradingRoutes } from "./routes/trading.js";
+import { registerApiRoutes } from "./routes/api.js";
 import {
   generateToken,
-  validatePasswordStrength,
-  validateUsername,
   verifyToken,
 } from "./utils/auth.js";
 // @ts-ignore
@@ -133,12 +127,6 @@ async function findActiveUserWithApiKeys(): Promise<string> {
   }
 }
 
-// 숫자 파서
-const toNum = (v: any, d = 0) => {
-  if (v === null || v === undefined) return d;
-  const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-  return Number.isFinite(n) ? n : d;
-};
 
 // DB row → 프론트 DTO (원본 값 최대한 보존)
 const toStrategyResponse = (row: any) => ({
@@ -169,10 +157,10 @@ export async function registerRoutes(
   
   // 🚀 웹소켓 서비스 인스턴스 생성 및 자동 구독 시작
   const upbitWebSocketService = new UpbitWebSocketService();
-  const binanceWebSocketService = new BinanceWebSocketService();
+  new BinanceWebSocketService();
   
   // 🚀 실시간 김치 프리미엄 계산 시스템 연결
-  priceCache.onPriceUpdate((source, symbol, price) => {
+  priceCache.onPriceUpdate((source, symbol, _price) => {
     realtimeKimchiService.onPriceUpdate(source, symbol);
   });
 
@@ -204,9 +192,9 @@ export async function registerRoutes(
   // const binanceWebSocket = new BinanceWebSocketService();
 
   const kimpgaSvc = new KimpgaStrategyService();
-  const tradingService = new TradingService();
+  new TradingService();
   // kimpga API (완전 통합)
-  app.get("/api/kimpga/current", async (req, res) => {
+  app.get("/api/kimpga/current", async (_req, res) => {
     try {
       // 대시보드와 완전히 동일한 소스 사용: 실시간 계산 값을 그대로 반환
       const realtime = realtimeKimchiService.getCurrentKimchiPremium();
@@ -4426,6 +4414,11 @@ window.onload = () => {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // 분리된 라우터들 등록
+  registerAuthRoutes(app);
+  registerTradingRoutes(app);
+  registerApiRoutes(app);
 
   return;
 }

@@ -44,7 +44,7 @@ interface MockPositionListProps {
   onMockExit: (position: MockPosition, premiumRate: number, ratio?: number) => void;
 }
 
-export const MockPositionList: React.FC<MockPositionListProps> = ({
+export const MockPositionList: React.FC<MockPositionListProps> = React.memo(({
   mockPositions,
   strategies,
   lastKimchiData,
@@ -196,4 +196,4 @@ export const MockPositionList: React.FC<MockPositionListProps> = ({
       })}
     </div>
   );
-};
+});

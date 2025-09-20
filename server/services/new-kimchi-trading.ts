@@ -80,22 +80,22 @@ export interface StrategySignal {
 }
 
 export class MultiStrategyTradingService {
-  private upbitService: UpbitService;
-  private binanceService: BinanceService;
+  // private upbitService: UpbitService; // 현재 사용하지 않음
+  // private binanceService: BinanceService; // 현재 사용하지 않음
   private simpleKimchiService: SimpleKimchiService;
   private isTrading: boolean = false;
   private lastKimchiRates: Map<string, number> = new Map();
   private activeStrategies: Map<number, TradingStrategy> = new Map();
   // 최근 진입 시각(사용자-전략-심볼 단위). 재시작 시 메모리 리셋되며, DB 초기화는 선택
-  private lastEntryAtByKey: Map<string, number> = new Map();
+  // private lastEntryAtByKey: Map<string, number> = new Map(); // 현재 사용하지 않음
   private static readonly MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
-  private getCooldownKey(userId: string, strategyId: number | string, symbol = "BTC"): string {
-    return `${userId}:${strategyId}:${symbol}`;
-  }
+  // private getCooldownKey(userId: string, strategyId: number | string, symbol = "BTC"): string {
+  //   return `${userId}:${strategyId}:${symbol}`;
+  // } // 현재 사용하지 않음
 
   constructor() {
-    this.upbitService = new UpbitService();
-    this.binanceService = new BinanceService();
+    // this.upbitService = new UpbitService(); // 현재 사용하지 않음
+    // this.binanceService = new BinanceService(); // 현재 사용하지 않음
     this.simpleKimchiService = new SimpleKimchiService();
   }
 
@@ -152,7 +152,7 @@ export class MultiStrategyTradingService {
         const activePositions = await storage.getActivePositions(parseInt(userId));
 
         // BTC 단일 전략 신호 분석
-        for (const [strategyId, strategy] of Array.from(
+        for (const [_strategyId, strategy] of Array.from(
           this.activeStrategies
         )) {
           // BTC 데이터만 처리
@@ -233,7 +233,7 @@ export class MultiStrategyTradingService {
     hasActivePosition: boolean = false
   ): Promise<StrategySignal | null> {
     const premiumRate = kimchiData.premiumRate;
-    const symbol = "BTC"; // BTC 고정
+    // const symbol = "BTC"; // BTC 고정 - 현재 사용하지 않음
 
     // BTC 활성 포지션 확인 (전략 상관없이 1개만 허용)
     const existingPosition = activePositions.find(
@@ -252,7 +252,7 @@ export class MultiStrategyTradingService {
     // 진입 조건 체크 (포지션이 없을 때만)
     if (!hasActivePosition && !existingPosition) {
       // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
-      const userId = String((strategy as any)?.userId ?? "");
+      // const userId = String((strategy as any)?.userId ?? ""); // 현재 사용하지 않음
       const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
       
       if (recentPosition) {
@@ -394,8 +394,8 @@ export class MultiStrategyTradingService {
     );
 
     // 정확한 진입 조건 검증 (허용오차 범위 내) - 음수/양수 구분
-    const lowerBound = entryRate - tolerance;
-    const upperBound = entryRate + tolerance;
+    // const lowerBound = entryRate - tolerance; // 현재 사용하지 않음
+    // const upperBound = entryRate + tolerance; // 현재 사용하지 않음
 
     // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
     const difference = Math.abs(signal.premiumRate - entryRate);
@@ -868,7 +868,8 @@ export class MultiStrategyTradingService {
     }
   }
 
-  // 새로운 김프 손절
+  // 새로운 김프 손절 (현재 사용하지 않음)
+  /*
   private async executeNewKimchiStopLoss(
     userId: string,
     signal: StrategySignal
@@ -883,10 +884,11 @@ export class MultiStrategyTradingService {
       message: `${signal.symbol} 김프 포지션을 손절했습니다.`,
     });
   }
+  */
 
   // 다중 전략 포지션 관리
   private async manageMultiStrategyPositions(
-    userId: string,
+    _userId: string,
     positions: Position[]
   ): Promise<void> {
     for (const position of positions) {

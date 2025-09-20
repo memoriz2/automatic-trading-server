@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { TRADING_CONSTANTS } from "@/lib/utils";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModal';
 import { MockPositionList } from '@/components/trading/MockPositionList';

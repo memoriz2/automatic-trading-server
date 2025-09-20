@@ -37,7 +37,8 @@ export function useWebSocket() {
         // 환경별 WebSocket URL 결정
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const baseHostname = window.location.hostname.replace(/^www\./, '');
-        const port = window.location.port || '5001';
+        // 포트가 비어있으면 기본값 사용
+        const port = window.location.port || (protocol === "wss:" ? "443" : "5001");
         const host = `${baseHostname}:${port}`;
         
         // 연결 시도는 첫 번째와 실패 후에만 로그
@@ -47,9 +48,17 @@ export function useWebSocket() {
         
         // 인증 토큰 추가
         const token = localStorage.getItem('authToken');
+        
+        // URL 유효성 검사
+        if (!host || host.includes('undefined')) {
+          throw new Error(`Invalid WebSocket host: ${host}`);
+        }
+        
         const wsUrl = token 
           ? `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`
           : `${protocol}//${host}/ws`;
+          
+        console.log('🔍 WebSocket URL 생성:', { protocol, host, wsUrl });
         
         ws.current = new WebSocket(wsUrl);
         

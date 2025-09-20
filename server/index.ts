@@ -84,7 +84,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // 쿠키 파싱 (JWT 쿠키 사용)
 import cookieParser from 'cookie-parser';
-import { pool } from './db.js';
+// import { pool } from './db.js'; // 현재 사용하지 않음
 app.use(cookieParser());
 
 // Session TTL 상수 정의 (24시간)
@@ -186,7 +186,7 @@ app.use((req, res, next) => {
 
 // ✅ 정적 파일 접근 로그 미들웨어 추가
 app.use((req, res, next) => {
-  const start = Date.now();
+  // const start = Date.now(); // 현재 사용하지 않음
   const path = req.path;
 
   // 개발 환경에서만 상세 요청 로그 출력 (빈번한 API 제외)

@@ -39,7 +39,7 @@ interface StrategyListProps {
   isLoading: boolean;
 }
 
-export const StrategyList: React.FC<StrategyListProps> = ({
+export const StrategyList: React.FC<StrategyListProps> = React.memo(({
   strategies,
   isLoadingStrategies,
   onStrategyUpdate,
@@ -424,4 +424,4 @@ export const StrategyList: React.FC<StrategyListProps> = ({
       </div>
     </div>
   );
-};
+});

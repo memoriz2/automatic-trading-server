@@ -25,7 +25,7 @@ interface ForceEntryModalProps {
 
 const STORAGE_KEY = 'force-entry-settings';
 
-export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
+export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   isOpen,
   onClose,
   currentKimp,
@@ -320,4 +320,4 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = ({
       </Card>
     </div>
   );
-};
+});
