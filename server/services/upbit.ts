@@ -194,31 +194,80 @@ export class UpbitService {
     }
   }
 
-  async placeSellOrder(market: string, volume: number, orderType: 'market' | 'limit' = 'market'): Promise<any> {
-    try {
-      const params: any = {
-        market,
-        side: 'ask',
-        volume: volume.toString(),
-        ord_type: orderType,
-      };
-      
-      if (orderType === 'limit') {
-        // 지정가 매도의 경우 현재가 조회해서 가격 설정
-        const ticker = await this.getTicker([market]);
-        const currentPrice = ticker[0]?.trade_price || 0;
-        if (currentPrice > 0) {
-          params.price = Math.floor(currentPrice * 0.999).toString(); // 0.1% 낮은 가격으로 즉시 체결 유도
-        } else {
-          throw new Error('현재가 조회 실패로 지정가 매도 불가');
+  async placeSellOrder(market: string, volume: number, orderType: 'market' | 'limit' = 'market', retries: number = 3): Promise<any> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🔄 업비트 매도 시도 ${attempt}/${retries}: ${market}, ${volume} ${market.split('-')[1]}`);
+        
+        // 수량 유효성 검사
+        if (!volume || volume <= 0 || isNaN(volume)) {
+          throw new Error(`잘못된 매도 수량: ${volume}`);
         }
+        
+        // BTC 최소 거래 단위 검사 (0.0001 BTC)
+        if (volume < 0.0001) {
+          throw new Error(`BTC 최소 거래 단위 미달: ${volume} < 0.0001`);
+        }
+        
+        const params: any = {
+          market,
+          side: 'ask',
+          volume: parseFloat(volume.toFixed(4)).toString(), // 정밀도 조정
+          ord_type: orderType,
+        };
+        
+        if (orderType === 'limit') {
+          // 지정가 매도의 경우 현재가 조회해서 가격 설정
+          const ticker = await this.getTicker([market]);
+          const currentPrice = ticker[0]?.trade_price || 0;
+          if (currentPrice > 0) {
+            params.price = Math.floor(currentPrice * 0.999).toString(); // 0.1% 낮은 가격으로 즉시 체결 유도
+          } else {
+            throw new Error('현재가 조회 실패로 지정가 매도 불가');
+          }
+        }
+        
+        // 최소 거래 금액 확인 (시장가 매도의 경우)
+        if (orderType === 'market') {
+          const ticker = await this.getTicker([market]);
+          const currentPrice = ticker[0]?.trade_price || 0;
+          const tradeAmount = volume * currentPrice;
+          
+          console.log(`💰 거래 금액 계산: ${volume} ${market.split('-')[1]} × ${currentPrice.toLocaleString()}원 = ${tradeAmount.toLocaleString()}원`);
+          
+          if (tradeAmount < 5000) {
+            throw new Error(`최소 거래 금액 미달: ${tradeAmount.toLocaleString()}원 < 5,000원`);
+          }
+        }
+        
+        console.log(`📊 업비트 매도 주문:`, params);
+        const result = await this.sendRequest('orders', 'POST', params);
+        console.log(`✅ 업비트 매도 성공 (${attempt}번째 시도):`, result);
+        return result;
+        
+      } catch (error: any) {
+        console.error(`❌ 업비트 매도 실패 (${attempt}/${retries}):`, error?.message);
+        
+        // 429 (호출 제한), 500 (서버 오류), timeout 인 경우만 재시도
+        const shouldRetry = attempt < retries && (
+          error?.message?.includes('429') || 
+          error?.message?.includes('500') ||
+          error?.message?.includes('timeout') ||
+          error?.message?.includes('ECONNRESET') ||
+          error?.message?.includes('ETIMEDOUT')
+        );
+        
+        if (shouldRetry) {
+          const delay = attempt * 2000; // 2초, 4초, 6초
+          console.log(`⏳ ${delay}ms 후 업비트 매도 재시도...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // 최종 실패 또는 재시도 불가능한 에러
+        console.error(`❌ 업비트 매도 최종 실패 - 마켓: ${market}, 수량: ${volume}:`, error);
+        throw error;
       }
-      
-      console.log(`📊 업비트 매도 주문:`, params);
-      return this.sendRequest('orders', 'POST', params);
-    } catch (error) {
-      console.error('Upbit placeSellOrder error:', error);
-      throw error;
     }
   }
 

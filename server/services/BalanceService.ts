@@ -370,8 +370,8 @@ export class BalanceService {
       } else if (balance.exchange === 'binance') {
         balanceDetails.binance.push(balance);
         if (balance.currency === 'USDT') {
-          // 현물과 선물 USDT 잔고를 합산하거나, 더 큰 값을 사용
-          real.usdt = Math.max(real.usdt || 0, balance.total);
+          // 바이낸스는 사용가능한 잔고만 표시 (거래에 실제 사용 가능한 금액)
+          real.usdt = Math.max(real.usdt || 0, balance.available);
         }
       }
     });

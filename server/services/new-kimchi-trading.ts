@@ -807,50 +807,119 @@ export class MultiStrategyTradingService {
 
       const quantity = Number(position.quantity);
 
-      // 1. 업비트에서 현물 매도
+      // 1. 업비트에서 현물 매도 (에러 처리 강화)
       const market = `KRW-${signal.symbol}`;
       console.log(`업비트 현물 매도: ${market}, 수량: ${quantity}`);
 
-      const upbitResult = await upbitService.placeSellOrder(market, quantity);
-      console.log(`업비트 매도 결과:`, upbitResult);
+      let upbitResult: any = null;
+      let upbitError: any = null;
+      
+      try {
+        upbitResult = await upbitService.placeSellOrder(market, quantity);
+        console.log(`✅ 업비트 매도 성공:`, upbitResult);
+      } catch (error) {
+        upbitError = error;
+        console.error(`❌ 업비트 매도 실패:`, error);
+        
+        // 업비트 매도 실패 시 시스템 알림 생성
+        await storage.createSystemAlert({
+          type: "error",
+          title: "업비트 매도 실패",
+          message: `${signal.symbol} 매도 실패: ${(error as Error).message}`,
+        });
+      }
 
-      // 2. 바이낸스 선물 포지션 청산
+      // 2. 바이낸스 선물 포지션 청산 (업비트 실패와 무관하게 실행)
       console.log(`바이낸스 선물 청산: ${signal.symbol}, 수량: ${quantity}`);
 
-      const binanceResult = await binanceService.closeFuturesPosition(
-        signal.symbol,
-        quantity
-      );
-      console.log(`바이낸스 청산 결과:`, binanceResult);
+      let binanceResult: any = null;
+      let binanceError: any = null;
+      
+      try {
+        binanceResult = await binanceService.closeFuturesPosition(
+          signal.symbol,
+          quantity
+        );
+        console.log(`✅ 바이낸스 청산 성공:`, binanceResult);
+      } catch (error) {
+        binanceError = error;
+        console.error(`❌ 바이낸스 청산 실패:`, error);
+        
+        // 바이낸스 청산 실패 시 시스템 알림 생성
+        await storage.createSystemAlert({
+          type: "error",
+          title: "바이낸스 청산 실패",
+          message: `${signal.symbol} 청산 실패: ${(error as Error).message}`,
+        });
+      }
+
+      // 부분 청산 상황 처리
+      if (upbitError && !binanceError) {
+        console.warn(`⚠️ 부분 청산: 바이낸스만 청산됨 (업비트 매도 실패)`);
+        await storage.createSystemAlert({
+          type: "warning", 
+          title: "부분 청산 발생",
+          message: `${signal.symbol}: 바이낸스 청산 완료, 업비트 매도 실패 - 수동 매도 필요`,
+        });
+      } else if (!upbitError && binanceError) {
+        console.warn(`⚠️ 부분 청산: 업비트만 매도됨 (바이낸스 청산 실패)`);
+        await storage.createSystemAlert({
+          type: "warning",
+          title: "부분 청산 발생", 
+          message: `${signal.symbol}: 업비트 매도 완료, 바이낸스 청산 실패 - 수동 청산 필요`,
+        });
+      } else if (upbitError && binanceError) {
+        console.error(`❌ 완전 청산 실패: 업비트, 바이낸스 모두 실패`);
+        await storage.createSystemAlert({
+          type: "error",
+          title: "완전 청산 실패",
+          message: `${signal.symbol}: 업비트, 바이낸스 모두 청산 실패 - 즉시 수동 처리 필요`,
+        });
+        throw new Error(`완전 청산 실패: 업비트(${upbitError.message}), 바이낸스(${binanceError.message})`);
+      }
 
       // 3. 포지션 상태 업데이트
       await storage.updatePosition(position.id, {
         currentPremiumRate: signal.premiumRate,
       });
 
-      // 4. 거래 기록 생성
-      await Promise.all([
-        storage.createTrade({
-          userId: parseInt(userId),
-          positionId: position.id,
-          symbol: signal.symbol,
-          side: "sell",
-          exchange: "upbit",
-          quantity: String(upbitResult.volume || "0"),
-          price: String(upbitResult.price || "0"),
-          exchangeOrderId: upbitResult.uuid,
-        }),
-        storage.createTrade({
-          userId: parseInt(userId),
-          positionId: position.id,
-          symbol: signal.symbol,
-          side: "buy",
-          exchange: "binance",
-          quantity: String(binanceResult.executedQty || binanceResult.quantity),
-          price: String(binanceResult.avgPrice || binanceResult.price),
-          exchangeOrderId: binanceResult.orderId?.toString(),
-        }),
-      ]);
+      // 4. 거래 기록 생성 (성공한 것만)
+      const tradePromises = [];
+      
+      if (upbitResult && !upbitError) {
+        tradePromises.push(
+          storage.createTrade({
+            userId: parseInt(userId),
+            positionId: position.id,
+            symbol: signal.symbol,
+            side: "sell",
+            exchange: "upbit",
+            quantity: String(upbitResult.volume || "0"),
+            price: String(upbitResult.price || "0"),
+            exchangeOrderId: upbitResult.uuid,
+          })
+        );
+      }
+      
+      if (binanceResult && !binanceError) {
+        tradePromises.push(
+          storage.createTrade({
+            userId: parseInt(userId),
+            positionId: position.id,
+            symbol: signal.symbol,
+            side: "buy",
+            exchange: "binance",
+            quantity: String(binanceResult.executedQty || binanceResult.quantity),
+            price: String(binanceResult.avgPrice || binanceResult.price),
+            exchangeOrderId: binanceResult.orderId?.toString(),
+          })
+        );
+      }
+      
+      if (tradePromises.length > 0) {
+        await Promise.all(tradePromises);
+        console.log(`✅ 거래 기록 저장 완료 (${tradePromises.length}개)`);
+      }
 
       // 해당 전략 정보 조회
       const strategy = await storage.getTradingStrategy(signal.strategyId);
