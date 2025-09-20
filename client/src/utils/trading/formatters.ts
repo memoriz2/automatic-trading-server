@@ -25,15 +25,21 @@ export const formatCompact = (n: number, digits = 1): string => {
 export const floorQty = (q: number | string | undefined | null) => 
   Math.floor((Number(q) || 0) / 0.001) * 0.001;
 
-// 스마트 BTC 포맷팅 (소수점 3자리까지, 절삭) - v2
+// 스마트 BTC 포맷팅 (소수점 3자리까지, 절삭) - v5 (안전한 0 처리)
 export const formatBTC = (value: number): string => {
   if (value === 0) return '0';
   
-  // 소수점 3자리까지 절삭 (반올림 아님)
+  // 모든 값을 소수점 3자리까지 절삭
   const truncated = Math.floor(value * 1000) / 1000;
   
+  // 절삭 후 0이 되면 명시적으로 '0' 반환
+  if (truncated === 0) return '0';
+  
   // 불필요한 뒤쪽 0 완전히 제거
-  return truncated.toString().replace(/\.?0+$/, '');
+  const result = truncated.toString().replace(/\.?0+$/, '');
+  
+  // 빈 문자열이나 '.'만 남으면 '0' 반환
+  return result === '' || result === '.' ? '0' : result;
 };
 
 // 스마트 퍼센트 포맷팅 (소수점 3자리까지, 절삭)

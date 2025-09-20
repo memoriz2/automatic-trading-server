@@ -246,8 +246,6 @@ export async function registerRoutes(
       const userId = req.user.id;
       const minutes = parseInt(req.query.minutes as string) || 1440; // 기본 24시간
       
-      console.log(`📊 일일 통계 조회: 사용자 ${userId}, 지난 ${minutes}분`);
-      
       // 한국시간 기준 시작 시간 계산
       const now = new Date();
       const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -257,13 +255,9 @@ export async function registerRoutes(
       kstToday.setHours(0, 0, 0, 0);
       const startTime = new Date(kstToday.getTime() - 9 * 60 * 60 * 1000); // UTC로 변환
       
-      console.log(`📊 시간 범위: ${startTime.toISOString()} ~ ${now.toISOString()}`);
-      
       // 실제 거래 내역에서 통계 계산
       const trades = await storage.getTradesByUserId(String(userId), 1000);
       const positions = await storage.getPositions({ user_id: userId });
-      
-      console.log(`📊 DB 조회 결과: 거래 ${trades.length}개, 포지션 ${positions.length}개`);
       
       // 오늘 거래 필터링
       const todayTrades = trades.filter(trade => {
@@ -276,24 +270,6 @@ export async function registerRoutes(
         const positionTime = new Date(position.created_at || position.entry_time);
         return positionTime >= startTime;
       });
-      
-      console.log(`📊 필터링 결과: 오늘 거래 ${todayTrades.length}개, 오늘 포지션 ${todayPositions.length}개`);
-      if (todayTrades.length > 0) {
-        console.log(`📊 거래 샘플:`, todayTrades.slice(0, 3).map(t => ({
-          id: t.id,
-          exchange: t.exchange,
-          type: t.type,
-          created_at: t.created_at
-        })));
-      }
-      if (todayPositions.length > 0) {
-        console.log(`📊 포지션 샘플:`, todayPositions.slice(0, 3).map(p => ({
-          id: p.id,
-          status: p.status,
-          side: p.side,
-          created_at: p.created_at
-        })));
-      }
       
       // 진입/청산 거래만 필터링 (실제 의미있는 거래)
       const entryTrades = todayTrades.filter(t => 
@@ -308,9 +284,6 @@ export async function registerRoutes(
       // 실제 포지션 생성/청산 횟수
       const todayEntries = todayPositions.filter(p => p.status === 'open').length;
       const todayExits = todayPositions.filter(p => p.status === 'closed').length;
-      
-      console.log(`📊 거래 분석: 진입거래 ${entryTrades.length}개, 청산거래 ${exitTrades.length}개`);
-      console.log(`📊 포지션 분석: 진입 ${todayEntries}개, 청산 ${todayExits}개`);
 
       // 통계 계산 (의미있는 거래만)
       const meaningfulTrades = entryTrades.length + exitTrades.length;
@@ -332,7 +305,6 @@ export async function registerRoutes(
         errors: 0
       };
       
-      console.log(`📊 계산된 일일 통계:`, stats);
       res.json(stats);
     } catch (error) {
       console.error('일일 통계 조회 실패:', error);
@@ -526,26 +498,21 @@ export async function registerRoutes(
 
   // 세션 인증 미들웨어 (단순화)
   function authenticateSession(req: any, res: any, next: any) {
-    console.log('🔍 세션 인증 시도:', {
-      sessionId: req.sessionID,
-      hasSession: !!req.session,
-      sessionUser: req.session?.user,
-      cookies: req.headers.cookie,
-      userAgent: req.headers['user-agent']?.substring(0, 50)
-    });
-    
     const user = req.session?.user;
     
     if (!user) {
       console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
         sessionExists: !!req.session,
-        sessionKeys: req.session ? Object.keys(req.session) : [],
         sessionId: req.sessionID
       });
       return res.status(401).json({ message: '로그인이 필요합니다' });
     }
     
-    console.log('✅ 세션 인증 성공:', user.username, 'ID:', user.id);
+    // 세션 인증 성공 로그는 개발 환경에서만 출력
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
+      console.log('✅ 세션 인증 성공:', user.username, 'ID:', user.id);
+    }
+    
     req.user = user;
     next();
   }
@@ -1023,9 +990,7 @@ export async function registerRoutes(
     try {
       const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 50;
-      console.log(`📊 거래 내역 조회: 사용자 ID ${userId}`);
       const trades = await storage.getTradesByUserId(String(userId), limit);
-      console.log(`📊 조회된 거래 수: ${trades.length}건`);
       res.json(trades);
     } catch (error) {
       console.error("거래 내역 조회 오류:", error);

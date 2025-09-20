@@ -189,10 +189,21 @@ app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
 
-  // ✅ 강제 테스트 로그 - 모든 요청에 대해
-  console.log(
-    `🔍 [${new Date().toISOString()}] 모든 요청: ${req.method} ${path}`
-  );
+  // 개발 환경에서만 상세 요청 로그 출력 (빈번한 API 제외)
+  const isDev = process.env.NODE_ENV === 'development';
+  const isFrequentApi = [
+    '/api/kimpga/current',
+    '/api/kimpga/metrics', 
+    '/api/kimpga/status',
+    '/api/v2/balance',
+    '/api/trading/status'
+  ].some(endpoint => path.startsWith(endpoint));
+  
+  if (isDev && !isFrequentApi) {
+    console.log(
+      `🔍 [${new Date().toISOString()}] 요청: ${req.method} ${path}`
+    );
+  }
 
   // 정적 파일 접근 로그
   if (
@@ -207,8 +218,8 @@ app.use((req, res, next) => {
     );
   }
 
-  // API 요청 로그
-  if (path.startsWith("/api")) {
+  // API 요청 로그 (빈번한 API 제외)
+  if (path.startsWith("/api") && !isFrequentApi) {
     // 실제 클라이언트 IP 추출 (프록시 고려)
     const clientIP = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
                     req.headers['x-real-ip']?.toString() ||
@@ -225,7 +236,7 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
+    if (path.startsWith("/api") && !isFrequentApi) {
       logInfo(
         `✅ API 응답: ${req.method} ${path} ${res.statusCode} - ${duration}ms`
       );

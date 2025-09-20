@@ -49,7 +49,10 @@ export class BalanceService {
       const now = Date.now();
       
       if (cached && (now - cached.timestamp) < BalanceService.CACHE_TTL_MS) {
-        console.log(`🚀 [BalanceService] 사용자 ${userId} 캐시된 잔고 반환 (${Math.floor((now - cached.timestamp) / 1000)}초 전)`);
+        // 캐시 로그는 5분마다만 출력 (로그 스팸 방지)
+        if (Math.random() < 0.02) {
+          console.log(`🚀 [BalanceService] 사용자 ${userId} 캐시된 잔고 반환 (${Math.floor((now - cached.timestamp) / 1000)}초 전)`);
+        }
         return cached.data;
       }
 
