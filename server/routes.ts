@@ -278,6 +278,7 @@ export async function registerRoutes(
       );
       const exitTrades = todayTrades.filter(t => 
         t.side === 'sell' || t.type === 'sell' || t.action === 'exit' ||
+        t.side === 'short' || // 바이낸스 숏 포지션도 청산으로 분류
         (t.exchange === 'binance' && (t.side === 'ask' || t.type === 'short'))
       );
       
@@ -290,8 +291,8 @@ export async function registerRoutes(
       
       const stats = {
         total_orders: meaningfulTrades, // 진입+청산 거래만
-        entries: todayEntries, // 실제 포지션 진입
-        exits: todayExits, // 실제 포지션 청산
+        entries: entryTrades.length, // 거래 기반 진입 수 (더 직관적)
+        exits: exitTrades.length, // 거래 기반 청산 수 (더 직관적)
         upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
         binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
         total_fees: todayTrades.reduce((sum, trade) => {
@@ -1976,17 +1977,22 @@ export async function registerRoutes(
     // 첫 클라이언트 연결 시 KimchiService의 지연 초기화를 트리거
     kimchiService.getLatestKimchiPremiums();
 
-    // WebSocket 연결 로깅 (세션 기반 인증 사용)
-    console.log(`WebSocket 클라이언트 연결: ${req.headers['user-agent']?.substring(0, 50)}...`);
+    // WebSocket 연결 로깅 (가끔씩만)
+    if (Math.random() < 0.1) {
+      console.log(`WebSocket 클라이언트 연결: ${req.headers['user-agent']?.substring(0, 50)}...`);
+    }
 
     ws.on("message", (message) => {
       const messageStr = message.toString();
-      console.log("WebSocket message received:", messageStr);
       
       // WebSocket 메시지 처리 (세션 기반 인증 사용)
       try {
         const msg = JSON.parse(messageStr);
-        console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
+        // ping 메시지는 로그 출력 안함
+        if (msg.type !== 'ping') {
+          console.log("WebSocket message received:", messageStr);
+          console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
+        }
       } catch (error) {
         // JSON 파싱 실패시 무시
       }
@@ -2246,7 +2252,7 @@ export async function registerRoutes(
         req.session.touch();
         // index.ts의 세션 TTL과 동일하게 유지 (rolling)
         req.session.cookie.maxAge = 24 * 60 * 60 * 1000;
-        console.log(`🔄 활동 감지로 세션 갱신: ${type} - 사용자: ${userId}`);
+        // 활동 감지 로그 제거 (너무 빈번함)
       }
       
       res.json({ success: true, message: "활동이 기록되었습니다" });
@@ -2825,12 +2831,14 @@ export async function registerRoutes(
     try {
       const userId = req.user.id;
       const { tradeDetails, forceRefresh } = req.body; // 거래 정보 및 강제 새로고침 플래그
-      const balanceService = new BalanceService();
+      const { BalanceService } = await import('./services/BalanceService.js');
       
-      // 거래 정보가 있거나 강제 새로고침이면 실제 API 호출, 그렇지 않으면 일반 새로고침
-      const balances = (tradeDetails || forceRefresh)
-        ? await balanceService.refreshBalanceAfterTrade(userId, tradeDetails)
-        : await balanceService.refreshBalances(userId);
+      // 캐시 무효화 후 새로 조회
+      BalanceService.invalidateUserCache(userId);
+      console.log(`🔄 [잔고새로고침] 사용자 ${userId} 캐시 무효화 후 재조회`);
+      
+      const balanceService = new BalanceService();
+      const balances = await balanceService.getUserBalances(userId);
       
       console.log(`🔄 잔고 갱신 방식: ${tradeDetails || forceRefresh ? '실제 API 직접 호출' : '캐시 활용'}`);
       

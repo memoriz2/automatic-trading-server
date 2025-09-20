@@ -65,8 +65,10 @@ export const useRealTimeStats = (userId?: number) => {
           const metrics = await res.json();
           console.log('📊 [useRealTimeStats] 서버 응답 원본:', metrics);
           
+          const calculatedTotalTrades = Number(metrics.total_orders || 0); // 서버에서 이미 계산됨
+          
           const realStats: RealTimeStats = {
-            totalTrades: Number(metrics.total_orders || 0) + Number(metrics.entries || 0) + Number(metrics.exits || 0),
+            totalTrades: calculatedTotalTrades,
             upbitTrades: Number(metrics.upbit_orders || 0),
             binanceTrades: Number(metrics.binance_orders || 0),
             entries: Number(metrics.entries || 0),
@@ -77,12 +79,17 @@ export const useRealTimeStats = (userId?: number) => {
             totalProfitRate: Number(metrics.total_profit_rate || 0)
           };
           
+          console.log('📊 [useRealTimeStats] 상세 계산:', {
+            'total_orders': metrics.total_orders,
+            'entries': metrics.entries, 
+            'exits': metrics.exits,
+            '계산결과': calculatedTotalTrades,
+            '이전상태': stats.totalTrades,
+            '새상태': realStats.totalTrades
+          });
+          
           setStats(realStats);
           console.log('📊 [useRealTimeStats] DB 통계 업데이트:', realStats);
-          console.log('📊 [useRealTimeStats] 변환 과정:', {
-            원본: metrics,
-            변환후: realStats
-          });
       } else {
         throw new Error(`API 응답 오류: ${res.status}`);
       }

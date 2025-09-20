@@ -196,7 +196,11 @@ app.use((req, res, next) => {
     '/api/kimpga/metrics', 
     '/api/kimpga/status',
     '/api/v2/balance',
-    '/api/trading/status'
+    '/api/trading/status',
+    '/api/trading/daily-stats',
+    '/api/trades',
+    '/api/activity',
+    '/api/v2/exchanges/status'
   ].some(endpoint => path.startsWith(endpoint));
   
   if (isDev && !isFrequentApi) {
