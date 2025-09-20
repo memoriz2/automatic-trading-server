@@ -28,9 +28,7 @@ export function AutoTradingControl() {
   const startTradingMutation = useMutation({
     mutationFn: async () => {
       setIsStarting(true);
-      return apiRequest('/api/trading/start/1', {
-        method: 'POST',
-      });
+      return apiRequest('POST', '/api/trading/start/1');
     },
     onSuccess: () => {
       toast({
@@ -56,9 +54,7 @@ export function AutoTradingControl() {
   const stopTradingMutation = useMutation({
     mutationFn: async () => {
       setIsStopping(true);
-      return apiRequest('/api/trading/stop', {
-        method: 'POST',
-      });
+      return apiRequest('POST', '/api/trading/stop');
     },
     onSuccess: () => {
       toast({
@@ -83,9 +79,7 @@ export function AutoTradingControl() {
   // 긴급 정지
   const emergencyStopMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/trading/emergency-stop/1', {
-        method: 'POST',
-      });
+      return apiRequest('POST', '/api/trading/emergency-stop/1');
     },
     onSuccess: () => {
       toast({

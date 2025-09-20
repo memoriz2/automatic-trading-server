@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 interface UseApiConnectionProps {
-  tradingMode: 'real' | 'mock';
+  tradingMode: 'real' | 'mock' | 'live';
 }
 
 export const useApiConnection = ({ tradingMode }: UseApiConnectionProps) => {

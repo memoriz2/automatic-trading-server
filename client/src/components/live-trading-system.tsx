@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModal';
-import { MockPositionList } from '@/components/trading/MockPositionList';
-import { MockTradeHistory } from '@/components/trading/MockTradeHistory';
-import { MockBalanceDisplay } from '@/components/trading/MockBalanceDisplay';
+import { LivePositionList } from '@/components/trading/LivePositionList';
+import { LiveTradeHistory } from '@/components/trading/LiveTradeHistory';
+import { LiveBalanceDisplay } from '@/components/trading/LiveBalanceDisplay';
 import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime, formatKoreanDateTime } from '@/utils/datetime';
 
@@ -1574,7 +1574,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       );
 
       // 허용오차 설정
-      const tolerance = parseFloat(strategy.tolerance || TRADING_CONSTANTS.DEFAULT_TOLERANCE);
+      const tolerance = parseFloat(strategy.tolerance || '0.1'); // 기본 허용오차 0.1%
       
       // 스크롤2 전략 특별 조건 (더 높은 진입조건)
       const isScroll2 = strategy.name === '스크롤2';
@@ -2248,8 +2248,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       <CardContent>
         
         {/* 잔고 및 수익률 표시 */}
-        <MockBalanceDisplay
-          mockBalance={isLiveMode ? {
+        <LiveBalanceDisplay
+          liveBalance={isLiveMode ? {
             krw: liveBalances?.real?.krw || 0,
             btc: liveBalances?.real?.btc_upbit || 0,
             usdt: liveBalances?.real?.usdt || 0,
@@ -2265,11 +2265,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
 
         {/* 활성 포지션 */}
-        <MockPositionList
-          mockPositions={livePositions}
+        <LivePositionList
+          livePositions={livePositions}
           strategies={strategies}
           lastKimchiData={lastKimchiData}
-          onMockExit={liveExit}
+          onLiveExit={liveExit}
         />
 
         {/* 거래 내역 */}
@@ -2344,7 +2344,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               </div>
             </div>
           )}
-          <MockTradeHistory
+          <LiveTradeHistory
             tradingLogs={tradingLogs}
             recentTrades={recentTrades}
             strategies={strategies}

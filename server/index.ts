@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import cors from 'cors';
 import session from 'express-session';
 import { RedisStore } from 'connect-redis';
 import { createClient } from 'redis';
@@ -67,7 +68,17 @@ app.set('trust proxy', 1);
 // CORS 설정 추가 - 쿠키 전송 허용
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  res.header('Access-Control-Allow-Origin', origin || '*');
+  const allowedOrigins = [
+    'http://localhost:5001',
+    'http://localhost:3000', 
+    'http://127.0.0.1:5001',
+    'http://127.0.0.1:3000',
+    'https://localhost:5001'
+  ];
+  
+  if (allowedOrigins.includes(origin as string) || !origin) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie');

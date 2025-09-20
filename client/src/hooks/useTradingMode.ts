@@ -5,7 +5,7 @@ interface UseTradingModeProps {
 }
 
 export const useTradingMode = ({ user }: UseTradingModeProps) => {
-  const [tradingMode, setTradingMode] = useState<'real' | 'mock'>('real');
+  const [tradingMode, setTradingMode] = useState<'live'>('live');
   const [isAdmin, setIsAdmin] = useState(false);
   const [realStrategies, setRealStrategies] = useState<any[]>([]);
   const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
@@ -63,7 +63,7 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
 
   // 실거래 전략 조회 함수
   const loadRealStrategies = useCallback(async () => {
-    if (tradingMode === 'real' && user) {
+    if (tradingMode === 'live' && user) {
       try {
         setIsLoadingStrategies(true);
         setStrategiesError(null);
@@ -130,7 +130,7 @@ export const useTradingMode = ({ user }: UseTradingModeProps) => {
       } finally {
         setIsLoadingStrategies(false);
       }
-    } else if (tradingMode === 'mock') {
+    } else if (tradingMode !== 'live') {
       // Mock 모드일 때만 실거래 전략 초기화 (유저 없음 상태에서는 초기화하지 않음)
       setRealStrategies([]);
       // Mock 모드 - 실거래 전략 초기화

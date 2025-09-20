@@ -1,40 +1,35 @@
 // ===== 환경별 거래 모드 설정 =====
 
 export interface TradingConfig {
-  isRealTradingEnabled: boolean;
+  isLiveTradingEnabled: boolean;
   isProduction: boolean;
   isDevelopment: boolean;
-  tradingMode: 'mock' | 'real';
+  tradingMode: 'live';
   logLevel: string;
 }
 
-// 환경 변수 기반 설정
+// 환경 변수 기반 설정 (Live 모드로 통일)
 export const TRADING_CONFIG: TradingConfig = {
-  isRealTradingEnabled: process.env.ENABLE_REAL_TRADING === "true",
+  isLiveTradingEnabled: true, // 항상 실거래 모드
   isProduction: process.env.NODE_ENV === "production",
   isDevelopment: process.env.NODE_ENV === "development",
-  tradingMode: process.env.ENABLE_REAL_TRADING === "true" ? "real" : "mock",
-  logLevel: process.env.LOG_LEVEL || "debug"
+  tradingMode: "live", // Live 모드로 고정
+  logLevel: process.env.LOG_LEVEL || "info"
 };
 
-// 거래 모드 확인 함수
-export const isMockMode = (): boolean => {
-  return TRADING_CONFIG.tradingMode === "mock";
+// 거래 모드 확인 함수 (Live 모드로 통일)
+export const isLiveMode = (): boolean => {
+  return true; // 항상 Live 모드
 };
 
-export const isRealTradingMode = (): boolean => {
-  return TRADING_CONFIG.tradingMode === "real";
+export const isLiveTradingMode = (): boolean => {
+  return true; // 항상 Live 모드
 };
 
-// 환경별 로그 출력
+// 환경별 로그 출력 (Live 모드 전용)
 export const logTradingMode = (): void => {
-  console.log(`🎯 [${new Date().toISOString()}] 거래 모드: ${TRADING_CONFIG.tradingMode.toUpperCase()}`);
-  console.log(`🔧 [${new Date().toISOString()}] 실거래 활성화: ${TRADING_CONFIG.isRealTradingEnabled}`);
+  console.log(`🎯 [${new Date().toISOString()}] 거래 모드: LIVE (실거래)`);
+  console.log(`🔧 [${new Date().toISOString()}] Live 거래 활성화: ${TRADING_CONFIG.isLiveTradingEnabled}`);
   console.log(`🌍 [${new Date().toISOString()}] 환경: ${process.env.NODE_ENV || 'development'}`);
-  
-  if (TRADING_CONFIG.isRealTradingEnabled) {
-    console.log(`⚠️  [${new Date().toISOString()}] 🚨 실거래 모드 활성화됨 - 실제 자금으로 거래가 실행됩니다! 🚨`);
-  } else {
-    console.log(`✅ [${new Date().toISOString()}] 🛡️  Mock 모드 - 안전한 시뮬레이션 거래`);
-  }
+  console.log(`🚨 [${new Date().toISOString()}] Live 거래 모드 - 실제 자금으로 거래가 실행됩니다! 🚨`);
 };

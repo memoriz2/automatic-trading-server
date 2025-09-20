@@ -1,42 +1,32 @@
 // ===== 클라이언트 거래 모드 설정 =====
 
 export interface ClientTradingConfig {
-  isMockMode: boolean;
-  tradingMode: 'mock' | 'real';
+  isLiveMode: boolean;
+  tradingMode: 'live';
   apiEndpoint: string;
   wsEndpoint: string;
 }
 
-// 서버의 거래 모드를 동적으로 확인
-const getTradingMode = (): 'mock' | 'real' => {
-  // 1. Vite 환경 변수 우선 확인 (강제 설정)
-  const viteMode = import.meta.env.VITE_TRADING_MODE;
-  if (viteMode === 'real') return 'real';
-  if (viteMode === 'mock') return 'mock';
-  
-  // 2. 서버 환경에서는 실거래 모드로 가정 (서버에서 ENABLE_REAL_TRADING 확인)
-  const isServerEnvironment = window.location.hostname !== 'localhost';
-  if (isServerEnvironment) return 'real';
-  
-  // 3. 로컬 개발 환경에서는 Mock 모드
-  return 'mock';
+// Live 모드로 통일 (Mock 모드 제거)
+const getTradingMode = (): 'live' => {
+  return 'live'; // 항상 Live 모드
 };
 
 export const CLIENT_TRADING_CONFIG: ClientTradingConfig = {
-  isMockMode: getTradingMode() === 'mock',
-  tradingMode: getTradingMode(),
-  apiEndpoint: getTradingMode() === 'mock' ? '/api/mock' : '/api/live',
-  wsEndpoint: getTradingMode() === 'mock' ? '/ws-mock' : '/ws-live'
+  isLiveMode: true, // 항상 Live 모드
+  tradingMode: 'live',
+  apiEndpoint: '/api/live',
+  wsEndpoint: '/ws-live'
 };
 
 // 서버에서 실제 거래 모드를 동적으로 확인하는 함수
-export const getServerTradingMode = async (): Promise<'mock' | 'real'> => {
+export const getServerTradingMode = async (): Promise<'live'> => {
   try {
     const response = await fetch('/api/server-info');
     if (response.ok) {
       const serverInfo = await response.json();
       // 서버 거래 모드 확인
-      return serverInfo.tradingMode === 'real' ? 'real' : 'mock';
+      return 'live'; // 항상 Live 모드
     }
   } catch (error) {
     // 서버 거래 모드 확인 실패, 클라이언트 설정 사용
@@ -46,26 +36,22 @@ export const getServerTradingMode = async (): Promise<'mock' | 'real'> => {
   return getTradingMode();
 };
 
-// 거래 모드 확인 함수들
-export const isMockMode = (): boolean => {
-  return CLIENT_TRADING_CONFIG.isMockMode;
+// 거래 모드 확인 함수들 (Live 모드로 통일)
+export const isLiveMode = (): boolean => {
+  return CLIENT_TRADING_CONFIG.isLiveMode;
 };
 
-export const isRealTradingMode = (): boolean => {
-  return !CLIENT_TRADING_CONFIG.isMockMode;
+export const isLiveTradingMode = (): boolean => {
+  return CLIENT_TRADING_CONFIG.isLiveMode;
 };
 
 // 환경 정보 로그 (개발 환경에서만)
 export const logClientTradingMode = (): void => {
   if (process.env.NODE_ENV === 'development') {
     console.log(`🎯 클라이언트 거래 모드: ${CLIENT_TRADING_CONFIG.tradingMode.toUpperCase()}`);
-    console.log(`🔧 Mock 모드: ${CLIENT_TRADING_CONFIG.isMockMode}`);
+    console.log(`🔧 Live 모드: ${CLIENT_TRADING_CONFIG.isLiveMode}`);
     console.log(`🌐 API 엔드포인트: ${CLIENT_TRADING_CONFIG.apiEndpoint}`);
     
-    if (CLIENT_TRADING_CONFIG.isMockMode) {
-      console.log(`✅ 🛡️  안전한 Mock 모드 - 시뮬레이션 거래만 실행`);
-    } else {
-      console.log(`⚠️  🚨 실거래 모드 - 실제 자금으로 거래 실행! 🚨`);
-    }
+    console.log(`🚨 Live 거래 모드 - 실제 자금으로 거래 실행! 🚨`);
   }
 };

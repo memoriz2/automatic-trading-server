@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
-import { LiveTradingSystem } from '@/components/mock-trading-system';
+import { LiveTradingSystem } from '@/components/live-trading-system';
 import { StrategyList } from '@/components/trading/StrategyList';
 import { KimchiChart } from '@/components/trading/KimchiChart';
 import { TradingHeader } from '@/components/trading/TradingHeader';
@@ -9,13 +9,16 @@ import { SessionInfoPanel } from '@/components/trading/SessionInfoPanel';
 import { MarketSnapshot } from '@/components/trading/MarketSnapshot';
 import { useTradingMode } from '@/hooks/useTradingMode';
 import { useApiConnection } from '@/hooks/useApiConnection';
-import { isNum, fx, loc, formatBTC, formatPercent } from '@/utils/trading/formatters';
-import { getInitialStrategy } from '@/config/strategy-defaults';
+import { isNum, fx, loc, formatBTC, formatPercent, floorQty, formatKRW, formatUSD, formatCompact } from '@/utils/trading/formatters';
+import { normalizeAmountBtc } from '@/utils/trading/calculations';
+import { getInitialStrategy, STRATEGY_DEFAULTS, getSafeLeverage } from '@/config/strategy-defaults';
+import { LEVERAGE_CONFIG, parseLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
 import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
 import './legacy-auto-trading.css';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
 import { markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
+import { logger } from '@/utils/logger';
 import { userIdManager } from '@/utils/user-id-manager';
 import { strategyBackupManager, useStrategyBackup } from '@/utils/strategy-backup';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +37,17 @@ interface Band {
 // 유틸리티 함수들은 별도 파일로 분리됨
 
 const LegacyAutoTradingPage = () => {
+  // 유틸리티 함수들
+  const mapStrategyToBand = (strategy: any) => ({
+    ...strategy,
+    band: strategy.band || 'default'
+  });
+
+  // 상수들
+  const TRADING_CONSTANTS = {
+    DEFAULT_TOLERANCE: '0.1'
+  };
+
   // 인증 정보
   const { user, isAuthenticated, isLoading, checkSession } = useAuth();
   const { isConnected, isConnecting: wsConnecting, connectionAttempts, lastHeartbeat, subscribe } = useWebSocket();
@@ -1726,7 +1740,7 @@ const LegacyAutoTradingPage = () => {
         netMs={netMs}
         canUseMock={canUseMock}
         tradingMode={tradingMode}
-        onModeChange={setTradingMode}
+        onModeChange={(mode) => setTradingMode('live')}
         onCheckSession={handleCheckSession}
         kimp={kimp}
       />
@@ -1737,7 +1751,7 @@ const LegacyAutoTradingPage = () => {
             sessionInfo={sessionInfo} 
           />
           {/* 거래 모드별 다른 UI */}
-          {(tradingMode === 'mock' && canUseMock) ? (
+          {false ? ( // Live 모드에서는 Mock 컴포넌트 사용 안함
             /* Mock 모드: 전략 관리 + 차트 */
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
             <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">

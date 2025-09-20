@@ -1,8 +1,8 @@
 import React from 'react';
-import { formatBTC } from '@/utils/trading/formatters';
+import { formatBTC, formatPrice } from '@/utils/trading/formatters';
 import { formatKoreanTime } from '@/utils/datetime';
 
-interface MockTrade {
+interface LiveTrade {
   id: string;
   timestamp: Date;
   type: 'buy' | 'sell' | 'spot' | 'short' | 'cover';
@@ -21,13 +21,13 @@ interface Strategy {
   name: string;
 }
 
-interface MockTradeHistoryProps {
+interface LiveTradeHistoryProps {
   tradingLogs: string[];
-  recentTrades: MockTrade[];
+  recentTrades: LiveTrade[];
   strategies: Strategy[];
 }
 
-export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
+export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
   tradingLogs,
   recentTrades,
   strategies
@@ -37,14 +37,14 @@ export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
     if (process.env.NODE_ENV === 'development') {
       const timer = setTimeout(() => {
         if (recentTrades.length === 0) {
-          console.warn('⚠️ MockTradeHistory: 5초 후에도 거래 기록이 없습니다. 거래 시스템 상태를 확인하세요.');
+          console.warn('⚠️ LiveTradeHistory: 5초 후에도 거래 기록이 없습니다. 거래 시스템 상태를 확인하세요.');
         }
       }, 5000);
       
       return () => clearTimeout(timer);
     }
   }, []); // 의존성 배열을 빈 배열로 변경하여 마운트 시 한 번만 실행
-  const getTradeTypeDisplay = (trade: MockTrade, strategy?: Strategy) => {
+  const getTradeTypeDisplay = (trade: LiveTrade, strategy?: Strategy) => {
     return trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN');
   };
 
@@ -111,7 +111,7 @@ export const MockTradeHistory: React.FC<MockTradeHistoryProps> = ({
                       trade.type === 'short' ? 'text-red-400' :
                       'text-green-400'
                     }`}>
-                      {formatBTC(Number(trade.quantity) || 0)} BTC @ {(Number(trade.price) || 0).toLocaleString()}
+                      {formatBTC(Number(trade.quantity) || 0)} BTC @ ₩{formatPrice(Number(trade.price) || 0)}
                       {trade.exchange === 'binance' && (trade.type === 'short' || trade.type === 'cover') && ' (선물)'}
                     </span>
                   </div>

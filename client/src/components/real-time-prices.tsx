@@ -127,7 +127,7 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
               <span className="font-mono text-blue-400">
                 ₩<NumberDisplay 
                   value={stableBtcData?.upbitPrice || 153906000}
-                  formatter={(v) => v.toLocaleString(undefined, {minimumFractionDigits: 3, maximumFractionDigits: 3})}
+                  formatter={(v) => Math.floor(v).toLocaleString('ko-KR')}
                   enableColorAnimation={true}
                 />
               </span>
@@ -137,7 +137,7 @@ export const RealTimePrices = React.memo<RealTimePricesProps>(({ kimchiData, cur
               <span className="font-mono text-yellow-400">
                 ₩<NumberDisplay 
                   value={(stableBtcData?.binanceFuturesPrice || 110756.90) * stableExchangeRate}
-                  formatter={(v) => v.toLocaleString(undefined, {minimumFractionDigits: 3, maximumFractionDigits: 3})}
+                  formatter={(v) => Math.floor(v).toLocaleString('ko-KR')}
                   enableColorAnimation={true}
                   baseColor="text-yellow-400"
                 />

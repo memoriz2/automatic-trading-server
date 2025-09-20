@@ -652,8 +652,8 @@ export async function registerRoutes(
         isReplit: isReplitEnv,
         environment: process.env.NODE_ENV || "development",
         tradingMode: TRADING_CONFIG.tradingMode,
-        isRealTradingEnabled: TRADING_CONFIG.isRealTradingEnabled,
-        isMockMode: TRADING_CONFIG.tradingMode === "mock"
+        isRealTradingEnabled: TRADING_CONFIG.isLiveTradingEnabled,
+        isMockMode: false // Live 모드만 지원
       });
     } catch (error) {
       console.error("Failed to get server info:", error);
@@ -3702,7 +3702,7 @@ window.onload = () => {
       
       console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type });
       
-      if (!TRADING_CONFIG.isRealTradingEnabled) {
+      if (!TRADING_CONFIG.isLiveTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
       }
       
@@ -3816,7 +3816,7 @@ window.onload = () => {
       
       console.log(`🔄 바이낸스 숏 포지션 청산 요청:`, { userId, symbol, quantity, strategyId });
       
-      if (!TRADING_CONFIG.isRealTradingEnabled) {
+      if (!TRADING_CONFIG.isLiveTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
       }
       
@@ -4058,7 +4058,7 @@ window.onload = () => {
       
       console.log(`🚨 실거래 업비트 매도 주문:`, { userId, market, volume, ord_type });
       
-      if (!TRADING_CONFIG.isRealTradingEnabled) {
+      if (!TRADING_CONFIG.isLiveTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
       }
       
@@ -4139,7 +4139,7 @@ window.onload = () => {
       
       console.log(`🚨 실거래 바이낸스 숏 주문:`, { userId, symbol, quantity, leverage, strategyId });
       
-      if (!TRADING_CONFIG.isRealTradingEnabled) {
+      if (!TRADING_CONFIG.isLiveTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
       }
 

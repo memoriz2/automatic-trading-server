@@ -1,6 +1,6 @@
 // ===== 거래 서비스 매니저 (환경별 분기) =====
 
-import { TRADING_CONFIG, isMockMode, isRealTradingMode } from '../config/trading-config.js';
+import { TRADING_CONFIG, isLiveMode } from '../config/trading-config.js';
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
@@ -13,8 +13,8 @@ export interface TradingResult {
 }
 
 export class TradingManager {
-  private upbitService?: UpbitService;
-  private binanceService?: BinanceService;
+  // private upbitService?: UpbitService; // 현재 사용하지 않음
+  // private binanceService?: BinanceService; // 현재 사용하지 않음
 
   constructor() {
     console.log(`🎯 TradingManager 초기화: ${TRADING_CONFIG.tradingMode} 모드`);
@@ -22,7 +22,7 @@ export class TradingManager {
 
   // 사용자별 거래소 서비스 초기화
   private async initializeServices(userId: number): Promise<{ upbit?: UpbitService; binance?: BinanceService }> {
-    if (isMockMode()) {
+    if (!isLiveMode()) {
       console.log(`🛡️  Mock 모드: 실제 API 서비스 초기화 건너뛰기`);
       return {}; // Mock 모드에서는 실제 서비스 불필요
     }
@@ -60,7 +60,7 @@ export class TradingManager {
     currentKimp: number;
   }): Promise<TradingResult> {
     
-    if (isMockMode()) {
+    if (!isLiveMode()) {
       return this.executeMockForceEntry(userId, params);
     } else {
       return this.executeRealForceEntry(userId, params);
@@ -171,14 +171,14 @@ export class TradingManager {
 
   // 잔고 조회 (환경별 분기)
   async getBalance(userId: number): Promise<any> {
-    if (isMockMode()) {
+    if (!isLiveMode()) {
       return this.getMockBalance(userId);
     } else {
       return this.getRealBalance(userId);
     }
   }
 
-  private async getMockBalance(userId: number): Promise<any> {
+  private async getMockBalance(_userId: number): Promise<any> {
     // Mock 잔고 (로컬스토리지 또는 기본값)
     return {
       krw: 100000000,

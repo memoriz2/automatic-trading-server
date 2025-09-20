@@ -40,11 +40,13 @@ export default function Dashboard() {
       }
       
       // 로컬 환경에서는 서버 정보 API로 실제 포트 확인
-      const commonPorts = [5000, 5001, 5002, 5003, 3000, 8000];
+      const commonPorts = [5002, 5000, 5001, 5003, 3000, 8000];
       
       for (const port of commonPorts) {
         try {
-          const response = await fetch(`http://localhost:${port}/api/server-info`);
+          const response = await fetch(`http://localhost:${port}/api/server-info`, {
+            credentials: 'include'
+          });
           if (response.ok) {
             const serverInfo = await response.json();
             return port;

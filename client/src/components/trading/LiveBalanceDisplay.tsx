@@ -1,7 +1,7 @@
 import React from 'react';
-import { formatBTC } from '@/utils/trading/formatters';
+import { formatBTC, formatPrice, formatInteger } from '@/utils/trading/formatters';
 
-interface MockBalance {
+interface LiveBalance {
   krw: number;
   btc: number;
   usdt: number;
@@ -10,16 +10,16 @@ interface MockBalance {
   binanceUsdt: number;
 }
 
-interface MockBalanceDisplayProps {
-  mockBalance: MockBalance;
+interface LiveBalanceDisplayProps {
+  liveBalance: LiveBalance;
   openUpbitQty: number;
   openBinanceQty: number;
   profitRate: number;
   totalPnl: number;
 }
 
-export const MockBalanceDisplay: React.FC<MockBalanceDisplayProps> = ({
-  mockBalance,
+export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
+  liveBalance,
   openUpbitQty,
   openBinanceQty,
   profitRate,
@@ -32,7 +32,7 @@ export const MockBalanceDisplay: React.FC<MockBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 KRW</h4>
           <p className="text-xl font-bold text-blue-400">
-            ₩{Math.floor(mockBalance.krw || 0).toLocaleString()}
+            ₩{Math.floor(liveBalance.krw || 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
@@ -50,7 +50,7 @@ export const MockBalanceDisplay: React.FC<MockBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 USDT</h4>
           <p className="text-xl font-bold text-green-400">
-            ${Math.floor(mockBalance.binanceUsdt || 0).toLocaleString()}
+            ${Math.floor(liveBalance.binanceUsdt || 0).toLocaleString()}
           </p>
         </div>
       </div>

@@ -37,8 +37,18 @@ export function useWebSocket() {
         // 환경별 WebSocket URL 결정
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const baseHostname = window.location.hostname.replace(/^www\./, '');
-        // 포트가 비어있으면 기본값 사용
-        const port = window.location.port || (protocol === "wss:" ? "443" : "5001");
+        
+        // 포트 결정 로직 개선
+        let port: string;
+        if (window.location.port) {
+          port = window.location.port;
+        } else if (protocol === "wss:") {
+          port = "443";
+        } else {
+          // HTTP 환경에서 기본 포트 결정
+          port = window.location.hostname === 'localhost' ? "5001" : "5000";
+        }
+        
         const host = `${baseHostname}:${port}`;
         
         // 연결 시도는 첫 번째와 실패 후에만 로그

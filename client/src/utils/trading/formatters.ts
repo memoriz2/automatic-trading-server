@@ -9,10 +9,18 @@ export const loc = (v: number | undefined | null) =>
   (isNum(v) ? Number(v).toLocaleString() : '-');
 
 export const formatKRW = (n: number) => 
-  new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(Math.round(n));
+  new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(Math.floor(n));
 
 export const formatUSD = (n: number) => 
-  new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(n));
+  new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.floor(n));
+
+// 정수 포맷팅 (소수점 완전 제거)
+export const formatInteger = (n: number) => 
+  new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(Math.floor(n));
+
+// 가격 포맷팅 (소수점 없이)
+export const formatPrice = (n: number) => 
+  Math.floor(n).toLocaleString('ko-KR');
 
 export const formatCompact = (n: number, digits = 1): string => {
   const abs = Math.abs(n);
@@ -25,21 +33,15 @@ export const formatCompact = (n: number, digits = 1): string => {
 export const floorQty = (q: number | string | undefined | null) => 
   Math.floor((Number(q) || 0) / 0.001) * 0.001;
 
-// 스마트 BTC 포맷팅 (소수점 3자리까지, 절삭) - v5 (안전한 0 처리)
+// BTC 포맷팅 (소수점 3자리 고정 표시)
 export const formatBTC = (value: number): string => {
-  if (value === 0) return '0';
+  if (value === 0) return '0.000';
   
-  // 모든 값을 소수점 3자리까지 절삭
+  // 소수점 3자리까지 절삭 (반올림 아님)
   const truncated = Math.floor(value * 1000) / 1000;
   
-  // 절삭 후 0이 되면 명시적으로 '0' 반환
-  if (truncated === 0) return '0';
-  
-  // 불필요한 뒤쪽 0 완전히 제거
-  const result = truncated.toString().replace(/\.?0+$/, '');
-  
-  // 빈 문자열이나 '.'만 남으면 '0' 반환
-  return result === '' || result === '.' ? '0' : result;
+  // 소수점 3자리로 고정 표시
+  return truncated.toFixed(3);
 };
 
 // 스마트 퍼센트 포맷팅 (소수점 3자리까지, 절삭)

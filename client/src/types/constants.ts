@@ -1,4 +1,4 @@
-있// ===== 거래소 관련 상수 =====
+// ===== 거래소 관련 상수 =====
 
 export const EXCHANGES = {
   UPBIT: 'upbit',

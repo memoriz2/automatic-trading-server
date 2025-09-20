@@ -138,7 +138,7 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     <span className="font-mono text-blue-400">
                       ₩<NumberDisplay 
                         value={data.upbitPrice}
-                        formatter={(v) => v.toLocaleString()}
+                        formatter={(v) => Math.floor(v).toLocaleString('ko-KR')}
                       />
                     </span>
                   </div>
@@ -147,7 +147,7 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     <span className="font-mono text-yellow-400">
                       ₩<NumberDisplay 
                         value={data.binancePriceKRW || ((data.binanceFuturesPrice || data.binancePrice || 0) * (data.usdKrwRate || data.exchangeRate || 1391))}
-                        formatter={(v) => v?.toLocaleString()}
+                        formatter={(v) => Math.floor(v || 0).toLocaleString('ko-KR')}
                       />
                     </span>
                   </div>
@@ -156,7 +156,7 @@ export const CryptoPricesGrid = React.memo<CryptoPricesGridProps>(({ kimchiData 
                     <span className="font-mono text-slate-300">
                       $<NumberDisplay 
                         value={data.binanceFuturesPrice || data.binancePrice}
-                        formatter={(v) => v?.toLocaleString()}
+                        formatter={(v) => Math.floor(v || 0).toLocaleString('en-US')}
                       />
                     </span>
                   </div>

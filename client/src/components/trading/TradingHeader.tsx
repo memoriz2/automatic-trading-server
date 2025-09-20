@@ -7,8 +7,8 @@ interface TradingHeaderProps {
   errCount: number;
   netMs: number | null;
   canUseMock: boolean;
-  tradingMode: 'real' | 'mock';
-  onModeChange: (mode: 'real' | 'mock') => void;
+  tradingMode: 'real' | 'mock' | 'live';
+  onModeChange: (mode: 'real' | 'mock' | 'live') => void;
   onCheckSession: () => void;
   kimp: any;
 }
@@ -87,7 +87,7 @@ export const TradingHeader: React.FC<TradingHeaderProps> = ({
           <span>세션 확인</span>
         </button>
         <span id="kimp-brief" className="kimp-brief mono" aria-live="polite">
-          {`김프 ${fx(kimp.kimp, 3)}% · 업비트 ${loc(kimp.upbit_price)} KRW · 바이낸스 ${fx(kimp.binance_price, 2)} USDT · 환율 ${fx(kimp.usdkrw, 2)}`}
+          {`김프 ${fx(kimp.kimp, 3)}% · 업비트 ${loc(kimp.upbit_price)} KRW · 바이낸스 $${Math.floor(kimp.binance_price).toLocaleString('en-US')} · 환율 ${fx(kimp.usdkrw, 2)}`}
         </span>
       </div>
     </header>

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatBTC } from '@/utils/trading/formatters';
+import { formatBTC, formatPrice, formatInteger } from '@/utils/trading/formatters';
 
-interface MockPosition {
+interface LivePosition {
   id: string;
   strategyId: string;
   strategyName?: string; // 전략 이름 추가
@@ -37,22 +37,22 @@ interface KimchiData {
   dataAge?: number;
 }
 
-interface MockPositionListProps {
-  mockPositions: MockPosition[];
+interface LivePositionListProps {
+  livePositions: LivePosition[];
   strategies: Strategy[];
   lastKimchiData: KimchiData | null;
-  onMockExit: (position: MockPosition, premiumRate: number, ratio?: number) => void;
+  onLiveExit: (position: LivePosition, premiumRate: number, ratio?: number) => void;
 }
 
-export const MockPositionList: React.FC<MockPositionListProps> = React.memo(({
-  mockPositions,
+export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
+  livePositions,
   strategies,
   lastKimchiData,
-  onMockExit
+  onLiveExit
 }) => {
-  const activePositions = mockPositions.filter(p => p.status === 'open');
+  const activePositions = livePositions.filter(p => p.status === 'open');
 
-  const getStrategyName = (position: MockPosition): string => {
+  const getStrategyName = (position: LivePosition): string => {
     // 1. 포지션에 저장된 이름 우선 사용
     if (position.strategyName) {
       return position.strategyName;
@@ -71,7 +71,7 @@ export const MockPositionList: React.FC<MockPositionListProps> = React.memo(({
     return `전략 #${String(position.strategyId).slice(-4)}`; // ID 기반으로 표시
   };
 
-  const calculatePnL = (position: MockPosition) => {
+  const calculatePnL = (position: LivePosition) => {
     // === 현재 시장 데이터 ===
     const currentPremium = lastKimchiData?.kimp ?? position.entryPremiumRate; // 현재 김치프리미엄 (%)
     
@@ -176,7 +176,7 @@ export const MockPositionList: React.FC<MockPositionListProps> = React.memo(({
                     size="sm" 
                     variant="outline"
                     className="text-xs px-2 py-1 h-6"
-                    onClick={() => onMockExit(position, pnlData.currentPremium, 0.5)}
+                    onClick={() => onLiveExit(position, pnlData.currentPremium, 0.5)}
                   >
                     50% 청산
                   </Button>
@@ -184,7 +184,7 @@ export const MockPositionList: React.FC<MockPositionListProps> = React.memo(({
                     size="sm" 
                     variant="destructive"
                     className="text-xs px-2 py-1 h-6"
-                    onClick={() => onMockExit(position, pnlData.currentPremium, 1.0)}
+                    onClick={() => onLiveExit(position, pnlData.currentPremium, 1.0)}
                   >
                     전체 청산
                   </Button>
