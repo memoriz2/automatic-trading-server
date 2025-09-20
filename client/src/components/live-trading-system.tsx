@@ -1637,7 +1637,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 김프 데이터 업데이트 및 저장 (무한 루프 방지 - 값 기반 비교)
   useEffect(() => {
     if (currentKimchiData && typeof currentKimchiData.kimp === 'number') {
-      setLastKimchiData(prev => {
+      setLastKimchiData((prev: any) => {
         // 이전 값과 비교하여 실제 변화가 있을 때만 업데이트
         if (!prev || 
             prev.kimp !== currentKimchiData.kimp ||

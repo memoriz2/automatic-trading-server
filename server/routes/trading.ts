@@ -137,7 +137,7 @@ export function registerTradingRoutes(app: Express): void {
         });
       }
 
-      const updatedSettings = await storage.updateTradingSettings(String(userId), parseResult.data);
+      const updatedSettings = await storage.updateTradingSettings(Number(userId), parseResult.data);
       res.json(updatedSettings);
     } catch (error) {
       console.error("거래 설정 업데이트 오류:", error);

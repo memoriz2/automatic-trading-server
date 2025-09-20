@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [previousExchangeRate, setPreviousExchangeRate] = useState<number | null>(null);
   const { isConnected, subscribe } = useWebSocket();
   const { toast } = useToast();
-  const { user, token } = useAuth(); // useAuth에서 token 직접 가져오기
+  const { user } = useAuth(); // useAuth에서 user만 가져오기
   
   // 세션에서 로그인한 사용자 ID 사용 (로그인 필수)
   const userId = user?.id;
