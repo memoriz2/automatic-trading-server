@@ -73,13 +73,13 @@ export const calculateExitTrade = (
   const upbitSellQuantity = position.upbitQuantity * ratio;
   const binanceCloseQuantity = position.binanceQuantity * ratio;
 
-  // 업비트 매도 계산
-  const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice;
-  const upbitFee = upbitSellRevenue * 0.0005;
-  const upbitNetRevenue = upbitSellRevenue - upbitFee;
+  // 🔄 업비트 매도 계산 (현재 가격 기준 실시간 수수료)
+  const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice;            // 현재 가격 기준 매도 금액
+  const upbitFee = upbitSellRevenue * 0.0005;                               // 실시간 매도 수수료 (0.05%)
+  const upbitNetRevenue = upbitSellRevenue - upbitFee;                       // 수수료 차감 후 순수령액
 
-  // 바이낸스 선물 숏 포지션 청산 계산 (김치프리미엄 전용 로직)
-  const binanceFee = binanceCloseQuantity * currentBinancePrice * 0.0004;
+  // 🔄 바이낸스 선물 숏 포지션 청산 계산 (현재 가격 기준 실시간 수수료)
+  const binanceFee = binanceCloseQuantity * currentBinancePrice * 0.0004;    // 실시간 청산 수수료 (0.04%)
   
   // 김치프리미엄 거래에서는 바이낸스 가격 변동 무시하고 증거금만 반환
   // (업비트-바이낸스 가격차이로만 수익 결정)

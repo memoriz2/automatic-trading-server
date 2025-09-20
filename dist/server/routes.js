@@ -240,10 +240,30 @@ export async function registerRoutes(app, server) {
                 exits: exitTrades.length, // 거래 기반 청산 수 (더 직관적)
                 upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
                 binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
-                total_fees: todayTrades.reduce((sum, trade) => {
-                    const fee = Number(trade.fee || 0);
-                    return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
-                }, 0),
+                total_fees: (() => {
+                    // 완료된 거래 수수료
+                    const completedFees = todayTrades.reduce((sum, trade) => {
+                        const fee = Number(trade.fee || 0);
+                        return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
+                    }, 0);
+                    // 🔄 활성 포지션의 실시간 예상 매도 수수료 추가
+                    const activePositionFees = positions.filter(p => p.status === 'open').reduce((sum, position) => {
+                        // 실시간 김치 데이터에서 현재 가격 가져오기
+                        const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
+                        const btcData = realtimeData.find(d => d.symbol === 'BTC');
+                        const currentUpbitPrice = btcData?.upbitPrice || 160000000; // 기본값
+                        const currentBinancePrice = btcData?.binanceFuturesPrice || 115000; // 기본값
+                        const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
+                        // 업비트 예상 매도 수수료 (실시간)
+                        const upbitSellAmount = (position.upbitQuantity || 0) * currentUpbitPrice;
+                        const upbitExitFee = upbitSellAmount * 0.0005;
+                        // 바이낸스 예상 매도 수수료 (실시간)
+                        const binanceSellAmount = (position.binanceQuantity || 0) * currentBinancePrice;
+                        const binanceExitFee = (binanceSellAmount * 0.0004) * currentUsdKrw;
+                        return sum + upbitExitFee + binanceExitFee;
+                    }, 0);
+                    return completedFees + activePositionFees;
+                })(),
                 total_profit_rate: (() => {
                     // 간단한 수익률 계산: 총 수수료 대비 손익
                     const totalFeesKrw = todayTrades.reduce((sum, trade) => {

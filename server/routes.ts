@@ -283,10 +283,62 @@ export async function registerRoutes(
         exits: exitTrades.length, // 거래 기반 청산 수 (더 직관적)
         upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
         binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
-        total_fees: todayTrades.reduce((sum, trade) => {
-          const fee = Number(trade.fee || 0);
-          return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
-        }, 0),
+        total_fees: (() => {
+          // 완료된 거래 수수료
+          const completedFees = todayTrades.reduce((sum, trade) => {
+            const fee = Number(trade.fee || 0);
+            return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
+          }, 0);
+          
+          // 🔄 활성 포지션의 실시간 예상 매도 수수료 추가 (최적화)
+          let activePositionFees = 0;
+          const activePositions = positions.filter(p => p.status === 'open');
+          
+          console.log(`🔍 [daily-stats] 활성 포지션: ${activePositions.length}개`);
+          
+          if (activePositions.length > 0) {
+            // 실시간 김치 데이터 한 번만 조회
+            const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
+            const btcData = realtimeData.find(d => d.symbol === 'BTC');
+            
+            console.log(`🔍 [daily-stats] BTC 데이터:`, {
+              upbitPrice: btcData?.upbitPrice,
+              binancePrice: btcData?.binanceFuturesPrice,
+              usdKrw: btcData?.usdKrwRate
+            });
+            
+            const currentUpbitPrice = btcData?.upbitPrice || 160000000; // 기본값
+            const currentBinancePrice = btcData?.binanceFuturesPrice || 115000; // 기본값
+            const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
+            
+            // 모든 활성 포지션에 대해 수수료 계산 (캐시된 가격 사용)
+            activePositionFees = activePositions.reduce((sum, position, index) => {
+              // 업비트 예상 매도 수수료 (실시간) - 올바른 필드명 사용
+              const upbitQuantity = position.quantity || position.upbitQuantity || 0;
+              const upbitSellAmount = upbitQuantity * currentUpbitPrice;
+              const upbitExitFee = upbitSellAmount * 0.0005;
+              
+              // 바이낸스 예상 매도 수수료 (실시간) - 올바른 필드명 사용
+              const binanceQuantity = position.binance_quantity || position.binanceQuantity || 0;
+              const binanceSellAmount = binanceQuantity * currentBinancePrice;
+              const binanceExitFee = (binanceSellAmount * 0.0004) * currentUsdKrw;
+              
+              console.log(`🔍 [daily-stats] 포지션 ${index + 1}:`, {
+                upbitQuantity,
+                binanceQuantity,
+                upbitExitFee: upbitExitFee.toFixed(2),
+                binanceExitFee: binanceExitFee.toFixed(2),
+                totalFee: (upbitExitFee + binanceExitFee).toFixed(2)
+              });
+              
+              return sum + upbitExitFee + binanceExitFee;
+            }, 0);
+            
+            console.log(`🔍 [daily-stats] 총 예상 매도 수수료: ₩${activePositionFees.toFixed(2)}`);
+          }
+          
+          return completedFees + activePositionFees;
+        })(),
         total_profit_rate: (() => {
           // 간단한 수익률 계산: 총 수수료 대비 손익
           const totalFeesKrw = todayTrades.reduce((sum, trade) => {

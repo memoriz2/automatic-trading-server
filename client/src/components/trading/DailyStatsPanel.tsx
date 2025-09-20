@@ -1,5 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRealTimeStats } from '@/hooks/useRealTimeStats';
+
+// 최적화된 실시간 수수료 애니메이션 컴포넌트
+const AnimatedFeeNumber: React.FC<{ value: number }> = ({ value }) => {
+  const [previousValue, setPreviousValue] = useState<number>(value);
+  const [animationClass, setAnimationClass] = useState<string>('text-yellow-400');
+  const animationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // 의미있는 변화만 애니메이션 (₩1 이상 차이)
+    const significantChange = Math.abs(value - previousValue) >= 1;
+    
+    if (significantChange && previousValue > 0) {
+      // 기존 타이머 정리
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+      
+      if (value > previousValue) {
+        // 수수료 증가: 빨간색 깜빡임
+        setAnimationClass('text-red-400 transition-colors duration-300');
+      } else if (value < previousValue) {
+        // 수수료 감소: 파란색 깜빡임
+        setAnimationClass('text-blue-400 transition-colors duration-300');
+      }
+      
+      // 디바운싱: 300ms 후 원래 색상으로 복구
+      animationTimeoutRef.current = setTimeout(() => {
+        setAnimationClass('text-yellow-400 transition-colors duration-300');
+      }, 300);
+      
+      setPreviousValue(value);
+    }
+  }, [value, previousValue]);
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <span className={animationClass}>
+      ₩{value.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
+    </span>
+  );
+};
 
 interface DailyStatsPanelProps {
   userId?: number;
@@ -58,10 +107,10 @@ export const DailyStatsPanel: React.FC<DailyStatsPanelProps> = ({
       {/* 두 번째 줄: 수익성 지표 */}
       <div className="grid grid-cols-2 gap-3 mt-3">
         <div className="text-center">
-          <p className="text-xl font-bold text-yellow-400">
-            ₩{stats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
+          <p className="text-xl font-bold">
+            <AnimatedFeeNumber value={stats.totalFees} />
           </p>
-          <p className="text-xs text-slate-400">총 수수료</p>
+          <p className="text-xs text-slate-400">총 수수료 (실시간)</p>
         </div>
         <div className="text-center">
           <p className={`text-xl font-bold ${stats.totalProfitRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>

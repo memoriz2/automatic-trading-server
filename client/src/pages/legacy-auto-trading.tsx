@@ -1821,8 +1821,36 @@ const LegacyAutoTradingPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-yellow-400">₩{dailyStats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}</p>
-                  <p className="text-xs text-slate-400">총 수수료</p>
+                  <p className="text-lg font-bold text-yellow-400">
+                    ₩{(() => {
+                      // 실시간 수수료 계산 및 표시
+                      const [previousFee, setPreviousFee] = React.useState(dailyStats.totalFees);
+                      const [animationClass, setAnimationClass] = React.useState('');
+                      
+                      React.useEffect(() => {
+                        if (previousFee !== dailyStats.totalFees && previousFee > 0) {
+                          if (dailyStats.totalFees > previousFee) {
+                            setAnimationClass('text-red-400 transition-colors duration-300');
+                          } else if (dailyStats.totalFees < previousFee) {
+                            setAnimationClass('text-blue-400 transition-colors duration-300');
+                          }
+                          
+                          setTimeout(() => {
+                            setAnimationClass('text-yellow-400 transition-colors duration-300');
+                          }, 300);
+                          
+                          setPreviousFee(dailyStats.totalFees);
+                        }
+                      }, [dailyStats.totalFees, previousFee]);
+                      
+                      return (
+                        <span className={animationClass || 'text-yellow-400'}>
+                          {dailyStats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
+                        </span>
+                      );
+                    })()}
+                  </p>
+                  <p className="text-xs text-slate-400">총 수수료 (실시간)</p>
                 </div>
                 <div className="text-center">
                   <p className={`text-lg font-bold ${dailyStats.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>

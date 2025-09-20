@@ -91,13 +91,21 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
     const premiumPnl = (premiumDelta / 100) * totalInvestment;               // 김프 변화 손익
     
     // === 총 매매 수수료 (진입+청산) ===
-    const upbitEntryFee = upbitInvestment * 0.0005;                          // 업비트 진입 수수료 (매수 0.05%)
-    const upbitExitFee = upbitInvestment * 0.0005;                           // 업비트 청산 수수료 (매도 0.05%)
-    const upbitTotalFee = upbitEntryFee + upbitExitFee;                      // 업비트 총 수수료 (0.1%)
+    const upbitEntryFee = upbitInvestment * 0.0005;                          // 업비트 진입 수수료 (매수 0.05%) - 고정
+    
+    // 🔄 업비트 매도 수수료: 현재 가격 기준으로 실시간 계산
+    const currentUpbitPrice = lastKimchiData?.upbit_price || position.upbitPrice; // 현재 업비트 BTC 가격
+    const currentUpbitSellAmount = position.upbitQuantity * currentUpbitPrice; // 현재 가격 기준 매도 금액
+    const upbitExitFee = currentUpbitSellAmount * 0.0005;                    // 실시간 매도 수수료 (0.05%)
+    const upbitTotalFee = upbitEntryFee + upbitExitFee;                      // 업비트 총 수수료
     
     const binanceEntryFee = (position.binanceQuantity * position.binancePrice * 0.0004) * currentUsdKrw; // 바이낸스 진입 수수료 (KRW)
-    const binanceExitFee = (position.binanceQuantity * position.binancePrice * 0.0004) * currentUsdKrw;  // 바이낸스 청산 수수료 (KRW)
-    const binanceTotalFee = binanceEntryFee + binanceExitFee;                // 바이낸스 총 수수료 (0.08%)
+    
+    // 🔄 바이낸스 매도 수수료: 현재 가격 기준으로 실시간 계산  
+    const currentBinancePrice = lastKimchiData?.binance_price || position.binancePrice; // 현재 바이낸스 BTC 가격
+    const currentBinanceSellAmount = position.binanceQuantity * currentBinancePrice; // 현재 가격 기준 매도 금액 (USD)
+    const binanceExitFee = (currentBinanceSellAmount * 0.0004) * currentUsdKrw;     // 실시간 매도 수수료 (KRW)
+    const binanceTotalFee = binanceEntryFee + binanceExitFee;                // 바이낸스 총 수수료
     
     const totalFee = upbitTotalFee + binanceTotalFee;                        // 총 매매 수수료
     
