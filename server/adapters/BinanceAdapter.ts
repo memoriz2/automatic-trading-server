@@ -213,8 +213,23 @@ export class BinanceAdapter extends BaseExchangeAdapter {
    * 연결 테스트
    */
   async testConnection(): Promise<{ success: boolean; permissions: string[]; error?: string }> {
+    const permissions: string[] = [];
+    let hasAnyAccess = false;
+    let lastError: any = null;
+
+    // 선물 계정 우선 테스트 (exchangeTestService와 동일한 방식)
     try {
-      // 현물 계정 정보 조회로 연결 테스트
+      const futuresAccount = await this.apiRequest('/fapi/v2/account', 'GET', {}, true);
+      permissions.push('futures');
+      hasAnyAccess = true;
+      console.log('✅ 바이낸스 선물 API 접근 성공');
+    } catch (error) {
+      console.warn('⚠️ 바이낸스 선물 API 접근 실패:', error);
+      lastError = error;
+    }
+
+    // 현물 계정 정보 조회 시도 (선택사항)
+    try {
       const accountInfo = await this.apiRequest<{
         makerCommission: number;
         takerCommission: number;
@@ -230,28 +245,28 @@ export class BinanceAdapter extends BaseExchangeAdapter {
         }>;
       }>('/api/v3/account');
 
-      const permissions = [];
+      hasAnyAccess = true;
       if (accountInfo.canTrade) permissions.push('spot');
       if (accountInfo.canWithdraw) permissions.push('withdraw');
       if (accountInfo.canDeposit) permissions.push('deposit');
+      console.log('✅ 바이낸스 현물 API 접근 성공');
+    } catch (error) {
+      console.warn('⚠️ 바이낸스 현물 API 접근 실패 (권한 없음):', error);
+      // 선물이 성공했다면 현물 실패는 무시
+      if (!hasAnyAccess) lastError = error;
+    }
 
-      // 선물 계정도 테스트
-      try {
-        await this.apiRequest('/fapi/v2/account', 'GET', {}, true);
-        permissions.push('futures');
-      } catch {
-        // 선물 권한 없음 (무시)
-      }
-
+    // 현물 또는 선물 중 하나라도 접근 가능하면 성공
+    if (hasAnyAccess) {
       return {
         success: true,
         permissions
       };
-    } catch (error: any) {
+    } else {
       return {
         success: false,
         permissions: [],
-        error: error.message
+        error: lastError?.message || '바이낸스 API 접근 권한이 없습니다'
       };
     }
   }
@@ -284,7 +299,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
           });
         });
     } catch (error) {
-      console.warn('바이낸스 현물 잔고 조회 실패:', error);
+      console.warn('바이낸스 현물 잔고 조회 실패 (권한 없음 가능성):', error);
     }
 
     // 선물 잔고 조회 (계정 정보 API 사용)

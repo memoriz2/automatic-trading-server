@@ -2173,17 +2173,23 @@ export async function registerRoutes(
         try {
           console.log(`💰 [연동테스트] ${exchange} 잔고 조회 시작...`);
           
-          const balanceService = new BalanceService();
-          const balanceData = await balanceService.getUserBalances(authenticatedUserId);
+          // testResult.details에서 직접 잔고 정보 사용
+          const binanceBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
+          console.log(`💰 [연동테스트] ${exchange} USDT 잔고: ${binanceBalance} (details에서 직접 사용)`);
           
-          const binanceBalance = balanceData.real.usdt || 0;
-          console.log(`💰 [연동테스트] ${exchange} USDT 잔고: ${binanceBalance}`);
+          // BalanceService도 호출하여 캐시 업데이트
+          try {
+            const balanceService = new BalanceService();
+            await balanceService.getUserBalances(authenticatedUserId);
+          } catch (balanceError) {
+            console.warn('⚠️ 잔고 캐시 업데이트 실패:', balanceError);
+          }
           
           res.json({
             ...testResult,
             balance: {
               usdt: binanceBalance,
-              connected: balanceData.connected.binance
+              connected: true  // 연동 테스트 성공했으므로 true
             }
           });
         } catch (balanceError) {

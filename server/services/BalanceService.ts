@@ -325,8 +325,18 @@ export class BalanceService {
       } else if (balance.exchange === 'binance') {
         balanceDetails.binance.push(balance);
         if (balance.currency === 'USDT') {
-          real.usdt = balance.total;
+          // 현물과 선물 USDT 잔고를 합산하거나, 더 큰 값을 사용
+          real.usdt = Math.max(real.usdt || 0, balance.total);
         }
+      }
+    });
+
+    console.log(`🔍 [BalanceService] 포맷팅된 잔고 데이터:`, {
+      real,
+      connected,
+      balanceCount: {
+        upbit: balanceDetails.upbit.length,
+        binance: balanceDetails.binance.length
       }
     });
 
