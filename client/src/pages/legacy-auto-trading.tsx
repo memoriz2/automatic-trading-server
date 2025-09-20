@@ -1937,6 +1937,7 @@ const LegacyAutoTradingPage = () => {
 
           {/* 거래 시스템 섹션 */}
           <section className="card col-12">
+            
             {realTimeDataStatus ? realTimeDataStatus : (
             (liveConnected || window.location.hostname === 'localhost') ? (
               /* 실시간 거래 시스템 */

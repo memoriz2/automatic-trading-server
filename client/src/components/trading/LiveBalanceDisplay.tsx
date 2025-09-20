@@ -1,5 +1,7 @@
 import React from 'react';
 import { formatBTC, formatPrice, formatInteger } from '@/utils/trading/formatters';
+import { useRealTimeBalances } from '@/hooks/useRealTimeBalances';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LiveBalance {
   krw: number;
@@ -25,6 +27,8 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   profitRate,
   totalPnl
 }) => {
+  const { user } = useAuth();
+  const { balances: realtimeBalances } = useRealTimeBalances(user?.id);
   return (
     <>
       {/* 잔고 표시 */}
@@ -38,14 +42,17 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 BTC</h4>
           <p className="text-xl font-bold text-yellow-400">
-            {formatBTC(openUpbitQty || 0)} BTC
+            {formatBTC(realtimeBalances?.upbitBtc || 0)} BTC
           </p>
+          <p className="text-xs text-slate-500">실시간</p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>
           <p className="text-xl font-bold text-orange-400">
-            {formatBTC(openBinanceQty || 0)} BTC
+            {formatBTC(Math.abs(realtimeBalances?.binanceBtc || 0))} BTC
+            {(realtimeBalances?.binanceBtc || 0) < 0 && <span className="text-red-400 ml-1">(숏)</span>}
           </p>
+          <p className="text-xs text-slate-500">실시간</p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 USDT</h4>

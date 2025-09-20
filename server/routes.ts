@@ -228,6 +228,70 @@ export async function registerRoutes(
     res.json(m);
   });
 
+  // 실시간 거래소 잔고 조회 API
+  app.get("/api/realtime-balances", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      console.log(`🔍 [realtime-balances] 사용자 ${userId} 실시간 잔고 조회 시작`);
+      
+      // 실시간 거래소 잔고 조회
+      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+      console.log(`🔍 [realtime-balances] 거래소 연결 정보:`, exchanges.map(e => ({ exchange: e.exchange, isActive: e.isActive })));
+      
+      const upbitExchange = exchanges.find((e) => e.exchange === "upbit" && e.isActive);
+      const binanceExchange = exchanges.find((e) => e.exchange === "binance" && e.isActive);
+      
+      let upbitBtc = 0;
+      let binanceBtc = 0;
+      
+      // 업비트 실시간 BTC 잔고
+      if (upbitExchange) {
+        console.log(`🔍 [realtime-balances] 업비트 API 호출 중...`);
+        try {
+          const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+          const accounts = await upbitService.getAccounts();
+          console.log(`🔍 [realtime-balances] 업비트 계좌 정보:`, accounts.map(a => ({ currency: a.currency, balance: a.balance })));
+          const btcAccount = accounts.find((account: any) => account.currency === 'BTC');
+          upbitBtc = btcAccount ? parseFloat(btcAccount.balance) : 0;
+          console.log(`🔍 [realtime-balances] 업비트 BTC 잔고: ${upbitBtc}`);
+        } catch (error) {
+          console.error('❌ [realtime-balances] 업비트 실시간 잔고 조회 실패:', error);
+        }
+      } else {
+        console.log(`⚠️ [realtime-balances] 업비트 거래소 연결 없음`);
+      }
+      
+      // 바이낸스 실시간 BTC 포지션
+      if (binanceExchange) {
+        console.log(`🔍 [realtime-balances] 바이낸스 API 호출 중...`);
+        try {
+          const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+          const accountInfo = await binanceService.getFuturesAccountInfo();
+          console.log(`🔍 [realtime-balances] 바이낸스 포지션 수:`, accountInfo.positions?.length || 0);
+          const btcPosition = accountInfo.positions?.find((pos: any) => pos.symbol === 'BTCUSDT');
+          binanceBtc = btcPosition ? parseFloat(btcPosition.positionAmt || '0') : 0;
+          console.log(`🔍 [realtime-balances] 바이낸스 BTC 포지션: ${binanceBtc}`);
+        } catch (error) {
+          console.error('❌ [realtime-balances] 바이낸스 실시간 포지션 조회 실패:', error);
+        }
+      } else {
+        console.log(`⚠️ [realtime-balances] 바이낸스 거래소 연결 없음`);
+      }
+      
+      console.log(`✅ [realtime-balances] 최종 결과: 업비트 ${upbitBtc} BTC, 바이낸스 ${binanceBtc} BTC`);
+      
+      res.json({
+        upbitBtc,
+        binanceBtc,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (error) {
+      console.error('실시간 잔고 조회 실패:', error);
+      res.status(500).json({ error: '실시간 잔고 조회 중 오류가 발생했습니다' });
+    }
+  });
+
   // 실제 거래 통계 API (DB 기반)
   app.get("/api/trading/daily-stats", authenticateSession, async (req: any, res) => {
     try {

@@ -2,13 +2,16 @@
 import 'dotenv/config';
 import { Pool } from 'pg';
 
-// PostgreSQL 연결 풀 (싱글톤)
+// PostgreSQL 연결 풀 (싱글톤) - 로컬 DB 강제 연결
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || "postgresql://ahndj@localhost:5432/trading_db",
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
+
+// 디버깅: 실제 연결 URL 확인
+console.log('🔧 [db.ts] DATABASE_URL:', process.env.DATABASE_URL || "postgresql://ahndj@localhost:5432/trading_db");
 
 export async function ping(): Promise<boolean> {
   try {

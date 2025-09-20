@@ -6,13 +6,16 @@ import { hashPassword } from "./utils/auth.js";
 import { encryptApiKey, decryptApiKey } from "./utils/encryption.js";
 import { normalizeLeverage } from "./utils/trading-constants.js";
 
-// PostgreSQL 연결 풀 설정
+// PostgreSQL 연결 풀 설정 (로컬 DB 강제 연결)
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || "postgresql://ahndj@localhost:5432/trading_db",
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
+
+// 디버깅: 실제 연결 URL 확인
+console.log('🔧 [storage.ts] DATABASE_URL:', process.env.DATABASE_URL || "postgresql://ahndj@localhost:5432/trading_db");
 
 // 타입 정의들 (기존과 동일)
 export type User = {
@@ -259,11 +262,15 @@ export class DatabaseStorage {
         [userId]
       );
       
-      // API 키 복호화
+      // API 키 복호화 및 camelCase 변환
       return result.rows.map(exchange => ({
         ...exchange,
         apiKey: decryptApiKey(exchange.api_key),
-        apiSecret: decryptApiKey(exchange.api_secret)
+        apiSecret: decryptApiKey(exchange.api_secret),
+        isActive: exchange.is_active, // snake_case → camelCase 변환
+        userId: exchange.user_id,     // snake_case → camelCase 변환
+        createdAt: exchange.created_at,
+        updatedAt: exchange.updated_at
       }));
     } catch (error) {
       console.error('Error getting exchanges:', error);
@@ -1010,7 +1017,9 @@ export class DatabaseStorage {
   }
 
   async getPositions(whereClause: any = {}): Promise<any[]> {
-    return this.getAllPositions(whereClause.userId);
+    const userId = whereClause.user_id || whereClause.userId;
+    console.log(`🔍 [getPositions] 사용자 ${userId} 포지션 조회`);
+    return this.getAllPositions(userId);
   }
 
   // 어드민 권한 확인
