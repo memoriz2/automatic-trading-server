@@ -38,16 +38,8 @@ export function useWebSocket() {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const baseHostname = window.location.hostname.replace(/^www\./, '');
         
-        // 포트 결정 로직 개선
-        let port: string;
-        if (window.location.port) {
-          port = window.location.port;
-        } else if (protocol === "wss:") {
-          port = "443";
-        } else {
-          // HTTP 환경에서 기본 포트 결정
-          port = window.location.hostname === 'localhost' ? "5001" : "5000";
-        }
+        // 포트 결정 로직 개선 (5001 고정)
+        const port = "5001"; // 로컬 개발 환경에서는 항상 5001
         
         const host = `${baseHostname}:${port}`;
         
