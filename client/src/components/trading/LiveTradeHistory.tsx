@@ -142,8 +142,8 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
                         {getTradeTypeDisplay(trade, strategy)}
                       </span>
                       {strategy && (
-                        <span className="text-purple-400 ml-2">
-                          [{getStrategyDisplay(strategy)}]
+                        <span className="text-purple-300 font-medium ml-2">
+                          📋 전략: {getStrategyDisplay(strategy)}
                         </span>
                       )}
                     </span>
