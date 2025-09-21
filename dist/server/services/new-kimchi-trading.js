@@ -6,9 +6,10 @@ export class MultiStrategyTradingService {
     // private upbitService: UpbitService; // 현재 사용하지 않음
     // private binanceService: BinanceService; // 현재 사용하지 않음
     simpleKimchiService;
-    isTrading = false;
+    userTradingStates = new Map(); // 사용자별 거래 상태
     lastKimchiRates = new Map();
     activeStrategies = new Map();
+    userStrategies = new Map(); // 사용자별 전략
     // 최근 진입 시각(사용자-전략-심볼 단위). 재시작 시 메모리 리셋되며, DB 초기화는 선택
     // private lastEntryAtByKey: Map<string, number> = new Map(); // 현재 사용하지 않음
     static MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
@@ -21,8 +22,8 @@ export class MultiStrategyTradingService {
         this.simpleKimchiService = new SimpleKimchiService();
     }
     async startMultiStrategyTrading(userId) {
-        if (this.isTrading) {
-            throw new Error("Multi-strategy trading is already running");
+        if (this.userTradingStates.get(userId)) {
+            throw new Error(`User ${userId} trading is already running`);
         }
         // 활성 전략들 로드
         const strategies = await storage.getTradingStrategies(parseInt(userId));
@@ -30,12 +31,16 @@ export class MultiStrategyTradingService {
         if (activeStrategies.length === 0) {
             throw new Error("No active trading strategies found");
         }
-        // 전략들을 맵에 저장
-        this.activeStrategies.clear();
+        // 사용자별 전략들을 맵에 저장
+        if (!this.userStrategies.has(userId)) {
+            this.userStrategies.set(userId, new Map());
+        }
+        const userStrategyMap = this.userStrategies.get(userId);
+        userStrategyMap.clear();
         activeStrategies.forEach((strategy) => {
-            this.activeStrategies.set(strategy.id, strategy);
+            userStrategyMap.set(strategy.id, strategy);
         });
-        this.isTrading = true;
+        this.userTradingStates.set(userId, true);
         await storage.createSystemAlert({
             type: "info",
             title: "다중 전략 자동매매 시작",
@@ -44,25 +49,42 @@ export class MultiStrategyTradingService {
         // 백그라운드에서 트레이딩 루프 실행
         this.multiStrategyTradingLoop(userId).catch(console.error);
     }
-    async stopMultiStrategyTrading() {
-        this.isTrading = false;
-        this.activeStrategies.clear();
-        await storage.createSystemAlert({
-            type: "info",
-            title: "다중 전략 자동매매 중지",
-            message: "모든 전략의 자동매매가 중지되었습니다.",
-        });
+    async stopMultiStrategyTrading(userId) {
+        if (userId) {
+            // 특정 사용자의 거래만 중지
+            this.userTradingStates.set(userId, false);
+            this.userStrategies.delete(userId);
+            await storage.createSystemAlert({
+                type: "info",
+                title: "자동매매 중지",
+                message: `사용자 ${userId}의 자동매매가 중지되었습니다.`,
+            });
+        }
+        else {
+            // 모든 사용자 거래 중지
+            this.userTradingStates.clear();
+            this.activeStrategies.clear();
+            this.userStrategies.clear();
+            await storage.createSystemAlert({
+                type: "info",
+                title: "다중 전략 자동매매 중지",
+                message: "모든 전략의 자동매매가 중지되었습니다.",
+            });
+        }
     }
     async multiStrategyTradingLoop(userId) {
-        while (this.isTrading) {
+        while (this.userTradingStates.get(userId)) {
             try {
                 // BTC 김프율만 확인 (단일 포지션)
                 const symbols = ["BTC"];
                 const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi(symbols, userId);
                 // 활성 포지션 조회
                 const activePositions = await storage.getActivePositions(parseInt(userId));
-                // BTC 단일 전략 신호 분석
-                for (const [_strategyId, strategy] of Array.from(this.activeStrategies)) {
+                // BTC 단일 전략 신호 분석 (사용자별 전략 사용)
+                const userStrategyMap = this.userStrategies.get(userId);
+                if (!userStrategyMap)
+                    continue;
+                for (const [_strategyId, strategy] of Array.from(userStrategyMap)) {
                     // BTC 데이터만 처리
                     const btcData = kimchiData.find((d) => d.symbol === "BTC");
                     if (!btcData)
@@ -695,8 +717,12 @@ export class MultiStrategyTradingService {
             }
         }
     }
-    getIsTrading() {
-        return this.isTrading;
+    getIsTrading(userId) {
+        if (userId) {
+            return this.userTradingStates.get(userId) || false;
+        }
+        // 전체 상태: 하나라도 거래 중이면 true
+        return Array.from(this.userTradingStates.values()).some(state => state);
     }
     /**
      * 전략 새로고침 (전략 수정 시 비동기 업데이트용)

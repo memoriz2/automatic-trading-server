@@ -10,6 +10,7 @@ interface RealTimeStats {
   errors: number;
   totalFees: number;
   totalProfitRate: number;
+  totalProfitKrw: number;
 }
 
 /**
@@ -26,7 +27,8 @@ export const useRealTimeStats = (userId?: number) => {
     loops: 0,
     errors: 0,
     totalFees: 0,
-    totalProfitRate: 0
+    totalProfitRate: 0,
+    totalProfitKrw: 0
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -87,10 +89,11 @@ export const useRealTimeStats = (userId?: number) => {
           binanceTrades: Number(metrics.binance_orders || 0),
           entries: Number(metrics.entries || 0),
           exits: Number(metrics.exits || 0),
-          loops: Number(metrics.loops || 0),
-          errors: Number(metrics.errors || 0),
-          totalFees: Number(metrics.total_fees || 0),
-          totalProfitRate: Number(metrics.total_profit_rate || 0)
+            loops: Number(metrics.loops || 0),
+            errors: Number(metrics.errors || 0),
+            totalFees: Number(metrics.total_fees || 0),
+            totalProfitRate: Number(metrics.total_profit_rate || 0),
+            totalProfitKrw: Number(metrics.total_profit_krw || 0)
         };
         
         setStats(realStats);

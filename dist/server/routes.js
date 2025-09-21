@@ -16,7 +16,7 @@ import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
 import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
-import { logError, logDebug, logWarn } from './utils/logger.js';
+import { logError, logInfo, logDebug, logWarn } from './utils/logger.js';
 import { getApiErrorGuide, getServerIpInfo } from './utils/api-error-guide.js';
 import { PositionsRepository } from "./repositories/PositionsRepository.js";
 import { TRADING_CONFIG } from "./config/trading-config.js";
@@ -110,6 +110,126 @@ async function findActiveUserWithApiKeys() {
     catch (error) {
         logError('활성 사용자 찾기 실패', { error: error instanceof Error ? error.message : error });
         return "1"; // 실패시 기본값
+    }
+}
+/**
+ * 실제 거래소에서 포지션 청산 실행
+ */
+async function executeRealLiquidation(userId, position) {
+    try {
+        logInfo('실제 거래소 청산 시작', {
+            userId,
+            positionId: position.id,
+            symbol: position.symbol,
+            side: position.side
+        });
+        // 사용자의 거래소 API 키 조회
+        const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+        const upbitExchange = exchanges.find((e) => e.exchange === "upbit" && e.isActive);
+        const binanceExchange = exchanges.find((e) => e.exchange === "binance" && e.isActive);
+        if (!upbitExchange || !binanceExchange) {
+            return {
+                success: false,
+                error: "거래소 API 키가 설정되지 않았습니다"
+            };
+        }
+        const results = [];
+        // 업비트 현물 매도 (BTC 보유량 확인 후)
+        if (position.symbol === 'BTC') {
+            try {
+                const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+                const accounts = await upbitService.getAccounts();
+                const btcAccount = accounts.find((acc) => acc.currency === 'BTC');
+                const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
+                if (btcBalance > 0.0001) { // 최소 거래 단위 체크
+                    logInfo('업비트 BTC 매도 시작', { balance: btcBalance });
+                    const sellResult = await upbitService.placeSellOrder('KRW-BTC', btcBalance);
+                    results.push({
+                        exchange: 'upbit',
+                        action: 'sell',
+                        success: true,
+                        result: sellResult
+                    });
+                    logInfo('업비트 BTC 매도 성공', { orderId: sellResult.uuid });
+                }
+                else {
+                    logInfo('업비트 BTC 잔고 부족', { balance: btcBalance });
+                }
+            }
+            catch (upbitError) {
+                logError('업비트 매도 실패', { error: upbitError.message });
+                results.push({
+                    exchange: 'upbit',
+                    action: 'sell',
+                    success: false,
+                    error: upbitError.message
+                });
+            }
+        }
+        // 바이낸스 선물 포지션 청산
+        try {
+            const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+            const accountInfo = await binanceService.getFuturesAccountInfo();
+            // 활성 포지션이 있는지 확인
+            if (accountInfo.positions && accountInfo.positions.length > 0) {
+                const btcPosition = accountInfo.positions.find((pos) => pos.symbol === 'BTCUSDT' && parseFloat(pos.positionAmt) !== 0);
+                if (btcPosition) {
+                    const positionAmt = parseFloat(btcPosition.positionAmt);
+                    logInfo('바이낸스 포지션 청산 시작', {
+                        symbol: btcPosition.symbol,
+                        amount: positionAmt
+                    });
+                    // 포지션 청산 (기존 메서드 사용)
+                    const quantity = Math.abs(positionAmt);
+                    let closeResult;
+                    if (positionAmt < 0) {
+                        // 숏 포지션 청산 (커버)
+                        closeResult = await binanceService.closeFuturesPosition('BTC', quantity);
+                    }
+                    else {
+                        // 롱 포지션 청산
+                        closeResult = await binanceService.closeLongOrder('BTC', quantity);
+                    }
+                    results.push({
+                        exchange: 'binance',
+                        action: 'close',
+                        success: true,
+                        result: closeResult
+                    });
+                    logInfo('바이낸스 포지션 청산 성공', { orderId: closeResult.orderId });
+                }
+                else {
+                    logInfo('바이낸스 활성 포지션 없음');
+                }
+            }
+        }
+        catch (binanceError) {
+            logError('바이낸스 청산 실패', { error: binanceError.message });
+            results.push({
+                exchange: 'binance',
+                action: 'close',
+                success: false,
+                error: binanceError.message
+            });
+        }
+        const successfulResults = results.filter(r => r.success);
+        const failedResults = results.filter(r => !r.success);
+        return {
+            success: successfulResults.length > 0,
+            message: `거래소 청산 완료: 성공 ${successfulResults.length}개, 실패 ${failedResults.length}개`,
+            pnl: 0 // 실제 손익은 별도 계산 필요
+        };
+    }
+    catch (error) {
+        logError('실제 거래소 청산 오류', {
+            userId,
+            positionId: position.id,
+            error: error.message
+        });
+        return {
+            success: false,
+            error: error.message
+        };
     }
 }
 // DB row → 프론트 DTO (원본 값 최대한 보존)
@@ -418,6 +538,84 @@ export async function registerRoutes(app, server) {
                         return Math.max(-5, Math.min(5, (totalQuantity * 100) - (totalFeesKrw / 10000)));
                     }
                     return 0;
+                })(),
+                total_profit_krw: (() => {
+                    // 김치 차익거래 수익 계산 (김치프리미엄 변화량 기반)
+                    let totalKimchiProfit = 0;
+                    // 실시간 김치 데이터 가져오기
+                    const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
+                    const btcData = realtimeData.find(d => d.symbol === 'BTC');
+                    const currentKimchiRate = btcData?.premiumRate || 0;
+                    const currentUsdKrw = btcData?.usdKrwRate || 1390;
+                    logDebug('김치 차익거래 수익 계산 시작', {
+                        현재김프: currentKimchiRate,
+                        환율: currentUsdKrw,
+                        활성포지션: allPositions.filter(p => p.status === 'open').length,
+                        완료포지션: allPositions.filter(p => p.status === 'closed').length
+                    });
+                    // 모든 포지션에 대해 김치프리미엄 변화 수익 계산
+                    for (const position of allPositions) {
+                        const entryKimchiRate = Number(position.entry_premium_rate || 0);
+                        let entryPrice = Number(position.entry_price || 0); // KRW 투자금액
+                        const leverage = Number(position.binance_leverage || 1);
+                        // entry_price가 비현실적으로 크면 실제 투자금액으로 추정
+                        if (entryPrice > 50000000) { // 5천만원 이상이면 비현실적
+                            // 실제 BTC 수량 × 현재 BTC 가격으로 추정
+                            const btcQuantity = Number(position.quantity || position.binance_quantity || 0.001);
+                            const currentBtcPrice = btcData?.upbitPrice || 115000000;
+                            entryPrice = btcQuantity * currentBtcPrice; // 실제 투자금액 추정
+                            logDebug('비현실적 entry_price 보정', {
+                                positionId: position.id,
+                                원본entryPrice: Number(position.entry_price || 0),
+                                보정후entryPrice: entryPrice,
+                                btcQuantity: btcQuantity
+                            });
+                        }
+                        if (entryPrice > 0 && entryPrice < 10000000) { // 1천만원 이하만 처리
+                            let kimchiProfitForPosition = 0;
+                            if (position.status === 'closed') {
+                                // 완료된 포지션: 청산 시점의 김프와 진입 김프 차이
+                                const exitKimchiRate = Number(position.exit_premium_rate || currentKimchiRate);
+                                const kimchiChange = entryKimchiRate - exitKimchiRate; // 김프 감소가 수익
+                                // 김프 변화에 따른 수익 = 투자금액 × (김프변화% ÷ 100) × 0.01 (현실적 소액 계수)
+                                kimchiProfitForPosition = entryPrice * (kimchiChange / 100) * 0.01;
+                                logDebug('완료 포지션 김치 수익', {
+                                    positionId: position.id,
+                                    진입김프: entryKimchiRate,
+                                    청산김프: exitKimchiRate,
+                                    김프변화: kimchiChange,
+                                    투자금액: entryPrice,
+                                    김치수익: Math.floor(kimchiProfitForPosition)
+                                });
+                            }
+                            else if (position.status === 'open') {
+                                // 활성 포지션: 현재 김프와 진입 김프 차이 (미실현)
+                                const kimchiChange = entryKimchiRate - currentKimchiRate; // 김프 감소가 수익
+                                // 김프 변화에 따른 미실현 수익 = 투자금액 × (김프변화% ÷ 100) × 0.01 (현실적 소액 계수)
+                                kimchiProfitForPosition = entryPrice * (kimchiChange / 100) * 0.01;
+                                logDebug('활성 포지션 김치 수익', {
+                                    positionId: position.id,
+                                    진입김프: entryKimchiRate,
+                                    현재김프: currentKimchiRate,
+                                    김프변화: kimchiChange,
+                                    투자금액: entryPrice,
+                                    미실현김치수익: Math.floor(kimchiProfitForPosition)
+                                });
+                            }
+                            totalKimchiProfit += kimchiProfitForPosition;
+                        }
+                    }
+                    // 거래 수수료 차감
+                    const totalFees = todayTrades.reduce((sum, trade) => {
+                        return sum + Number(trade.fee || 0);
+                    }, 0);
+                    const finalProfit = totalKimchiProfit - totalFees;
+                    logInfo('김치 차익거래 총 수익 계산 완료', {
+                        총김치수익: Math.floor(totalKimchiProfit),
+                        총수수료: Math.floor(totalFees),
+                        순수익: Math.floor(finalProfit)
+                    });
+                    return Math.floor(finalProfit);
                 })(),
                 loops: 0,
                 errors: 0
@@ -1010,16 +1208,88 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: "Failed to close position" });
         }
     });
-    // 전체 포지션 청산 (세션 인증 필요)
+    // 전체 포지션 청산 (실제 거래소 청산 + DB 업데이트)
     app.post("/api/positions/close-all", authenticateSession, async (req, res) => {
         try {
             const userId = String(req.user.id);
             const { symbol, strategyId, type } = (req.body || {});
-            const { count } = await storage.closeAllPositionsByUser(userId, { symbol, strategyId, type });
-            res.json({ closed: count });
+            logInfo('전체 포지션 청산 시작', { userId, symbol, strategyId, type });
+            // 1. 먼저 활성 포지션 조회
+            const activePositions = await storage.getActivePositions(parseInt(userId));
+            logInfo('청산할 활성 포지션 조회', { count: activePositions.length, positions: activePositions });
+            let successCount = 0;
+            let errorCount = 0;
+            const results = [];
+            // 2. 각 포지션에 대해 실제 거래소 청산 실행
+            for (const position of activePositions) {
+                try {
+                    // 필터 조건 확인
+                    if (symbol && position.symbol !== symbol)
+                        continue;
+                    if (strategyId && position.strategy_id !== strategyId)
+                        continue;
+                    if (type && position.type !== type)
+                        continue;
+                    logInfo('포지션 청산 시작', {
+                        positionId: position.id,
+                        symbol: position.symbol,
+                        side: position.side
+                    });
+                    // 3. 실제 거래소에서 청산 실행
+                    const liquidationResult = await executeRealLiquidation(userId, position);
+                    if (liquidationResult.success) {
+                        // 4. 성공 시 DB에서 포지션 상태 업데이트
+                        await storage.updatePosition(position.id, {
+                            status: 'closed',
+                            exit_time: new Date(),
+                            realized_pnl: liquidationResult.pnl || 0
+                        });
+                        successCount++;
+                        results.push({
+                            positionId: position.id,
+                            success: true,
+                            message: liquidationResult.message
+                        });
+                    }
+                    else {
+                        errorCount++;
+                        results.push({
+                            positionId: position.id,
+                            success: false,
+                            error: liquidationResult.error
+                        });
+                    }
+                }
+                catch (positionError) {
+                    errorCount++;
+                    logError('포지션 청산 실패', {
+                        positionId: position.id,
+                        error: positionError.message
+                    });
+                    results.push({
+                        positionId: position.id,
+                        success: false,
+                        error: positionError.message
+                    });
+                }
+            }
+            logInfo('전체 포지션 청산 완료', {
+                총포지션: activePositions.length,
+                성공: successCount,
+                실패: errorCount
+            });
+            res.json({
+                closed: successCount,
+                failed: errorCount,
+                total: activePositions.length,
+                results: results
+            });
         }
         catch (error) {
-            console.error("전체 포지션 청산 오류:", error);
+            logError("전체 포지션 청산 오류", {
+                userId: req.user?.id,
+                error: error instanceof Error ? error.message : error
+            });
             res.status(500).json({ error: "Failed to close all positions" });
         }
     });
@@ -1119,7 +1389,7 @@ export async function registerRoutes(app, server) {
         try {
             const userId = req.params.userId; // string으로 처리
             console.log(`[자동매매 중지] 사용자: ${userId}`);
-            await multiStrategyTradingService.stopMultiStrategyTrading();
+            await multiStrategyTradingService.stopMultiStrategyTrading(userId);
             // 자동매매 중지 후 잔고 즉시 갱신
             try {
                 const balanceService = new BalanceService();
@@ -1191,7 +1461,7 @@ export async function registerRoutes(app, server) {
         try {
             const userId = req.params.userId; // string으로 처리
             console.log(`[긴급 정지] 사용자: ${userId}`);
-            await multiStrategyTradingService.stopMultiStrategyTrading();
+            await multiStrategyTradingService.stopMultiStrategyTrading(userId);
             await storage.createSystemAlert({
                 type: "warning",
                 title: "자동매매 긴급 정지",
