@@ -18,6 +18,7 @@ import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
 import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
+import { logError, logInfo, logDebug, logWarn, logSecurity } from './utils/logger.js';
 import { PositionsRepository } from "./repositories/PositionsRepository.js";
 import { TRADING_CONFIG } from "./config/trading-config.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
@@ -100,7 +101,7 @@ async function findActiveUserWithApiKeys(): Promise<string> {
         );
         
         if (binanceExchange) {
-          console.log(`🔍 활성 사용자 발견: User ID ${userId} (바이낸스 API 키 보유)`);
+          logDebug('활성 사용자 발견', { userId, exchange: 'binance' });
           return userId;
         }
         
@@ -110,7 +111,7 @@ async function findActiveUserWithApiKeys(): Promise<string> {
         );
         
         if (upbitExchange) {
-          console.log(`🔍 활성 사용자 발견: User ID ${userId} (업비트 API 키 보유)`);
+          logDebug('활성 사용자 발견', { userId, exchange: 'upbit' });
           return userId;
         }
       } catch (error) {
@@ -119,10 +120,10 @@ async function findActiveUserWithApiKeys(): Promise<string> {
       }
     }
     
-    console.log(`⚠️ API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용`);
+    logWarn('API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용');
     return "1";
   } catch (error) {
-    console.error('활성 사용자 찾기 실패:', error);
+    logError('활성 사용자 찾기 실패', { error: error instanceof Error ? error.message : error });
     return "1"; // 실패시 기본값
   }
 }
@@ -234,7 +235,7 @@ export async function registerRoutes(
       const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 10;
       
-      console.log(`🔍 [recent-trades] 사용자 ${userId} 최근 거래 ${limit}개 조회`);
+      logDebug('최근 거래 조회 시작', { userId, limit });
       
       const trades = await storage.getTradesByUserId(String(userId), limit);
       
@@ -251,11 +252,14 @@ export async function registerRoutes(
         orderId: trade.order_id
       }));
       
-      console.log(`✅ [recent-trades] ${formattedTrades.length}개 거래 조회 완료`);
+      logDebug('최근 거래 조회 완료', { userId, count: formattedTrades.length });
       
       res.json(formattedTrades);
     } catch (error) {
-      console.error('❌ [recent-trades] 최근 거래 조회 실패:', error);
+      logError('최근 거래 조회 실패', { 
+        userId: req.user?.id,
+        error: error instanceof Error ? error.message : error 
+      });
       res.status(500).json({ error: '최근 거래 조회 중 오류가 발생했습니다' });
     }
   });
@@ -264,11 +268,16 @@ export async function registerRoutes(
   app.get("/api/realtime-balances", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      console.log(`🔍 [realtime-balances] 사용자 ${userId} 실시간 잔고 조회 시작`);
+      logDebug('실시간 잔고 조회 시작', { userId });
       
       // 실시간 거래소 잔고 조회
       const exchanges = await storage.getExchangesByUserId(parseInt(userId));
-      console.log(`🔍 [realtime-balances] 거래소 연결 정보:`, exchanges.map(e => ({ exchange: e.exchange, isActive: e.isActive })));
+      const activeExchanges = exchanges.filter(e => e.isActive);
+      logDebug('거래소 연결 상태', { 
+        userId, 
+        totalExchanges: exchanges.length,
+        activeExchanges: activeExchanges.map(e => e.exchange)
+      });
       
       const upbitExchange = exchanges.find((e) => e.exchange === "upbit" && e.isActive);
       const binanceExchange = exchanges.find((e) => e.exchange === "binance" && e.isActive);

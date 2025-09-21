@@ -16,50 +16,27 @@ console.log(
     process.env.NODE_ENV || "설정되지 않음"
   }`
 );
-console.log(
-  `🔧 [${new Date().toISOString()}] PORT: ${
-    process.env.PORT || "5000 (기본값)"
-  }`
-);
-console.log(
-  `📁 [${new Date().toISOString()}] 현재 작업 디렉토리: ${process.cwd()}`
-);
+// 프로덕션 수준 로거 import
+import { logSystem, logError, logInfo, logDebug } from './utils/logger.js';
 
-// ✅ DB 연결 문자열(호스트/DB만) 로깅
+// 시스템 시작 로그 (항상 출력)
+logSystem('서버 시작', {
+  port: process.env.PORT || "5000",
+  nodeEnv: process.env.NODE_ENV || "development",
+  workingDir: process.cwd()
+});
+
+// DB 연결 정보 (마스킹된 형태로 출력)
 try {
   const rawUrl = process.env.DATABASE_URL || "";
   const maskedUrl = rawUrl.replace(/(:\/\/.*?:).*?@/, "$1****@");
   const hostDb = maskedUrl.split("@").pop();
-  console.log(
-    `🔧 [${new Date().toISOString()}] DATABASE_URL(host/db):`,
-    hostDb
-  );
+  logSystem('데이터베이스 연결', { database: hostDb });
 } catch {}
-
-// ✅ 프로덕션 모드에서도 로그가 나오도록 설정
-const isProduction = process.env.NODE_ENV === "production";
-const logLevel = process.env.LOG_LEVEL || (isProduction ? "info" : "debug");
-
-console.log(`📊 [${new Date().toISOString()}] 로그 레벨: ${logLevel}`);
 
 // 거래 모드 설정 로그
 import { logTradingMode } from './config/trading-config.js';
 logTradingMode();
-
-// ✅ 로그 함수 정의 - 강제 출력
-const logInfo = (message: string, data?: any) => {
-  // 강제로 항상 출력
-  console.log(`ℹ️ [${new Date().toISOString()}] ${message}`, data || "");
-};
-
-const logDebug = (message: string, data?: any) => {
-  // 강제로 항상 출력
-  console.log(`🔍 [${new Date().toISOString()}] ${message}`, data || "");
-};
-
-const logError = (message: string, error?: any) => {
-  console.error(`❌ [${new Date().toISOString()}] ${message}`, error || "");
-};
 
 const app = express();
 // 리버스 프록시(HTTPS) 뒤에서 secure 쿠키 신뢰
@@ -118,19 +95,19 @@ async function setupSession() {
       });
       
       redisClient.on('error', (err) => {
-        console.log('⚠️ Redis Client Error (fallback to memory session):', err.message);
+        logError('Redis 클라이언트 오류, 메모리 세션으로 폴백', { error: err.message });
       });
       
       try {
         await redisClient.connect();
-        console.log('✅ Redis client connected');
+        logInfo('Redis 클라이언트 연결 성공');
         redisStore = new RedisStore({ client: redisClient });
       } catch (connectError) {
-        console.log('⚠️ Redis 연결 실패:', (connectError as any).message);
+        logError('Redis 연결 실패', { error: (connectError as any).message });
       }
     }
   } catch (error) {
-    console.log('⚠️ Redis 연결 실패, 메모리 세션으로 폴백:', (error as any).message);
+    logError('Redis 연결 실패, 메모리 세션으로 폴백', { error: (error as any).message });
   }
 
   // Session middleware setup
@@ -152,9 +129,9 @@ async function setupSession() {
   if (redisStore) {
     sessionConfig.store = redisStore;
     globalRedisStore = redisStore; // 전역 변수에 저장
-    console.log('✅ Using Redis session store');
+    logInfo('세션 저장소: Redis 사용');
   } else {
-    console.log('⚠️ Using memory session store (fallback)');
+    logInfo('세션 저장소: 메모리 사용 (폴백)');
   }
 
   app.use(session(sessionConfig));
@@ -182,7 +159,12 @@ app.use((req, res, next) => {
   );
   
   if (user && isActivity) {
-    console.log(`🔄 세션 갱신: ${method} ${path} - 사용자: ${user.id}`);
+    logDebug('세션 갱신', { 
+      method, 
+      path, 
+      userId: user.id,
+      sessionId: (req as any).sessionID 
+    });
     (req as any).session.touch();
     // 환경변수 기반 TTL로 갱신
     (req as any).session.cookie.maxAge = SESSION_TTL_MS;
@@ -204,23 +186,19 @@ app.use((req, res, next) => {
   const isDev = process.env.NODE_ENV === 'development';
   const isFrequentApi = path.startsWith('/api'); // 모든 API 로그 제거
   
-  if (isDev && !isFrequentApi) {
-    console.log(
-      `🔍 [${new Date().toISOString()}] 요청: ${req.method} ${path}`
-    );
-  }
+  // 중요한 페이지 접근만 로그 (프로덕션 수준)
+  const isImportantPage = path.startsWith("/settings") ||
+                         path.startsWith("/dashboard") ||
+                         path.startsWith("/trading") ||
+                         path === "/" ||
+                         path.startsWith("/login");
 
-  // 정적 파일 접근 로그
-  if (
-    path.startsWith("/settings") ||
-    path.startsWith("/dashboard") ||
-    path.startsWith("/trading")
-  ) {
-    logInfo(
-      `📄 정적 페이지 접근: ${req.method} ${path} - IP: ${
-        req.ip || req.connection.remoteAddress
-      }`
-    );
+  if (isImportantPage && !isFrequentApi) {
+    logDebug('페이지 접근', { 
+      method: req.method, 
+      path, 
+      ip: req.ip || req.connection.remoteAddress 
+    });
   }
 
   // API 요청 로그 (에러가 아닌 이상 출력 안함)
@@ -373,7 +351,7 @@ app.get("/healthz", (_req: Request, res: Response) => {
         // 메모리 세션 로그 제거
       }
     } catch (error) {
-      console.error('❌ 세션 정리 중 오류:', error);
+      logError('세션 정리 중 오류', { error: error instanceof Error ? error.message : error });
     }
   }
 
