@@ -56,6 +56,10 @@ const LegacyAutoTradingPage = () => {
   // 세션 조회 관련 상태
   const [sessionInfo, setSessionInfo] = useState<any>(null);
   const [showSessionInfo, setShowSessionInfo] = useState(false);
+  
+  // 포지션 데이터 상태 추가
+  const [currentPositions, setCurrentPositions] = useState<any[]>([]);
+  
   // userId 동적 결정: Auth → URL(?userId|uid) → localStorage(x-user-id) → null (하드코딩 금지)
   const initialUserId = (() => {
     try {
@@ -70,6 +74,25 @@ const LegacyAutoTradingPage = () => {
   })();
   // 🔒 인증된 사용자 ID 우선 사용 (데이터 일관성 보장)
   const effectiveUserId = user?.id ? String(user.id) : userIdManager.getCurrentUserId();
+  
+  // 포지션 데이터 초기 로드
+  useEffect(() => {
+    const fetchPositions = async () => {
+      try {
+        const response = await fetch('/api/positions', { credentials: 'include' });
+        if (response.ok) {
+          const positions = await response.json();
+          setCurrentPositions(positions);
+        }
+      } catch (error) {
+        console.warn('포지션 데이터 로드 실패:', error);
+      }
+    };
+    
+    if (effectiveUserId) {
+      fetchPositions();
+    }
+  }, [effectiveUserId]);
   
   // 사용자 ID 통일 및 데이터 마이그레이션
   useEffect(() => {
@@ -1321,6 +1344,9 @@ const LegacyAutoTradingPage = () => {
         console.log('📊 [DEBUG] 포지션 개수:', positions.length);
         console.log('📊 [DEBUG] 포지션 데이터:', positions);
         
+        // 포지션 데이터 상태 업데이트
+        setCurrentPositions(positions);
+        
         const activeStrategies = strategies.filter(s => s.isActive);
         console.log('🎯 [DEBUG] 활성 전략 필터링 결과:', activeStrategies.length);
         console.log('🎯 [DEBUG] 활성 전략 목록:', activeStrategies.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })));
@@ -1973,7 +1999,12 @@ const LegacyAutoTradingPage = () => {
           )}
           </section>
 
-          <MarketSnapshot kimp={kimp} balances={balances} isLoadingBalances={isConnecting} />
+          <MarketSnapshot 
+            kimp={kimp} 
+            balances={balances} 
+            isLoadingBalances={isConnecting} 
+            positions={currentPositions}
+          />
 
           {/* 김치프리미엄 차트 */}
           <KimchiChart sparkData={sparkData} />

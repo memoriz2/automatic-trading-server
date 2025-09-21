@@ -6,13 +6,44 @@ interface MarketSnapshotProps {
   kimp: any;
   balances: any;
   isLoadingBalances?: boolean;
+  positions?: any[]; // 현재 포지션 데이터 추가
 }
 
 export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
   kimp,
   balances,
-  isLoadingBalances = false
+  isLoadingBalances = false,
+  positions = []
 }) => {
+  // 진입 증거금 계산 (현재 포지션 기반)
+  const calculateUsedMargin = () => {
+    if (!positions || positions.length === 0) return 0;
+    
+    const binancePrice = kimp?.binance_price || 0;
+    const usdkrw = kimp?.usdkrw || 1390;
+    
+    if (binancePrice <= 0 || usdkrw <= 0) return 0;
+    
+    let totalUsedMargin = 0;
+    
+    // 진입된 포지션들의 증거금 합계
+    for (const position of positions) {
+      if (position.status === 'open' || position.status === 'entered') {
+        const quantity = Number(position.quantity || position.binanceQuantity || 0);
+        const leverage = Number(position.leverage || 1);
+        
+        if (quantity > 0 && leverage > 0) {
+          // 증거금 = 명목가치 / 레버리지
+          const marginUSD = (quantity * binancePrice) / leverage;
+          totalUsedMargin += marginUSD;
+        }
+      }
+    }
+    
+    return totalUsedMargin * usdkrw; // USD를 KRW로 변환
+  };
+  
+  const usedMarginKRW = calculateUsedMargin();
   return (
     <section className="card col-6">
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border">
@@ -110,7 +141,9 @@ export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
         <div className="p-3 rounded-lg bg-slate-800/30 border border-slate-700">
           <div className="flex justify-between items-center">
             <span className="text-sm text-slate-400">진입 증거금(KRW)</span>
-            <span className="text-lg font-bold text-pink-400" id="used-krw">-</span>
+            <span className="text-lg font-bold text-pink-400" id="used-krw">
+              {usedMarginKRW > 0 ? loc(usedMarginKRW) : '-'}
+            </span>
           </div>
         </div>
       </div>
