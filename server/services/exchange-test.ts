@@ -38,12 +38,32 @@ export class ExchangeTestService {
 
       if (response.ok) {
         const data = await response.json() as any;
+        
+        // KRW 잔고 우선 표시, 없으면 첫 번째 자산
+        const krwAccount = data.find((account: any) => account.currency === 'KRW');
+        const btcAccount = data.find((account: any) => account.currency === 'BTC');
+        
+        let balanceInfo = 'N/A';
+        if (krwAccount && parseFloat(krwAccount.balance) > 0) {
+          balanceInfo = `${parseFloat(krwAccount.balance).toLocaleString()}원`;
+        } else if (btcAccount && parseFloat(btcAccount.balance) > 0) {
+          balanceInfo = `${btcAccount.balance} BTC`;
+        } else if (data[0]?.balance) {
+          balanceInfo = `${data[0].balance} ${data[0].currency}`;
+        }
+        
         return {
           success: true,
           message: '업비트 연동 성공! 계정 정보를 정상적으로 조회했습니다.',
           details: {
             accountCount: data.length,
-            balance: data[0]?.balance || 'N/A'
+            balance: balanceInfo,
+            krwBalance: krwAccount?.balance || '0',
+            btcBalance: btcAccount?.balance || '0',
+            accounts: data.map((acc: any) => ({
+              currency: acc.currency,
+              balance: acc.balance
+            }))
           }
         };
       } else {

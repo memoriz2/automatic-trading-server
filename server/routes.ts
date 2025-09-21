@@ -19,6 +19,7 @@ import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
 import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
 import { logError, logInfo, logDebug, logWarn, logSecurity } from './utils/logger.js';
+import { getApiErrorGuide, getServerIpInfo } from './utils/api-error-guide.js';
 import { PositionsRepository } from "./repositories/PositionsRepository.js";
 import { TRADING_CONFIG } from "./config/trading-config.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
@@ -2302,10 +2303,11 @@ export async function registerRoutes(
         apiSecret
       );
 
-      console.log(`✅ 연동테스트 완료:`, {
+      logDebug('연동테스트 완료', {
         exchange,
         success: testResult.success,
-        message: testResult.message
+        message: testResult.message,
+        userId
       });
 
       console.log(`🔍 [연동테스트] 잔고 조회 조건 확인:`, {
@@ -2384,14 +2386,67 @@ export async function registerRoutes(
           res.json(testResult); // 연결 테스트 결과만 반환
         }
       } else {
-        res.json(testResult);
+        // 연동 테스트 실패 시에도 가이드 제공
+        if (!testResult.success) {
+          const errorGuide = getApiErrorGuide(exchange as 'upbit' | 'binance', { 
+            message: testResult.message || testResult.error 
+          });
+          
+          // 서버 IP 정보 가져오기 (IP 관련 오류인 경우)
+          let serverIp = null;
+          if (errorGuide.errorCode.includes('IP_BLOCKED') || errorGuide.errorCode.includes('IP_RESTRICTION')) {
+            try {
+              const ipInfo = await getServerIpInfo();
+              serverIp = ipInfo.ip;
+            } catch (ipError) {
+              logWarn('서버 IP 조회 실패', { error: ipError });
+            }
+          }
+
+          res.json({
+            ...testResult,
+            guide: {
+              ...errorGuide,
+              serverIp: serverIp || undefined,
+              timestamp: new Date().toISOString()
+            }
+          });
+        } else {
+          res.json(testResult);
+        }
       }
 
     } catch (error: any) {
-      console.error(`💥 [${new Date().toISOString()}] 연동 테스트 중 에러:`, error);
+      logError('연동 테스트 중 에러', { 
+        exchange, 
+        userId, 
+        error: error.message,
+        stack: error.stack 
+      });
+
+      // API 오류 가이드 생성
+      const errorGuide = getApiErrorGuide(exchange as 'upbit' | 'binance', error);
+      
+      // 서버 IP 정보 가져오기 (IP 관련 오류인 경우)
+      let serverIp = null;
+      if (errorGuide.errorCode.includes('IP_BLOCKED') || errorGuide.errorCode.includes('IP_RESTRICTION')) {
+        try {
+          const ipInfo = await getServerIpInfo();
+          serverIp = ipInfo.ip;
+        } catch (ipError) {
+          logWarn('서버 IP 조회 실패', { error: ipError });
+        }
+      }
+
       res.status(500).json({
-        error: '연동 테스트 중 오류가 발생했습니다',
-        details: error.message
+        success: false,
+        error: '연동 테스트 실패',
+        details: error.message,
+        guide: {
+          ...errorGuide,
+          serverIp: serverIp || undefined,
+          timestamp: new Date().toISOString()
+        }
       });
     }
   });

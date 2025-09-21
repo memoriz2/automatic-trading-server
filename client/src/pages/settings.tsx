@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect, useCallback } from "react";
-import { logger } from "@/utils/logger";
+import { useState, useEffect, useCallback } from "react";import { logger } from "@/utils/logger";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -221,11 +220,42 @@ export default function Settings() {
         ]);
       } else {
         setOverrideConnected((prev) => ({ ...prev, [exchangeName]: false }));
-        toast({
-          title: "연동 테스트 실패 ❌",
-          description: `${response.message}: ${response.error}`,
-          variant: "destructive"
-        });
+        
+        // 가이드가 있는 경우 구체적인 해결 방법 표시
+        if (response.guide) {
+          const guide = response.guide;
+          let description = guide.solution;
+          
+          // IP 관련 오류인 경우 서버 IP 정보 포함
+          if (guide.serverIp && guide.serverIp !== '확인 불가') {
+            description += `\n\n📍 현재 서버 IP: ${guide.serverIp}`;
+          }
+          
+          toast({
+            title: `${guide.title} 💡`,
+            description: description,
+            variant: "destructive",
+            duration: 10000, // 10초 동안 표시 (길어진 내용을 읽을 시간 제공)
+          });
+          
+          // 추가 행동 지침이 있는 경우 두 번째 토스트로 표시
+          setTimeout(() => {
+            toast({
+              title: "해결 방법 📋",
+              description: guide.actionRequired,
+              variant: "default",
+              duration: 8000,
+            });
+          }, 1500);
+          
+        } else {
+          // 기존 방식 (가이드가 없는 경우)
+          toast({
+            title: "연동 테스트 실패 ❌",
+            description: `${response.message}: ${response.error}`,
+            variant: "destructive"
+          });
+        }
       }
     } catch (error: any) {
       const errorMessage = error.message || '연동 테스트 중 오류가 발생했습니다';
@@ -235,11 +265,49 @@ export default function Settings() {
         error: errorMessage
       });
       
-      toast({
-        title: "연동 테스트 오류",
-        description: errorMessage,
-        variant: "destructive"
-      });
+      // 서버에서 가이드가 포함된 오류 응답이 있는지 확인
+      let responseData = null;
+      try {
+        if (error.response) {
+          responseData = await error.response.json();
+        }
+      } catch (parseError) {
+        // JSON 파싱 실패 시 무시
+      }
+      
+      if (responseData?.guide) {
+        const guide = responseData.guide;
+        let description = guide.solution;
+        
+        // IP 관련 오류인 경우 서버 IP 정보 포함
+        if (guide.serverIp && guide.serverIp !== '확인 불가') {
+          description += `\n\n📍 현재 서버 IP: ${guide.serverIp}`;
+        }
+        
+        toast({
+          title: `${guide.title} 💡`,
+          description: description,
+          variant: "destructive",
+          duration: 10000,
+        });
+        
+        // 추가 행동 지침
+        setTimeout(() => {
+          toast({
+            title: "해결 방법 📋",
+            description: guide.actionRequired,
+            variant: "default",
+            duration: 8000,
+          });
+        }, 1500);
+      } else {
+        // 기존 방식 (가이드가 없는 경우)
+        toast({
+          title: "연동 테스트 오류",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsTestingConnection(false);
     }
@@ -484,7 +552,7 @@ export default function Settings() {
                     {connectionTestResult && connectionTestResult.success && (
                       <div className="text-sm text-gray-600">
                         {exchangeName === 'upbit' && connectionTestResult.details?.balance && (
-                          <span>KRW: {Number(connectionTestResult.details.balance).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}원</span>
+                          <span>{connectionTestResult.details.balance}</span>
                         )}
                         {exchangeName === 'binance' && connectionTestResult.balance?.usdt && (
                           <span>USDT: {Number(connectionTestResult.balance.usdt).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
