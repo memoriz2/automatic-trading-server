@@ -374,7 +374,7 @@ export async function registerRoutes(
       
       logDebug('최근 거래 조회 시작', { userId, limit });
       
-      const trades = await storage.getTradesByUserId(String(userId), limit);
+      const trades = await storage.getTradesWithStrategyInfo(String(userId), limit);
       
       // 거래 데이터 포맷팅 (고정된 시간 사용)
       const formattedTrades = trades.map(trade => ({
@@ -386,7 +386,9 @@ export async function registerRoutes(
         price: Number(trade.price || 0),
         fee: Number(trade.fee || 0),
         exchange: trade.exchange,
-        orderId: trade.order_id
+        orderId: trade.order_id,
+        strategyId: trade.strategyId, // 전략 ID 추가
+        strategyName: trade.strategyName // 전략 이름 추가
       }));
       
       logDebug('최근 거래 조회 완료', { userId, count: formattedTrades.length });
@@ -2850,9 +2852,14 @@ export async function registerRoutes(
       });
 
       // 실거래 기록을 DB에 저장
+      // 해당 전략의 활성 포지션 찾기
+      const activePosition = tradeData.strategyId ? 
+        await storage.getActivePositionByStrategy(tradeData.strategyId, tradeData.symbol) : null;
+      
       const trade = await storage.createTrade({
         userId: parseInt(userId),
-        positionId: tradeData.strategyId || null, // 전략 ID를 positionId로 사용
+        positionId: activePosition?.id || null, // 활성 포지션과 연결
+        strategyId: tradeData.strategyId || null, // 전략 ID를 strategyId로 저장
         tradeLogId: tradeLog.id,
         symbol: tradeData.symbol,
         side: tradeData.type,
@@ -4326,9 +4333,14 @@ window.onload = () => {
       
       // 성공한 거래 기록 저장
       try {
+        // 해당 전략의 활성 포지션 찾기
+        const activePosition = strategyId ? 
+          await storage.getActivePositionByStrategy(strategyId, market.replace('KRW-', '')) : null;
+        
         await storage.createTrade({
           userId: userId,
-          positionId: strategyId, // 전략 ID를 positionId로 사용
+          positionId: activePosition?.id || null, // 활성 포지션과 연결
+          strategyId: strategyId, // 전략 ID를 strategyId로 저장
           exchange: 'upbit',
           symbol: market.replace('KRW-', ''),
           side: 'buy',
@@ -4741,9 +4753,14 @@ window.onload = () => {
       
       // 성공한 거래 기록 저장
       try {
+        // 해당 전략의 활성 포지션 찾기
+        const activePosition = strategyId ? 
+          await storage.getActivePositionByStrategy(strategyId, symbol.replace('USDT', '')) : null;
+        
         await storage.createTrade({
           userId: userId,
-          positionId: strategyId, // 전략 ID를 positionId로 사용
+          positionId: activePosition?.id || null, // 활성 포지션과 연결
+          strategyId: strategyId, // 전략 ID를 strategyId로 저장
           exchange: 'binance',
           symbol: symbol.replace('USDT', ''),
           side: 'short',

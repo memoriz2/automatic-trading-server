@@ -794,7 +794,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             body: JSON.stringify({
               symbol: 'BTCUSDT',
               quantity: binanceShortAmountBTC,
-              leverage: leverage
+              leverage: leverage,
+              strategyId: strategy?.id // 전략 ID 추가
             })
           });
           
@@ -822,7 +823,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               market: 'KRW-BTC',
               volume: upbitBuyAmountBTC,
               price: Math.round(upbitBuyAmountBTC * (currentKimchiData?.upbit_price || 160000000)), // BTC 수량을 원화로 변환
-              ord_type: 'market'
+              ord_type: 'market',
+              strategyId: strategy?.id // 전략 ID 추가
             })
           });
           

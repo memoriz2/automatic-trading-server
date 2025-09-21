@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS trades (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     position_id INTEGER,
+    strategy_id INTEGER,
     trade_log_id INTEGER,
     symbol VARCHAR(10) NOT NULL,
     side VARCHAR(10) NOT NULL,
@@ -155,6 +156,9 @@ CREATE TABLE IF NOT EXISTS trades (
     executed_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- trades 테이블에 strategy_id 컬럼 추가 (기존 테이블용)
+ALTER TABLE trades ADD COLUMN IF NOT EXISTS strategy_id INTEGER;
 
 -- 거래 로그 테이블
 CREATE TABLE IF NOT EXISTS trade_logs (
@@ -377,6 +381,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_position_strategy_symbol ON position
 -- 거래 관련 인덱스
 CREATE INDEX IF NOT EXISTS idx_trades_executed_at ON trades (executed_at);
 CREATE INDEX IF NOT EXISTS idx_trades_position ON trades (position_id);
+CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades (strategy_id);
 CREATE INDEX IF NOT EXISTS idx_trades_trade_log ON trades (trade_log_id);
 CREATE INDEX IF NOT EXISTS idx_trades_user_symbol ON trades (user_id, symbol);
 

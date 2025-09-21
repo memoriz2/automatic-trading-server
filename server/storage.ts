@@ -460,6 +460,37 @@ export class DatabaseStorage {
     }
   }
 
+  async getActivePositionByStrategy(strategyId: number, symbol: string): Promise<any | undefined> {
+    try {
+      // 1. 먼저 정확한 전략+심볼 매칭으로 시도
+      let result = await this.pool.query(
+        'SELECT * FROM positions WHERE strategy_id = $1 AND symbol = $2 AND status = $3 ORDER BY entry_time DESC LIMIT 1',
+        [strategyId, symbol, 'open']
+      );
+      
+      // 2. 정확한 매칭이 없으면 해당 전략의 모든 활성 포지션 중 최신 것 사용
+      if (result.rows.length === 0) {
+        result = await this.pool.query(
+          'SELECT * FROM positions WHERE strategy_id = $1 AND status = $2 ORDER BY entry_time DESC LIMIT 1',
+          [strategyId, 'open']
+        );
+      }
+      
+      // 3. 전략별 포지션이 없으면 해당 심볼의 가장 최근 활성 포지션 사용
+      if (result.rows.length === 0) {
+        result = await this.pool.query(
+          'SELECT * FROM positions WHERE symbol = $1 AND status = $2 ORDER BY entry_time DESC LIMIT 1',
+          [symbol, 'open']
+        );
+      }
+      
+      return result.rows[0] || undefined;
+    } catch (error) {
+      console.error('Error getting active position by strategy:', error);
+      return undefined;
+    }
+  }
+
   async createPosition(data: any): Promise<any> {
     try {
       const result = await this.pool.query(`
@@ -522,12 +553,12 @@ export class DatabaseStorage {
     try {
       const result = await this.pool.query(`
         INSERT INTO trades (
-          user_id, position_id, symbol, side, exchange, quantity, price, fee,
+          user_id, position_id, strategy_id, symbol, side, exchange, quantity, price, fee,
           order_type, executed_at, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
         RETURNING *
       `, [
-        data.userId, data.positionId, data.symbol, data.side, data.exchange,
+        data.userId, data.positionId, data.strategyId, data.symbol, data.side, data.exchange,
         data.quantity, data.price, data.fee || 0, data.orderType || 'market'
       ]);
       
@@ -1005,11 +1036,9 @@ export class DatabaseStorage {
       const result = await this.pool.query(`
         SELECT 
           t.*,
-          p.strategy_id,
           ts.name as strategy_name
         FROM trades t
-        LEFT JOIN positions p ON t.position_id = p.id
-        LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+        LEFT JOIN trading_strategies ts ON t.strategy_id = ts.id
         WHERE t.user_id = $1 
         ORDER BY t.executed_at DESC 
         LIMIT $2

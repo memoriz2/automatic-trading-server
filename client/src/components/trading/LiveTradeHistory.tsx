@@ -141,9 +141,17 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
                       } font-bold`}>
                         {getTradeTypeDisplay(trade, strategy)}
                       </span>
-                      {strategy && (
+                      {trade.strategyName && trade.strategyName !== '전략 정보 없음' ? (
                         <span className="text-purple-300 font-medium ml-2">
-                          📋 전략: {getStrategyDisplay(strategy)}
+                          📋 전략: {trade.strategyName}
+                        </span>
+                      ) : trade.strategyId ? (
+                        <span className="text-purple-300 font-medium ml-2">
+                          📋 전략: ID #{trade.strategyId}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 font-medium ml-2">
+                          📋 전략: 정보없음
                         </span>
                       )}
                     </span>

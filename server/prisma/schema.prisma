@@ -193,6 +193,7 @@ model Trade {
   id               Int       @id @default(autoincrement())
   userId           Int       @map("user_id")
   positionId       Int?      @map("position_id")
+  strategyId       Int?      @map("strategy_id")
   tradeLogId       Int?      @map("trade_log_id")
   symbol           String    @db.VarChar(10)
   side             String    @db.VarChar(10)
@@ -214,6 +215,7 @@ model Trade {
   @@map("trades")
   @@index([executedAt], name: "idx_trades_executed_at")
   @@index([positionId], name: "idx_trades_position")
+  @@index([strategyId], name: "idx_trades_strategy")
   @@index([tradeLogId], name: "idx_trades_trade_log")
   @@index([userId, symbol], name: "idx_trades_user_symbol")
 }
