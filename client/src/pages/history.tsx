@@ -400,6 +400,17 @@ export default function History() {
                               <p className="text-xs text-slate-500">
                                 {trade.exchange.toUpperCase()} | {trade.orderType || 'MARKET'}
                               </p>
+                              {/* 전략 정보 표시 */}
+                              {trade.strategyName && (
+                                <p className="text-xs text-blue-400">
+                                  📋 {trade.strategyName} (ID: {trade.strategyId})
+                                </p>
+                              )}
+                              {trade.positionId && (
+                                <p className="text-xs text-purple-400">
+                                  🎯 포지션 #{trade.positionId}
+                                </p>
+                              )}
                             </div>
                           </div>
                           <div className="text-right">

@@ -1490,15 +1490,20 @@ export async function registerRoutes(
     }
   });
 
-  // 거래 내역 조회 (세션 기반)
+  // 거래 내역 조회 (세션 기반, 포지션/전략 정보 포함)
   app.get("/api/trades", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 50;
-      const trades = await storage.getTradesByUserId(String(userId), limit);
-      res.json(trades);
+      
+      // 거래 내역과 포지션 정보를 조인해서 조회
+      const tradesWithStrategy = await storage.getTradesWithStrategyInfo(String(userId), limit);
+      res.json(tradesWithStrategy);
     } catch (error) {
-      console.error("거래 내역 조회 오류:", error);
+      logError("거래 내역 조회 오류", { 
+        userId: req.user?.id,
+        error: error instanceof Error ? error.message : error 
+      });
       res.status(500).json({ error: "Failed to fetch trades" });
     }
   });

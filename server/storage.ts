@@ -998,6 +998,33 @@ export class DatabaseStorage {
     }
   }
 
+  async getTradesWithStrategyInfo(userId: string, limit: number = 50): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT 
+          t.*,
+          p.strategy_id,
+          ts.name as strategy_name
+        FROM trades t
+        LEFT JOIN positions p ON t.position_id = p.id
+        LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+        WHERE t.user_id = $1 
+        ORDER BY t.executed_at DESC 
+        LIMIT $2
+      `, [parseInt(userId), limit]);
+      
+      return result.rows.map(row => ({
+        ...row,
+        strategyId: row.strategy_id,
+        strategyName: row.strategy_name || '전략 정보 없음',
+        positionId: row.position_id
+      }));
+    } catch (error) {
+      console.error('Error getting trades with strategy info:', error);
+      return [];
+    }
+  }
+
   // 오늘 거래만 조회 (한국시간 기준)
   async getTodayTradesByUserId(userId: string | number): Promise<any[]> {
     try {
