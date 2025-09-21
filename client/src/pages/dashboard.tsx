@@ -263,6 +263,18 @@ export default function Dashboard() {
         description: "포지션이 성공적으로 청산되었습니다.",
       });
       refetchPositions();
+      
+      // 청산 완료 후 잔고 재조회
+      try {
+        console.log('🔄 개별청산 후 잔고 재조회 시작...');
+        await fetch('/api/realtime-balances', { 
+          method: 'GET',
+          credentials: 'include' 
+        });
+        console.log('✅ 개별청산 후 잔고 재조회 완료');
+      } catch (balanceError) {
+        console.warn('⚠️ 잔고 재조회 실패:', balanceError);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       toast({

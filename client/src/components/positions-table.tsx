@@ -88,6 +88,18 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                     title: "전체 청산 완료", 
                     description: `${json?.closed ?? 0}개 포지션이 한 번에 청산되었습니다` 
                   });
+                  
+                  // 청산 완료 후 잔고 재조회
+                  try {
+                    console.log('🔄 전체청산 후 잔고 재조회 시작...');
+                    await fetch('/api/realtime-balances', { 
+                      method: 'GET',
+                      credentials: 'include' 
+                    });
+                    console.log('✅ 전체청산 후 잔고 재조회 완료');
+                  } catch (balanceError) {
+                    console.warn('⚠️ 잔고 재조회 실패:', balanceError);
+                  }
                 } catch (e: any) {
                   toast({ title: "전체 청산 실패", description: e?.message ?? String(e), variant: "destructive" });
                 } finally {

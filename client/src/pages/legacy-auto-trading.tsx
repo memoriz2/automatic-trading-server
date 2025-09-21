@@ -1193,6 +1193,19 @@ const LegacyAutoTradingPage = () => {
       removeBoardRowOptimistic(id);
       // 서버 요청 성공 후 UI에서 해당 전략 제거
       toast({ title: '청산 완료', description: `전략 #${id}가 삭제되었습니다.` });
+      
+      // 청산 완료 후 잔고 재조회
+      try {
+        console.log('🔄 청산 후 잔고 재조회 시작...');
+        await fetch('/api/realtime-balances', { 
+          method: 'GET',
+          credentials: 'include' 
+        });
+        console.log('✅ 청산 후 잔고 재조회 완료');
+      } catch (balanceError) {
+        console.warn('⚠️ 잔고 재조회 실패:', balanceError);
+      }
+      
     } catch (e) {
       console.error(`[레거시 클라이언트] 청산 요청 실패. 전략 ID: ${id}`, e);
       toast({ title: '청산 실패', description: String(e), variant: 'destructive' });
