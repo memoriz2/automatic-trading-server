@@ -711,6 +711,18 @@ export class DatabaseStorage {
       }
       
       const result = await this.pool.query(query, params);
+      
+      // 디버깅: 포지션 데이터 로그
+      if (result.rows.length > 0) {
+        console.log('🔍 [getAllPositions] 조회된 포지션 데이터:', {
+          count: result.rows.length,
+          firstPosition: result.rows[0],
+          openPositions: result.rows.filter(p => p.status === 'open').length
+        });
+      } else {
+        console.log('🔍 [getAllPositions] 포지션 없음');
+      }
+      
       return result.rows;
     } catch (error) {
       console.error('Error getting all positions:', error);

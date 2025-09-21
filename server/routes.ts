@@ -129,6 +129,142 @@ async function findActiveUserWithApiKeys(): Promise<string> {
   }
 }
 
+/**
+ * 실제 거래소에서 포지션 청산 실행
+ */
+async function executeRealLiquidation(userId: string, position: any): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  pnl?: number;
+}> {
+  try {
+    logInfo('실제 거래소 청산 시작', { 
+      userId, 
+      positionId: position.id,
+      symbol: position.symbol,
+      side: position.side 
+    });
+    
+    // 사용자의 거래소 API 키 조회
+    const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+    const upbitExchange = exchanges.find((e: any) => e.exchange === "upbit" && e.isActive);
+    const binanceExchange = exchanges.find((e: any) => e.exchange === "binance" && e.isActive);
+    
+    if (!upbitExchange || !binanceExchange) {
+      return {
+        success: false,
+        error: "거래소 API 키가 설정되지 않았습니다"
+      };
+    }
+    
+    const results = [];
+    
+    // 업비트 현물 매도 (BTC 보유량 확인 후)
+    if (position.symbol === 'BTC') {
+      try {
+        const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+        const accounts = await upbitService.getAccounts();
+        const btcAccount = accounts.find((acc: any) => acc.currency === 'BTC');
+        const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
+        
+        if (btcBalance > 0.0001) { // 최소 거래 단위 체크
+          logInfo('업비트 BTC 매도 시작', { balance: btcBalance });
+          const sellResult = await upbitService.placeSellOrder('KRW-BTC', btcBalance);
+          results.push({
+            exchange: 'upbit',
+            action: 'sell',
+            success: true,
+            result: sellResult
+          });
+          logInfo('업비트 BTC 매도 성공', { orderId: sellResult.uuid });
+        } else {
+          logInfo('업비트 BTC 잔고 부족', { balance: btcBalance });
+        }
+      } catch (upbitError: any) {
+        logError('업비트 매도 실패', { error: upbitError.message });
+        results.push({
+          exchange: 'upbit',
+          action: 'sell',
+          success: false,
+          error: upbitError.message
+        });
+      }
+    }
+    
+    // 바이낸스 선물 포지션 청산
+    try {
+      const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+      const accountInfo = await binanceService.getFuturesAccountInfo();
+      
+      // 활성 포지션이 있는지 확인
+      if (accountInfo.positions && accountInfo.positions.length > 0) {
+        const btcPosition = accountInfo.positions.find((pos: any) => 
+          pos.symbol === 'BTCUSDT' && parseFloat(pos.positionAmt) !== 0
+        );
+        
+        if (btcPosition) {
+          const positionAmt = parseFloat(btcPosition.positionAmt);
+          logInfo('바이낸스 포지션 청산 시작', { 
+            symbol: btcPosition.symbol,
+            amount: positionAmt 
+          });
+          
+          // 포지션 청산 (기존 메서드 사용)
+          const quantity = Math.abs(positionAmt);
+          let closeResult;
+          
+          if (positionAmt < 0) {
+            // 숏 포지션 청산 (커버)
+            closeResult = await binanceService.closeFuturesPosition('BTC', quantity);
+          } else {
+            // 롱 포지션 청산
+            closeResult = await binanceService.closeLongOrder('BTC', quantity);
+          }
+          results.push({
+            exchange: 'binance',
+            action: 'close',
+            success: true,
+            result: closeResult
+          });
+          logInfo('바이낸스 포지션 청산 성공', { orderId: closeResult.orderId });
+        } else {
+          logInfo('바이낸스 활성 포지션 없음');
+        }
+      }
+    } catch (binanceError: any) {
+      logError('바이낸스 청산 실패', { error: binanceError.message });
+      results.push({
+        exchange: 'binance',
+        action: 'close',
+        success: false,
+        error: binanceError.message
+      });
+    }
+    
+    const successfulResults = results.filter(r => r.success);
+    const failedResults = results.filter(r => !r.success);
+    
+    return {
+      success: successfulResults.length > 0,
+      message: `거래소 청산 완료: 성공 ${successfulResults.length}개, 실패 ${failedResults.length}개`,
+      pnl: 0 // 실제 손익은 별도 계산 필요
+    };
+    
+  } catch (error: any) {
+    logError('실제 거래소 청산 오류', { 
+      userId, 
+      positionId: position.id,
+      error: error.message 
+    });
+    
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 
 // DB row → 프론트 DTO (원본 값 최대한 보존)
 const toStrategyResponse = (row: any) => ({
@@ -1171,15 +1307,91 @@ export async function registerRoutes(
     }
   });
 
-  // 전체 포지션 청산 (세션 인증 필요)
+  // 전체 포지션 청산 (실제 거래소 청산 + DB 업데이트)
   app.post("/api/positions/close-all", authenticateSession, async (req: any, res) => {
     try {
       const userId = String(req.user.id);
       const { symbol, strategyId, type } = (req.body || {}) as { symbol?: string; strategyId?: number; type?: string };
-      const { count } = await storage.closeAllPositionsByUser(userId, { symbol, strategyId, type });
-      res.json({ closed: count });
+      
+      logInfo('전체 포지션 청산 시작', { userId, symbol, strategyId, type });
+      
+      // 1. 먼저 활성 포지션 조회
+      const activePositions = await storage.getActivePositions(parseInt(userId));
+      logInfo('청산할 활성 포지션 조회', { count: activePositions.length, positions: activePositions });
+      
+      let successCount = 0;
+      let errorCount = 0;
+      const results = [];
+      
+      // 2. 각 포지션에 대해 실제 거래소 청산 실행
+      for (const position of activePositions) {
+        try {
+          // 필터 조건 확인
+          if (symbol && position.symbol !== symbol) continue;
+          if (strategyId && position.strategy_id !== strategyId) continue;
+          if (type && position.type !== type) continue;
+          
+          logInfo('포지션 청산 시작', { 
+            positionId: position.id, 
+            symbol: position.symbol,
+            side: position.side 
+          });
+          
+          // 3. 실제 거래소에서 청산 실행
+          const liquidationResult = await executeRealLiquidation(userId, position);
+          
+          if (liquidationResult.success) {
+            // 4. 성공 시 DB에서 포지션 상태 업데이트
+            await storage.updatePosition(position.id, { 
+              status: 'closed',
+              exit_time: new Date(),
+              realized_pnl: liquidationResult.pnl || 0
+            });
+            successCount++;
+            results.push({
+              positionId: position.id,
+              success: true,
+              message: liquidationResult.message
+            });
+          } else {
+            errorCount++;
+            results.push({
+              positionId: position.id,
+              success: false,
+              error: liquidationResult.error
+            });
+          }
+        } catch (positionError: any) {
+          errorCount++;
+          logError('포지션 청산 실패', { 
+            positionId: position.id, 
+            error: positionError.message 
+          });
+          results.push({
+            positionId: position.id,
+            success: false,
+            error: positionError.message
+          });
+        }
+      }
+      
+      logInfo('전체 포지션 청산 완료', { 
+        총포지션: activePositions.length,
+        성공: successCount,
+        실패: errorCount 
+      });
+      
+      res.json({ 
+        closed: successCount,
+        failed: errorCount,
+        total: activePositions.length,
+        results: results
+      });
     } catch (error) {
-      console.error("전체 포지션 청산 오류:", error);
+      logError("전체 포지션 청산 오류", { 
+        userId: req.user?.id,
+        error: error instanceof Error ? error.message : error 
+      });
       res.status(500).json({ error: "Failed to close all positions" });
     }
   });
@@ -1286,7 +1498,7 @@ export async function registerRoutes(
     try {
       const userId = req.params.userId; // string으로 처리
       console.log(`[자동매매 중지] 사용자: ${userId}`);
-      await multiStrategyTradingService.stopMultiStrategyTrading();
+      await multiStrategyTradingService.stopMultiStrategyTrading(userId);
 
       // 자동매매 중지 후 잔고 즉시 갱신
       try {
@@ -1361,7 +1573,7 @@ export async function registerRoutes(
     try {
       const userId = req.params.userId; // string으로 처리
       console.log(`[긴급 정지] 사용자: ${userId}`);
-      await multiStrategyTradingService.stopMultiStrategyTrading();
+      await multiStrategyTradingService.stopMultiStrategyTrading(userId);
       await storage.createSystemAlert({
         type: "warning",
         title: "자동매매 긴급 정지",

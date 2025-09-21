@@ -2004,6 +2004,7 @@ const LegacyAutoTradingPage = () => {
             balances={balances} 
             isLoadingBalances={isConnecting} 
             positions={currentPositions}
+            strategies={strategies}
           />
 
           {/* 김치프리미엄 차트 */}
