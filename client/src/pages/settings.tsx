@@ -221,32 +221,32 @@ export default function Settings() {
       } else {
         setOverrideConnected((prev) => ({ ...prev, [exchangeName]: false }));
         
-        // 가이드가 있는 경우 구체적인 해결 방법 표시
-        if (response.guide) {
-          const guide = response.guide;
-          let description = guide.solution;
-          
-          // IP 관련 오류인 경우 서버 IP 정보 포함
-          if (guide.serverIp && guide.serverIp !== '확인 불가') {
-            description += `\n\n📍 현재 서버 IP: ${guide.serverIp}`;
-          }
-          
-          toast({
-            title: `${guide.title} 💡`,
-            description: description,
-            variant: "destructive",
-            duration: 10000, // 10초 동안 표시 (길어진 내용을 읽을 시간 제공)
-          });
-          
-          // 추가 행동 지침이 있는 경우 두 번째 토스트로 표시
-          setTimeout(() => {
+          // 가이드가 있는 경우 구체적인 해결 방법 표시
+          if (response.guide) {
+            const guide = response.guide;
+            let description = guide.solution;
+            
+            // IP 관련 오류인 경우 서버 IP 정보 포함
+            if (guide.serverIp && guide.serverIp !== '확인 불가') {
+              description += `\n\n📍 현재 서버 IP: ${guide.serverIp}`;
+            }
+            
             toast({
-              title: "해결 방법 📋",
-              description: guide.actionRequired,
-              variant: "default",
-              duration: 8000,
+              title: `${guide.title} 💡`,
+              description: description,
+              variant: "destructive",
+              duration: 12000, // 12초 동안 표시 (읽을 시간 충분히 제공)
             });
-          }, 1500);
+            
+            // 추가 행동 지침이 있는 경우 두 번째 토스트로 표시
+            setTimeout(() => {
+              toast({
+                title: "💡 해결 방법",
+                description: guide.actionRequired,
+                variant: "default",
+                duration: 10000, // 10초로 연장
+              });
+            }, 2000); // 2초 후 표시
           
         } else {
           // 기존 방식 (가이드가 없는 경우)
@@ -288,18 +288,18 @@ export default function Settings() {
           title: `${guide.title} 💡`,
           description: description,
           variant: "destructive",
-          duration: 10000,
+          duration: 12000,
         });
         
         // 추가 행동 지침
         setTimeout(() => {
           toast({
-            title: "해결 방법 📋",
+            title: "💡 해결 방법",
             description: guide.actionRequired,
             variant: "default",
-            duration: 8000,
+            duration: 10000,
           });
-        }, 1500);
+        }, 2000);
       } else {
         // 기존 방식 (가이드가 없는 경우)
         toast({

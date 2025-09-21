@@ -2248,9 +2248,10 @@ export async function registerRoutes(
 
   // 거래소 연동 테스트 API (중요: 이 라우트는 /api/exchanges/:userId 보다 먼저 선언되어야 함)
   app.post("/api/test-exchange-connection", authenticateSession, async (req: any, res) => {
+    const { exchange, userId } = req.body;
+    const authenticatedUserId = req.user.id;
+    
     try {
-      const { exchange, userId } = req.body;
-      const authenticatedUserId = req.user.id;
 
       console.log(`🔍 연동테스트 요청:`, {
         exchange,

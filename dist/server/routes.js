@@ -16,6 +16,8 @@ import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
 import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
+import { logError, logDebug, logWarn } from './utils/logger.js';
+import { getApiErrorGuide, getServerIpInfo } from './utils/api-error-guide.js';
 import { PositionsRepository } from "./repositories/PositionsRepository.js";
 import { TRADING_CONFIG } from "./config/trading-config.js";
 import { globalRateLimiter } from "./utils/rate-limiter.js";
@@ -87,13 +89,13 @@ async function findActiveUserWithApiKeys() {
                 // 바이낸스 API 키가 있는 사용자 우선 선택
                 const binanceExchange = exchanges.find((ex) => ex.exchange === 'binance' && ex.isActive && ex.apiKey && ex.apiSecret);
                 if (binanceExchange) {
-                    console.log(`🔍 활성 사용자 발견: User ID ${userId} (바이낸스 API 키 보유)`);
+                    logDebug('활성 사용자 발견', { userId, exchange: 'binance' });
                     return userId;
                 }
                 // 업비트 API 키가 있는 사용자도 고려
                 const upbitExchange = exchanges.find((ex) => ex.exchange === 'upbit' && ex.isActive && ex.apiKey && ex.apiSecret);
                 if (upbitExchange) {
-                    console.log(`🔍 활성 사용자 발견: User ID ${userId} (업비트 API 키 보유)`);
+                    logDebug('활성 사용자 발견', { userId, exchange: 'upbit' });
                     return userId;
                 }
             }
@@ -102,11 +104,11 @@ async function findActiveUserWithApiKeys() {
                 continue;
             }
         }
-        console.log(`⚠️ API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용`);
+        logWarn('API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용');
         return "1";
     }
     catch (error) {
-        console.error('활성 사용자 찾기 실패:', error);
+        logError('활성 사용자 찾기 실패', { error: error instanceof Error ? error.message : error });
         return "1"; // 실패시 기본값
     }
 }
@@ -198,14 +200,49 @@ export async function registerRoutes(app, server) {
         const m = kimpgaSvc.getMetrics();
         res.json(m);
     });
+    // 최근 거래 기록 조회 API (DB 기반)
+    app.get("/api/recent-trades", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const limit = parseInt(req.query.limit) || 10;
+            logDebug('최근 거래 조회 시작', { userId, limit });
+            const trades = await storage.getTradesByUserId(String(userId), limit);
+            // 거래 데이터 포맷팅 (고정된 시간 사용)
+            const formattedTrades = trades.map(trade => ({
+                id: trade.id,
+                timestamp: trade.executed_at || trade.created_at, // DB의 고정된 시간
+                type: trade.side, // 'buy', 'sell', 'short' 등
+                symbol: trade.symbol || 'BTC',
+                quantity: Number(trade.quantity || 0),
+                price: Number(trade.price || 0),
+                fee: Number(trade.fee || 0),
+                exchange: trade.exchange,
+                orderId: trade.order_id
+            }));
+            logDebug('최근 거래 조회 완료', { userId, count: formattedTrades.length });
+            res.json(formattedTrades);
+        }
+        catch (error) {
+            logError('최근 거래 조회 실패', {
+                userId: req.user?.id,
+                error: error instanceof Error ? error.message : error
+            });
+            res.status(500).json({ error: '최근 거래 조회 중 오류가 발생했습니다' });
+        }
+    });
     // 실시간 거래소 잔고 조회 API
     app.get("/api/realtime-balances", authenticateSession, async (req, res) => {
         try {
             const userId = req.user.id;
-            console.log(`🔍 [realtime-balances] 사용자 ${userId} 실시간 잔고 조회 시작`);
+            logDebug('실시간 잔고 조회 시작', { userId });
             // 실시간 거래소 잔고 조회
             const exchanges = await storage.getExchangesByUserId(parseInt(userId));
-            console.log(`🔍 [realtime-balances] 거래소 연결 정보:`, exchanges.map(e => ({ exchange: e.exchange, isActive: e.isActive })));
+            const activeExchanges = exchanges.filter(e => e.isActive);
+            logDebug('거래소 연결 상태', {
+                userId,
+                totalExchanges: exchanges.length,
+                activeExchanges: activeExchanges.map(e => e.exchange)
+            });
             const upbitExchange = exchanges.find((e) => e.exchange === "upbit" && e.isActive);
             const binanceExchange = exchanges.find((e) => e.exchange === "binance" && e.isActive);
             let upbitBtc = 0;
@@ -560,10 +597,24 @@ export async function registerRoutes(app, server) {
     function authenticateSession(req, res, next) {
         const user = req.session?.user;
         if (!user) {
-            console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
-                sessionExists: !!req.session,
-                sessionId: req.sessionID
-            });
+            // 로그 스팸 방지: 개발 환경에서만 출력하고, 빈도 제한
+            if (process.env.NODE_ENV === 'development') {
+                const now = Date.now();
+                const sessionId = req.sessionID;
+                const lastLogKey = `auth_fail_${sessionId}`;
+                // 전역 객체에 마지막 로그 시간 저장 (간단한 메모리 기반 스로틀링)
+                if (!global.authFailLogs)
+                    global.authFailLogs = {};
+                const lastLogTime = global.authFailLogs[lastLogKey] || 0;
+                // 30초마다 한 번만 로그 출력
+                if (now - lastLogTime > 30000) {
+                    console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
+                        sessionExists: !!req.session,
+                        sessionId: sessionId
+                    });
+                    global.authFailLogs[lastLogKey] = now;
+                }
+            }
             return res.status(401).json({ message: '로그인이 필요합니다' });
         }
         // 세션 인증 성공 로그 완전 제거
@@ -1865,9 +1916,9 @@ export async function registerRoutes(app, server) {
     // setInterval(sendKimchiData, 100); // 이 부분은 더 이상 필요 없으므로 제거
     // 거래소 연동 테스트 API (중요: 이 라우트는 /api/exchanges/:userId 보다 먼저 선언되어야 함)
     app.post("/api/test-exchange-connection", authenticateSession, async (req, res) => {
+        const { exchange, userId } = req.body;
+        const authenticatedUserId = req.user.id;
         try {
-            const { exchange, userId } = req.body;
-            const authenticatedUserId = req.user.id;
             console.log(`🔍 연동테스트 요청:`, {
                 exchange,
                 userId,
@@ -1907,10 +1958,11 @@ export async function registerRoutes(app, server) {
             });
             // 연동테스트 서비스로 실제 테스트 수행
             const testResult = await exchangeTestService.testExchangeConnection(exchange, apiKey, apiSecret);
-            console.log(`✅ 연동테스트 완료:`, {
+            logDebug('연동테스트 완료', {
                 exchange,
                 success: testResult.success,
-                message: testResult.message
+                message: testResult.message,
+                userId
             });
             console.log(`🔍 [연동테스트] 잔고 조회 조건 확인:`, {
                 testSuccess: testResult.success,
@@ -1983,14 +2035,65 @@ export async function registerRoutes(app, server) {
                 }
             }
             else {
-                res.json(testResult);
+                // 연동 테스트 실패 시에도 가이드 제공
+                if (!testResult.success) {
+                    const errorGuide = getApiErrorGuide(exchange, {
+                        message: testResult.message || testResult.error
+                    });
+                    // 서버 IP 정보 가져오기 (IP 관련 오류인 경우)
+                    let serverIp = null;
+                    if (errorGuide.errorCode.includes('IP_BLOCKED') || errorGuide.errorCode.includes('IP_RESTRICTION')) {
+                        try {
+                            const ipInfo = await getServerIpInfo();
+                            serverIp = ipInfo.ip;
+                        }
+                        catch (ipError) {
+                            logWarn('서버 IP 조회 실패', { error: ipError });
+                        }
+                    }
+                    res.json({
+                        ...testResult,
+                        guide: {
+                            ...errorGuide,
+                            serverIp: serverIp || undefined,
+                            timestamp: new Date().toISOString()
+                        }
+                    });
+                }
+                else {
+                    res.json(testResult);
+                }
             }
         }
         catch (error) {
-            console.error(`💥 [${new Date().toISOString()}] 연동 테스트 중 에러:`, error);
+            logError('연동 테스트 중 에러', {
+                exchange,
+                userId,
+                error: error.message,
+                stack: error.stack
+            });
+            // API 오류 가이드 생성
+            const errorGuide = getApiErrorGuide(exchange, error);
+            // 서버 IP 정보 가져오기 (IP 관련 오류인 경우)
+            let serverIp = null;
+            if (errorGuide.errorCode.includes('IP_BLOCKED') || errorGuide.errorCode.includes('IP_RESTRICTION')) {
+                try {
+                    const ipInfo = await getServerIpInfo();
+                    serverIp = ipInfo.ip;
+                }
+                catch (ipError) {
+                    logWarn('서버 IP 조회 실패', { error: ipError });
+                }
+            }
             res.status(500).json({
-                error: '연동 테스트 중 오류가 발생했습니다',
-                details: error.message
+                success: false,
+                error: '연동 테스트 실패',
+                details: error.message,
+                guide: {
+                    ...errorGuide,
+                    serverIp: serverIp || undefined,
+                    timestamp: new Date().toISOString()
+                }
             });
         }
     });
