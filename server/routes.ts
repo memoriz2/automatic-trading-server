@@ -228,6 +228,38 @@ export async function registerRoutes(
     res.json(m);
   });
 
+  // 최근 거래 기록 조회 API (DB 기반)
+  app.get("/api/recent-trades", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      console.log(`🔍 [recent-trades] 사용자 ${userId} 최근 거래 ${limit}개 조회`);
+      
+      const trades = await storage.getTradesByUserId(String(userId), limit);
+      
+      // 거래 데이터 포맷팅 (고정된 시간 사용)
+      const formattedTrades = trades.map(trade => ({
+        id: trade.id,
+        timestamp: trade.executed_at || trade.created_at, // DB의 고정된 시간
+        type: trade.side, // 'buy', 'sell', 'short' 등
+        symbol: trade.symbol || 'BTC',
+        quantity: Number(trade.quantity || 0),
+        price: Number(trade.price || 0),
+        fee: Number(trade.fee || 0),
+        exchange: trade.exchange,
+        orderId: trade.order_id
+      }));
+      
+      console.log(`✅ [recent-trades] ${formattedTrades.length}개 거래 조회 완료`);
+      
+      res.json(formattedTrades);
+    } catch (error) {
+      console.error('❌ [recent-trades] 최근 거래 조회 실패:', error);
+      res.status(500).json({ error: '최근 거래 조회 중 오류가 발생했습니다' });
+    }
+  });
+
   // 실시간 거래소 잔고 조회 API
   app.get("/api/realtime-balances", authenticateSession, async (req: any, res) => {
     try {
@@ -646,10 +678,25 @@ export async function registerRoutes(
     const user = req.session?.user;
     
     if (!user) {
-      console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
-        sessionExists: !!req.session,
-        sessionId: req.sessionID
-      });
+      // 로그 스팸 방지: 개발 환경에서만 출력하고, 빈도 제한
+      if (process.env.NODE_ENV === 'development') {
+        const now = Date.now();
+        const sessionId = req.sessionID;
+        const lastLogKey = `auth_fail_${sessionId}`;
+        
+        // 전역 객체에 마지막 로그 시간 저장 (간단한 메모리 기반 스로틀링)
+        if (!global.authFailLogs) global.authFailLogs = {};
+        const lastLogTime = global.authFailLogs[lastLogKey] || 0;
+        
+        // 30초마다 한 번만 로그 출력
+        if (now - lastLogTime > 30000) {
+          console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
+            sessionExists: !!req.session,
+            sessionId: sessionId
+          });
+          global.authFailLogs[lastLogKey] = now;
+        }
+      }
       return res.status(401).json({ message: '로그인이 필요합니다' });
     }
     

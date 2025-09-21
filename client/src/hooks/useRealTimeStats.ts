@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface RealTimeStats {
   totalTrades: number;
@@ -31,6 +31,8 @@ export const useRealTimeStats = (userId?: number) => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthFailed, setIsAuthFailed] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 한국시간 자정부터 경과 분 계산
   const getKstMinutesSinceMidnight = () => {
@@ -42,7 +44,7 @@ export const useRealTimeStats = (userId?: number) => {
 
   // 실제 DB 통계 가져오기
   const fetchRealStats = async () => {
-    if (!userId) return;
+    if (!userId || isAuthFailed) return;
 
     setIsLoading(true);
     setError(null);
@@ -61,25 +63,40 @@ export const useRealTimeStats = (userId?: number) => {
         cache: 'no-store',
       });
 
-        if (res.ok) {
-          const metrics = await res.json();
-          
-          const calculatedTotalTrades = Number(metrics.total_orders || 0); // 서버에서 이미 계산됨
-          
-          const realStats: RealTimeStats = {
-            totalTrades: calculatedTotalTrades,
-            upbitTrades: Number(metrics.upbit_orders || 0),
-            binanceTrades: Number(metrics.binance_orders || 0),
-            entries: Number(metrics.entries || 0),
-            exits: Number(metrics.exits || 0),
-            loops: Number(metrics.loops || 0),
-            errors: Number(metrics.errors || 0),
-            totalFees: Number(metrics.total_fees || 0),
-            totalProfitRate: Number(metrics.total_profit_rate || 0)
-          };
-          
-          setStats(realStats);
-          // 모든 useRealTimeStats 로그 제거
+      if (res.status === 401) {
+        console.log('🔒 [useRealTimeStats] 인증 실패로 통계 조회 중단');
+        setIsAuthFailed(true);
+        setError('인증이 필요합니다. 다시 로그인해주세요.');
+        
+        // 인터벌 정리
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        return;
+      }
+
+      if (res.ok) {
+        const metrics = await res.json();
+        
+        const calculatedTotalTrades = Number(metrics.total_orders || 0); // 서버에서 이미 계산됨
+        
+        const realStats: RealTimeStats = {
+          totalTrades: calculatedTotalTrades,
+          upbitTrades: Number(metrics.upbit_orders || 0),
+          binanceTrades: Number(metrics.binance_orders || 0),
+          entries: Number(metrics.entries || 0),
+          exits: Number(metrics.exits || 0),
+          loops: Number(metrics.loops || 0),
+          errors: Number(metrics.errors || 0),
+          totalFees: Number(metrics.total_fees || 0),
+          totalProfitRate: Number(metrics.total_profit_rate || 0)
+        };
+        
+        setStats(realStats);
+        // 성공 시 인증 실패 상태 초기화
+        setIsAuthFailed(false);
+        // 모든 useRealTimeStats 로그 제거
       } else {
         throw new Error(`API 응답 오류: ${res.status}`);
       }
@@ -92,23 +109,44 @@ export const useRealTimeStats = (userId?: number) => {
     }
   };
 
+  // 인증 실패 이벤트 리스너
+  useEffect(() => {
+    const handleAuthFailed = () => {
+      console.log('🔒 [useRealTimeStats] 전역 인증 실패 이벤트 수신');
+      setIsAuthFailed(true);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    window.addEventListener('auth-failed', handleAuthFailed);
+    return () => window.removeEventListener('auth-failed', handleAuthFailed);
+  }, []);
+
   // 실시간 업데이트 (5초마다)
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || isAuthFailed) return;
 
     // 즉시 실행
     fetchRealStats();
 
     // 5초마다 업데이트
-    const interval = setInterval(fetchRealStats, 5000);
+    intervalRef.current = setInterval(fetchRealStats, 5000);
     
-    return () => clearInterval(interval);
-  }, [userId]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [userId, isAuthFailed]);
 
   return {
     stats,
     isLoading,
     error,
+    isAuthFailed,
     refetch: fetchRealStats
   };
 };

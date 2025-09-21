@@ -93,7 +93,7 @@ class MockTradingStateManager {
   cleanupInactiveStates(): void {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     
-    for (const [userId, state] of this.states.entries()) {
+    for (const [userId, state] of Array.from(this.states.entries())) {
       if (state.lastActivity < oneHourAgo) {
         this.states.delete(userId);
         console.log(`🧹 비활성 Mock 거래 상태 정리: 사용자 ${userId}`);

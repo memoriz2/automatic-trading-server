@@ -142,7 +142,7 @@ export class TradesRepository extends BaseRepository {
     `;
 
     let countQuery = 'SELECT COUNT(*) as count FROM trades WHERE user_id = $1';
-    let params: any[] = [userId];
+    const params: any[] = [userId];
     let paramIndex = 2;
 
     if (exchange) {
@@ -299,7 +299,7 @@ export class TradesRepository extends BaseRepository {
         AND DATE(executed_at) <= $3
     `;
 
-    let params: any[] = [userId, startDate, endDate];
+    const params: any[] = [userId, startDate, endDate];
 
     if (exchange) {
       query += ' AND exchange = $4';

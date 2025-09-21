@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, TrendingDown, Play, Square, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, Play, Square } from "lucide-react";
 import { LEVERAGE_CONFIG } from "@/utils/trading/leverage";
 
 interface Strategy {

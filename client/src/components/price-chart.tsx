@@ -67,7 +67,7 @@ export function PriceChart({ kimchiData }: PriceChartProps) {
                   <span className="text-sm font-medium text-yellow-400">바이낸스 BTCUSDT</span>
                 </div>
                 <div className="text-xl font-mono text-white">
-                  {btcData && btcData.binancePriceUSD ? formatPrice(btcData.binancePriceUSD, '$') : '로딩중...'}
+                  {btcData && btcData.binancePrice ? formatPrice(btcData.binancePrice, '$') : '로딩중...'}
                 </div>
                 <div className="text-xs text-slate-400">선물 거래소 (USD)</div>
               </div>

@@ -44,20 +44,20 @@ export const BalanceDisplay = React.memo(() => {
   // 🔄 실제 거래소 잔고 조회 (기존 API 대신 실시간 API 사용)
   const { data: balances, isLoading, error } = useQuery<BalanceData>({
     queryKey: [`/api/balances/${userId}`],
-    refetchInterval: 60000, // 60초마다 잔고 조회 (API 제한으로 인한 조정)
+    refetchInterval: 30000, // 30초마다 잔고 조회 (원래대로)
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화
     enabled: !!userId, // 로그인한 경우에만 API 호출
   });
 
-  // 🔄 실시간 거래소 BTC 잔고 조회 (10초마다)
-  const { data: realtimeBalances } = useQuery<{upbitBtc: number; binanceBtc: number}>({
-    queryKey: [`/api/realtime-balances`],
-    refetchInterval: 10000, // 10초마다 실제 거래소 조회
-    staleTime: 0,
-    gcTime: 0,
-    enabled: !!userId,
-  });
+  // 🔄 실시간 거래소 BTC 잔고 조회 (10초마다) - 현재 사용하지 않음
+  // const { data: realtimeBalances } = useQuery<{upbitBtc: number; binanceBtc: number}>({
+  //   queryKey: [`/api/realtime-balances`],
+  //   refetchInterval: 10000, // 10초마다 실제 거래소 조회
+  //   staleTime: 0,
+  //   gcTime: 0,
+  //   enabled: !!userId,
+  // });
 
   // 새로운 잔고 데이터가 오면 이전 값 업데이트
   useEffect(() => {

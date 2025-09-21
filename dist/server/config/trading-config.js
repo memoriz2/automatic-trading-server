@@ -1,0 +1,23 @@
+// ===== 환경별 거래 모드 설정 =====
+// 환경 변수 기반 설정 (Live 모드로 통일)
+export const TRADING_CONFIG = {
+    isLiveTradingEnabled: true, // 항상 실거래 모드
+    isProduction: process.env.NODE_ENV === "production",
+    isDevelopment: process.env.NODE_ENV === "development",
+    tradingMode: "live", // Live 모드로 고정
+    logLevel: process.env.LOG_LEVEL || "info"
+};
+// 거래 모드 확인 함수 (Live 모드로 통일)
+export const isLiveMode = () => {
+    return true; // 항상 Live 모드
+};
+export const isLiveTradingMode = () => {
+    return true; // 항상 Live 모드
+};
+// 환경별 로그 출력 (Live 모드 전용)
+export const logTradingMode = () => {
+    console.log(`🎯 [${new Date().toISOString()}] 거래 모드: LIVE (실거래)`);
+    console.log(`🔧 [${new Date().toISOString()}] Live 거래 활성화: ${TRADING_CONFIG.isLiveTradingEnabled}`);
+    console.log(`🌍 [${new Date().toISOString()}] 환경: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🚨 [${new Date().toISOString()}] Live 거래 모드 - 실제 자금으로 거래가 실행됩니다! 🚨`);
+};

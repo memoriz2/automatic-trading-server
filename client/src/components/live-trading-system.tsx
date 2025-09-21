@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // 사용하지 않음
 import { useToast } from "@/hooks/use-toast";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModal';
@@ -9,7 +9,7 @@ import { LivePositionList } from '@/components/trading/LivePositionList';
 import { LiveTradeHistory } from '@/components/trading/LiveTradeHistory';
 import { LiveBalanceDisplay } from '@/components/trading/LiveBalanceDisplay';
 import { logClientTradingMode } from '@/config/trading-config';
-import { formatKoreanTime, formatKoreanDateTime } from '@/utils/datetime';
+import { formatKoreanTime } from '@/utils/datetime';
 
 // API 호출 함수
 const apiFetch = async (url: string, options: RequestInit = {}) => {
@@ -234,10 +234,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   
   // 롤백 설정 모달 상태
   const [showRollbackSettingsModal, setShowRollbackSettingsModal] = useState(false);
+  const [tradeRefreshTrigger, setTradeRefreshTrigger] = useState(0); // DB 거래 기록 새로고침 트리거
   
   // 토글 방지용: 최소 보유시간
   const MIN_HOLD_MS = 30_000; // 진입 후 최소 보유 30초
-  const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격
+  // const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격 (사용하지 않음)
   const COOLDOWN_MS = 800;    // 동일 전략 연속 액션 쿨다운(민감도 향상)
   const lastActionAtRef = useRef<Record<string, number>>({});
   const prevPremiumRef = useRef<number | null>(null); // 임계값 교차 감지용 이전 김프
@@ -333,12 +334,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // liveTrades 상태 변화 추적
   React.useEffect(() => {
-    const debugInfo = {
-      count: liveTrades.length,
-      trades: liveTrades.map(t => ({ id: t.id, type: t.type, exchange: t.exchange })),
-      timestamp: new Date().toISOString(),
-      stack: new Error().stack?.split('\n').slice(1, 3) // 호출 스택 추적
-    };
+    // const debugInfo = {
+    //   count: liveTrades.length,
+    //   trades: liveTrades.map(t => ({ id: t.id, type: t.type, exchange: t.exchange })),
+    //   timestamp: new Date().toISOString(),
+    //   stack: new Error().stack?.split('\n').slice(1, 3) // 호출 스택 추적
+    // };
     
     // 콘솔과 localStorage 둘 다에 저장
     // liveTrades 상태 변경 (로그 제거)
@@ -838,6 +839,29 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           console.log('🎉 실거래 주문 모두 완료! (바이낸스 → 업비트)', { binanceOrderId, upbitOrderId });
           
+          // 🔄 거래 완료 후 즉시 잔고 새로고침 (React Query 캐시 무효화)
+          setTimeout(async () => {
+            try {
+              // 잔고 관련 캐시 무효화
+              await fetch('/api/v2/balance/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ forceRefresh: true })
+              });
+              
+              // 실시간 잔고도 즉시 업데이트
+              await fetch('/api/realtime-balances', { credentials: 'include' });
+              
+              console.log('🔄 거래 후 잔고 새로고침 완료');
+              
+              // DB 거래 기록도 새로고침
+              setTradeRefreshTrigger(prev => prev + 1);
+            } catch (refreshError) {
+              console.error('❌ 잔고 새로고침 실패:', refreshError);
+            }
+          }, 2000);
+          
         } catch (realTradingError) {
           console.error('❌ 실거래 주문 실패:', realTradingError);
           toast({
@@ -940,10 +964,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       });
 
       // 거래 기록 생성
+      const tradeTimestamp = new Date(); // 거래 시점 고정
       const newTrades: LiveTrade[] = [
         {
           id: `${tradeId}-binance`,
-          timestamp: new Date(),
+          timestamp: tradeTimestamp,
           type: 'short', // SHORT 포지션 진입
           symbol: 'BTC',
           quantity: binanceShortAmountBTC,
@@ -956,7 +981,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         },
         {
           id: `${tradeId}-upbit`,
-          timestamp: new Date(),
+          timestamp: tradeTimestamp, // 동일한 거래 시점 사용
           type: 'buy',
           symbol: 'BTC',
           quantity: upbitBuyAmountBTC,
@@ -1432,10 +1457,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       setTradeCounter(currentCounter);
       const randomId = Math.random().toString(36).substring(2, 8);
       const tradeId = `exit-${Date.now()}-${currentCounter}-${randomId}`;
+      const exitTimestamp = new Date(); // 청산 시점 고정
       const exitTrades: LiveTrade[] = [
         {
           id: `${tradeId}-upbit`,
-          timestamp: new Date(),
+          timestamp: exitTimestamp,
           type: 'sell',
           symbol: 'BTC',
           quantity: upbitSellQuantity,
@@ -1448,7 +1474,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         },
         {
           id: `${tradeId}-binance`,
-          timestamp: new Date(),
+          timestamp: exitTimestamp, // 동일한 청산 시점 사용
           type: 'cover', // SHORT 커버 (청산)
           symbol: 'BTC',
           quantity: binanceCloseQuantity,
@@ -2239,6 +2265,26 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                         title: "실거래 청산 완료",
                         description: `${liquidationResults.filter(r => r.type !== 'error').length}개 포지션이 실제로 청산되었습니다.`,
                       });
+                      
+                      // 🔄 청산 완료 후 즉시 잔고 새로고침
+                      setTimeout(async () => {
+                        try {
+                          await fetch('/api/v2/balance/refresh', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ forceRefresh: true })
+                          });
+                          
+                          await fetch('/api/realtime-balances', { credentials: 'include' });
+                          console.log('🔄 청산 후 잔고 새로고침 완료');
+                          
+                          // DB 거래 기록도 새로고침
+                          setTradeRefreshTrigger(prev => prev + 1);
+                        } catch (refreshError) {
+                          console.error('❌ 청산 후 잔고 새로고침 실패:', refreshError);
+                        }
+                      }, 2000);
                     } else {
                       toast({
                         title: "청산 실패",
@@ -2401,6 +2447,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             tradingLogs={tradingLogs}
             recentTrades={recentTrades}
             strategies={strategies}
+            refreshTrigger={tradeRefreshTrigger}
           />
         </div>
       </CardContent>

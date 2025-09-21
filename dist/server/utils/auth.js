@@ -1,0 +1,91 @@
+// @ts-ignore
+import bcrypt from 'bcrypt';
+// @ts-ignore
+import jwt from 'jsonwebtoken';
+// import type { Request, Response, NextFunction } from 'express'; // 사용하지 않음
+const JWT_SECRET = (() => {
+    const value = process.env.JWT_SECRET;
+    if (value)
+        return value;
+    if (process.env.NODE_ENV !== 'production')
+        return 'dev-only-secret';
+    throw new Error('JWT_SECRET 환경변수가 설정되지 않았습니다');
+})();
+const SALT_ROUNDS = 12;
+/**
+ * 비밀번호 해시화
+ */
+export async function hashPassword(password) {
+    try {
+        return await bcrypt.hash(password, SALT_ROUNDS);
+    }
+    catch (error) {
+        console.error('비밀번호 해시화 실패:', error);
+        throw new Error('비밀번호 처리에 실패했습니다');
+    }
+}
+/**
+ * 비밀번호 검증
+ */
+export async function verifyPassword(password, hashedPassword) {
+    try {
+        return await bcrypt.compare(password, hashedPassword);
+    }
+    catch (error) {
+        console.error('비밀번호 검증 실패:', error);
+        return false;
+    }
+}
+/**
+ * JWT 토큰 생성
+ */
+export function generateToken(userId, username) {
+    return jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: '24h' });
+}
+/**
+ * JWT 토큰 검증
+ */
+export function verifyToken(token) {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        return { userId: decoded.userId, username: decoded.username };
+    }
+    catch (error) {
+        console.error('토큰 검증 실패:', error);
+        return null;
+    }
+}
+// JWT 토큰 인증 미들웨어 제거됨 - 세션 기반 인증으로 전환
+/**
+ * 비밀번호 강도 검증
+ */
+export function validatePasswordStrength(password) {
+    if (password.length < 8) {
+        return { isValid: false, message: '비밀번호는 최소 8자 이상이어야 합니다' };
+    }
+    if (!/(?=.*[a-z])/.test(password)) {
+        return { isValid: false, message: '비밀번호에 소문자가 포함되어야 합니다' };
+    }
+    if (!/(?=.*[A-Z])/.test(password)) {
+        return { isValid: false, message: '비밀번호에 대문자가 포함되어야 합니다' };
+    }
+    if (!/(?=.*\d)/.test(password)) {
+        return { isValid: false, message: '비밀번호에 숫자가 포함되어야 합니다' };
+    }
+    return { isValid: true, message: '유효한 비밀번호입니다' };
+}
+/**
+ * 사용자명 검증
+ */
+export function validateUsername(username) {
+    if (username.length < 3) {
+        return { isValid: false, message: '사용자명은 최소 3자 이상이어야 합니다' };
+    }
+    if (username.length > 20) {
+        return { isValid: false, message: '사용자명은 20자를 초과할 수 없습니다' };
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return { isValid: false, message: '사용자명은 영문, 숫자, 언더스코어만 사용 가능합니다' };
+    }
+    return { isValid: true, message: '유효한 사용자명입니다' };
+}

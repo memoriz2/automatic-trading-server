@@ -39,15 +39,15 @@ export class TradingExecutionService {
         })
       });
 
-      if (response.success) {
+      if ((response as any).success) {
         return {
           success: true,
-          orderId: response.orderId,
+          orderId: (response as any).orderId,
           message: '업비트 매수 주문 성공',
           data: response
         };
       } else {
-        throw new Error(response.message || '업비트 매수 주문 실패');
+        throw new Error((response as any).message || '업비트 매수 주문 실패');
       }
     } catch (error) {
       return {
@@ -80,15 +80,15 @@ export class TradingExecutionService {
         })
       });
 
-      if (response.success) {
+      if ((response as any).success) {
         return {
           success: true,
-          orderId: response.orderId,
+          orderId: (response as any).orderId,
           message: '바이낸스 숏 주문 성공',
           data: response
         };
       } else {
-        throw new Error(response.message || '바이낸스 숏 주문 실패');
+        throw new Error((response as any).message || '바이낸스 숏 주문 실패');
       }
     } catch (error) {
       return {
@@ -192,7 +192,7 @@ export class TradingExecutionService {
       });
 
       return {
-        success: upbitSellResponse.success && binanceCoverResponse.success,
+        success: (upbitSellResponse as any).success && (binanceCoverResponse as any).success,
         message: '포지션 청산 완료',
         data: {
           upbit: upbitSellResponse,

@@ -204,7 +204,7 @@ export class IpBanDetector {
   }> {
     const status: Record<string, any> = {};
     
-    for (const [key, record] of this.banRecords.entries()) {
+    for (const [key, record] of Array.from(this.banRecords.entries())) {
       status[key] = {
         isBanned: this.isBanned(record.exchange),
         errorCount: record.errorCount,

@@ -193,7 +193,7 @@ export class OrdersRepository extends BaseRepository {
     `;
 
     let countQuery = 'SELECT COUNT(*) as count FROM orders WHERE user_id = $1';
-    let params: any[] = [userId];
+    const params: any[] = [userId];
 
     if (status) {
       baseQuery += ` AND status = $${params.length + 1}`;
@@ -315,7 +315,7 @@ export class OrdersRepository extends BaseRepository {
       WHERE user_id = $1 AND status IN ('pending', 'partially_filled')
     `;
 
-    let params: any[] = [userId];
+    const params: any[] = [userId];
 
     if (exchange) {
       query += ` AND exchange = $${params.length + 1}`;

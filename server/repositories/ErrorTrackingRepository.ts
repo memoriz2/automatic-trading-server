@@ -182,7 +182,7 @@ export class ErrorTrackingRepository extends BaseRepository {
     `;
 
     let countQuery = 'SELECT COUNT(*) as count FROM trading_errors WHERE user_id = $1';
-    let params: any[] = [userId];
+    const params: any[] = [userId];
     let paramIndex = 2;
 
     // 필터 조건 추가
@@ -561,7 +561,7 @@ export class ErrorTrackingRepository extends BaseRepository {
     `;
 
     let countQuery = 'SELECT COUNT(*) as count FROM error_patterns WHERE 1=1';
-    let params: any[] = [];
+    const params: any[] = [];
     let paramIndex = 1;
 
     // 필터 조건 추가

@@ -2,7 +2,7 @@
 import bcrypt from 'bcrypt';
 // @ts-ignore
 import jwt from 'jsonwebtoken';
-import type { Request, Response, NextFunction } from 'express';
+// import type { Request, Response, NextFunction } from 'express'; // 사용하지 않음
 
 const JWT_SECRET: string = (() => {
   const value = process.env.JWT_SECRET;

@@ -50,7 +50,7 @@ export const calculateDailyStats = (
   const activePositions = mockPositions.filter(p => p.status === 'open').length;
   const realizedPnl = mockPositions
     .filter(p => p.status === 'closed')
-    .reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
+    .reduce((sum, p) => sum + ((p as any).realizedPnl || 0), 0);
   
   return {
     totalTrades,
@@ -70,10 +70,10 @@ export const getRecentTrades = (mockTrades: MockTrade[], strategies: any[]) => {
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 10)
     .map(trade => {
-      const strategy = strategies.find(s => s.id === trade.strategyId);
+      const strategy = strategies.find(s => s.id === (trade as any).strategyId);
       return {
         ...trade,
-        strategyName: strategy?.name || trade.strategyName || 'Unknown'
+        strategyName: strategy?.name || (trade as any).strategyName || 'Unknown'
       };
     });
 };

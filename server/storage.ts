@@ -939,7 +939,7 @@ export class DatabaseStorage {
   async closeAllPositionsByUser(userId: string | number, filters: any = {}): Promise<{ count: number }> {
     try {
       let whereClause = 'user_id = $1 AND status = $2';
-      let params: any[] = [typeof userId === 'string' ? parseInt(userId) : userId, 'open'];
+      const params: any[] = [typeof userId === 'string' ? parseInt(userId) : userId, 'open'];
       let paramIndex = 3;
 
       if (filters.symbol) {
@@ -986,16 +986,32 @@ export class DatabaseStorage {
     }
   }
 
-  // 오늘 거래만 조회 (간단한 날짜 비교)
+  // 오늘 거래만 조회 (한국시간 기준)
   async getTodayTradesByUserId(userId: string | number): Promise<any[]> {
     try {
       const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
+      
+      // 한국시간 기준 오늘 범위 계산
+      const now = new Date();
+      const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+      const kstToday = new Date(kstNow);
+      kstToday.setHours(0, 0, 0, 0);
+      const kstTomorrow = new Date(kstToday);
+      kstTomorrow.setDate(kstTomorrow.getDate() + 1);
+      
+      console.log(`🔍 [getTodayTradesByUserId] 한국시간 기준:`, {
+        현재: kstNow.toISOString(),
+        오늘시작: kstToday.toISOString(),
+        내일시작: kstTomorrow.toISOString()
+      });
+      
       const result = await this.pool.query(`
         SELECT * FROM trades 
         WHERE user_id = $1 
-        AND DATE(executed_at) = CURRENT_DATE
+        AND executed_at >= $2
+        AND executed_at < $3
         ORDER BY executed_at DESC
-      `, [userIdNum]);
+      `, [userIdNum, kstToday.toISOString(), kstTomorrow.toISOString()]);
       
       console.log(`🔍 [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘 거래: ${result.rows.length}개`);
       return result.rows;
@@ -1011,7 +1027,8 @@ export class DatabaseStorage {
       const result = await this.pool.query(`
         SELECT * FROM positions 
         WHERE user_id = $1 
-        AND DATE(entry_time) = CURRENT_DATE
+        AND entry_time >= CURRENT_DATE
+        AND entry_time < CURRENT_DATE + INTERVAL '1 day'
         ORDER BY entry_time DESC
       `, [userId]);
       

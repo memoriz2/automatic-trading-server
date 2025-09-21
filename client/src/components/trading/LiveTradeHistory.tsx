@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { formatBTC, formatPrice } from '@/utils/trading/formatters';
 import { formatKoreanTime } from '@/utils/datetime';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LiveTrade {
   id: string;
@@ -25,13 +26,52 @@ interface LiveTradeHistoryProps {
   tradingLogs: string[];
   recentTrades: LiveTrade[];
   strategies: Strategy[];
+  refreshTrigger?: number; // 거래 후 DB 새로고침 트리거
 }
 
-export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
-  tradingLogs,
-  recentTrades,
-  strategies
+export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({ 
+  tradingLogs, 
+  recentTrades, 
+  strategies,
+  refreshTrigger = 0
 }) => {
+  const { user } = useAuth();
+  const [dbTrades, setDbTrades] = useState<LiveTrade[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // DB에서 최근 거래 조회 (고정된 시간 사용)
+  const fetchRecentTrades = async () => {
+    if (!user?.id) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/recent-trades?limit=10`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const trades = await response.json();
+        const formattedTrades = trades.map((trade: any) => ({
+          ...trade,
+          timestamp: new Date(trade.timestamp) // DB의 고정된 거래 시간
+        }));
+        setDbTrades(formattedTrades);
+        console.log('✅ DB 거래 기록 조회 완료:', formattedTrades.length);
+      }
+    } catch (error) {
+      console.error('❌ DB 거래 기록 조회 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 및 refreshTrigger 변경 시 조회
+  useEffect(() => {
+    fetchRecentTrades();
+  }, [user?.id, refreshTrigger]);
+
+  // DB 거래가 있으면 DB 데이터 우선 사용 (고정된 시간)
+  const displayTrades = dbTrades.length > 0 ? dbTrades : recentTrades;
   // 개발 환경에서만 의미 있는 경고 출력 (컴포넌트 로드 후 5초 뒤에도 거래 기록이 없을 때만)
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -80,12 +120,14 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
           </div>
         </div>
         <div className="max-h-60 overflow-y-auto">
-          {recentTrades.length === 0 ? (
+          {displayTrades.length === 0 ? (
             <div className="bg-slate-800 p-3 rounded-lg text-center">
-              <p className="text-slate-400 text-sm">거래 기록이 없습니다</p>
+              <p className="text-slate-400 text-sm">
+                {isLoading ? '거래 기록 로딩 중...' : '거래 기록이 없습니다'}
+              </p>
             </div>
           ) : (
-            recentTrades.map(trade => {
+            displayTrades.map(trade => {
               const strategy = strategies.find(s => s.id === trade.strategyId);
               return (
                 <div key={trade.id} className="bg-slate-700 p-2 rounded mb-1 text-xs border border-slate-600">

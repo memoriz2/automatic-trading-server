@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { SimpleKimchiService } from "../services/simple-kimchi.js";
 import { realtimeKimchiService } from "../services/realtime-kimchi.js";
 import { KimpgaStrategyService } from "../services/kimpga-strategy.js";
-import { CoinAPIService } from "../services/coinapi.js";
+// import { CoinAPIService } from "../services/coinapi.js"; // 사용하지 않음
 // import { storage } from "../storage.js"; // 현재 사용하지 않음
 import { authenticateSession } from "./auth.js";
 
@@ -100,8 +100,8 @@ export function registerApiRoutes(app: Express): void {
         binance_price: d?.binanceFuturesPrice ?? null,
         usdkrw: d?.usdKrwRate ?? null,
       });
-    } catch (e) {
-      console.error("/api/kimpga/current error", e);
+    } catch (_e) {
+      console.error("/api/kimpga/current error", _e);
       res.status(500).json({ error: "failed" });
     }
   });
@@ -109,7 +109,7 @@ export function registerApiRoutes(app: Express): void {
   app.get("/api/kimpga/status", async (_req, res) => {
     try {
       res.json(kimpgaSvc.getStatus());
-    } catch (e) {
+    } catch (_e) {
       res.status(500).json({ error: "failed" });
     }
   });

@@ -85,7 +85,7 @@ export function registerAuthRoutes(app: Express): void {
       });
 
       // 세션에 사용자 정보 저장
-      req.session.user = {
+      (req as any).session.user = {
         id: user.id,
         username: user.username,
         role: user.role
@@ -133,7 +133,7 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       // 세션에 사용자 정보 저장
-      req.session.user = {
+      (req as any).session.user = {
         id: user.id,
         username: user.username,
         role: user.role

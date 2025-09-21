@@ -35,13 +35,24 @@ export function useWebSocket() {
         }
 
         // 환경별 WebSocket URL 결정
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const isHttps = window.location.protocol === "https:";
+        const protocol = isHttps ? "wss:" : "ws:";
         const baseHostname = window.location.hostname.replace(/^www\./, '');
         
-        // 포트 결정 로직 개선 (5001 고정)
-        const port = "5001"; // 로컬 개발 환경에서는 항상 5001
+        // 포트 결정 로직 (환경별 최적화)
+        let host;
+        const isLocalhost = baseHostname === 'localhost' || baseHostname === '127.0.0.1';
         
-        const host = `${baseHostname}:${port}`;
+        if (isLocalhost) {
+          // 로컬 개발 환경: 항상 5001 포트
+          host = `${baseHostname}:5001`;
+        } else if (isHttps) {
+          // HTTPS 프로덕션 환경: 포트 생략 (리버스 프록시)
+          host = baseHostname;
+        } else {
+          // HTTP 프로덕션 환경: 현재 포트 사용
+          host = `${baseHostname}:${window.location.port || '80'}`;
+        }
         
         // 연결 시도는 첫 번째와 실패 후에만 로그
         if (connectionAttempts === 0 || connectionAttempts % 3 === 0) {
@@ -56,11 +67,28 @@ export function useWebSocket() {
           throw new Error(`Invalid WebSocket host: ${host}`);
         }
         
-        const wsUrl = token 
-          ? `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`
-          : `${protocol}//${host}/ws`;
+        // 웹소켓 URL 생성 (프로덕션 환경 고려)
+        let wsUrl;
+        if (isLocalhost) {
+          // 로컬: 기본 /ws 경로
+          wsUrl = token 
+            ? `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`
+            : `${protocol}//${host}/ws`;
+        } else {
+          // 프로덕션: 여러 경로 시도 가능하도록
+          wsUrl = token 
+            ? `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`
+            : `${protocol}//${host}/ws`;
+        }
           
-        console.log('🔍 WebSocket URL 생성:', { protocol, host, wsUrl });
+        console.log('🔍 WebSocket URL 생성:', { 
+          protocol, 
+          host, 
+          wsUrl, 
+          isLocalhost, 
+          isHttps,
+          currentUrl: window.location.href 
+        });
         
         ws.current = new WebSocket(wsUrl);
         

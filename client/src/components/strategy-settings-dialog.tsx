@@ -26,7 +26,7 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
     refetchInterval: 10000, // 10초마다 상태 확인 (API 제한으로 인한 조정)
   });
 
-  const isNewKimchiActive = tradingStatus?.newKimchiActive || false;
+  const isNewKimchiActive = (tradingStatus as any)?.newKimchiActive || false;
 
   const [settings, setSettings] = useState({
     strategyType: 'positive_kimchi',  // 'positive_kimchi' 또는 'negative_kimchi'

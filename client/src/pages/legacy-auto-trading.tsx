@@ -596,7 +596,7 @@ const LegacyAutoTradingPage = () => {
   // ===== API Helper =====
   const fetchJson = useCallback(async (url: string, opt = {}) => {
     // 1) 경로 정규화: 세션 기반 조회 보장 (undefined/null/빈 ID 방지)
-    let normalized = url;
+    const normalized = url;
     if (normalized.startsWith('/api/trading-strategies')) {
       // '/api/trading-strategies/undefined', '/null', '/' → '/api/trading-strategies'
       if (
@@ -1625,8 +1625,8 @@ const LegacyAutoTradingPage = () => {
     const intervals: NodeJS.Timeout[] = [];
     const startPolling = () => {
       stopPolling();
-      intervals.push(setInterval(tickLight, 3000));  // 0.9초 → 3초
-      intervals.push(setInterval(tickHeavy, 10000)); // 2.5초 → 10초
+      intervals.push(setInterval(tickLight, 3000));  // 김치 데이터 3초
+      intervals.push(setInterval(tickHeavy, 10000)); // 잔고 데이터 10초 (원래대로)
       tickLight();
       tickHeavy();
     };

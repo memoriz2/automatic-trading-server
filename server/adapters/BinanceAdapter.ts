@@ -543,7 +543,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     unrealizedPnl: number;
     leverage: number;
   }>> {
-    let endpoint = '/fapi/v2/positionRisk';
+    const endpoint = '/fapi/v2/positionRisk';
     const params: any = {};
     
     if (symbol) {

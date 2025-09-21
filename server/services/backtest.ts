@@ -1,5 +1,5 @@
 
-import { storage } from "../storage.js";
+// import { storage } from "../storage.js"; // 사용하지 않음
 import { SimpleKimchiService } from "./simple-kimchi.js";
 
 // Define the structure for backtest parameters
