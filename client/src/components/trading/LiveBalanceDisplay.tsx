@@ -71,7 +71,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
               {profitRate >= 0 ? '+' : ''}{isFinite(profitRate) ? profitRate.toFixed(2) : '0.00'}%
             </p>
             <p className={`text-sm ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {totalPnl >= 0 ? '+' : ''}₩{isFinite(totalPnl) ? totalPnl.toLocaleString() : '0'}
+              {totalPnl >= 0 ? '+' : ''}₩{isFinite(totalPnl) ? Math.floor(totalPnl).toLocaleString() : '0'}
             </p>
           </div>
         </div>

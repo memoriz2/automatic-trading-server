@@ -158,7 +158,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
               <div className="flex items-center gap-2">
                 <div className="text-right">
                   <p className={`font-bold ${pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {pnlData.unrealizedPnl >= 0 ? '+' : ''}₩{pnlData.unrealizedPnl.toLocaleString()}
+                    {pnlData.unrealizedPnl >= 0 ? '+' : ''}₩{Math.floor(Math.abs(pnlData.unrealizedPnl)).toLocaleString()}
                   </p>
                   <p className={`text-xs ${pnlData.premiumDelta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {(() => {
@@ -169,7 +169,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       const premiumPnlKRW = (pnlData.premiumDelta / 100) * totalInvestment;
                       const premiumPnlPercent = totalInvestment > 0 ? (premiumPnlKRW / totalInvestment * 100) : 0;
                       
-                      return `${premiumPnlKRW >= 0 ? '+' : ''}₩${Math.abs(premiumPnlKRW).toLocaleString()} (${premiumPnlPercent >= 0 ? '+' : ''}${premiumPnlPercent.toFixed(2)}%)`;
+                      return `${premiumPnlKRW >= 0 ? '+' : ''}₩${Math.floor(Math.abs(premiumPnlKRW)).toLocaleString()} (${premiumPnlPercent >= 0 ? '+' : ''}${premiumPnlPercent.toFixed(2)}%)`;
                     })()}
                   </p>
                       <p className="text-xs text-slate-400">

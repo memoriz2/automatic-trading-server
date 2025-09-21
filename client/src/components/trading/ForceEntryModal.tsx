@@ -247,7 +247,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               <Input
                 id="margin"
                 type="text"
-                value={`₩${parseFloat(settings.margin || '0').toLocaleString()}`}
+                value={`₩${Math.floor(parseFloat(settings.margin || '0')).toLocaleString()}`}
                 readOnly
                 className="mt-1 bg-muted cursor-not-allowed"
               />
@@ -279,7 +279,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               </div>
               <div className="col-span-2">
                 <p className="text-muted-foreground">필요 증거금</p>
-                <p className="font-bold text-lg text-red-500">₩{parseFloat(settings.margin || '0').toLocaleString()}</p>
+                <p className="font-bold text-lg text-red-500">₩{Math.floor(parseFloat(settings.margin || '0')).toLocaleString()}</p>
               </div>
             </div>
           </div>

@@ -45,7 +45,7 @@ const AnimatedFeeNumber: React.FC<{ value: number }> = ({ value }) => {
 
   return (
     <span className={animationClass}>
-      ₩{value.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
+      ₩{Math.floor(value).toLocaleString('ko-KR')}
     </span>
   );
 };
