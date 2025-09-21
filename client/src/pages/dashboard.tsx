@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { StopCircle, Wifi, WifiOff } from "lucide-react";
 import type { KimchiPremium, Position, Trade, TradingSettings, SystemAlert } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
+import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 
 export default function Dashboard() {
   const [kimchiData, setKimchiData] = useState<KimchiPremium[]>([]);
@@ -25,6 +26,9 @@ export default function Dashboard() {
   
   // 세션에서 로그인한 사용자 ID 사용 (로그인 필수)
   const userId = user?.id;
+  
+  // 실시간 통계 (legacy-auto-trading과 동일한 데이터)
+  const { stats: realTimeStats } = useRealTimeStats(userId);
   
   // 디버깅 로그 제거
 
@@ -290,20 +294,8 @@ export default function Dashboard() {
 
   const todayKst = toKstDateString(new Date());
 
-  // 지표 기반 합산(체결+진입+청산) → 폴백은 로컬 필터
-  const todayTradeCountFromMetrics = todayMetrics
-    ? (Number(todayMetrics.total_orders || 0) + Number(todayMetrics.entries || 0) + Number(todayMetrics.exits || 0))
-    : null;
-
-  const todayTradeCountFallback = userId
-    ? (trades || []).filter((t: any) => {
-        const ts = (t as any).executedAt || (t as any).createdAt || (t as any).timestamp;
-        if (!ts) return false;
-        return toKstDateString(ts) === todayKst;
-      }).length
-    : 0;
-
-  const todayTradeCount = todayTradeCountFromMetrics ?? todayTradeCountFallback;
+  // legacy-auto-trading과 동일한 총 거래 값 사용
+  const todayTradeCount = realTimeStats?.totalTrades || 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
