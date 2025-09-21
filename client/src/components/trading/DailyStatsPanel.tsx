@@ -113,10 +113,10 @@ export const DailyStatsPanel: React.FC<DailyStatsPanelProps> = ({
           <p className="text-xs text-slate-400">총 수수료 (실시간)</p>
         </div>
         <div className="text-center">
-          <p className={`text-xl font-bold ${stats.totalProfitRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {stats.totalProfitRate >= 0 ? '+' : ''}{stats.totalProfitRate.toFixed(2)}%
+          <p className={`text-xl font-bold ${stats.totalProfitKrw >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {stats.totalProfitKrw >= 0 ? '+' : ''}₩{Math.floor(Math.abs(stats.totalProfitKrw)).toLocaleString()}
           </p>
-          <p className="text-xs text-slate-400">총 수익률</p>
+          <p className="text-xs text-slate-400">총 수익금</p>
         </div>
       </div>
       

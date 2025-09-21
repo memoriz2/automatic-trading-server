@@ -238,6 +238,26 @@ export class MultiStrategyTradingService {
         const isPositiveKimp = signal.premiumRate > 0;
         const kimchDirection = isPositiveKimp ? "양수김프" : "음수김프";
         console.log(`${strategy.name} 진입 시작: ${symbol}, 김프율: ${signal.premiumRate}%, 투자금액: ₩${upbitEntryAmount.toLocaleString()}, 레버리지: ${binanceLeverage}x, 김프방향: ${kimchDirection}`);
+        // 🔍 진입 전 잔고 확인
+        const balanceCheck = await this.checkBalanceBeforeEntry(userId, upbitEntryAmount, investmentBtcAmount);
+        if (!balanceCheck.sufficient) {
+            console.log(`❌ 잔고 부족으로 전략 비활성화: ${balanceCheck.message}`);
+            // 전략 비활성화
+            await storage.updateTradingStrategy(signal.strategyId, { isActive: false });
+            // 사용자별 전략 맵에서도 제거
+            const userStrategyMap = this.userStrategies.get(userId);
+            if (userStrategyMap) {
+                userStrategyMap.delete(signal.strategyId);
+            }
+            await storage.createSystemAlert({
+                type: "warning",
+                title: "잔고 부족으로 전략 비활성화",
+                message: `${strategy.name} 비활성화: ${balanceCheck.message}`,
+            });
+            console.log(`🔒 전략 "${strategy.name}" (ID: ${signal.strategyId}) 비활성화 완료`);
+            return; // 진입 취소
+        }
+        console.log(`✅ 잔고 확인 완료: ${balanceCheck.message}`);
         // 🚨 진입 조건 2차 검증 (단순 로직)
         const entryRate = Number(strategy.entryRate);
         const tolerance = Number(strategy.toleranceRate);
@@ -723,6 +743,65 @@ export class MultiStrategyTradingService {
         }
         // 전체 상태: 하나라도 거래 중이면 true
         return Array.from(this.userTradingStates.values()).some(state => state);
+    }
+    /**
+     * 진입 전 잔고 확인
+     */
+    async checkBalanceBeforeEntry(userId, upbitKrwNeeded, binanceBtcNeeded) {
+        try {
+            // 사용자의 거래소 API 키 조회
+            const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+            const upbitExchange = exchanges.find((e) => e.exchange === "upbit" && e.isActive);
+            const binanceExchange = exchanges.find((e) => e.exchange === "binance" && e.isActive);
+            if (!upbitExchange || !binanceExchange) {
+                return {
+                    sufficient: false,
+                    message: "거래소 API 키가 설정되지 않았습니다"
+                };
+            }
+            // 업비트 KRW 잔고 확인
+            const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+            const upbitAccounts = await upbitService.getAccounts();
+            const krwAccount = upbitAccounts.find((acc) => acc.currency === 'KRW');
+            const availableKrw = krwAccount ? parseFloat(krwAccount.balance) : 0;
+            // 바이낸스 USDT 잔고 확인
+            const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+            const binanceAccount = await binanceService.getFuturesAccountInfo();
+            const availableUsdt = parseFloat(binanceAccount.availableBalance || '0');
+            // 필요한 증거금 계산 (USD)
+            const currentBtcPriceUsd = 115000; // 기본값, 실제로는 실시간 가격 사용
+            const neededMarginUsdt = (binanceBtcNeeded * currentBtcPriceUsd) / 10; // 10배 레버리지 가정
+            console.log(`💰 잔고 확인:`, {
+                필요KRW: upbitKrwNeeded.toLocaleString(),
+                보유KRW: availableKrw.toLocaleString(),
+                필요USDT: neededMarginUsdt.toFixed(2),
+                보유USDT: availableUsdt
+            });
+            // 잔고 충분성 검사
+            if (availableKrw < upbitKrwNeeded) {
+                return {
+                    sufficient: false,
+                    message: `업비트 KRW 잔고 부족: 필요 ₩${upbitKrwNeeded.toLocaleString()}, 보유 ₩${availableKrw.toLocaleString()}`
+                };
+            }
+            if (availableUsdt < neededMarginUsdt) {
+                return {
+                    sufficient: false,
+                    message: `바이낸스 USDT 잔고 부족: 필요 $${neededMarginUsdt.toFixed(2)}, 보유 $${availableUsdt}`
+                };
+            }
+            return {
+                sufficient: true,
+                message: `잔고 충분: KRW ₩${availableKrw.toLocaleString()}, USDT $${availableUsdt}`
+            };
+        }
+        catch (error) {
+            console.error('잔고 확인 중 오류:', error);
+            return {
+                sufficient: false,
+                message: `잔고 확인 실패: ${error.message}`
+            };
+        }
     }
     /**
      * 전략 새로고침 (전략 수정 시 비동기 업데이트용)

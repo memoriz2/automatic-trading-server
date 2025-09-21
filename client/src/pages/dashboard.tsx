@@ -261,10 +261,26 @@ export default function Dashboard() {
     }
   };
 
-  // Calculate daily profit rate (mock calculation)
-  const dailyProfitRate = positions.reduce((sum, pos) => {
-    return sum + (parseFloat(pos.profitLossRate?.toString() || '0'));
-  }, 0) / Math.max(positions.length, 1);
+  // Calculate daily profit rate (실제 김치 차익거래 수익률)
+  const dailyProfitRate = (() => {
+    if (!positions || positions.length === 0) return 0;
+    
+    // 현재 김치프리미엄 (화면 표시 기준)
+    const currentKimchiRate = kimchiData.find(d => d.symbol === 'BTC')?.premiumRate || 0;
+    
+    // 포지션별 김치 변화 수익률 계산
+    const totalProfitRate = positions.reduce((sum, pos) => {
+      const entryKimchi = parseFloat(pos.entryPremiumRate?.toString() || '0');
+      const kimchiChange = entryKimchi - currentKimchiRate; // 김프 감소가 수익
+      
+      // 김치 변화를 수익률로 변환 (간단한 계산)
+      const positionProfitRate = kimchiChange * 0.1; // 김프 1% 감소 = 0.1% 수익률
+      
+      return sum + positionProfitRate;
+    }, 0);
+    
+    return totalProfitRate / positions.length; // 평균 수익률
+  })();
 
   // Count today's trades (KST, by logged-in user)
   const toKstDateString = (d: string | Date) =>
