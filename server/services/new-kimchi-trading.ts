@@ -1023,8 +1023,12 @@ export class MultiStrategyTradingService {
     }
   }
 
-  getIsTrading(): boolean {
-    return this.isTrading;
+  getIsTrading(userId?: string): boolean {
+    if (userId) {
+      return this.userTradingStates.get(userId) || false;
+    }
+    // 전체 상태: 하나라도 거래 중이면 true
+    return Array.from(this.userTradingStates.values()).some(state => state);
   }
 
   /**
