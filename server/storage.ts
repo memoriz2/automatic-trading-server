@@ -473,6 +473,7 @@ export class DatabaseStorage {
         data.entryPrice, data.quantity, data.entryPremiumRate, data.status || 'open',
         data.side, data.isMock !== false
       ]);
+      
       return result.rows[0];
     } catch (error) {
       console.error('Error creating position:', error);
@@ -529,6 +530,7 @@ export class DatabaseStorage {
         data.userId, data.positionId, data.symbol, data.side, data.exchange,
         data.quantity, data.price, data.fee || 0, data.orderType || 'market'
       ]);
+      
       return result.rows[0];
     } catch (error) {
       console.error('Error creating trade:', error);

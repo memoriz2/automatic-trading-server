@@ -32,9 +32,9 @@ export class TradingExecutionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: params.symbol,
-          quantity: params.quantity,
-          userId: params.userId,
+          market: `KRW-${params.symbol}`,
+          volume: params.quantity,
+          ord_type: 'market',
           strategyId: params.strategyId
         })
       });
@@ -72,10 +72,9 @@ export class TradingExecutionService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: params.symbol,
+          symbol: `${params.symbol}USDT`,
           quantity: params.quantity,
           leverage: params.leverage,
-          userId: params.userId,
           strategyId: params.strategyId
         })
       });

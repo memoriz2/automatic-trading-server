@@ -2852,7 +2852,7 @@ export async function registerRoutes(
       // 실거래 기록을 DB에 저장
       const trade = await storage.createTrade({
         userId: parseInt(userId),
-        positionId: null,
+        positionId: tradeData.strategyId || null, // 전략 ID를 positionId로 사용
         tradeLogId: tradeLog.id,
         symbol: tradeData.symbol,
         side: tradeData.type,
@@ -4262,9 +4262,9 @@ window.onload = () => {
   app.post("/api/trading/upbit/buy", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const { market, volume, price, ord_type } = req.body;
+      const { market, volume, price, ord_type, strategyId } = req.body;
       
-      console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type });
+      console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type, strategyId });
       
       if (!TRADING_CONFIG.isLiveTradingEnabled) {
         return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
@@ -4328,6 +4328,7 @@ window.onload = () => {
       try {
         await storage.createTrade({
           userId: userId,
+          positionId: strategyId, // 전략 ID를 positionId로 사용
           exchange: 'upbit',
           symbol: market.replace('KRW-', ''),
           side: 'buy',
@@ -4742,6 +4743,7 @@ window.onload = () => {
       try {
         await storage.createTrade({
           userId: userId,
+          positionId: strategyId, // 전략 ID를 positionId로 사용
           exchange: 'binance',
           symbol: symbol.replace('USDT', ''),
           side: 'short',
