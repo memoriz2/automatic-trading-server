@@ -28,38 +28,14 @@ export default function Dashboard() {
   
   // 디버깅 로그 제거
 
-  // 서버 포트 동적 감지
+  // 서버 포트 고정 (CORS 오류 방지)
   const getServerPort = async (): Promise<number> => {
-    try {
-      // 환경별 포트 감지 로직
-      const isProduction = process.env.NODE_ENV === "production";
-      const isServerEnvironment = window.location.hostname !== 'localhost';
-      
-      if (isServerEnvironment || isProduction) {
-        return 5000; // 서버 환경에서는 항상 5000
-      }
-      
-      // 로컬 환경에서는 서버 정보 API로 실제 포트 확인
-      const commonPorts = [5002, 5000, 5001, 5003, 3000, 8000];
-      
-      for (const port of commonPorts) {
-        try {
-          const response = await fetch(`http://localhost:${port}/api/server-info`, {
-            credentials: 'include'
-          });
-          if (response.ok) {
-            const serverInfo = await response.json();
-            return port;
-          }
-        } catch (e) {
-          // 포트 확인 실패, 다음 포트 시도
-        }
-      }
-      
-      return 5000; // 기본값
-    } catch (error) {
-      return 5000;
+    // 로컬 개발환경에서는 항상 5001 포트 사용
+    if (window.location.hostname === 'localhost') {
+      return 5001;
     }
+    // 프로덕션에서는 5000 포트
+    return 5000;
   };
 
   // 환율 데이터 쿼리 추가
