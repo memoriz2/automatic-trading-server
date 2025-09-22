@@ -1207,8 +1207,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 console.log(`✅ 업비트 개별 매도 완료:`, upbitResult);
                 liquidationResults.push({ type: 'upbit_sell', result: upbitResult });
               } else {
-                console.error(`❌ 업비트 개별 매도 실패:`, await upbitSellResponse.text());
-                liquidationResults.push({ type: 'upbit_error', error: await upbitSellResponse.text() });
+                const errorText = await upbitSellResponse.text();
+                console.error(`❌ 업비트 개별 매도 실패:`, errorText);
+                
+                // 잔고 부족 오류 = 이미 청산된 것으로 간주
+                if (errorText.includes('insufficient_funds_ask') || errorText.includes('주문 가능한 금액')) {
+                  console.log(`✅ 업비트 BTC 이미 청산됨 - 포지션 자동 닫기`);
+                  liquidationResults.push({ type: 'upbit_already_closed', result: 'already_liquidated' });
+                } else {
+                  liquidationResults.push({ type: 'upbit_error', error: errorText });
+                }
               }
             } catch (upbitError: any) {
               console.error(`❌ 업비트 매도 오류:`, upbitError);
@@ -1234,8 +1242,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 console.log(`✅ 바이낸스 개별 청산 완료:`, binanceResult);
                 liquidationResults.push({ type: 'binance_close', result: binanceResult });
               } else {
-                console.error(`❌ 바이낸스 개별 청산 실패:`, await binanceCloseResponse.text());
-                liquidationResults.push({ type: 'binance_error', error: await binanceCloseResponse.text() });
+                const errorText = await binanceCloseResponse.text();
+                console.error(`❌ 바이낸스 개별 청산 실패:`, errorText);
+                
+                // ReduceOnly 오류 = 이미 청산된 것으로 간주
+                if (errorText.includes('ReduceOnly Order is rejected') || errorText.includes('-2022')) {
+                  console.log(`✅ 바이낸스 BTC 포지션 이미 청산됨 - 포지션 자동 닫기`);
+                  liquidationResults.push({ type: 'binance_already_closed', result: 'already_liquidated' });
+                } else {
+                  liquidationResults.push({ type: 'binance_error', error: errorText });
+                }
               }
             } catch (binanceError: any) {
               console.error(`❌ 바이낸스 청산 오류:`, binanceError);
@@ -1245,8 +1261,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           console.log('🏁 개별 포지션 청산 결과:', liquidationResults);
           
-          // 성공한 청산이 있으면 UI 업데이트
-          if (liquidationResults.some(r => r.type === 'upbit_sell' || r.type === 'binance_close')) {
+          // 성공한 청산이나 이미 청산된 경우 UI 업데이트
+          if (liquidationResults.some(r => 
+            r.type === 'upbit_sell' || r.type === 'binance_close' || 
+            r.type === 'upbit_already_closed' || r.type === 'binance_already_closed'
+          )) {
             // 부분 청산인 경우 수량 조정, 전체 청산인 경우 상태 변경
             if (ratio < 1.0) {
               // 부분 청산: 수량만 조정
@@ -1572,14 +1591,27 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     toast
   ]);
 
+  // 중복 경고 방지를 위한 ref
+  const lastPriceDataWarningRef = useRef<number>(0);
+  const PRICE_DATA_WARNING_INTERVAL = 30000; // 30초마다 한 번만 경고
+
   // 김치프리미엄 기반 모의 거래 실행
   const executeMockTrade = useCallback(async (strategy: any, forceEntry = false) => {
     if (!currentKimchiData) return;
     
     // 실거래 모드에서는 기본적인 데이터만 검증
     if (isLiveMode && (!currentKimchiData.upbit_price || !currentKimchiData.binance_price)) {
-      console.warn('⚠️ 실거래 모드: 가격 데이터가 없어 거래를 중단합니다');
-      return; // 토스트 알림 제거 - 너무 자주 뜸
+      const now = Date.now();
+      // 30초마다 한 번만 경고 출력 (스팸 방지)
+      if (now - lastPriceDataWarningRef.current > PRICE_DATA_WARNING_INTERVAL) {
+        console.warn('⚠️ 실거래 모드: 가격 데이터 부족으로 거래 대기 중', {
+          upbit_price: currentKimchiData.upbit_price,
+          binance_price: currentKimchiData.binance_price,
+          timestamp: new Date().toLocaleString()
+        });
+        lastPriceDataWarningRef.current = now;
+      }
+      return;
     }
 
     const strategyId = String(strategy.id);
@@ -1662,9 +1694,24 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     }
   }, [currentKimchiData, isTrading, livePositions, liveBalance, toast, liveEntry, liveExit, addTradingLog]);
 
+  // 가격 데이터 유효성 검증 함수
+  const isValidPriceData = useCallback((data: any) => {
+    return data && 
+           typeof data.kimp === 'number' && 
+           data.upbit_price > 0 && 
+           data.binance_price > 0 && 
+           data.usdkrw > 0;
+  }, []);
+
   // 김프 데이터 업데이트 및 저장 (무한 루프 방지 - 값 기반 비교)
   useEffect(() => {
     if (currentKimchiData && typeof currentKimchiData.kimp === 'number') {
+      // 실거래 모드에서는 더 엄격한 검증
+      if (isLiveMode && !isValidPriceData(currentKimchiData)) {
+        // 유효하지 않은 데이터는 업데이트하지 않음 (이전 데이터 유지)
+        return;
+      }
+      
       setLastKimchiData((prev: any) => {
         // 이전 값과 비교하여 실제 변화가 있을 때만 업데이트
         if (!prev || 
@@ -1676,7 +1723,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         return prev; // 변화 없으면 이전 값 유지
       });
     }
-  }, [currentKimchiData?.kimp, currentKimchiData?.upbit_price, currentKimchiData?.binance_price]);
+  }, [currentKimchiData?.kimp, currentKimchiData?.upbit_price, currentKimchiData?.binance_price, isLiveMode, isValidPriceData]);
 
   // 김프 데이터 변경 시 즉시 매매 체크
   useEffect(() => {
@@ -1691,6 +1738,34 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       }
     }
   }, [currentKimchiData?.kimp, strategies, isTrading, executeMockTrade]);
+
+  // 실시간 데이터 연결 상태 모니터링 (실거래 모드 전용)
+  useEffect(() => {
+    if (!isLiveMode) return;
+
+    const monitorInterval = setInterval(async () => {
+      try {
+        // 서버에서 가격 캐시 상태 확인
+        const response = await fetch('/api/debug/price-cache-status');
+        if (response.ok) {
+          const status = await response.json();
+          
+          // 가격 데이터가 없거나 오래된 경우 경고
+          const hasValidData = status.currentKimchiData?.some((data: any) => 
+            data.upbitPrice > 0 && data.binanceFuturesPrice > 0
+          );
+          
+          if (!hasValidData) {
+            console.warn('⚠️ 서버 가격 캐시 상태 불량:', status);
+          }
+        }
+      } catch (error) {
+        console.warn('가격 캐시 상태 확인 실패:', error);
+      }
+    }, 30000); // 30초마다 확인
+
+    return () => clearInterval(monitorInterval);
+  }, [isLiveMode]);
 
   // 포지션 균형 자동 체크 (거래 후)
   useEffect(() => {
@@ -2072,7 +2147,21 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     <Card className="bg-slate-850 border-slate-700">
       <CardHeader>
         <CardTitle className="text-white flex items-center justify-between">
-          자동 매매 시스템
+          <div className="flex items-center gap-3">
+            <span>자동 매매 시스템</span>
+            {isLiveMode && (
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  isValidPriceData(currentKimchiData) ? 'bg-green-500' : 'bg-red-500'
+                } animate-pulse`}></div>
+                <span className={`text-xs ${
+                  isValidPriceData(currentKimchiData) ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {isValidPriceData(currentKimchiData) ? '실시간 데이터 연결됨' : '데이터 연결 대기 중'}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button 
               variant={isTrading ? "destructive" : strategies.some(s => s.isActive) ? "default" : "outline"}

@@ -510,11 +510,23 @@ export class MultiStrategyTradingService {
             });
             console.log(`✅ 포지션 생성 완료:`, position);
             console.log(`🕒 진입 시간 (KST):`, entryTimeKST.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+            console.log(`🔍 [자동거래] 포지션 ID 확인:`, {
+                positionId: position?.id,
+                positionObject: position ? Object.keys(position) : 'null',
+                fullPosition: position
+            });
+            // 포지션 ID 안전 확인
+            const positionId = position?.id;
+            if (!positionId) {
+                console.error('❌ 포지션 ID가 없습니다! 거래 기록에 null로 저장됩니다.');
+                console.error('포지션 객체:', position);
+            }
             // 거래 기록 생성
             await Promise.all([
                 storage.createTrade({
                     userId: parseInt(userId),
-                    positionId: position.id,
+                    positionId: positionId,
+                    strategyId: strategy.id, // 전략 ID 추가
                     symbol,
                     side: "buy",
                     exchange: "upbit",
@@ -524,7 +536,8 @@ export class MultiStrategyTradingService {
                 }),
                 storage.createTrade({
                     userId: parseInt(userId),
-                    positionId: position.id,
+                    positionId: positionId,
+                    strategyId: strategy.id, // 전략 ID 추가
                     symbol,
                     side: "sell",
                     exchange: "binance",

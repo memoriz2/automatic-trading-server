@@ -30,6 +30,7 @@ export interface Trade {
   id: number;
   userId: number;
   positionId?: number | null;
+  strategyId?: number | null;
   symbol: string;
   side: 'buy' | 'sell' | 'short' | 'cover';
   exchange: 'upbit' | 'binance';
@@ -45,6 +46,7 @@ export interface Trade {
   amount?: number;
   profit?: number;
   type?: 'buy' | 'sell' | 'short' | 'cover'; // side와 동일하지만 호환성을 위해 유지
+  strategyName?: string; // 전략 이름
 }
 
 export interface TradingSettings {

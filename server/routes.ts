@@ -1158,6 +1158,26 @@ export async function registerRoutes(
     }
   });
 
+  // 실시간 가격 캐시 상태 디버깅 엔드포인트
+  app.get("/api/debug/price-cache-status", (req, res) => {
+    try {
+      const cacheStatus = priceCache.getCacheStatus();
+      const realtimeStatus = realtimeKimchiService.getStatus();
+      const currentKimchi = realtimeKimchiService.getCurrentKimchiPremium();
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        priceCache: cacheStatus,
+        realtimeKimchi: realtimeStatus,
+        currentKimchiData: currentKimchi,
+        websocketClients: wss?.clients?.size || 0
+      });
+    } catch (error) {
+      console.error("가격 캐시 상태 조회 오류:", error);
+      res.status(500).json({ error: "가격 캐시 상태 조회 실패" });
+    }
+  });
+
   // 김프 데이터 API 엔드포인트 (프론트엔드 호환성)
   app.get("/api/kimchi-data", async (req, res) => {
     try {
@@ -2477,11 +2497,16 @@ export async function registerRoutes(
       // WebSocket 메시지 처리 (세션 기반 인증 사용)
       try {
         const msg = JSON.parse(messageStr);
-        // ping 메시지는 로그 출력 안함
-        if (msg.type !== 'ping') {
-          console.log("WebSocket message received:", messageStr);
-          console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
+        
+        // ping 메시지에 pong으로 응답
+        if (msg.type === 'ping') {
+          ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+          return;
         }
+        
+        // ping 메시지가 아닌 경우에만 로그 출력
+        console.log("WebSocket message received:", messageStr);
+        console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
       } catch (error) {
         // JSON 파싱 실패시 무시
       }
@@ -4444,6 +4469,21 @@ window.onload = () => {
       });
     } catch (error: any) {
       console.error('❌ 바이낸스 숏 포지션 청산 실패:', error);
+      
+      // ReduceOnly 오류 = 이미 청산된 것으로 간주하여 포지션 자동 닫기
+      if (error.message && (error.message.includes('ReduceOnly Order is rejected') || error.message.includes('-2022'))) {
+        console.log(`✅ 바이낸스 BTC 포지션 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
+        
+        try {
+          const symbol = req.body.symbol?.replace('USDT', '') || 'BTC';
+          // 해당 심볼의 활성 포지션들을 모두 닫기
+          const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
+          console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+        } catch (closeError: any) {
+          console.error(`❌ 포지션 자동 청산 실패:`, closeError);
+        }
+      }
+      
       res.status(500).json({ error: error.message });
     }
   });
@@ -4684,6 +4724,20 @@ window.onload = () => {
       
     } catch (error: any) {
       console.error(`❌ 업비트 매도 주문 실패:`, error);
+      
+      // 잔고 부족 오류 = 이미 청산된 것으로 간주하여 포지션 자동 닫기
+      if (error.message && (error.message.includes('insufficient_funds_ask') || error.message.includes('주문 가능한 금액'))) {
+        console.log(`✅ 업비트 BTC 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
+        
+        try {
+          const symbol = req.body.market?.replace('KRW-', '') || 'BTC';
+          // 해당 심볼의 활성 포지션들을 모두 닫기
+          const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
+          console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+        } catch (closeError: any) {
+          console.error(`❌ 포지션 자동 청산 실패:`, closeError);
+        }
+      }
       
       // 오류 추적 시스템에 기록
       try {

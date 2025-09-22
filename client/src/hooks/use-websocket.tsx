@@ -50,8 +50,8 @@ export function useWebSocket() {
           // HTTPS 프로덕션 환경: 포트 생략 (리버스 프록시)
           host = baseHostname;
         } else {
-          // HTTP 프로덕션 환경: 현재 포트 사용
-          host = `${baseHostname}:${window.location.port || '80'}`;
+          // HTTP 프로덕션 환경: 5000 포트 사용
+          host = `${baseHostname}:5000`;
         }
         
         // 연결 시도는 첫 번째와 실패 후에만 로그

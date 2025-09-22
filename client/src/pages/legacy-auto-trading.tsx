@@ -1655,10 +1655,36 @@ const LegacyAutoTradingPage = () => {
       }
     });
 
+    // 폴백 메커니즘: 웹소켓 데이터가 없을 때 REST API로 가격 데이터 가져오기
+    const fallbackDataFetch = async () => {
+      try {
+        const response = await fetch('/api/kimpga/current');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && (data.upbit_price > 0 || data.binance_price > 0)) {
+            console.log('📡 폴백 API로 가격 데이터 수신:', data);
+            setKimp(data);
+          }
+        }
+      } catch (error) {
+        console.warn('폴백 가격 데이터 로드 실패:', error);
+      }
+    };
+
+    // 웹소켓 연결 실패 시 폴백 활성화
+    const fallbackInterval = setInterval(() => {
+      // 웹소켓이 연결되지 않았거나 최근 데이터가 없으면 폴백 실행
+      const dataAge = kimp?.timestamp ? Date.now() - new Date(kimp.timestamp).getTime() : Infinity;
+      if (!isConnected || dataAge > 30000) { // 30초 이상 오래된 데이터
+        fallbackDataFetch();
+      }
+    }, 10000); // 10초마다 체크
+
     return () => {
       if (unsubscribeKimchi) unsubscribeKimchi();
+      clearInterval(fallbackInterval);
     };
-  }, [subscribe]);
+  }, [subscribe, isConnected, kimp?.timestamp]);
 
   useEffect(() => {
     const intervals: NodeJS.Timeout[] = [];
@@ -1777,9 +1803,6 @@ const LegacyAutoTradingPage = () => {
         netOk={netOk}
         errCount={errCount}
         netMs={netMs}
-        canUseMock={canUseMock}
-        tradingMode={tradingMode}
-        onModeChange={(mode) => setTradingMode('live')}
         onCheckSession={handleCheckSession}
         kimp={kimp}
       />

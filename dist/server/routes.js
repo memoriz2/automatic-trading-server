@@ -326,7 +326,7 @@ export async function registerRoutes(app, server) {
             const userId = req.user.id;
             const limit = parseInt(req.query.limit) || 10;
             logDebug('최근 거래 조회 시작', { userId, limit });
-            const trades = await storage.getTradesByUserId(String(userId), limit);
+            const trades = await storage.getTradesWithStrategyInfo(String(userId), limit);
             // 거래 데이터 포맷팅 (고정된 시간 사용)
             const formattedTrades = trades.map(trade => ({
                 id: trade.id,
@@ -337,7 +337,9 @@ export async function registerRoutes(app, server) {
                 price: Number(trade.price || 0),
                 fee: Number(trade.fee || 0),
                 exchange: trade.exchange,
-                orderId: trade.order_id
+                orderId: trade.order_id,
+                strategyId: trade.strategyId, // 전략 ID 추가
+                strategyName: trade.strategyName // 전략 이름 추가
             }));
             logDebug('최근 거래 조회 완료', { userId, count: formattedTrades.length });
             res.json(formattedTrades);
@@ -1012,6 +1014,25 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: "Failed to fetch simple kimchi premiums" });
         }
     });
+    // 실시간 가격 캐시 상태 디버깅 엔드포인트
+    app.get("/api/debug/price-cache-status", (req, res) => {
+        try {
+            const cacheStatus = priceCache.getCacheStatus();
+            const realtimeStatus = realtimeKimchiService.getStatus();
+            const currentKimchi = realtimeKimchiService.getCurrentKimchiPremium();
+            res.json({
+                timestamp: new Date().toISOString(),
+                priceCache: cacheStatus,
+                realtimeKimchi: realtimeStatus,
+                currentKimchiData: currentKimchi,
+                websocketClients: wss?.clients?.size || 0
+            });
+        }
+        catch (error) {
+            console.error("가격 캐시 상태 조회 오류:", error);
+            res.status(500).json({ error: "가격 캐시 상태 조회 실패" });
+        }
+    });
     // 김프 데이터 API 엔드포인트 (프론트엔드 호환성)
     app.get("/api/kimchi-data", async (req, res) => {
         try {
@@ -1293,16 +1314,20 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: "Failed to close all positions" });
         }
     });
-    // 거래 내역 조회 (세션 기반)
+    // 거래 내역 조회 (세션 기반, 포지션/전략 정보 포함)
     app.get("/api/trades", authenticateSession, async (req, res) => {
         try {
             const userId = req.user.id;
             const limit = parseInt(req.query.limit) || 50;
-            const trades = await storage.getTradesByUserId(String(userId), limit);
-            res.json(trades);
+            // 거래 내역과 포지션 정보를 조인해서 조회
+            const tradesWithStrategy = await storage.getTradesWithStrategyInfo(String(userId), limit);
+            res.json(tradesWithStrategy);
         }
         catch (error) {
-            console.error("거래 내역 조회 오류:", error);
+            logError("거래 내역 조회 오류", {
+                userId: req.user?.id,
+                error: error instanceof Error ? error.message : error
+            });
             res.status(500).json({ error: "Failed to fetch trades" });
         }
     });
@@ -2114,11 +2139,14 @@ export async function registerRoutes(app, server) {
             // WebSocket 메시지 처리 (세션 기반 인증 사용)
             try {
                 const msg = JSON.parse(messageStr);
-                // ping 메시지는 로그 출력 안함
-                if (msg.type !== 'ping') {
-                    console.log("WebSocket message received:", messageStr);
-                    console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
+                // ping 메시지에 pong으로 응답
+                if (msg.type === 'ping') {
+                    ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+                    return;
                 }
+                // ping 메시지가 아닌 경우에만 로그 출력
+                console.log("WebSocket message received:", messageStr);
+                console.log(`WebSocket 메시지 처리: ${msg.type || 'unknown'}`);
             }
             catch (error) {
                 // JSON 파싱 실패시 무시
@@ -2443,9 +2471,13 @@ export async function registerRoutes(app, server) {
                 result: 'success'
             });
             // 실거래 기록을 DB에 저장
+            // 해당 전략의 활성 포지션 찾기
+            const activePosition = tradeData.strategyId ?
+                await storage.getActivePositionByStrategy(tradeData.strategyId, tradeData.symbol) : null;
             const trade = await storage.createTrade({
                 userId: parseInt(userId),
-                positionId: null,
+                positionId: activePosition?.id || null, // 활성 포지션과 연결
+                strategyId: tradeData.strategyId || null, // 전략 ID를 strategyId로 저장
                 tradeLogId: tradeLog.id,
                 symbol: tradeData.symbol,
                 side: tradeData.type,
@@ -3737,8 +3769,8 @@ window.onload = () => {
     app.post("/api/trading/upbit/buy", authenticateSession, async (req, res) => {
         try {
             const userId = req.user.id;
-            const { market, volume, price, ord_type } = req.body;
-            console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type });
+            const { market, volume, price, ord_type, strategyId } = req.body;
+            console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type, strategyId });
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
                 return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
             }
@@ -3790,8 +3822,13 @@ window.onload = () => {
             console.log(`✅ 업비트 매수 주문 성공:`, orderResult);
             // 성공한 거래 기록 저장
             try {
+                // 해당 전략의 활성 포지션 찾기
+                const activePosition = strategyId ?
+                    await storage.getActivePositionByStrategy(strategyId, market.replace('KRW-', '')) : null;
                 await storage.createTrade({
                     userId: userId,
+                    positionId: activePosition?.id || null, // 활성 포지션과 연결
+                    strategyId: strategyId, // 전략 ID를 strategyId로 저장
                     exchange: 'upbit',
                     symbol: market.replace('KRW-', ''),
                     side: 'buy',
@@ -4168,8 +4205,13 @@ window.onload = () => {
             console.log(`✅ 바이낸스 숏 주문 성공:`, orderResult);
             // 성공한 거래 기록 저장
             try {
+                // 해당 전략의 활성 포지션 찾기
+                const activePosition = strategyId ?
+                    await storage.getActivePositionByStrategy(strategyId, symbol.replace('USDT', '')) : null;
                 await storage.createTrade({
                     userId: userId,
+                    positionId: activePosition?.id || null, // 활성 포지션과 연결
+                    strategyId: strategyId, // 전략 ID를 strategyId로 저장
                     exchange: 'binance',
                     symbol: symbol.replace('USDT', ''),
                     side: 'short',

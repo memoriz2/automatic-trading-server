@@ -6,9 +6,6 @@ interface TradingHeaderProps {
   netOk: boolean;
   errCount: number;
   netMs: number | null;
-  canUseMock: boolean;
-  tradingMode: 'real' | 'mock' | 'live';
-  onModeChange: (mode: 'real' | 'mock' | 'live') => void;
   onCheckSession: () => void;
   kimp: any;
 }
@@ -18,9 +15,6 @@ export const TradingHeader: React.FC<TradingHeaderProps> = ({
   netOk,
   errCount,
   netMs,
-  canUseMock,
-  tradingMode,
-  onModeChange,
   onCheckSession,
   kimp
 }) => {
@@ -53,29 +47,6 @@ export const TradingHeader: React.FC<TradingHeaderProps> = ({
 
         <div className="grow"></div>
         
-        {/* Mock/Real 모드 전환 (로컬에서는 모든 유저, 서버에서는 어드민만) */}
-        {canUseMock && (
-          <div style={{ display: 'flex', gap: '5px', marginRight: '10px' }}>
-            <button 
-              onClick={() => onModeChange('real')}
-              className={`chip ${tradingMode === 'real' ? 'ok' : ''}`}
-              style={{ cursor: 'pointer', fontSize: '12px' }}
-              title="실거래 모드"
-            >
-              <i className={`dot ${tradingMode === 'real' ? 'ok' : ''}`}></i>
-              <span>실거래</span>
-            </button>
-            <button 
-              onClick={() => onModeChange('mock')}
-              className={`chip ${tradingMode === 'mock' ? 'ok' : ''}`}
-              style={{ cursor: 'pointer', fontSize: '12px' }}
-              title="Mock 거래 모드"
-            >
-              <i className={`dot ${tradingMode === 'mock' ? 'ok' : ''}`}></i>
-              <span>Mock</span>
-            </button>
-          </div>
-        )}
         
         <button 
           onClick={onCheckSession}
