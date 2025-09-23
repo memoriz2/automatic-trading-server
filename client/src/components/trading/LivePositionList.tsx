@@ -201,10 +201,12 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       const truncated = Math.floor(absPct * factor) / factor;
                       const premiumPnlPercent = (truncated === 0 && absPct > 0) ? 0.001 : truncated;
                       
+                      // 김프 하락 = 차익거래 수익, 김프 상승 = 차익거래 손실
                       const directionText = pnlData.isFalling ? '차익거래 수익' : pnlData.isRising ? '차익거래 손실' : '변동없음';
-                      
+
+                      // 김프 방향에 따라 부호 결정 (김프 하락=수익이므로 +, 김프 상승=손실이므로 -)
                       const sign = pnlData.isFalling ? '+' : pnlData.isRising ? '−' : '';
-                      return `${directionText}: ${netPnlKRW >= 0 ? '+' : '−'}₩${Math.max(1, Math.round(Math.abs(netPnlKRW))).toLocaleString()} (${sign}${premiumPnlPercent.toFixed(3)}%)`;
+                      return `${directionText}: ${sign}₩${Math.max(1, Math.round(Math.abs(netPnlKRW))).toLocaleString()} (${sign}${premiumPnlPercent.toFixed(3)}%)`;
                     })()}
                   </p>
                       <p className="text-xs text-slate-400">

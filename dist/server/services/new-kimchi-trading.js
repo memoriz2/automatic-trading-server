@@ -503,6 +503,7 @@ export class MultiStrategyTradingService {
                 entryPrice: String(currentPrice),
                 quantity: String(adjustedQuantity),
                 entryPremiumRate: String(signal.premiumRate),
+                binanceLeverage: Number(strategy.leverage || 5),
                 entryTime: entryTimeKST, // ← KST 시간으로 명시적 설정
                 upbitOrderId: upbitResult.uuid,
                 binanceOrderId: binanceResult.orderId,
@@ -520,6 +521,17 @@ export class MultiStrategyTradingService {
             if (!positionId) {
                 console.error('❌ 포지션 ID가 없습니다! 거래 기록에 null로 저장됩니다.');
                 console.error('포지션 객체:', position);
+            }
+            // 🔧 진입 직후 바이낸스 레버리지 저장(누락 보완)
+            try {
+                const lev = Number(strategy.leverage || strategy?.binanceLeverage || 5);
+                if (positionId && Number.isFinite(lev) && lev > 0) {
+                    await storage.updatePosition(positionId, { binanceLeverage: lev });
+                    console.log(`🔧 포지션 레버리지 저장: ${lev}x (positionId=${positionId})`);
+                }
+            }
+            catch (levErr) {
+                console.warn('⚠️ 레버리지 저장 실패(무시 가능):', levErr);
             }
             // 거래 기록 생성
             await Promise.all([

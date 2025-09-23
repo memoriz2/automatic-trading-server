@@ -12,6 +12,7 @@ export class PositionsRepository extends BaseRepository {
       INSERT INTO positions (
         user_id, strategy_id, symbol, type, side, status,
         entry_price, current_price, quantity,
+        binance_quantity, binance_entry_price, binance_leverage,
         entry_premium_rate, current_premium_rate,
         unrealized_pnl, realized_pnl, total_fees,
         entry_time, exit_time,
@@ -19,7 +20,15 @@ export class PositionsRepository extends BaseRepository {
         ip, device_type,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9,
+        $10, $11, $12,
+        $13, $14,
+        $15, $16, $17,
+        $18, $19,
+        $20, $21,
+        $22, $23,
+        NOW(), NOW()
       )
       RETURNING 
         id,
@@ -56,11 +65,15 @@ export class PositionsRepository extends BaseRepository {
             positionData.entryPrice,
             positionData.currentPrice || null,
             positionData.quantity,
+            // Binance 전용 필드(없으면 0/기본값)
+            positionData.binanceQuantity ?? 0,
+            positionData.binanceEntryPrice ?? 0,
+            positionData.binanceLeverage ?? 5,
             positionData.entryPremiumRate,
             positionData.currentPremiumRate || null,
-            positionData.unrealizedPnl,
+            positionData.unrealizedPnl ?? 0,
             positionData.realizedPnl || null,
-            positionData.totalFees,
+            positionData.totalFees ?? 0,
             positionData.entryTime,
             positionData.exitTime || null,
             positionData.upbitOrderId || null,

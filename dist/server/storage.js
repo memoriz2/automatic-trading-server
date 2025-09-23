@@ -341,13 +341,26 @@ export class DatabaseStorage {
             const result = await this.pool.query(`
         INSERT INTO positions (
           user_id, strategy_id, symbol, type, entry_price, quantity,
-          entry_premium_rate, status, side, created_at, updated_at, entry_time
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW())
+          entry_premium_rate, status, side, binance_leverage,
+          created_at, updated_at, entry_time
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10,
+          NOW(), NOW(), NOW()
+        )
         RETURNING *
       `, [
-                data.userId, data.strategyId, data.symbol, data.type || 'kimchi_arbitrage',
-                data.entryPrice, data.quantity, data.entryPremiumRate, data.status || 'open',
-                data.side, data.isMock !== false
+                data.userId,
+                data.strategyId,
+                data.symbol,
+                data.type || 'kimchi_arbitrage',
+                data.entryPrice,
+                data.quantity,
+                data.entryPremiumRate,
+                data.status || 'open',
+                data.side,
+                // 우선순위: 명시 전달값 → 전략 레버리지 → 안전 기본값 5
+                (data.binanceLeverage ?? data.leverage ?? 5)
             ]);
             return result.rows[0];
         }
