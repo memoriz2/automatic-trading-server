@@ -195,10 +195,11 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       const exitFees = upbitExitFeeKRW + binanceExitFeeKRW;
                       const netPnlKRW = premiumPnlKRW - exitFees;
                       const premiumPnlPercentRaw = netEntryExposure > 0 ? (netPnlKRW / netEntryExposure * 100) : 0;
-                      // 소수점 3자리까지, 절삭(내림)으로 표기
+                      // 소수점 3자리 절삭 + 최소 표시 단위 적용(0이 되지 않도록)
+                      const absPct = Math.abs(premiumPnlPercentRaw);
                       const factor = 1000;
-                      const truncated = Math.floor(Math.abs(premiumPnlPercentRaw) * factor) / factor;
-                      const premiumPnlPercent = truncated;
+                      const truncated = Math.floor(absPct * factor) / factor;
+                      const premiumPnlPercent = (truncated === 0 && absPct > 0) ? 0.001 : truncated;
                       
                       const directionText = pnlData.isFalling ? '차익거래 수익' : pnlData.isRising ? '차익거래 손실' : '변동없음';
                       

@@ -245,6 +245,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 원자적 거래 처리: 거래 잠금 시스템
   const tradingLockRef = useRef<boolean>(false);
   const processingEntryRef = useRef<Set<string>>(new Set());
+  // 재진입 차단 토스트 중복 억제
+  const lastReentryToastAtRef = useRef<number>(0);
+  const REENTRY_TOAST_INTERVAL_MS = 10000; // 10초 이내 중복 차단
   
 
   // 거래 잔고 (실거래: 실제 잔고 사용, Mock: 로컬스토리지)
@@ -929,12 +932,30 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           }, 2000);
           
         } catch (realTradingError) {
-          console.error('❌ 실거래 주문 실패:', realTradingError);
-          toast({
-            title: "실거래 주문 실패",
-            description: `거래소 주문 중 오류: ${(realTradingError as any).message}`,
-            variant: "destructive"
-          });
+          const msg = (realTradingError as any)?.message || '';
+          const isReentryBlock = msg.includes('재진입 차단') || msg.includes('OPEN 포지션') || msg.includes('이미');
+          // 재진입 차단/반복 주문 실패 토스트 억제
+          if (isReentryBlock) {
+            const now = Date.now();
+            if (now - lastReentryToastAtRef.current < REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
+              // 로그/토스트 모두 생략
+              return;
+            }
+            lastReentryToastAtRef.current = now;
+            setLastToastMessage('reentry-block');
+            console.warn('🔒 재진입 차단: 동일 오류 토스트 억제 중');
+            toast({ title: '🔒 재진입 차단', description: '기존 포지션이 활성 상태입니다.', variant: 'default' });
+          } else {
+            console.error('❌ 실거래 주문 실패:', realTradingError);
+            if (lastToastMessage !== msg) {
+              setLastToastMessage(msg);
+              toast({
+                title: "실거래 주문 실패",
+                description: `거래소 주문 중 오류: ${msg}`,
+                variant: "destructive"
+              });
+            }
+          }
           return; // 실거래 실패 시 포지션 생성 중단
         }
       }
@@ -1107,6 +1128,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       
       // 재진입 차단 에러인 경우 활성 포지션 정보 표시
       if (error?.message?.includes('재진입 차단') || error?.message?.includes('이미') || error?.message?.includes('OPEN 포지션')) {
+        // 중복 토스트 방지: 최근 N초 내에 동일 유형 토스트가 있었다면 표시 생략
+        const now = Date.now();
+        if (now - lastReentryToastAtRef.current < REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
+          // 메시지 상태만 업데이트하고 토스트는 생략
+          setLastToastMessage('reentry-block');
+          return;
+        }
+        lastReentryToastAtRef.current = now;
+        setLastToastMessage('reentry-block');
         // 활성 포지션 정보 조회
         const activePosition = livePositions.find(p => p.status === 'open' && p.symbol === 'BTC');
         
