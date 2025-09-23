@@ -3896,11 +3896,11 @@ window.onload = () => {
                     const openPosition = await positionsRepo.getOpenPositionByStrategyAndSymbol(strategyId, symbolOnly);
                     if (openPosition) {
                         const closedQty = parseFloat(quantity);
-                        const newRemainingQty = Math.max(0, (openPosition.remainingQuantity || openPosition.binanceQuantity) - closedQty);
+                        const newRemainingQty = Math.max(0, (openPosition.remainingQuantity || openPosition.quantity) - closedQty);
                         if (newRemainingQty <= 0) {
                             // 전량 청산
                             const exitPrice = parseFloat(closeResult.price || closeResult.avgPrice || '0');
-                            const pnl = (openPosition.binanceEntryPrice - exitPrice) * (openPosition.remainingQuantity || openPosition.binanceQuantity);
+                            const pnl = (openPosition.entryPrice - exitPrice) * (openPosition.remainingQuantity || openPosition.quantity);
                             await positionsRepo.closeWithRemaining(openPosition.id, exitPrice, 0, pnl, 0);
                             console.log(`✅ 포지션 완전 청산: ID=${openPosition.id}, PnL=${pnl}`);
                         }
@@ -3923,6 +3923,19 @@ window.onload = () => {
         }
         catch (error) {
             console.error('❌ 바이낸스 숏 포지션 청산 실패:', error);
+            // ReduceOnly 오류 = 이미 청산된 것으로 간주하여 포지션 자동 닫기
+            if (error.message && (error.message.includes('ReduceOnly Order is rejected') || error.message.includes('-2022'))) {
+                console.log(`✅ 바이낸스 BTC 포지션 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
+                try {
+                    const symbol = req.body.symbol?.replace('USDT', '') || 'BTC';
+                    // 해당 심볼의 활성 포지션들을 모두 닫기
+                    const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
+                    console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+                }
+                catch (closeError) {
+                    console.error(`❌ 포지션 자동 청산 실패:`, closeError);
+                }
+            }
             res.status(500).json({ error: error.message });
         }
     });
@@ -4147,6 +4160,19 @@ window.onload = () => {
         }
         catch (error) {
             console.error(`❌ 업비트 매도 주문 실패:`, error);
+            // 잔고 부족 오류 = 이미 청산된 것으로 간주하여 포지션 자동 닫기
+            if (error.message && (error.message.includes('insufficient_funds_ask') || error.message.includes('주문 가능한 금액'))) {
+                console.log(`✅ 업비트 BTC 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
+                try {
+                    const symbol = req.body.market?.replace('KRW-', '') || 'BTC';
+                    // 해당 심볼의 활성 포지션들을 모두 닫기
+                    const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
+                    console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+                }
+                catch (closeError) {
+                    console.error(`❌ 포지션 자동 청산 실패:`, closeError);
+                }
+            }
             // 오류 추적 시스템에 기록
             try {
                 await errorTrackingService.recordError({
@@ -4174,7 +4200,7 @@ window.onload = () => {
         try {
             const userId = req.user.id;
             const { symbol, quantity, leverage, strategyId } = req.body;
-            console.log(`🚨 실거래 바이낸스 숏 주문:`, { userId, symbol, quantity, leverage, strategyId });
+            // 바이낸스 숏 주문 요청 (로그 제거)
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
                 return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
             }
@@ -4183,7 +4209,7 @@ window.onload = () => {
                 const symbolOnly = symbol.replace('USDT', '');
                 const existingPosition = await positionsRepo.getOpenPositionByStrategyAndSymbol(strategyId, symbolOnly);
                 if (existingPosition && (existingPosition.remainingQuantity || 0) > 0) {
-                    console.log(`❌ 재진입 차단: 전략 ${strategyId}, 심볼 ${symbolOnly}에 이미 OPEN 포지션 존재`);
+                    // 재진입 차단 (로그 제거)
                     return res.status(409).json({
                         error: "이미 해당 전략에 진행 중인 포지션이 있습니다",
                         existingPosition: {
@@ -4231,22 +4257,41 @@ window.onload = () => {
             // 포지션 생성 (재진입 방지를 위해)
             if (strategyId) {
                 try {
+                    // 디바이스 정보 추출
+                    const { extractDeviceInfo } = await import('./utils/device-info.js');
+                    const deviceInfo = extractDeviceInfo(req);
+                    // 현재 김치프리미엄 계산
+                    let currentPremiumRate = 0;
+                    try {
+                        const kimchiData = await simpleKimchiService.calculateSimpleKimchi(['BTC'], String(userId));
+                        const btcData = kimchiData.find(d => d.symbol === 'BTC');
+                        currentPremiumRate = btcData?.premiumRate || 0;
+                        console.log(`📊 포지션 생성 시 김프율: ${currentPremiumRate.toFixed(3)}%`);
+                    }
+                    catch (kimchiError) {
+                        console.warn('⚠️ 김프율 계산 실패, 기본값 0 사용:', kimchiError);
+                    }
                     const positionData = {
                         userId: userId,
                         strategyId: strategyId,
                         symbol: symbol.replace('USDT', ''),
+                        type: 'futures_short',
                         side: 'short',
                         status: 'open',
+                        entryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
+                        quantity: parseFloat(orderResult.origQty || quantity),
                         upbitQuantity: 0, // 업비트 수량 (선물만 사용 시 0)
                         upbitEntryPrice: 0, // 업비트 진입가 (선물만 사용 시 0)
                         binanceQuantity: parseFloat(orderResult.origQty || quantity),
                         binanceEntryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
                         binanceLeverage: leverage,
                         binanceOrderId: orderResult.orderId,
-                        entryPremiumRate: 0, // 김치 프리미엄 아닌 경우 0
+                        entryPremiumRate: currentPremiumRate, // 실제 김치프리미엄 저장
                         unrealizedPnl: 0, // 초기 미실현손익 0
                         totalFees: parseFloat(orderResult.commission || '0'),
-                        entryTime: new Date()
+                        entryTime: new Date(),
+                        ip: deviceInfo.ip,
+                        deviceType: deviceInfo.deviceType,
                     };
                     const createdPosition = await positionsRepo.create(positionData);
                     console.log(`✅ 포지션 생성 완료: ID=${createdPosition.id}`);

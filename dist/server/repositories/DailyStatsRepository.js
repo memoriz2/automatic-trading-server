@@ -108,7 +108,7 @@ export class DailyStatsRepository extends BaseRepository {
      */
     async updateActivePositions(userId, date) {
         // 실제 활성 포지션 수 계산
-        const activeCount = await this.queryOne('SELECT COUNT(*) as count FROM positions WHERE user_id = $1 AND status = $2 AND is_mock = false', [userId, 'open']);
+        const activeCount = await this.queryOne('SELECT COUNT(*) as count FROM positions WHERE user_id = $1 AND status = $2', [userId, 'open']);
         const count = parseInt(activeCount?.count || '0');
         // 통계 업데이트
         await this.query(`
@@ -157,7 +157,6 @@ export class DailyStatsRepository extends BaseRepository {
         FROM positions 
         WHERE user_id = $1 
           AND status = 'closed' 
-          AND is_mock = false
           AND DATE(exit_time) = $2
       )
       SELECT 

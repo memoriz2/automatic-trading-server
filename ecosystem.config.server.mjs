@@ -2,7 +2,7 @@
 export default {
   apps: [{
     name: 'trading-server',
-    script: './dist/index.js',
+    script: './dist/server/index.js',
     instances: 1,
     exec_mode: 'fork',
     env: {

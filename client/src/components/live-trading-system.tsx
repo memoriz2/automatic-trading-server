@@ -345,14 +345,69 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // liveTrades 상태 변경 (로그 제거)
   }, [liveTrades]);
 
-  // Live 포지션 (실거래: DB, Mock: 로컬스토리지)
-  const [livePositions, setLivePositions] = useState<LivePosition[]>(() => {
-    const storageKey = `live-positions-${userId}`;
-    const saved = localStorage.getItem(storageKey);
-    const positions = saved ? JSON.parse(saved) : [];
-    // 로컬 스토리지 포지션 로드 완료
-    return positions;
-  });
+  // Live 포지션 (DB에서만 조회 - 로컬스토리지 완전 제거)
+  const [livePositions, setLivePositions] = useState<LivePosition[]>([]);
+  
+  // 모든 디바이스에서 DB 포지션만 사용 (PC/모바일 통일)
+  useEffect(() => {
+    if (userId) {
+      const fetchDbPositions = async () => {
+        try {
+          console.log('🔍 DB 포지션 조회 중... (PC/모바일 통일, 로컬스토리지 미사용)');
+          const response = await fetch('/api/positions', {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const dbPositions = await response.json();
+            console.log('📊 DB 포지션 조회 결과:', dbPositions);
+            
+            // DB 포지션을 LivePosition 형태로 변환
+            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => ({
+              id: `db-${pos.id}`,
+              strategyId: pos.strategy_id,
+              strategyName: `전략 #${pos.strategy_id}`,
+              symbol: pos.symbol,
+              entryTime: new Date(pos.entry_time),
+              entryPremiumRate: pos.entry_premium_rate || 0,
+              upbitQuantity: pos.quantity || 0,
+              upbitPrice: pos.entry_price || 0,
+              entryUsdKrw: 1394, // 기본값 (표시 계산 시 최신값으로 보정됨)
+              binanceSpotQuantity: 0,
+              binanceQuantity: pos.quantity || 0,
+              // 바이낸스 진입가격: 전용 필드가 있으면 우선 사용, 없으면 보조 필드 → 최후엔 entry_price
+              binancePrice: (
+                pos.binance_entry_price ??
+                pos.binance_price_usd ??
+                pos.binance_current_price ??
+                pos.entry_price
+              ) || 0,
+              // 레버리지 기본값 보정 (실거래 일반값 3~10배)
+              leverage: pos.binance_leverage || 10,
+              status: pos.status === 'open' ? 'open' : 'closed',
+              unrealizedPnl: pos.unrealized_pnl || 0,
+              realizedPnl: pos.realized_pnl || 0,
+              upbitOrderId: pos.upbit_order_id,
+              binanceOrderId: pos.binance_order_id,
+              isRealTrade: true
+            }));
+            
+            setLivePositions(convertedPositions);
+            console.log('✅ DB 포지션을 LivePosition으로 변환 완료:', convertedPositions.length, '개');
+          }
+        } catch (error) {
+          console.error('❌ DB 포지션 조회 실패:', error);
+        }
+      };
+      
+      // 초기 조회
+      fetchDbPositions();
+      
+      // 3초마다 DB 포지션 동기화 (더 빠른 동기화)
+      const interval = setInterval(fetchDbPositions, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [userId]);
 
   // 잔고-포지션 일관성 검증 및 자동 수정
   useEffect(() => {
@@ -800,8 +855,17 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           });
           
           if (!binanceOrderResponse.ok) {
-            const binanceError = await binanceOrderResponse.text();
-            throw new Error(`바이낸스 숏 주문 실패: ${binanceError}`);
+            const binanceErrorData = await binanceOrderResponse.json().catch(() => ({ error: '알 수 없는 오류' }));
+            
+            // 재진입 차단인 경우 상세 정보 포함
+            if (binanceOrderResponse.status === 409 && binanceErrorData.existingPosition) {
+              const pos = binanceErrorData.existingPosition;
+              const entryTime = new Date(pos.entryTime).toLocaleString('ko-KR');
+              
+              throw new Error(`재진입 차단: 포지션 ID ${pos.id} (진입: ${entryTime}, 수량: ${pos.remainingQuantity} BTC)`);
+            } else {
+              throw new Error(`바이낸스 숏 주문 실패: ${binanceErrorData.error || '알 수 없는 오류'}`);
+            }
           }
           
           const binanceResult = await binanceOrderResponse.json();
@@ -1003,34 +1067,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         saveLiveTradeToDB(trade, userId, isLiveMode);
       });
 
-      // 포지션 생성 (실제 주문 ID 포함)
-      const newPosition: LivePosition = {
-        id: `position-${tradeId}`,
-        strategyId: strategy.id,
-        strategyName: strategy.name, // 전략 이름 저장
-        symbol: 'BTC',
-        entryTime: new Date(),
-        entryPremiumRate: premiumRate,
-        upbitQuantity: upbitBuyAmountBTC, // 매수한 수량
-        upbitPrice,
-        entryUsdKrw,
-        binanceSpotQuantity: 0, // 바이낸스 현물 수량 (기본값 0)
-        binanceQuantity: binanceShortAmountBTC, // 숏 수량
-        binancePrice,
-        leverage,
-        status: 'open',
-        unrealizedPnl: 0,
-        realizedPnl: 0,
-        // 실제 주문 ID 추가
-        upbitOrderId: upbitOrderId,
-        binanceOrderId: binanceOrderId,
-        isRealTrade: isLiveMode // 실거래 여부 표시
-      };
-
-      setLivePositions(prev => [...prev, newPosition]);
+      // 포지션은 DB에서만 관리 (로컬 상태 추가 제거)
+      // DB에 저장된 포지션은 3초마다 자동 동기화됨
+      
       // 전략별 집계: 실행 횟수 + 총 투자원금 합산 (업비트 + 바이낸스)
-      const upbitInvestedKRW = newPosition.upbitQuantity * newPosition.upbitPrice;
-      const binanceInvestedKRW = ((newPosition.binanceQuantity * newPosition.binancePrice) / newPosition.leverage) * entryUsdKrw;
+      const upbitInvestedKRW = upbitBuyAmountBTC * upbitPrice;
+      const binanceInvestedKRW = ((binanceShortAmountBTC * binancePrice) / leverage) * entryUsdKrw;
       const totalInvestedKRW = upbitInvestedKRW + binanceInvestedKRW;
       
       const cur = strategyStatsRef.current[strategy.id] || { executionCount: 0, realizedPnlKRW: 0, investedKRW: 0, profitRate: 0 };
@@ -1042,9 +1084,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       };
       strategyStatsRef.current[strategy.id] = updated;
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
-      
-      // 포지션 저장 (실거래만 DB, Mock은 로컬스토리지만)
-      saveLivePositionToDB(newPosition, userId, isLiveMode);
 
       addTradingLog(`✅ ${strategy.name} 진입 완료! 김프 ${premiumRate.toFixed(3)}%`);
       
@@ -1063,13 +1102,41 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         binanceOrderId
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ ${isLiveMode ? '실거래' : '모의'} 진입 실패:`, error);
-      toast({
-        title: `${isLiveMode ? '실거래' : '모의'} 진입 실패`,
-        description: `${isLiveMode ? '실거래' : '모의'} 거래 실행 중 오류가 발생했습니다.`,
-        variant: "destructive"
-      });
+      
+      // 재진입 차단 에러인 경우 활성 포지션 정보 표시
+      if (error?.message?.includes('재진입 차단') || error?.message?.includes('이미') || error?.message?.includes('OPEN 포지션')) {
+        // 활성 포지션 정보 조회
+        const activePosition = livePositions.find(p => p.status === 'open' && p.symbol === 'BTC');
+        
+        let description = '🚫 이미 활성 포지션이 있어 새로운 진입이 차단되었습니다.';
+        
+        if (activePosition) {
+          const entryTime = new Date(activePosition.entryTime).toLocaleTimeString('ko-KR');
+          const currentPnl = activePosition.unrealizedPnl || 0;
+          const pnlColor = currentPnl >= 0 ? '🟢' : '🔴';
+          
+          description += `\n\n📍 활성 포지션:\n`;
+          description += `🎯 전략: ${activePosition.strategyName}\n`;
+          description += `⏰ 진입: ${entryTime}\n`;
+          description += `📊 김프율: ${activePosition.entryPremiumRate?.toFixed(3)}%\n`;
+          description += `${pnlColor} 수익: ${currentPnl >= 0 ? '+' : ''}${currentPnl.toFixed(2)}원`;
+        }
+        
+        toast({
+          title: "🔒 재진입 차단",
+          description,
+          variant: "default"
+        });
+      } else {
+        // 일반 에러
+        toast({
+          title: `${isLiveMode ? '실거래' : '모의'} 진입 실패`,
+          description: error?.message || `${isLiveMode ? '실거래' : '모의'} 거래 실행 중 오류가 발생했습니다.`,
+          variant: "destructive"
+        });
+      }
     } finally {
       tradingLockRef.current = false; // 거래 잠금 해제
       setIsTrading(false);

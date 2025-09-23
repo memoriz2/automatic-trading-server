@@ -107,21 +107,17 @@ export interface PositionDto {
   userId: number;
   strategyId?: number;
   symbol: string;
+  type: string;
   side: 'long' | 'short';
   status: 'open' | 'closed' | 'liquidated';
-  
-  // 업비트 (현물) 정보
-  upbitQuantity: number;
-  upbitEntryPrice: number;
-  upbitCurrentPrice?: number;
-  upbitOrderId?: string;
-  
-  // 바이낸스 (선물) 정보
-  binanceQuantity: number;
-  binanceEntryPrice: number;
-  binanceCurrentPrice?: number;
-  binanceLeverage: number;
-  binanceOrderId?: string;
+  entryPrice: number;
+  currentPrice?: number;
+  quantity: number;
+
+  // 바이낸스 선물 정보
+  binanceQuantity?: number;
+  binanceEntryPrice?: number;
+  binanceLeverage?: number;
   
   // 김치 프리미엄 정보
   entryPremiumRate: number;
@@ -138,6 +134,14 @@ export interface PositionDto {
   // 시간 정보
   entryTime: Date;
   exitTime?: Date;
+  
+  // 거래소 주문 ID
+  upbitOrderId?: string;
+  binanceOrderId?: string;
+  
+  // 디바이스 정보 (어떤 디바이스에서 진입했는지)
+  ip?: string;
+  deviceType?: string;
   
   createdAt: Date;
   updatedAt: Date;
@@ -239,6 +243,8 @@ export interface WebSocketEventDto {
   data: any;
   timestamp: Date;
 }
+
+// ===== 포지션 관련 DTO =====
 
 // ===== 전략 관련 DTO =====
 

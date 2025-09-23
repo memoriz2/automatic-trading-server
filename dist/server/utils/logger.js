@@ -30,7 +30,7 @@ class Logger {
                 this.level = LogLevel.DEBUG;
                 break;
             default:
-                this.level = this.isProduction ? LogLevel.INFO : LogLevel.DEBUG;
+                this.level = this.isProduction ? LogLevel.WARN : LogLevel.WARN; // 스팸 로그 방지
         }
     }
     shouldLog(level) {

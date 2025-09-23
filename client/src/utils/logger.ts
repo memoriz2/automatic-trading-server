@@ -44,6 +44,16 @@ export const logger = {
     info: console.log,
     warn: console.warn,
     error: console.error,
+  },
+
+  /**
+   * 동기화 관련 로그 - 개발 환경에서만 상세 출력
+   */
+  sync: {
+    debug: isDev ? console.log : (() => {}),
+    info: console.log,
+    warn: console.warn,
+    error: console.error,
   }
 };
 

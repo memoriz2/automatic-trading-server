@@ -714,7 +714,7 @@ export class MultiStrategyTradingService {
     // 다중 전략 포지션 관리
     async manageMultiStrategyPositions(_userId, positions) {
         for (const position of positions) {
-            if (position.status !== "ACTIVE")
+            if (position.status !== "open" && position.status !== "ACTIVE")
                 continue;
             try {
                 // 현재 김프율 조회
@@ -725,25 +725,19 @@ export class MultiStrategyTradingService {
                 // 실제 포지션이 진입된 경우에만 수익률 계산
                 const entryPremium = Number(position.entryPremiumRate || 0);
                 const currentPremium = currentData.premiumRate;
-                // 진입가격이 정상적인 범위인지 확인 (5만원이면 모의거래 오류)
-                const entryPrice = Number(position.entryPrice || 0);
-                const isValidEntry = entryPrice > 100000; // 10만원 이상이면 정상 진입
-                if (isValidEntry) {
-                    // 정상 진입된 포지션만 수익률 계산
-                    const profitRate = currentPremium - entryPremium;
-                    // 포지션 업데이트
-                    await storage.updatePosition(position.id, {
-                        currentPrice: currentData.upbitPrice ?? Number(position.currentPrice ?? 0),
-                        currentPremiumRate: currentPremium,
-                    });
-                }
-                else {
-                    // 비정상 진입 포지션은 현재 김프율만 업데이트
-                    await storage.updatePosition(position.id, {
-                        currentPrice: currentData.upbitPrice ?? Number(position.currentPrice ?? 0),
-                        currentPremiumRate: currentPremium,
-                    });
-                }
+                // 모든 포지션에 대해 수익률 계산 및 업데이트
+                const profitRate = currentPremium - entryPremium;
+                // 실제 수익 계산 (김프율 차이 × 수량 × 현재가격)
+                const quantity = Number(position.quantity || 0);
+                const currentPrice = currentData.upbitPrice;
+                const estimatedPnl = profitRate * 0.01 * quantity * currentPrice; // 김프율 차이를 실제 수익으로 변환
+                console.log(`📊 포지션 ${position.id} 수익 계산: 진입=${entryPremium.toFixed(3)}% → 현재=${currentPremium.toFixed(3)}% (차이=${profitRate.toFixed(3)}%) → 예상수익=${estimatedPnl.toFixed(0)}원`);
+                // 포지션 업데이트 (current_premium_rate와 unrealized_pnl 업데이트)
+                await storage.updatePosition(position.id, {
+                    currentPrice: currentPrice,
+                    currentPremiumRate: currentPremium,
+                    unrealizedPnl: estimatedPnl,
+                });
             }
             catch (error) {
                 console.error(`포지션 관리 오류 (${position.symbol}):`, error);

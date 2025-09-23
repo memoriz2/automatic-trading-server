@@ -341,7 +341,7 @@ export class DatabaseStorage {
             const result = await this.pool.query(`
         INSERT INTO positions (
           user_id, strategy_id, symbol, type, entry_price, quantity,
-          entry_premium_rate, status, side, is_mock, created_at, updated_at, entry_time
+          entry_premium_rate, status, side, created_at, updated_at, entry_time
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW())
         RETURNING *
       `, [

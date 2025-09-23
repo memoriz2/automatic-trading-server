@@ -138,7 +138,6 @@ model Position {
   exitPremiumRate       Decimal?  @map("exit_premium_rate") @db.Decimal(10, 4)
   unrealizedPnl         Decimal?  @default("0") @map("unrealized_pnl") @db.Decimal(20, 2)
   realizedPnl           Decimal?  @default("0") @map("realized_pnl") @db.Decimal(20, 2)
-  isMock                Boolean   @default(true) @map("is_mock")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
   
@@ -151,7 +150,6 @@ model Position {
   @@index([strategyId], name: "idx_positions_strategy")
   @@index([userId, status], name: "idx_positions_user_status")
   @@index([userId, symbol], name: "idx_positions_user_symbol")
-  @@index([userId, isMock], name: "idx_positions_user_mock")
 }
 
 model Session {

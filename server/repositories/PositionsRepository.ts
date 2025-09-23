@@ -13,15 +13,25 @@ export class PositionsRepository extends BaseRepository {
   async create(positionData: Omit<PositionDto, 'id' | 'createdAt' | 'updatedAt'>): Promise<PositionDto> {
     const query = `
       INSERT INTO positions (
-        user_id, strategy_id, symbol, side, status,
-        upbit_quantity, upbit_entry_price, upbit_current_price, upbit_order_id,
-        binance_quantity, binance_entry_price, binance_current_price, binance_leverage, binance_order_id,
+        user_id, strategy_id, symbol, type, side, status,
+        entry_price, current_price, quantity,
+        binance_quantity, binance_entry_price, binance_leverage,
         entry_premium_rate, current_premium_rate,
         unrealized_pnl, realized_pnl, total_fees,
-        entry_time, exit_time, is_mock,
+        entry_time, exit_time,
+        upbit_order_id, binance_order_id,
+        ip, device_type,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, $9,
+        $10, $11, $12,
+        $13, $14,
+        $15, $16, $17,
+        $18, $19,
+        $20, $21,
+        $22, $23,
+        NOW(), NOW()
       )
       RETURNING 
         id,
@@ -53,25 +63,27 @@ export class PositionsRepository extends BaseRepository {
       positionData.userId,
       positionData.strategyId || null,
       positionData.symbol,
+      positionData.type,
       positionData.side,
       positionData.status,
-      positionData.upbitQuantity,
-      positionData.upbitEntryPrice,
-      positionData.upbitCurrentPrice || null,
-      positionData.upbitOrderId || null,
-      positionData.binanceQuantity,
-      positionData.binanceEntryPrice,
-      positionData.binanceCurrentPrice || null,
-      positionData.binanceLeverage,
-      positionData.binanceOrderId || null,
+      positionData.entryPrice,
+      positionData.currentPrice || null,
+      positionData.quantity,
+      // Binance 전용 필드(없으면 0/기본값)
+      positionData.binanceQuantity ?? 0,
+      positionData.binanceEntryPrice ?? 0,
+      positionData.binanceLeverage ?? 5,
       positionData.entryPremiumRate,
       positionData.currentPremiumRate || null,
-      positionData.unrealizedPnl,
+      positionData.unrealizedPnl ?? 0,
       positionData.realizedPnl || null,
-      positionData.totalFees,
+      positionData.totalFees ?? 0,
       positionData.entryTime,
       positionData.exitTime || null,
-      false // is_mock = false (실거래)
+      positionData.upbitOrderId || null,
+      positionData.binanceOrderId || null,
+      positionData.ip || null,
+      positionData.deviceType || 'Unknown',
     ]);
 
     if (!result) {
@@ -111,8 +123,7 @@ export class PositionsRepository extends BaseRepository {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM positions 
-      WHERE id = $1 AND is_mock = false
-    `;
+      WHERE id = $1     `;
     
     return this.queryOne<PositionDto>(query, [id]);
   }
@@ -147,8 +158,7 @@ export class PositionsRepository extends BaseRepository {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM positions 
-      WHERE user_id = $1 AND status = 'open' AND is_mock = false
-      ORDER BY entry_time DESC
+      WHERE user_id = $1 AND status = 'open'       ORDER BY entry_time DESC
     `;
     
     return this.query<PositionDto>(query, [userId]);
@@ -227,8 +237,7 @@ export class PositionsRepository extends BaseRepository {
         COALESCE(SUM(total_fees), 0) as total_fees,
         COALESCE(SUM(CASE WHEN status = 'open' THEN (quantity * entry_price) + (binance_quantity * binance_entry_price) ELSE 0 END), 0) as total_investment
       FROM positions 
-      WHERE user_id = $1 AND is_mock = false
-    `;
+      WHERE user_id = $1     `;
 
     const result = await this.queryOne<{
       total_positions: string;
@@ -286,8 +295,7 @@ export class PositionsRepository extends BaseRepository {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM positions 
-      WHERE strategy_id = $1 AND is_mock = false
-      ORDER BY entry_time DESC
+      WHERE strategy_id = $1       ORDER BY entry_time DESC
     `;
     
     return this.query<PositionDto>(query, [strategyId]);
@@ -326,8 +334,7 @@ export class PositionsRepository extends BaseRepository {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM positions 
-      WHERE strategy_id = $1 AND symbol = $2 AND status = 'open' AND is_mock = false
-      LIMIT 1
+      WHERE strategy_id = $1 AND symbol = $2 AND status = 'open'       LIMIT 1
     `;
     
     return this.queryOne<PositionDto>(query, [strategyId, symbol]);
@@ -340,8 +347,7 @@ export class PositionsRepository extends BaseRepository {
     const query = `
       UPDATE positions 
       SET remaining_quantity = $2, updated_at = NOW()
-      WHERE id = $1 AND is_mock = false
-    `;
+      WHERE id = $1     `;
     
     const result = await this.pool.query(query, [id, remainingQuantity]);
     return (result.rowCount || 0) > 0;
@@ -367,7 +373,7 @@ export class PositionsRepository extends BaseRepository {
       exit_time: new Date()
     };
 
-    const updatedRows = await this.safeUpdate('positions', updates, { id, is_mock: false });
+    const updatedRows = await this.safeUpdate('positions', updates, { id });
     return updatedRows > 0;
   }
 }

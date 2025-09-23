@@ -129,7 +129,6 @@ CREATE TABLE IF NOT EXISTS positions (
     realized_pnl NUMERIC(20,2) DEFAULT 0,
     created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP(3) NOT NULL,
-    is_mock BOOLEAN DEFAULT TRUE,
     binance_leverage INTEGER DEFAULT 1,
     binance_quantity NUMERIC(20,8) DEFAULT 0,
     binance_entry_price NUMERIC(20,8) DEFAULT 0,
@@ -376,7 +375,7 @@ CREATE INDEX IF NOT EXISTS idx_positions_entry_time ON positions (entry_time);
 CREATE INDEX IF NOT EXISTS idx_positions_strategy ON positions (strategy_id);
 CREATE INDEX IF NOT EXISTS idx_positions_user_status ON positions (user_id, status);
 CREATE INDEX IF NOT EXISTS idx_positions_user_symbol ON positions (user_id, symbol);
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_position_strategy_symbol ON positions (strategy_id, symbol) WHERE status = 'open' AND is_mock = FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_open_position_strategy_symbol ON positions (strategy_id, symbol) WHERE status = 'open';
 
 -- 거래 관련 인덱스
 CREATE INDEX IF NOT EXISTS idx_trades_executed_at ON trades (executed_at);
