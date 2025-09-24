@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatBTC, formatPrice, formatInteger } from '@/utils/trading/formatters';
+import { calculatePositionPnL } from '@/utils/pnl-calculator';
 
 interface LivePosition {
   id: string;
@@ -53,68 +54,59 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
   const activePositions = livePositions.filter(p => p.status === 'open');
 
   const getStrategyName = (position: LivePosition): string => {
+    console.log('🔍 getStrategyName 호출:', {
+      positionId: position.id,
+      strategyId: position.strategyId,
+      strategyName: position.strategyName,
+      strategiesLength: strategies.length,
+      strategiesIds: strategies.map(s => s.id)
+    });
+
+    // 우선 position.strategyName이 있으면 사용
+    if (position.strategyName) {
+      console.log('✅ position.strategyName 사용:', position.strategyName);
+      return position.strategyName;
+    }
+
+    // strategies 배열에서 해당 전략의 이름 찾기
+    const strategy = strategies.find(s => s.id === position.strategyId);
+    if (strategy) {
+      console.log('✅ strategies 배열에서 찾음:', strategy.name);
+      return strategy.name;
+    }
+
+    // 전략을 찾지 못한 경우 기본 표시
     const idStr = String(position.strategyId);
     const idPart = idStr.replace(/^force-entry-/, '');
-    // 일반 전략도 무조건 전략 ID로 표기 (이름 대신 ID 중심)
-    return idStr.startsWith('force-entry')
+    const fallbackName = idStr.startsWith('force-entry')
       ? `🧪 강제진입 #${idPart}`
       : `전략 #${idPart}`;
+
+    console.log('⚠️ 기본값 사용:', fallbackName);
+    return fallbackName;
   };
 
   const calculatePnL = (position: LivePosition) => {
-    // === 현재 시장 데이터 ===
-    const currentPremium = lastKimchiData?.kimp ?? position.entryPremiumRate; // 현재 김치프리미엄 (%)
-    const effectiveLeverage = position.leverage && position.leverage > 0 ? position.leverage : 5; // 안전 기본값
-    
-    // === 김치 프리미엄 변화량 계산 ===
-    const premiumDelta = (currentPremium - position.entryPremiumRate);        // 김프 변화량 (현재김프 - 진입김프)
-    
-    // === 실제 투자금 계산 (진입 수수료로 마이너스 시작) ===
-    const upbitInvestment = position.upbitQuantity * position.upbitPrice;     // 업비트 실제 투자금액 (KRW)
-    const usdKrw = lastKimchiData?.usdkrw || 1390;
-    // 바이낸스 가격 단위 가드: KRW처럼 매우 큰 값이면 USD로 보정
-    const entryBinancePriceUsd = (position.binancePrice || 0) > 1000000 
-      ? position.binancePrice / usdKrw 
-      : position.binancePrice;                                                // USD로 정규화
-    const binanceMarginUsd = (position.binanceQuantity * entryBinancePriceUsd) / effectiveLeverage; // 바이낸스 실제 증거금 (USD)
-    const binanceMarginKRW = binanceMarginUsd * usdKrw;                       // 바이낸스 증거금 (KRW)
-    // 총투자금 기반 계산은 사용하지 않음(정확도 개선 위해 순노출액 기준 사용)
-    
-    // === 총 매매 수수료 (진입+청산) ===
-    const upbitEntryFee = upbitInvestment * 0.0005;                          // 업비트 진입 수수료 (매수 0.05%) - 고정
-    
-    // 🔄 업비트 매도 수수료: 현재 가격 기준으로 실시간 계산
-    const currentUpbitPrice = lastKimchiData?.upbit_price || position.upbitPrice; // 현재 업비트 BTC 가격
-    const currentUpbitSellAmount = position.upbitQuantity * currentUpbitPrice; // 현재 가격 기준 매도 금액
-    const upbitExitFee = currentUpbitSellAmount * 0.0005;                    // 실시간 매도 수수료 (0.05%)
-    const upbitTotalFee = upbitEntryFee + upbitExitFee;                      // 업비트 총 수수료
-    
-    const binanceEntryFee = (position.binanceQuantity * entryBinancePriceUsd * 0.0004) * usdKrw; // 바이낸스 진입 수수료 (KRW)
-    
-    // 🔄 바이낸스 매도 수수료: 현재 가격 기준으로 실시간 계산  
-    const currentBinanceRaw = lastKimchiData?.binance_price || position.binancePrice; // 현재 바이낸스 BTC 가격(원시)
-    const currentBinancePriceUsd = (currentBinanceRaw || 0) > 1000000 
-      ? (currentBinanceRaw as number) / usdKrw 
-      : (currentBinanceRaw as number);
-    const currentBinanceSellAmountUsd = position.binanceQuantity * (currentBinancePriceUsd || 0); // 현재 가격 기준 매도 금액 (USD)
-    const binanceExitFee = (currentBinanceSellAmountUsd * 0.0004) * usdKrw;     // 실시간 매도 수수료 (KRW)
-    
-    // === 순투자금(진입 시점 수수료만 차감) ===
-    const upbitNetInvestment = upbitInvestment - upbitEntryFee;              // 업비트: 진입 수수료 차감
-    const binanceNetMarginKRW = (binanceMarginUsd * usdKrw) - binanceEntryFee; // 바이낸스: 진입 수수료 차감
-    const netEntryExposureKRW = upbitNetInvestment + binanceNetMarginKRW;    // 진입 시점 순노출액
-    
-    // === 김프 변화 손익(진입 순노출액 기준) − (예상 청산 수수료) ===
-    const premiumPnl = (-premiumDelta / 100) * netEntryExposureKRW;          // 김프 하락=수익
-    const estimatedExitFeesKRW = upbitExitFee + binanceExitFee;              // 실시간 매도 수수료 합
-    const unrealizedPnl = premiumPnl - estimatedExitFeesKRW;                 // 순손익(예상치)
-    
+    // 중앙화된 PnL 계산 함수 사용
+    const pnlResult = calculatePositionPnL(position, lastKimchiData);
+
+    // 디버그 로그
+    console.log(`🔍 [LivePositionList-unified] 포지션 ${position.id}:`, {
+      entryPremium: position.entryPremiumRate,
+      currentPremium: lastKimchiData?.kimp || position.entryPremiumRate,
+      premiumDelta: pnlResult.premiumDelta,
+      premiumPnl: Math.round(pnlResult.premiumPnl),
+      estimatedExitFeesKRW: Math.round(pnlResult.estimatedExitFees),
+      unrealizedPnl: Math.round(pnlResult.netPnl),
+      netEntryExposureKRW: Math.round(pnlResult.netEntryExposure)
+    });
+
     return {
-      currentPremium,      // 현재 김치프리미엄 (%)
-      premiumDelta,        // 김프 변화량 (%)  
-      unrealizedPnl,       // 미실현 손익 (KRW)
-      isRising: premiumDelta > 0,   // 김프 상승 여부
-      isFalling: premiumDelta < 0   // 김프 하락 여부
+      currentPremium: lastKimchiData?.kimp ?? position.entryPremiumRate,
+      premiumDelta: pnlResult.premiumDelta,
+      unrealizedPnl: pnlResult.netPnl,
+      isRising: pnlResult.premiumDelta > 0,
+      isFalling: pnlResult.premiumDelta < 0
     };
   };
 
@@ -140,72 +132,44 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                 <span className="text-white font-medium">
                   {getStrategyName(position)}
                 </span>
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className={`ml-2 ${
-                    pnlData.isFalling ? 'text-green-400 border-green-400' : // 김프율 감소 = 차익거래 수익
-                    pnlData.isRising ? 'text-red-400 border-red-400' : // 김프율 증가 = 차익거래 손실
-                    'text-slate-400'
+                    pnlData.unrealizedPnl >= 0 ? 'text-green-400 border-green-400' : 'text-red-400 border-red-400'
                   }`}
                 >
-                  {pnlData.isFalling ? '📉' : pnlData.isRising ? '📈' : '➡️'} {position.entryPremiumRate.toFixed(3)}% → {pnlData.currentPremium.toFixed(3)}%
+                  {pnlData.isRising ? '📈' : pnlData.isFalling ? '📉' : '➡️'} {position.entryPremiumRate.toFixed(3)}% → {pnlData.currentPremium.toFixed(3)}%
                 </Badge>
               </div>
               <div className="flex items-center gap-2 ml-auto">
                 <div className="text-right">
-                  {/* 차익거래 수익 표시 (김프율 감소 = 수익) */}
+                  {/* 차익거래 수익 표시 (김프율 증가 = 수익) */}
                   <p className={`font-bold flex justify-end text-right gap-1 ${
-                    pnlData.isFalling ? 'text-green-400' : // 김프율 감소 = 차익거래 수익
-                    pnlData.isRising ? 'text-red-400' : // 김프율 증가 = 차익거래 손실  
-                    'text-slate-400'
+                    pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
-                    {pnlData.isFalling ? '🟢' : pnlData.isRising ? '🔴' : '⚪'}
-                    {pnlData.isFalling ? '+' : pnlData.isRising ? '−' : ''}₩{Math.max(1, Math.round(Math.abs(pnlData.unrealizedPnl))).toLocaleString()}
+                    {pnlData.unrealizedPnl >= 0 ? '🟢' : '🔴'}
+                    {pnlData.unrealizedPnl >= 0 ? '+' : '−'}₩{Math.max(1, Math.round(Math.abs(pnlData.unrealizedPnl))).toLocaleString()}
                   </p>
                   <p className={`text-xs ${
-                    pnlData.isFalling ? 'text-green-400' : // 김프율 감소 = 차익거래 수익
-                    pnlData.isRising ? 'text-red-400' : // 김프율 증가 = 차익거래 손실
-                    'text-slate-400'
+                    pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {(() => {
-                      // 김치 프리미엄 변화로 인한 원화 손익 (진입 시 가격 기준)
-                      const usdKrwLocal = lastKimchiData?.usdkrw || 1390;
-                      const upbitInvestmentKRW = position.upbitQuantity * position.upbitPrice; // KRW
-                      const upbitEntryFeeKRW = upbitInvestmentKRW * 0.0005;
-                      const upbitSellAmountKRW = (lastKimchiData?.upbit_price || position.upbitPrice) * position.upbitQuantity;
-                      const upbitExitFeeKRW = upbitSellAmountKRW * 0.0005;
+                      // 중앙화된 계산 함수 사용 (중복 계산 제거)
+                      const pnlResult = calculatePositionPnL(position, lastKimchiData);
+                      const netPnlKRW = pnlResult.netPnl;
+                      const premiumPnlPercentRaw = pnlResult.netEntryExposure > 0 ? (netPnlKRW / pnlResult.netEntryExposure * 100) : 0;
 
-                      const entryBinancePriceUsdLocal = (position.binancePrice || 0) > 1000000 
-                        ? position.binancePrice / usdKrwLocal 
-                        : position.binancePrice; // USD
-                      const binanceMarginUsdLocal = (position.binanceQuantity * entryBinancePriceUsdLocal) / position.leverage;
-                      const binanceEntryFeeKRW = (position.binanceQuantity * entryBinancePriceUsdLocal * 0.0004) * usdKrwLocal;
-
-                      const currentBinancePriceUsdLocal = (lastKimchiData?.binance_price || position.binancePrice);
-                      const currentBinancePriceUsd = (currentBinancePriceUsdLocal || 0) > 1000000 
-                        ? (currentBinancePriceUsdLocal as number) / usdKrwLocal 
-                        : (currentBinancePriceUsdLocal as number);
-                      const binanceExitFeeKRW = (position.binanceQuantity * currentBinancePriceUsd * 0.0004) * usdKrwLocal;
-
-                      const upbitNetInv = upbitInvestmentKRW - upbitEntryFeeKRW;
-                      const binanceNetInvKRW = (binanceMarginUsdLocal * usdKrwLocal) - binanceEntryFeeKRW;
-                      const netEntryExposure = upbitNetInv + binanceNetInvKRW;
-
-                      const premiumPnlKRW = (-pnlData.premiumDelta / 100) * netEntryExposure;
-                      const exitFees = upbitExitFeeKRW + binanceExitFeeKRW;
-                      const netPnlKRW = premiumPnlKRW - exitFees;
-                      const premiumPnlPercentRaw = netEntryExposure > 0 ? (netPnlKRW / netEntryExposure * 100) : 0;
-                      // 소수점 3자리 절삭 + 최소 표시 단위 적용(0이 되지 않도록)
+                      // 소수점 3자리 절삭 + 최소 표시 단위 적용
                       const absPct = Math.abs(premiumPnlPercentRaw);
                       const factor = 1000;
                       const truncated = Math.floor(absPct * factor) / factor;
                       const premiumPnlPercent = (truncated === 0 && absPct > 0) ? 0.001 : truncated;
-                      
-                      // 김프 하락 = 차익거래 수익, 김프 상승 = 차익거래 손실
-                      const directionText = pnlData.isFalling ? '차익거래 수익' : pnlData.isRising ? '차익거래 손실' : '변동없음';
 
-                      // 김프 방향에 따라 부호 결정 (김프 하락=수익이므로 +, 김프 상승=손실이므로 -)
-                      const sign = pnlData.isFalling ? '+' : pnlData.isRising ? '−' : '';
+                      // 실제 손익에 따라 표시
+                      const isProfit = netPnlKRW >= 0;
+                      const directionText = isProfit ? '차익거래 수익' : '차익거래 손실';
+                      const sign = isProfit ? '+' : '−';
+
                       return `${directionText}: ${sign}₩${Math.max(1, Math.round(Math.abs(netPnlKRW))).toLocaleString()} (${sign}${premiumPnlPercent.toFixed(3)}%)`;
                     })()}
                   </p>

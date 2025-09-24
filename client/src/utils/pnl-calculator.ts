@@ -1,0 +1,75 @@
+// 중앙화된 PnL 계산 함수
+export interface Position {
+  id: string;
+  upbitQuantity: number;
+  upbitPrice: number;
+  binanceQuantity: number;
+  binancePrice: number;
+  leverage: number;
+  entryPremiumRate: number;
+}
+
+export interface MarketData {
+  kimp?: number;
+  upbit_price?: number;
+  binance_price?: number;
+  usdkrw?: number;
+}
+
+export interface PnLResult {
+  premiumDelta: number;
+  premiumPnl: number;
+  estimatedExitFees: number;
+  netPnl: number;
+  netEntryExposure: number;
+}
+
+/**
+ * 통합 PnL 계산 함수
+ * @param position 포지션 정보
+ * @param marketData 현재 시장 데이터
+ * @returns PnL 계산 결과
+ */
+export function calculatePositionPnL(position: Position, marketData: MarketData | null): PnLResult {
+  const currentPremium = marketData?.kimp ?? position.entryPremiumRate;
+  const premiumDelta = currentPremium - position.entryPremiumRate;
+  const usdkrw = marketData?.usdkrw || 1390;
+
+  // === 업비트 계산 ===
+  const upbitInvestmentKRW = position.upbitQuantity * position.upbitPrice;
+  const upbitEntryFeeKRW = upbitInvestmentKRW * 0.0005;
+  const currentUpbitPrice = marketData?.upbit_price || position.upbitPrice;
+  const upbitSellAmountKRW = position.upbitQuantity * currentUpbitPrice;
+  const upbitExitFeeKRW = upbitSellAmountKRW * 0.0005;
+
+  // === 바이낸스 계산 ===
+  const entryBinancePriceUsd = (position.binancePrice || 0) > 1000000
+    ? position.binancePrice / usdkrw
+    : position.binancePrice;
+  const binanceMarginUsd = (position.binanceQuantity * entryBinancePriceUsd) / position.leverage;
+  const binanceEntryFeeKRW = (position.binanceQuantity * entryBinancePriceUsd * 0.0004) * usdkrw;
+
+  const currentBinancePriceRaw = marketData?.binance_price || position.binancePrice;
+  const currentBinancePriceUsd = (currentBinancePriceRaw || 0) > 1000000
+    ? (currentBinancePriceRaw as number) / usdkrw
+    : (currentBinancePriceRaw as number);
+  const binanceExitFeeKRW = (position.binanceQuantity * currentBinancePriceUsd * 0.0004) * usdkrw;
+
+  // === 순투자금 계산 ===
+  const upbitNetInvestment = upbitInvestmentKRW - upbitEntryFeeKRW;
+  const binanceNetMarginKRW = (binanceMarginUsd * usdkrw) - binanceEntryFeeKRW;
+  const netEntryExposure = upbitNetInvestment + binanceNetMarginKRW;
+
+  // === 최종 손익 계산 ===
+  const premiumPnl = (premiumDelta / 100) * netEntryExposure; // 김프 증가=수익, 김프 감소=손실
+  const estimatedExitFees = upbitExitFeeKRW + binanceExitFeeKRW;
+  const netPnl = premiumPnl - estimatedExitFees;
+
+  return {
+    premiumDelta,
+    premiumPnl,
+    estimatedExitFees,
+    netPnl,
+    netEntryExposure
+  };
+}

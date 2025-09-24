@@ -10,6 +10,7 @@ import { LiveTradeHistory } from '@/components/trading/LiveTradeHistory';
 import { LiveBalanceDisplay } from '@/components/trading/LiveBalanceDisplay';
 import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime } from '@/utils/datetime';
+import { calculatePositionPnL } from '@/utils/pnl-calculator';
 
 // API 호출 함수
 const apiFetch = async (url: string, options: RequestInit = {}) => {
@@ -366,11 +367,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             console.log('📊 DB 포지션 조회 결과:', dbPositions);
             
             // DB 포지션을 LivePosition 형태로 변환
-            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => ({
-              id: `db-${pos.id}`,
-              strategyId: pos.strategy_id,
-              strategyName: `전략 #${pos.strategy_id}`,
-              symbol: pos.symbol,
+            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
+              console.log('🔍 포지션 변환:', { id: pos.id, strategy_id: pos.strategy_id, strategy_name: pos.strategy_name });
+              return {
+                id: `db-${pos.id}`,
+                strategyId: pos.strategy_id,
+                strategyName: pos.strategy_name || `전략 #${pos.strategy_id}`,
+                symbol: pos.symbol,
               entryTime: new Date(pos.entry_time),
               entryPremiumRate: pos.entry_premium_rate || 0,
               upbitQuantity: pos.quantity || 0,
@@ -393,7 +396,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               upbitOrderId: pos.upbit_order_id,
               binanceOrderId: pos.binance_order_id,
               isRealTrade: true
-            }));
+              };
+            });
             
             setLivePositions(convertedPositions);
             console.log('✅ DB 포지션을 LivePosition으로 변환 완료:', convertedPositions.length, '개');
@@ -1285,16 +1289,80 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           const liquidationResults = [];
           
-          // 1. 업비트 현물 매도 (보유량이 있으면)
-          if (exitUpbitQuantity > 0.00001) {
+          // 1. 업비트 실제 잔고 조회 후 전량 매도
+          let actualUpbitBalance = 0;
+          try {
+            // 업비트 BTC 잔고 조회
+            const balanceResponse = await fetch('/api/trading/upbit/balance', {
+              method: 'GET',
+              credentials: 'include'
+            });
+
+            if (balanceResponse.ok) {
+              const balanceData = await balanceResponse.json();
+              console.log(`🔍 업비트 전체 잔고 정보:`, balanceData);
+
+              const btcBalance = balanceData.find((b: any) => b.currency === position.symbol);
+              console.log(`🔍 ${position.symbol} 잔고 상세:`, btcBalance);
+
+              actualUpbitBalance = parseFloat(btcBalance?.balance || '0');
+              console.log(`📊 업비트 실제 ${position.symbol} 잔고: ${actualUpbitBalance} (원래 포지션 수량: ${position.upbitQuantity})`);
+
+              // 실제 잔고와 포지션 수량이 다르면 DB 업데이트
+              if (Math.abs(actualUpbitBalance - position.upbitQuantity) > 0.00001) {
+                console.log(`🔄 포지션 수량 업데이트: ${position.upbitQuantity} → ${actualUpbitBalance}`);
+                try {
+                  await fetch(`/api/positions/${position.id}/upbit-quantity`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ actualQuantity: actualUpbitBalance })
+                  });
+                } catch (updateError) {
+                  console.warn('⚠️ 포지션 수량 업데이트 실패:', updateError);
+                }
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ 업비트 잔고 조회 실패, 포지션 수량 사용:', error);
+            actualUpbitBalance = exitUpbitQuantity;
+          }
+
+          // 업비트 BTC 최소 거래 단위: 0.00008 BTC
+          const UPBIT_MIN_BTC_UNIT = 0.00008;
+
+          // 실제 잔고 기준으로 매도 (전량 청산을 위해 실제 잔고 우선)
+          const finalSellQuantity = actualUpbitBalance > 0.00001 ? actualUpbitBalance : exitUpbitQuantity;
+
+          console.log(`🔍 청산 수량 분석:`, {
+            포지션저장수량: position.upbitQuantity,
+            계산된청산수량: exitUpbitQuantity,
+            API실제잔고: actualUpbitBalance,
+            최종매도수량: finalSellQuantity,
+            청산비율: `${Math.round(ratio * 100)}%`,
+            최소거래단위: UPBIT_MIN_BTC_UNIT,
+            최소거래가능여부: finalSellQuantity >= UPBIT_MIN_BTC_UNIT
+          });
+
+          // 0.000957 BTC와 같은 특정 케이스 분석
+          if (finalSellQuantity > 0.0009 && finalSellQuantity < 0.001) {
+            console.log(`🔍 특별 분석 - ${finalSellQuantity} BTC 케이스:`, {
+              최소거래단위대비: `${(finalSellQuantity / UPBIT_MIN_BTC_UNIT).toFixed(2)}배`,
+              원화환산예상: `약 ${(finalSellQuantity * 100000000).toFixed(0)}원 (BTC가 1억원 가정)`
+            });
+          }
+
+          if (finalSellQuantity >= UPBIT_MIN_BTC_UNIT) {
             try {
+              console.log(`🔄 업비트 매도 실행: 포지션수량(${exitUpbitQuantity}) vs 실제잔고(${actualUpbitBalance}) → 최종매도(${finalSellQuantity})`);
+
               const upbitSellResponse = await fetch('/api/trading/upbit/sell', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                   market: `KRW-${position.symbol}`,
-                  volume: exitUpbitQuantity,
+                  volume: finalSellQuantity,
                   ord_type: 'market'
                 })
               });
@@ -1302,6 +1370,33 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               if (upbitSellResponse.ok) {
                 const upbitResult = await upbitSellResponse.json();
                 console.log(`✅ 업비트 개별 매도 완료:`, upbitResult);
+
+                // 실제 매도된 수량 확인
+                const executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || '0');
+                console.log(`📊 실제 매도된 수량: ${executedVolume} BTC (요청: ${finalSellQuantity} BTC)`);
+
+                // 매도 후 잔고 재확인 (남은 수량 추적)
+                setTimeout(async () => {
+                  try {
+                    const afterSellBalance = await fetch('/api/trading/upbit/balance', {
+                      method: 'GET',
+                      credentials: 'include'
+                    });
+                    if (afterSellBalance.ok) {
+                      const afterBalanceData = await afterSellBalance.json();
+                      const afterBtcBalance = afterBalanceData.find((b: any) => b.currency === position.symbol);
+                      const remainingBalance = parseFloat(afterBtcBalance?.balance || '0');
+                      console.log(`🔍 매도 후 남은 ${position.symbol} 잔고: ${remainingBalance} BTC`);
+
+                      if (remainingBalance > 0.00001) {
+                        console.log(`⚠️ 청산 후에도 ${remainingBalance} BTC가 남아있음 - 부분 체결 또는 최소 거래 단위 미달 가능성`);
+                      }
+                    }
+                  } catch (error) {
+                    console.warn('⚠️ 매도 후 잔고 재확인 실패:', error);
+                  }
+                }, 2000); // 2초 후 확인
+
                 liquidationResults.push({ type: 'upbit_sell', result: upbitResult });
               } else {
                 const errorText = await upbitSellResponse.text();
@@ -1319,8 +1414,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               console.error(`❌ 업비트 매도 오류:`, upbitError);
               liquidationResults.push({ type: 'upbit_error', error: upbitError.message });
             }
+          } else {
+            console.log(`⚠️ 업비트 매도 수량이 최소 거래 단위보다 작음: ${finalSellQuantity} BTC (최소: ${UPBIT_MIN_BTC_UNIT} BTC)`);
+            console.log(`📝 소액 BTC 잔고 ${finalSellQuantity}는 수수료보다 작아서 자동으로 남겨둡니다.`);
+            liquidationResults.push({ type: 'upbit_skip', reason: 'below_minimum_trade_unit', quantity: finalSellQuantity });
           }
-          
+
           // 2. 바이낸스 선물 청산 (포지션이 있으면)
           if (exitBinanceQuantity > 0.00001) {
             try {
@@ -1996,41 +2095,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const currentBtcPrice = currentKimchiData?.upbit_price || 156000000;
   
   // === 🎯 개별 포지션 PnL 계산 (수수료 제외 방식) ===
-  const totalPositionPnl = livePositions
-    .filter(p => p.status === 'open')
+  const openPositions = livePositions.filter(p => p.status === 'open');
+  console.log('🔍 활성 포지션 수:', openPositions.length, openPositions);
+
+  // 🎯 중앙화된 PnL 계산 함수 사용
+  const totalPositionPnl = openPositions
     .reduce((sum, position) => {
-      const currentPremium = currentKimchiData?.kimp ?? position.entryPremiumRate;
-      const premiumDelta = (currentPremium - position.entryPremiumRate);
-      const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
-      
-      // 💰 순투자금 계산 (실시간 매도 수수료 적용)
-      const upbitGrossAmount = position.upbitQuantity * position.upbitPrice;   // 업비트 총 매수금액 (KRW)
-      const upbitEntryFee = upbitGrossAmount * 0.0005;                         // 업비트 진입 수수료 (매수 0.05%) - 고정
-      
-      // 🔄 업비트 매도 수수료: 현재 가격 기준으로 실시간 계산
-      const currentUpbitPrice = currentKimchiData?.upbit_price || position.upbitPrice; // 현재 업비트 BTC 가격
-      const currentUpbitSellAmount = position.upbitQuantity * currentUpbitPrice; // 현재 가격 기준 매도 금액
-      const upbitExitFee = currentUpbitSellAmount * 0.0005;                    // 실시간 매도 수수료 (0.05%)
-      const upbitTotalFee = upbitEntryFee + upbitExitFee;                      // 업비트 총 수수료
-      const upbitNetInvestment = upbitGrossAmount - upbitEntryFee;             // 업비트 순투자금 = 매수금액 - 진입수수료만
-      
-      const binanceGrossMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 바이낸스 증거금 (USD)
-      const binanceEntryFee = (position.binanceQuantity * position.binancePrice * 0.0004); // 바이낸스 진입 수수료 (USD)
-      
-      // 🔄 바이낸스 매도 수수료: 현재 가격 기준으로 실시간 계산
-      const currentBinancePrice = currentKimchiData?.binance_price || position.binancePrice; // 현재 바이낸스 BTC 가격
-      const currentBinanceSellAmount = position.binanceQuantity * currentBinancePrice; // 현재 가격 기준 매도 금액 (USD)
-      const binanceExitFee = currentBinanceSellAmount * 0.0004;               // 실시간 매도 수수료 (USD)
-      const binanceTotalFee = binanceEntryFee + binanceExitFee;                // 바이낸스 총 수수료
-      const binanceNetMargin = binanceGrossMargin - binanceEntryFee;           // 바이낸스 순증거금 = 증거금 - 진입수수료만
-      const binanceNetMarginKRW = binanceNetMargin * currentUsdKrw;            // 바이낸스 순증거금 (KRW)
-      
-      const totalNetInvestment = upbitNetInvestment + binanceNetMarginKRW;     // 총 순투자금 (진입+청산 수수료 모두 차감)
-      
-      // 📈 김치 프리미엄 변화에 따른 손익 계산
-      const premiumPnlKRW = (premiumDelta / 100) * totalNetInvestment;        // 김프 변화율 × 순투자금 = 손익
-      
-      return sum + premiumPnlKRW;                                              // 순손익 누적
+      const pnlResult = calculatePositionPnL(position, currentKimchiData);
+      console.log(`🔍 [unified-calc] 포지션 ${position.id}: ${Math.round(pnlResult.netPnl)}원`);
+      return sum + pnlResult.netPnl;
     }, 0);
   
   // 청산된 포지션의 실현 손익
@@ -2040,6 +2113,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   
   // === ⚠️ 총 수익률은 현재 활성 포지션만 계산 (실현손익 제외) ===
   const totalPnl = totalPositionPnl; // 실현손익 제외, 활성 포지션 PnL만 사용
+
+  console.log('🔍 총 수익금 계산:', {
+    openPositionsCount: openPositions.length,
+    totalPositionPnl,
+    totalPnl
+  });
   
   // === 총 순투자금 계산 (활성 포지션만) ===
   const activePositions = livePositions.filter(p => p.status === 'open');

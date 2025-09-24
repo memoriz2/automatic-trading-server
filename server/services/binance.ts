@@ -874,4 +874,37 @@ export class BinanceService {
       return 0;
     }
   }
+
+  // 선물 주문 상세 조회 (체결가 확인용)
+  async getFuturesOrderDetail(symbol: string, orderId: number): Promise<any> {
+    try {
+      if (!this.apiKey) {
+        throw new Error('Binance API key not configured');
+      }
+      const timestamp = Date.now();
+      const params = {
+        symbol: `${symbol}USDT`,
+        orderId: orderId.toString(),
+        timestamp: timestamp.toString()
+      };
+      const queryString = new URLSearchParams(params).toString();
+      const signature = this.generateSignature(queryString);
+
+      const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/order?${queryString}&signature=${signature}`, {
+        method: 'GET',
+        headers: {
+          'X-MBX-APIKEY': this.apiKey
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Binance futures order detail error (${response.status}): ${errorText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Binance getFuturesOrderDetail error:', error);
+      throw error;
+    }
+  }
 }

@@ -22,10 +22,6 @@ export class TradingManager {
 
   // 사용자별 거래소 서비스 초기화
   private async initializeServices(userId: number): Promise<{ upbit?: UpbitService; binance?: BinanceService }> {
-    if (!isLiveMode()) {
-      console.log(`🛡️  Mock 모드: 실제 API 서비스 초기화 건너뛰기`);
-      return {}; // Mock 모드에서는 실제 서비스 불필요
-    }
 
     try {
       const exchanges = await storage.getExchangesByUserId(userId);
@@ -52,75 +48,41 @@ export class TradingManager {
     }
   }
 
-  // 강제진입 실행 (환경별 분기)
+  // 강제진입 실행 (실거래만)
   async executeForceEntry(userId: number, params: {
     symbol: string;
     quantity: number;
     leverage: number;
     currentKimp: number;
   }): Promise<TradingResult> {
-    
-    if (!isLiveMode()) {
-      return this.executeMockForceEntry(userId, params);
-    } else {
-      return this.executeRealForceEntry(userId, params);
-    }
+
+    return this.executeRealForceEntry(userId, params);
   }
 
-  // Mock 강제진입
-  private async executeMockForceEntry(userId: number, params: any): Promise<TradingResult> {
-    console.log(`🛡️  Mock 강제진입 실행:`, params);
-    
-    // Mock 데이터로 포지션 생성
-    const mockPosition = {
-      userId,
-      symbol: params.symbol,
-      type: 'force_entry',
-      entryPrice: 156000000, // Mock BTC 가격
-      quantity: params.quantity,
-      entryPremiumRate: params.currentKimp,
-      currentPremiumRate: params.currentKimp,
-      status: 'open',
-      side: 'long',
-      isMock: true,
-      leverage: params.leverage
-    };
-
-    try {
-      const savedPosition = await storage.createPosition(mockPosition);
-      
-      return {
-        success: true,
-        message: `Mock 강제진입 완료`,
-        data: {
-          position: savedPosition,
-          strategyName: `강제진입${savedPosition.id}`
-        }
-      };
-    } catch (error) {
-      console.error('❌ Mock 강제진입 실패:', error);
-      return {
-        success: false,
-        message: `Mock 강제진입 실패: ${(error as any).message}`
-      };
-    }
-  }
 
   // 실거래 강제진입
   private async executeRealForceEntry(userId: number, params: any): Promise<TradingResult> {
     console.log(`🚨 실거래 강제진입 실행:`, params);
-    
+
     try {
       const services = await this.initializeServices(userId);
-      
+
       if (!services.upbit || !services.binance) {
         throw new Error('거래소 API 키가 설정되지 않았습니다');
       }
 
-      // 1. 업비트 현물 매수
+      // 1. 업비트 현재 가격 조회
+      const upbitPrice = await services.upbit.getCurrentPrice(`KRW-${params.symbol}`);
+      console.log(`📊 업비트 현재 ${params.symbol} 가격: ₩${upbitPrice.toLocaleString()}`);
+
+      // 2. BTC 수량 -> 총 구매 금액(KRW) 계산
+      const totalKRWAmount = Math.round(params.quantity * upbitPrice);
+      console.log(`💰 구매 설정: ${params.quantity} ${params.symbol} = ₩${totalKRWAmount.toLocaleString()}`);
+
+      // 3. 업비트 현물 매수 (총 금액으로)
       const upbitOrder = await services.upbit.placeBuyOrder(
         `KRW-${params.symbol}`,
-        params.quantity
+        totalKRWAmount
       );
 
       // 2. 바이낸스 선물 숏
@@ -129,13 +91,63 @@ export class TradingManager {
         params.quantity
       );
 
-      // 3. DB에 실거래 포지션 저장
+      console.log(`📊 주문 완료:`, {
+        upbitOrderId: upbitOrder.uuid,
+        binanceOrderId: binanceOrder.orderId
+      });
+
+      // 3. 실제 체결가 조회 (짧은 대기 후)
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
+
+      let actualUpbitPrice = upbitPrice; // 현재가를 기본값으로
+      let actualUpbitQuantity = params.quantity; // 요청 수량을 기본값으로
+      let actualBinancePrice = 100000; // 기본값
+
+      try {
+        // 업비트 주문 상세 조회
+        const upbitOrderDetail = await services.upbit.getOrderDetail(upbitOrder.uuid);
+        console.log(`📊 업비트 주문 상세:`, upbitOrderDetail);
+
+        // 업비트 실제 체결가와 체결 수량
+        if (upbitOrderDetail.avg_price) {
+          actualUpbitPrice = parseFloat(upbitOrderDetail.avg_price);
+        } else if (upbitOrderDetail.price) {
+          actualUpbitPrice = parseFloat(upbitOrderDetail.price);
+        }
+
+        // 실제 체결된 BTC 수량 (executed_volume)
+        if (upbitOrderDetail.executed_volume) {
+          actualUpbitQuantity = parseFloat(upbitOrderDetail.executed_volume);
+        }
+
+        console.log(`✅ 업비트 실제 체결: ${actualUpbitQuantity} BTC @ ₩${actualUpbitPrice.toLocaleString()}`);
+      } catch (error) {
+        console.warn(`⚠️ 업비트 체결 정보 조회 실패, 기본값 사용:`, error);
+      }
+
+      try {
+        // 바이낸스 주문 상세 조회
+        const binanceOrderDetail = await services.binance.getFuturesOrderDetail(params.symbol, binanceOrder.orderId);
+        console.log(`📊 바이낸스 주문 상세:`, binanceOrderDetail);
+
+        // 바이낸스는 avgPrice 필드에 체결가가 있음
+        if (binanceOrderDetail.avgPrice) {
+          actualBinancePrice = parseFloat(binanceOrderDetail.avgPrice);
+        }
+
+        console.log(`✅ 바이낸스 실제 체결가: $${actualBinancePrice.toLocaleString()}`);
+      } catch (error) {
+        console.warn(`⚠️ 바이낸스 체결가 조회 실패, 기본값 사용:`, error);
+      }
+
+      // 4. DB에 실거래 포지션 저장 (실제 체결가와 수량 사용)
       const realPosition = {
         userId,
         symbol: params.symbol,
         type: 'force_entry',
-        entryPrice: parseFloat(upbitOrder.price || '0'),
-        quantity: params.quantity,
+        entryPrice: actualUpbitPrice, // 실제 체결된 업비트 가격
+        binanceEntryPrice: actualBinancePrice, // 실제 체결된 바이낸스 가격 (USD)
+        quantity: actualUpbitQuantity, // 실제 체결된 업비트 BTC 수량
         entryPremiumRate: params.currentKimp,
         currentPremiumRate: params.currentKimp,
         status: 'open',
@@ -169,25 +181,11 @@ export class TradingManager {
     }
   }
 
-  // 잔고 조회 (환경별 분기)
+  // 잔고 조회 (실거래만)
   async getBalance(userId: number): Promise<any> {
-    if (!isLiveMode()) {
-      return this.getMockBalance(userId);
-    } else {
-      return this.getRealBalance(userId);
-    }
+    return this.getRealBalance(userId);
   }
 
-  private async getMockBalance(_userId: number): Promise<any> {
-    // Mock 잔고 (로컬스토리지 또는 기본값)
-    return {
-      krw: 100000000,
-      btc: 0,
-      usdt: 100000,
-      binanceBtc: 0,
-      source: 'mock'
-    };
-  }
 
   private async getRealBalance(userId: number): Promise<any> {
     const services = await this.initializeServices(userId);
