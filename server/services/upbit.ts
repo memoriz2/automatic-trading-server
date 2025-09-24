@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 // @ts-ignore
 import jwt from 'jsonwebtoken';
+import { TRADING_CONSTANTS } from '../types/constants.js';
+import { ErrorHandler, withErrorHandling } from '../utils/error-handler.js';
 
 export interface UpbitTicker {
   market: string;
@@ -50,15 +52,23 @@ export class UpbitService {
     try {
       const marketString = markets.join(',');
       const response = await fetch(`${this.baseUrl}/v1/ticker?markets=${marketString}`);
-      
+
       if (!response.ok) {
-        throw new Error(`Upbit API error: ${response.status}`);
+        if (response.status === 429) {
+          throw ErrorHandler.rateLimitExceeded('upbit', 'ticker');
+        }
+        throw ErrorHandler.connectionFailed('upbit');
       }
 
       return await response.json();
     } catch (error) {
-      console.error('Upbit getTicker error:', error);
-      throw error;
+      const standardError = ErrorHandler.fromError(error, {
+        operation: 'getTicker',
+        exchange: 'upbit'
+      });
+
+      ErrorHandler.logError(standardError);
+      throw standardError;
     }
   }
 
@@ -236,9 +246,15 @@ export class UpbitService {
           throw new Error(`잘못된 매도 수량: ${volume}`);
         }
         
-        // BTC 최소 거래 단위 검사 (0.0001 BTC)
-        if (volume < 0.0001) {
-          throw new Error(`BTC 최소 거래 단위 미달: ${volume} < 0.0001`);
+        // BTC 최소 거래 단위 검사
+        if (volume < TRADING_CONSTANTS.BTC_MIN_QUANTITY) {
+          throw ErrorHandler.invalidOrderSize(
+            'upbit',
+            market,
+            volume,
+            TRADING_CONSTANTS.BTC_MIN_QUANTITY,
+            'BTC'
+          );
         }
         
         const params: any = {

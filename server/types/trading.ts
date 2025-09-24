@@ -248,6 +248,72 @@ export interface WebSocketEventDto {
 
 // ===== 전략 관련 DTO =====
 
+// 기본 타입 정의 (new-kimchi-trading.ts에서 사용)
+export interface Position {
+  id: number;
+  userId: number;
+  strategyId?: number | null;
+  symbol: string;
+  type: string;
+  entryPrice: number;
+  currentPrice?: number | null;
+  quantity: number;
+  entryPremiumRate: number;
+  currentPremiumRate?: number | null;
+  status: string;
+  entryTime: Date;
+  exitTime?: Date | null;
+  upbitOrderId?: string | null;
+  binanceOrderId?: string | null;
+  side: string;
+  exitPrice?: number | null;
+  exitPremiumRate?: number | null;
+  unrealizedPnl?: number | null;
+  realizedPnl?: number | null;
+  isMock: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  leverage?: number;
+  binanceEntryPrice?: number;
+}
+
+export interface TradingStrategy {
+  id: number;
+  userId: number;
+  name: string;
+  entryRate: number;
+  exitRate: number;
+  leverage: number;
+  investmentAmount: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  symbol: string;
+  tolerance: number;
+  isAutoTrading: boolean;
+  totalTrades: number;
+  successfulTrades: number;
+  totalProfit: number;
+  strategyType: string;
+  toleranceRate: number;
+}
+
+export interface StrategySignal {
+  symbol: string;
+  action: "entry" | "exit" | "stop_loss";
+  premiumRate: number;
+  confidence: number;
+  strategyId: number;
+  strategyName: string;
+}
+
+export interface TradingResult {
+  success: boolean;
+  orderId?: string;
+  message: string;
+  data?: any;
+}
+
 export interface StrategyDto {
   id: number;
   userId: number;

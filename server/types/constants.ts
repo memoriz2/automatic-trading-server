@@ -204,3 +204,46 @@ export const DEFAULTS = {
   RECONNECT_INTERVAL: 5000,  // 5초
   MAX_RECONNECT_ATTEMPTS: 5
 } as const;
+
+// ===== 거래 관련 상수 =====
+
+export const TRADING_CONSTANTS = {
+  // BTC 최소 거래 단위
+  BTC_MIN_QUANTITY: 0.0001,
+
+  // 기본 가격 (fallback)
+  DEFAULT_UPBIT_BTC_PRICE: 160000000, // 1억 6천만원
+  DEFAULT_BINANCE_BTC_PRICE_USD: 115000, // 11만 5천 달러
+
+  // 쿨다운 시간
+  MIN_ENTRY_COOLDOWN_MS: 10 * 60 * 1000, // 10분
+
+  // 재시도 횟수
+  BALANCE_CHECK_RETRY_COUNT: 3,
+  ORDER_RETRY_COUNT: 3,
+
+  // 안전 마진
+  SAFE_SELL_MARGIN: 0.99, // 99%
+  SAFE_SELL_MARGIN_PRECISE: 0.999, // 99.9%
+
+  // 최소 거래 금액
+  MIN_TRADE_AMOUNT_KRW: 5000,
+  MIN_TRADE_AMOUNT_USD: 10,
+
+  // 허용 오차
+  DEFAULT_TOLERANCE: 0.001,
+  MIN_TOLERANCE: 0.0001,
+  MAX_TOLERANCE: 1.0,
+
+  // 재시도 지연 시간
+  RETRY_DELAYS: [2000, 4000, 6000], // 2초, 4초, 6초
+
+  // API 호출 지연
+  API_CALL_DELAY: 1000, // 1초
+
+  // 청산 비율 한계
+  MIN_LIQUIDATION_RATIO: 80, // 80%
+
+  // 수량 차이 임계값
+  MIN_QUANTITY_DIFFERENCE: 0.0001
+} as const;

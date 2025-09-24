@@ -2,89 +2,15 @@ import { UpbitService } from "./upbit.js";
 import { BinanceService } from "./binance.js";
 import { SimpleKimchiService } from "./simple-kimchi.js";
 import { storage } from "../storage.js";
-// 타입들을 직접 정의 (Prisma 대신)
-export type TradingSettings = {
-  id: number;
-  userId: number;
-  entryPremiumRate: number;
-  exitPremiumRate: number;
-  stopLossRate: number;
-  maxPositions: number;
-  isAutoTrading: boolean;
-  maxInvestmentAmount: number;
-  kimchiEntryRate: number;
-  kimchiExitRate: number;
-  kimchiToleranceRate: number;
-  binanceLeverage: number;
-  upbitEntryAmount: number;
-  dailyLossLimit: number;
-  maxPositionSize: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type Position = {
-  id: number;
-  userId: number;
-  strategyId?: number | null;
-  symbol: string;
-  type: string;
-  entryPrice: number;
-  currentPrice?: number | null;
-  quantity: number;
-  entryPremiumRate: number;
-  currentPremiumRate?: number | null;
-  status: string;
-  entryTime: Date;
-  exitTime?: Date | null;
-  upbitOrderId?: string | null;
-  binanceOrderId?: string | null;
-  side: string;
-  exitPrice?: number | null;
-  exitPremiumRate?: number | null;
-  unrealizedPnl?: number | null;
-  realizedPnl?: number | null;
-  isMock: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export type TradingStrategy = {
-  id: number;
-  userId: number;
-  name: string;
-  entryRate: number;
-  exitRate: number;
-  leverage: number;
-  investmentAmount: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  symbol: string;
-  tolerance: number;
-  isAutoTrading: boolean;
-  totalTrades: number;
-  successfulTrades: number;
-  totalProfit: number;
-  strategyType: string;
-  toleranceRate: number;
-};
-
-export interface StrategySignal {
-  symbol: string;
-  action: "entry" | "exit" | "stop_loss";
-  premiumRate: number;
-  confidence: number;
-  strategyId: number;
-  strategyName: string;
-}
+import { ExchangeServiceFactory } from './exchange-factory.js';
+import {
+  Position,
+  TradingStrategy,
+  StrategySignal
+} from '../types/trading.js';
+import { TRADING_CONSTANTS } from '../types/constants.js';
 
 export class MultiStrategyTradingService {
-  // 상수
-  private static readonly MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
-  private static readonly DEFAULT_UPBIT_PRICE = 160000000; // 기본 업비트 BTC 가격
-  private static readonly DEFAULT_BINANCE_PRICE_USD = 115000; // 기본 바이낸스 BTC 가격 (USD)
-  private static readonly BALANCE_CHECK_RETRY_COUNT = 3; // 잔고 확인 재시도 횟수
 
   // 인스턴스 변수
   private simpleKimchiService: SimpleKimchiService;
@@ -104,23 +30,19 @@ export class MultiStrategyTradingService {
     upbitExchange?: any;
     binanceExchange?: any;
   }> {
-    const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+    const userIdNum = parseInt(userId);
+    const exchanges = await storage.getExchangesByUserId(userIdNum);
     const upbitExchange = exchanges.find(e => e.exchange === 'upbit' && e.isActive);
     const binanceExchange = exchanges.find(e => e.exchange === 'binance' && e.isActive);
 
-    const services: any = {};
+    const services = await ExchangeServiceFactory.initializeByUserId(userIdNum);
 
-    if (upbitExchange?.apiKey && upbitExchange?.apiSecret) {
-      services.upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
-      services.upbitExchange = upbitExchange;
-    }
-
-    if (binanceExchange?.apiKey && binanceExchange?.apiSecret) {
-      services.binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
-      services.binanceExchange = binanceExchange;
-    }
-
-    return services;
+    return {
+      upbitService: services.upbitService,
+      binanceService: services.binanceService,
+      upbitExchange,
+      binanceExchange
+    };
   }
 
   // 에러 처리 헬퍼 함수
@@ -132,7 +54,7 @@ export class MultiStrategyTradingService {
 
   // 업비트 현재가 조회 (중복 코드 제거)
   private async getUpbitCurrentPrice(symbol: string, userId: string): Promise<number> {
-    let upbitCurrentPrice = MultiStrategyTradingService.DEFAULT_UPBIT_PRICE;
+    let upbitCurrentPrice: number = TRADING_CONSTANTS.DEFAULT_UPBIT_BTC_PRICE;
 
     try {
       const services = await this.initializeExchangeServices(userId);
@@ -143,7 +65,7 @@ export class MultiStrategyTradingService {
       } else {
         // API 키가 없으면 웹소켓 데이터 사용
         const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi([symbol]);
-        upbitCurrentPrice = kimchiData.find(d => d.symbol === symbol)?.upbitPrice || MultiStrategyTradingService.DEFAULT_UPBIT_PRICE;
+        upbitCurrentPrice = kimchiData.find(d => d.symbol === symbol)?.upbitPrice || TRADING_CONSTANTS.DEFAULT_UPBIT_BTC_PRICE;
         console.log(`✅ 웹소켓으로 업비트 현재가 조회: ₩${upbitCurrentPrice.toLocaleString()}`);
       }
     } catch (priceError) {
@@ -346,8 +268,8 @@ export class MultiStrategyTradingService {
       if (hasOpenPositions || upbitBtcBalance >= 0.00008) {
         console.log(`⏳ 진입 제한 → 오픈포지션: ${hasOpenPositions}, 업비트BTC: ${upbitBtcBalance}`);
 
-        // 🚀 업비트 BTC 잔고가 있으면 자동 청산 시도 (최소 거래 단위 0.0001 확인)
-        if (upbitBtcBalance >= 0.0001 && services?.upbitService) {
+        // 🚀 업비트 BTC 잔고가 있으면 자동 청산 시도 (최소 거래 단위 확인)
+        if (upbitBtcBalance >= TRADING_CONSTANTS.BTC_MIN_QUANTITY && services?.upbitService) {
           console.log(`🔄 업비트 BTC ${upbitBtcBalance} 자동 청산 시도 시작...`);
 
           try {
@@ -421,8 +343,8 @@ export class MultiStrategyTradingService {
         const lastEntryTime = recentPosition.entryTime.getTime();
         const elapsed = Date.now() - lastEntryTime;
 
-        if (elapsed < MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS) {
-          const remainSec = Math.ceil((MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+        if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
+          const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
           console.log(`⏳ DB 기반 진입 쿨다운 진행중(${remainSec}s 남음) → 이번 진입 스킵`);
           console.log(`📅 최근 진입: ${recentPosition.entryTime.toISOString()}`);
           return null;
@@ -724,7 +646,7 @@ export class MultiStrategyTradingService {
                   console.log(`⚠️ [자동매매] 불균형 감지: ${imbalance.ratio.toFixed(1)}% (차이: ${imbalance.difference.toFixed(8)} BTC)`);
                   
                   // 리밸런싱 시도 (80% 이하 불균형)
-                  if (imbalance.ratio <= 80 && imbalance.difference > 0.0001) {
+                  if (imbalance.ratio <= TRADING_CONSTANTS.MIN_LIQUIDATION_RATIO && imbalance.difference > TRADING_CONSTANTS.MIN_QUANTITY_DIFFERENCE) {
                     console.log(`🔄 [자동매매] 리밸런싱 시도...`);
                     
                     try {
@@ -876,7 +798,7 @@ export class MultiStrategyTradingService {
       console.log(`🎉 ${symbol} 포지션 진입 완료!`);
 
       // ✅ DB 기반 쿨다운으로 변경: Position 테이블의 entryTime이 자동으로 쿨다운 역할
-      console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
+      console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
     } catch (error) {
       console.error(`새로운 김프 진입 실패 (${symbol}):`, error);
       throw error;
@@ -1151,7 +1073,7 @@ export class MultiStrategyTradingService {
       const availableUsdt = parseFloat(binanceAccount.availableBalance || '0');
       
       // 필요한 증거금 계산 (USD)
-      const currentBtcPriceUsd = MultiStrategyTradingService.DEFAULT_BINANCE_PRICE_USD;
+      const currentBtcPriceUsd = TRADING_CONSTANTS.DEFAULT_BINANCE_BTC_PRICE_USD;
       const neededMarginUsdt = (binanceBtcNeeded * currentBtcPriceUsd) / 10; // 10배 레버리지 가정
       
       console.log(`💰 잔고 확인:`, {

@@ -4,13 +4,8 @@ import { TRADING_CONFIG, isLiveMode } from '../config/trading-config.js';
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
-
-export interface TradingResult {
-  success: boolean;
-  orderId?: string;
-  message: string;
-  data?: any;
-}
+import { ExchangeServiceFactory, ExchangeServices } from './exchange-factory.js';
+import { TradingResult } from '../types/trading.js';
 
 export class TradingManager {
   // private upbitService?: UpbitService; // 현재 사용하지 않음
@@ -22,30 +17,11 @@ export class TradingManager {
 
   // 사용자별 거래소 서비스 초기화
   private async initializeServices(userId: number): Promise<{ upbit?: UpbitService; binance?: BinanceService }> {
-
-    try {
-      const exchanges = await storage.getExchangesByUserId(userId);
-      const services: { upbit?: UpbitService; binance?: BinanceService } = {};
-
-      // 업비트 서비스 초기화
-      const upbitExchange = exchanges.find((ex: any) => ex.exchange === 'upbit' && ex.isActive);
-      if (upbitExchange?.apiKey && upbitExchange?.apiSecret) {
-        services.upbit = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
-        console.log(`✅ 업비트 서비스 초기화 완료 (사용자: ${userId})`);
-      }
-
-      // 바이낸스 서비스 초기화
-      const binanceExchange = exchanges.find((ex: any) => ex.exchange === 'binance' && ex.isActive);
-      if (binanceExchange?.apiKey && binanceExchange?.apiSecret) {
-        services.binance = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
-        console.log(`✅ 바이낸스 서비스 초기화 완료 (사용자: ${userId})`);
-      }
-
-      return services;
-    } catch (error) {
-      console.error(`❌ 거래소 서비스 초기화 실패 (사용자: ${userId}):`, error);
-      return {};
-    }
+    const services = await ExchangeServiceFactory.initializeByUserId(userId);
+    return {
+      upbit: services.upbitService,
+      binance: services.binanceService
+    };
   }
 
   // 강제진입 실행 (실거래만)

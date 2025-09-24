@@ -13,6 +13,8 @@ import { TradingService } from "./services/trading.js";
 import { multiStrategyTradingService } from "./services/new-kimchi-trading.js";
 import { UpbitService } from "./services/upbit.js";
 import { BinanceService } from "./services/binance.js";
+import { ExchangeServiceFactory } from "./services/exchange-factory.js";
+import { TRADING_CONSTANTS } from "./types/constants.js";
 import { KimpgaStrategyService } from "./services/kimpga-strategy.js";
 import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
@@ -164,12 +166,13 @@ async function executeRealLiquidation(userId: string, position: any): Promise<{
     // 업비트 현물 매도 (BTC 보유량 확인 후)
     if (position.symbol === 'BTC') {
       try {
-        const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+        const upbitService = await ExchangeServiceFactory.initializeUpbitOnly(parseInt(userId));
+        if (!upbitService) throw new Error('업비트 서비스 초기화 실패');
         const accounts = await upbitService.getAccounts();
         const btcAccount = accounts.find((acc: any) => acc.currency === 'BTC');
         const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
         
-        if (btcBalance > 0.0001) { // 최소 거래 단위 체크
+        if (btcBalance > TRADING_CONSTANTS.BTC_MIN_QUANTITY) { // 최소 거래 단위 체크
           logInfo('업비트 BTC 매도 시작', { balance: btcBalance });
           const sellResult = await upbitService.placeSellOrder('KRW-BTC', btcBalance);
           results.push({
@@ -195,7 +198,8 @@ async function executeRealLiquidation(userId: string, position: any): Promise<{
     
     // 바이낸스 선물 포지션 청산
     try {
-      const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+      const binanceService = await ExchangeServiceFactory.initializeBinanceOnly(parseInt(userId));
+      if (!binanceService) throw new Error('바이낸스 서비스 초기화 실패');
       const accountInfo = await binanceService.getFuturesAccountInfo();
       
       // 활성 포지션이 있는지 확인
