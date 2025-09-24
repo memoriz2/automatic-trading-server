@@ -129,3 +129,78 @@ export interface MockTrade {
   fee: number;
   userId: string;
 }
+
+// ===== Live Trading 관련 타입 =====
+
+export interface LiveBalance {
+  krw: number;
+  btc: number;
+  usdt: number;
+  binanceBtc: number;
+  binanceSpotBtc: number;
+  binanceUsdt: number;
+}
+
+export interface LiveTrade {
+  id: string;
+  timestamp: Date;
+  type: 'buy' | 'sell' | 'spot' | 'short' | 'cover';
+  symbol: string;
+  quantity: number;
+  price: number;
+  fee: number;
+  exchange: 'upbit' | 'binance';
+  strategyId: string;
+  strategyName?: string;
+  premiumRate: number;
+  usdKrw?: number;
+}
+
+export interface LivePosition {
+  id: string;
+  strategyId: string;
+  strategyName?: string;
+  symbol: string;
+  type?: string; // 포지션 타입 (force_entry 등)
+  entryTime: Date;
+  entryPremiumRate: number;
+  upbitQuantity: number;
+  upbitPrice: number;
+  entryUsdKrw?: number;
+  binanceSpotQuantity: number;
+  binanceQuantity: number;
+  binancePrice: number;
+  binanceSpotPrice?: number;
+  leverage: number;
+  status: 'open' | 'closed';
+  exitTime?: Date;
+  exitPremiumRate?: number;
+  realizedPnL?: number;
+  realizedPnl: number; // 기존 코드와 호환성
+  unrealizedPnl: number;
+  upbitOrderId?: string;
+  binanceOrderId?: string;
+  isRealTrade?: boolean;
+}
+
+export interface KimchiData {
+  kimp: number;
+  upbit_price: number;
+  binance_price: number;
+  usdkrw: number;
+  symbol?: string;
+  timestamp?: string | Date;
+  isRealTimeValid?: boolean;
+  dataAge?: number;
+}
+
+export interface Strategy {
+  id: string;
+  name: string;
+  entryCondition: string;
+  takeProfitCondition: string;
+  tolerance: string;
+  investmentAmount: string;
+  leverage: string;
+  isActive: boolean;
+}

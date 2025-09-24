@@ -21,75 +21,22 @@ import {
   calculateTradingAmounts,
   logEntryConditions
 } from '@/utils/trading-logic';
+import { LiveBalance, LiveTrade, LivePosition, KimchiData, Strategy } from '@/types/trading';
 
 
-// Live 거래 타입 정의
-interface LiveBalance {
-  krw: number;
-  btc: number;
-  usdt: number;
-  binanceBtc: number;
-  binanceSpotBtc: number;
-  binanceUsdt: number; // 바이낸스 USDT
-}
 
-interface LiveTrade {
-  id: string;
-  timestamp: Date;
-  type: 'buy' | 'sell' | 'spot' | 'short' | 'cover';
-  symbol: string;
-  quantity: number;
-  price: number;
-  fee: number;
-  exchange: 'upbit' | 'binance';
-  strategyId: string;
-  strategyName?: string;
-  premiumRate: number;
-}
-
-interface LivePosition {
-  id: string;
-  strategyId: string;
-  strategyName?: string;
-  symbol: string;
-  type?: string; // 포지션 타입 (force_entry 등)
-  entryTime: Date;
-  entryPremiumRate: number;
-  upbitQuantity: number;
-  upbitPrice: number;
-  entryUsdKrw?: number;
-  binanceSpotQuantity: number;
-  binanceQuantity: number;
-  binancePrice: number;
-  leverage: number;
-  status: 'open' | 'closed';
-  unrealizedPnl: number;
-  realizedPnl: number;
-  upbitOrderId?: string; // 실제 업비트 주문 ID
-  binanceOrderId?: string; // 실제 바이낸스 주문 ID
-  isRealTrade?: boolean; // 실거래 여부
-}
-
-interface KimchiData {
-  kimp: number;
-  upbit_price: number;
-  binance_price: number;
-  usdkrw: number;
-  isRealTimeValid?: boolean;
-  dataAge?: number;
-}
 
 interface LiveTradingSystemProps {
-  strategies: any[];
-  setStrategies?: (strategies: any[]) => void; // 전략 복원을 위해 추가
+  strategies: Strategy[];
+  setStrategies?: (strategies: Strategy[]) => void;
   currentKimchiData: KimchiData | null;
   userId?: string;
   onDailyStatsUpdate?: (stats: any) => void;
-  isLiveMode?: boolean; // 실거래 모드 여부
-  liveBalances?: any; // 실제 잔고 데이터 (실거래 모드용)
+  isLiveMode?: boolean;
+  liveBalances?: any;
   onStrategyStatsUpdate?: (stats: Record<string, { executionCount: number; realizedPnlKRW: number; investedKRW: number; profitRate: number; }>) => void;
-  isLoadingStrategies?: boolean; // 전략 로딩 상태
-  strategiesError?: string | null; // 전략 로딩 에러
+  isLoadingStrategies?: boolean;
+  strategiesError?: string | null;
 }
 
 export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
