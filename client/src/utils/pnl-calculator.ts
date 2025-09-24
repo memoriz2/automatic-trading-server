@@ -31,19 +31,15 @@ export interface PnLResult {
  * @returns PnL 계산 결과
  */
 export function calculatePositionPnL(position: Position, marketData: MarketData | null): PnLResult {
-  console.log(`DEBUG [${position.id}] position keys:`, Object.keys(position));
-  console.log(`DEBUG [${position.id}] all price fields:`, {
-    upbitPrice: position.upbitPrice,
-    binancePrice: position.binancePrice,
-    // @ts-ignore
-    entryUpbitPrice: (position as any).entryUpbitPrice,
-    // @ts-ignore
-    entryBinancePrice: (position as any).entryBinancePrice,
-    // @ts-ignore
-    upbitEntryPrice: (position as any).upbitEntryPrice,
-    // @ts-ignore
-    binanceEntryPrice: (position as any).binanceEntryPrice
-  });
+  if (position.upbitPrice === 0 || position.binancePrice === 0) {
+    console.log(`⚠️ [${position.id}] 가격 정보 부족:`, {
+      upbitPrice: position.upbitPrice,
+      binancePrice: position.binancePrice,
+      hasMarketData: !!marketData,
+      marketUpbitPrice: marketData?.upbit_price,
+      marketBinancePrice: marketData?.binance_price
+    });
+  }
 
   const currentPremium = marketData?.kimp ?? position.entryPremiumRate;
   const premiumDelta = currentPremium - position.entryPremiumRate;

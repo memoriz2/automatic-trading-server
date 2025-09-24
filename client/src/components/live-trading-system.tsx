@@ -1989,7 +1989,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const totalPositionPnl = openPositions
     .reduce((sum, position) => {
       const pnlResult = calculatePositionPnL(position, currentKimchiData);
-      console.log(`🔍 [unified-calc] 포지션 ${position.id}: ${Math.round(pnlResult.netPnl)}원`);
+      console.log(`🔍 포지션 ${position.id}: PnL=${Math.round(pnlResult.netPnl)}원, 업비트가격=${position.upbitPrice}, 바이낸스가격=${position.binancePrice}`);
       return sum + pnlResult.netPnl;
     }, 0);
   
@@ -2006,48 +2006,77 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     totalPositionPnl,
     totalPnl
   });
-  
+
   // === 총 순투자금 계산 (활성 포지션만) ===
   const activePositions = livePositions.filter(p => p.status === 'open');
   const closedPositions = livePositions.filter(p => p.status === 'closed');
-  
-  // 포지션 상태 확인 완료
-  
+
+  console.log('🔍 활성/완료 포지션 수:', {
+    activePositions: activePositions.length,
+    closedPositions: closedPositions.length
+  });
+
   // === 💰 총 순투자금 계산 (수수료 제외 방식으로 일관성 유지) ===
   const totalActiveInvestment = activePositions
     .reduce((sum, position) => {
       const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
-      
+
+      // 🔧 포지션 가격이 0인 경우 시장 데이터 사용 (PnL 계산기와 동일한 로직)
+      const effectiveUpbitPrice = position.upbitPrice || currentKimchiData?.upbit_price || 0;
+      const effectiveBinancePrice = position.binancePrice || currentKimchiData?.binance_price || 0;
+
       // 업비트 순투자금 계산 (실시간 매도 수수료 적용)
-      const upbitGrossAmount = position.upbitQuantity * position.upbitPrice;  // 업비트 총 매수금액 (KRW)
+      const upbitGrossAmount = position.upbitQuantity * effectiveUpbitPrice;  // 업비트 총 매수금액 (KRW)
       const upbitEntryFee = upbitGrossAmount * 0.0005;                        // 업비트 진입 수수료 (매수 0.05%) - 고정
-      
+
       // 🔄 업비트 매도 수수료: 현재 가격 기준으로 실시간 계산
-      const currentUpbitPrice = currentKimchiData?.upbit_price || position.upbitPrice;
+      const currentUpbitPrice = currentKimchiData?.upbit_price || effectiveUpbitPrice;
       const currentUpbitSellAmount = position.upbitQuantity * currentUpbitPrice; // 현재 가격 기준 매도 금액
       const upbitExitFee = currentUpbitSellAmount * 0.0005;                   // 실시간 매도 수수료 (0.05%)
       const upbitTotalFee = upbitEntryFee + upbitExitFee;                     // 업비트 총 수수료
       const upbitNetInvestment = upbitGrossAmount - upbitEntryFee;            // 업비트 순투자금 = 매수금액 - 진입수수료만
-      
+
       // 바이낸스 순투자금 계산 (실시간 매도 수수료 적용)
-      const binanceGrossMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 바이낸스 증거금 (USD)
-      const binanceEntryFee = (position.binanceQuantity * position.binancePrice * 0.0004); // 바이낸스 진입 수수료 (USD)
-      
+      // 바이낸스 가격이 큰 값(KRW)인 경우 USD로 변환
+      const entryBinancePriceUsd = effectiveBinancePrice > 1000000
+        ? effectiveBinancePrice / currentUsdKrw
+        : effectiveBinancePrice;
+      const binanceGrossMargin = (position.binanceQuantity * entryBinancePriceUsd) / position.leverage; // 바이낸스 증거금 (USD)
+      const binanceEntryFee = (position.binanceQuantity * entryBinancePriceUsd * 0.0004); // 바이낸스 진입 수수료 (USD)
+
       // 🔄 바이낸스 매도 수수료: 현재 가격 기준으로 실시간 계산
-      const currentBinancePrice = currentKimchiData?.binance_price || position.binancePrice;
-      const currentBinanceSellAmount = position.binanceQuantity * currentBinancePrice; // 현재 가격 기준 매도 금액 (USD)
+      const currentBinancePrice = currentKimchiData?.binance_price || effectiveBinancePrice;
+      const currentBinancePriceUsd = currentBinancePrice > 1000000
+        ? currentBinancePrice / currentUsdKrw
+        : currentBinancePrice;
+      const currentBinanceSellAmount = position.binanceQuantity * currentBinancePriceUsd; // 현재 가격 기준 매도 금액 (USD)
       const binanceExitFee = currentBinanceSellAmount * 0.0004;               // 실시간 매도 수수료 (USD)
       const binanceTotalFee = binanceEntryFee + binanceExitFee;               // 바이낸스 총 수수료
       const binanceNetMargin = binanceGrossMargin - binanceEntryFee;          // 바이낸스 순증거금 = 증거금 - 진입수수료만
       const binanceNetMarginKRW = binanceNetMargin * currentUsdKrw;           // 바이낸스 순증거금 (KRW)
-      
+
+      console.log(`💰 포지션 ${position.id} 투자금:`, {
+        upbitPrice: effectiveUpbitPrice,
+        binancePrice: effectiveBinancePrice,
+        upbitInvestment: Math.round(upbitNetInvestment),
+        binanceInvestment: Math.round(binanceNetMarginKRW),
+        total: Math.round(upbitNetInvestment + binanceNetMarginKRW)
+      });
+
       return sum + upbitNetInvestment + binanceNetMarginKRW;                  // 순투자금만 누적 (수수료 차감 후)
     }, 0);
-  
+
   // === 총 수익률 계산 (현재 활성 포지션만) ===
-  const profitRate = totalActiveInvestment > 0 
+  const profitRate = totalActiveInvestment > 0
     ? ((totalPnl / totalActiveInvestment) * 100)                              // 현재 포지션 손익만으로 수익률 계산
     : 0;
+
+  console.log('📊 수익률 계산 상세:', {
+    totalActiveInvestment: Math.round(totalActiveInvestment),
+    totalPnl: Math.round(totalPnl),
+    profitRate: profitRate.toFixed(2) + '%',
+    hasKimchiData: !!currentKimchiData
+  });
   
   // 수익률 계산 완료 (로그 제거)
     
