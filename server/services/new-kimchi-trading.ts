@@ -80,24 +80,77 @@ export interface StrategySignal {
 }
 
 export class MultiStrategyTradingService {
-  // private upbitService: UpbitService; // 현재 사용하지 않음
-  // private binanceService: BinanceService; // 현재 사용하지 않음
+  // 상수
+  private static readonly MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
+  private static readonly DEFAULT_UPBIT_PRICE = 160000000; // 기본 업비트 BTC 가격
+  private static readonly DEFAULT_BINANCE_PRICE_USD = 115000; // 기본 바이낸스 BTC 가격 (USD)
+  private static readonly BALANCE_CHECK_RETRY_COUNT = 3; // 잔고 확인 재시도 횟수
+
+  // 인스턴스 변수
   private simpleKimchiService: SimpleKimchiService;
-  private userTradingStates: Map<string, boolean> = new Map(); // 사용자별 거래 상태
+  private userTradingStates: Map<string, boolean> = new Map();
   private lastKimchiRates: Map<string, number> = new Map();
   private activeStrategies: Map<number, TradingStrategy> = new Map();
-  private userStrategies: Map<string, Map<number, TradingStrategy>> = new Map(); // 사용자별 전략
-  // 최근 진입 시각(사용자-전략-심볼 단위). 재시작 시 메모리 리셋되며, DB 초기화는 선택
-  // private lastEntryAtByKey: Map<string, number> = new Map(); // 현재 사용하지 않음
-  private static readonly MIN_ENTRY_COOLDOWN_MS = 10 * 60 * 1000; // 10분 쿨다운
-  // private getCooldownKey(userId: string, strategyId: number | string, symbol = "BTC"): string {
-  //   return `${userId}:${strategyId}:${symbol}`;
-  // } // 현재 사용하지 않음
+  private userStrategies: Map<string, Map<number, TradingStrategy>> = new Map();
 
   constructor() {
-    // this.upbitService = new UpbitService(); // 현재 사용하지 않음
-    // this.binanceService = new BinanceService(); // 현재 사용하지 않음
     this.simpleKimchiService = new SimpleKimchiService();
+  }
+
+  // 거래소 서비스 초기화 (중복 코드 제거)
+  private async initializeExchangeServices(userId: string): Promise<{
+    upbitService?: UpbitService;
+    binanceService?: BinanceService;
+    upbitExchange?: any;
+    binanceExchange?: any;
+  }> {
+    const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+    const upbitExchange = exchanges.find(e => e.exchange === 'upbit' && e.isActive);
+    const binanceExchange = exchanges.find(e => e.exchange === 'binance' && e.isActive);
+
+    const services: any = {};
+
+    if (upbitExchange?.apiKey && upbitExchange?.apiSecret) {
+      services.upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
+      services.upbitExchange = upbitExchange;
+    }
+
+    if (binanceExchange?.apiKey && binanceExchange?.apiSecret) {
+      services.binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
+      services.binanceExchange = binanceExchange;
+    }
+
+    return services;
+  }
+
+  // 에러 처리 헬퍼 함수
+  private handleError(operation: string, error: any): string {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ ${operation} 실패:`, errorMessage);
+    return errorMessage;
+  }
+
+  // 업비트 현재가 조회 (중복 코드 제거)
+  private async getUpbitCurrentPrice(symbol: string, userId: string): Promise<number> {
+    let upbitCurrentPrice = MultiStrategyTradingService.DEFAULT_UPBIT_PRICE;
+
+    try {
+      const services = await this.initializeExchangeServices(userId);
+
+      if (services.upbitService) {
+        upbitCurrentPrice = await services.upbitService.getCurrentPrice(`KRW-${symbol}`);
+        console.log(`✅ API로 업비트 현재가 조회: ₩${upbitCurrentPrice.toLocaleString()}`);
+      } else {
+        // API 키가 없으면 웹소켓 데이터 사용
+        const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi([symbol]);
+        upbitCurrentPrice = kimchiData.find(d => d.symbol === symbol)?.upbitPrice || MultiStrategyTradingService.DEFAULT_UPBIT_PRICE;
+        console.log(`✅ 웹소켓으로 업비트 현재가 조회: ₩${upbitCurrentPrice.toLocaleString()}`);
+      }
+    } catch (priceError) {
+      console.warn('업비트 현재가 조회 실패, 기본값 사용:', upbitCurrentPrice);
+    }
+
+    return upbitCurrentPrice;
   }
 
   async startMultiStrategyTrading(userId: string): Promise<void> {
@@ -270,14 +323,104 @@ export class MultiStrategyTradingService {
 
     // 진입 조건 체크 (포지션이 없을 때만)
     if (!hasActivePosition && !existingPosition) {
+      const userId = String(strategy.userId);
+
+      // 🔒 오픈된 포지션 또는 업비트 BTC 잔고가 있으면 진입 금지 (청산이 완료되지 않은 상태)
+      const openPositions = await storage.getPositions(parseInt(userId));
+      const hasOpenPositions = openPositions.some((p: any) => p.status === 'open');
+
+      // 업비트 실제 BTC 잔고도 체크
+      let upbitBtcBalance = 0;
+      let services: any = null;
+      try {
+        services = await this.initializeExchangeServices(userId);
+        if (services.upbitService) {
+          const accounts = await services.upbitService.getAccounts();
+          const btcAccount = accounts.find((acc: any) => acc.currency === 'BTC');
+          upbitBtcBalance = parseFloat(btcAccount?.balance || '0');
+        }
+      } catch (error) {
+        console.warn('업비트 잔고 조회 실패:', error);
+      }
+
+      if (hasOpenPositions || upbitBtcBalance >= 0.00008) {
+        console.log(`⏳ 진입 제한 → 오픈포지션: ${hasOpenPositions}, 업비트BTC: ${upbitBtcBalance}`);
+
+        // 🚀 업비트 BTC 잔고가 있으면 자동 청산 시도 (최소 거래 단위 0.0001 확인)
+        if (upbitBtcBalance >= 0.0001 && services?.upbitService) {
+          console.log(`🔄 업비트 BTC ${upbitBtcBalance} 자동 청산 시도 시작...`);
+
+          try {
+            console.log(`📊 청산 조건 확인 - 잔고: ${upbitBtcBalance} BTC (최소거래단위: 0.0001)`);
+
+            // 현재가 조회해서 거래 금액 확인
+            const ticker = await services.upbitService.getTicker(['KRW-BTC']);
+            const currentPrice = ticker[0]?.trade_price || 0;
+            const tradeAmount = upbitBtcBalance * currentPrice;
+
+            console.log(`💰 예상 거래금액: ${upbitBtcBalance} BTC × ${currentPrice.toLocaleString()}원 = ${tradeAmount.toLocaleString()}원`);
+
+            if (tradeAmount < 5000) {
+              throw new Error(`거래 금액이 최소 기준 미달: ${tradeAmount.toLocaleString()}원 < 5,000원`);
+            }
+
+            // 업비트 계좌 정보 다시 확인 (locked 잔고 체크)
+            const accounts = await services.upbitService.getAccounts();
+            const btcAccount = accounts.find((acc: any) => acc.currency === 'BTC');
+            const availableBalance = parseFloat(btcAccount?.balance || '0');
+            const lockedBalance = parseFloat(btcAccount?.locked || '0');
+
+            console.log(`📊 업비트 BTC 잔고 상세: 총잔고=${upbitBtcBalance}, 사용가능=${availableBalance}, 잠긴잔고=${lockedBalance}`);
+
+            if (availableBalance < 0.0001) {
+              throw new Error(`사용 가능한 BTC 잔고 부족: ${availableBalance} (잠긴잔고: ${lockedBalance})`);
+            }
+
+            // 안전한 매도 수량 계산 (사용가능 잔고의 99% 또는 정밀도 조정)
+            const safeSellAmount = Math.min(availableBalance * 0.99, parseFloat(availableBalance.toFixed(8)));
+            console.log(`🔄 안전 매도 수량 계산: ${safeSellAmount} BTC (원래: ${upbitBtcBalance}, 사용가능: ${availableBalance})`);
+
+            // 업비트 시장가 매도
+            const sellResult = await services.upbitService.placeSellOrder(`KRW-BTC`, safeSellAmount, 'market');
+            console.log(`✅ 업비트 BTC 청산 완료:`, sellResult);
+
+            // 청산 로그 저장
+            await storage.createTradeLog({
+              exchange: 'upbit',
+              symbol: 'BTC',
+              side: 'sell',
+              quantity: safeSellAmount,
+              orderId: sellResult.uuid,
+              status: 'completed',
+              note: '자동 청산 (잔고 정리)'
+            });
+
+          } catch (error) {
+            console.error(`❌ 업비트 BTC 자동 청산 실패:`, error);
+
+            // 실패 로그 저장
+            await storage.createTradeLog({
+              exchange: 'upbit',
+              symbol: 'BTC',
+              side: 'sell',
+              quantity: upbitBtcBalance,
+              orderId: null,
+              status: 'failed',
+              note: `자동 청산 실패: ${error.message}`
+            });
+          }
+        }
+
+        return null;
+      }
+
       // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
-      // const userId = String((strategy as any)?.userId ?? ""); // 현재 사용하지 않음
       const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
-      
+
       if (recentPosition) {
         const lastEntryTime = recentPosition.entryTime.getTime();
         const elapsed = Date.now() - lastEntryTime;
-        
+
         if (elapsed < MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS) {
           const remainSec = Math.ceil((MultiStrategyTradingService.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
           console.log(`⏳ DB 기반 진입 쿨다운 진행중(${remainSec}s 남음) → 이번 진입 스킵`);
@@ -382,13 +525,7 @@ export class MultiStrategyTradingService {
     
     // BTC 수량을 원화 금액으로 변환 (업비트 시장가 매수용)
     // 현재 업비트 BTC 가격을 실시간으로 조회
-    let upbitCurrentPrice = 160000000; // 기본값
-    try {
-      const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi([symbol]);
-      upbitCurrentPrice = kimchiData.find(d => d.symbol === symbol)?.upbitPrice || 160000000;
-    } catch (priceError) {
-      console.warn('업비트 현재가 조회 실패, 기본값 사용:', upbitCurrentPrice);
-    }
+    const upbitCurrentPrice = await this.getUpbitCurrentPrice(symbol, userId);
     
     const upbitEntryAmount = Math.round(investmentBtcAmount * upbitCurrentPrice); // BTC수량 × 현재가
     
@@ -481,80 +618,37 @@ export class MultiStrategyTradingService {
     }
 
     try {
-      // 사용자 API 키 로드
-      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
-      const upbitExchange = exchanges.find(
-        (e) => e.exchange === "upbit" && e.isActive
+      // 사용자 거래소 서비스 초기화
+      const services = await this.initializeExchangeServices(userId);
+
+      if (!services.upbitService || !services.binanceService) {
+        throw new Error('거래소 API 키가 설정되지 않았습니다. 실거래만 가능합니다.');
+      }
+
+      const { upbitService, binanceService } = services;
+      let upbitResult: any;
+      let binanceResult: any;
+      let currentPrice: any;
+      let adjustedQuantity: any;
+
+      // 김치프리미엄 차익거래 (양수/음수 동일한 전략)
+      const market = `KRW-${symbol}`;
+      console.log(
+        `${kimchDirection} 진입: 업비트 ${market} 매수 ₩${upbitEntryAmount}, 바이낸스 숏 포지션`
       );
-      const binanceExchange = exchanges.find(
-        (e) => e.exchange === "binance" && e.isActive
-      );
 
-      let upbitResult;
-      let binanceResult;
-      let currentPrice;
-      let adjustedQuantity;
-
-      if (!upbitExchange || !binanceExchange) {
-        console.log(`⚠️ API 키 미설정, 대체 모드 시작`);
-        // API 키가 없는 경우도 대체 모드로 처리
-        const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi(
-          [symbol], userId
-        );
-        currentPrice =
-          kimchiData.find((d) => d.symbol === symbol)?.upbitPrice || 158000000;
-        const estimatedQuantity = upbitEntryAmount / currentPrice;
-        adjustedQuantity = Math.floor(estimatedQuantity * 1000) / 1000;
-
+      try {
+        // 단순 차익거래 실행: 업비트 매수 + 바이낸스 숏
+        console.log(`🔵 단순 차익거래 실행: 업비트 매수 + 바이낸스 숏`);
         console.log(
-          `💰 대체 포지션 생성: ${upbitEntryAmount}원 ÷ ${currentPrice}원 = ${adjustedQuantity} BTC`
+          `📊 현재 김프율: ${signal.premiumRate}%, 진입설정: ${entryRate}%`
         );
 
-        upbitResult = {
-          uuid: `nokey-upbit-${Date.now()}`,
-          price: currentPrice,
-          volume: adjustedQuantity.toString(),
-          market: `KRW-${symbol}`,
-        };
-
-        binanceResult = {
-          orderId: `nokey-binance-${Date.now()}`,
-          symbol: symbol,
-          side: "SELL",
-          quantity: adjustedQuantity.toString(),
-          price: String(currentPrice),
-          executedQty: adjustedQuantity.toString(),
-          avgPrice: String(currentPrice),
-        };
-      } else {
-        // 서비스 인스턴스 생성 (API 키 포함)
-        const upbitService = new UpbitService(
-          upbitExchange.apiKey,
-          upbitExchange.apiSecret
+        upbitResult = await upbitService.placeBuyOrder(
+          market,
+          upbitEntryAmount,
+          "price"
         );
-        const binanceService = new BinanceService(
-          binanceExchange.apiKey,
-          binanceExchange.apiSecret
-        );
-
-        // 김치프리미엄 차익거래 (양수/음수 동일한 전략)
-        const market = `KRW-${symbol}`;
-        console.log(
-          `${kimchDirection} 진입: 업비트 ${market} 매수 ₩${upbitEntryAmount}, 바이낸스 숏 포지션`
-        );
-
-        try {
-          // 단순 차익거래 실행: 업비트 매수 + 바이낸스 숏
-          console.log(`🔵 단순 차익거래 실행: 업비트 매수 + 바이낸스 숏`);
-          console.log(
-            `📊 현재 김프율: ${signal.premiumRate}%, 진입설정: ${entryRate}%`
-          );
-
-          upbitResult = await upbitService.placeBuyOrder(
-            market,
-            upbitEntryAmount,
-            "price"
-          );
           console.log(`업비트 매수 결과:`, upbitResult);
 
           // 업비트 체결 결과 분석
@@ -693,51 +787,9 @@ export class MultiStrategyTradingService {
             }
           }, 3000);
         } catch (error: any) {
-          console.log(`🎭 Mock 모드 또는 API 실패, 가짜 데이터 모드 시작: ${error.message}`);
-
-          // 실제 API 실패 시에만 대체 가격 사용
-          const kimchiData =
-            await this.simpleKimchiService.calculateSimpleKimchi([symbol], userId);
-          currentPrice =
-            kimchiData.find((d) => d.symbol === symbol)?.upbitPrice ||
-            158000000;
-          const estimatedQuantity = upbitEntryAmount / currentPrice;
-          adjustedQuantity = Math.floor(estimatedQuantity * 1000) / 1000;
-
-          console.log(
-            `💰 실제 자산 포지션 생성: ${upbitEntryAmount.toLocaleString()}원 ÷ ${currentPrice.toLocaleString()}원 = ${adjustedQuantity} BTC`
-          );
-          console.log(`💼 투자 규모: 업비트 ${upbitEntryAmount.toLocaleString()}원, 바이낸스 ${adjustedQuantity} BTC`);
-
-          // 🎭 Mock 거래 데이터 생성 (실제 DB 저장)
-          upbitResult = {
-            uuid: `mock-upbit-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-            price: currentPrice,
-            volume: adjustedQuantity.toString(),
-            market: market,
-            state: "done",
-            side: "bid",
-            ord_type: "market",
-            executed_volume: adjustedQuantity.toString(),
-            paid_fee: String(adjustedQuantity * currentPrice * 0.0005)
-          };
-
-          binanceResult = {
-            orderId: `mock-binance-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-            symbol: symbol,
-            side: "SELL",
-            quantity: adjustedQuantity.toString(),
-            price: String(currentPrice),
-            executedQty: adjustedQuantity.toString(),
-            avgPrice: String(currentPrice),
-            status: "FILLED",
-            type: "MARKET"
-          };
-          
-          console.log(`💰 실제 거래 데이터 생성 완료 - 실제 자산으로 DB 저장`);
-          console.log(`💼 현재 자산: 업비트 ₩${(8128365).toLocaleString()}, 바이낸스 $${(3127.21).toLocaleString()}`);
+          console.error(`❌ 자동매매 거래 실행 실패: ${error.message}`);
+          throw new Error(`거래 실행 실패: ${error.message}`);
         }
-      }
 
       console.log(`📊 최종 거래 결과:`);
       console.log(`업비트:`, upbitResult);
@@ -853,30 +905,18 @@ export class MultiStrategyTradingService {
     );
 
     try {
-      // 사용자 API 키 로드
-      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
-      const upbitExchange = exchanges.find(
-        (e) => e.exchange === "upbit" && e.isActive
-      );
-      const binanceExchange = exchanges.find(
-        (e) => e.exchange === "binance" && e.isActive
-      );
+      // 거래소 서비스 초기화
+      const services = await this.initializeExchangeServices(userId);
 
-      if (!upbitExchange || !binanceExchange) {
+      if (!services.upbitService || !services.binanceService) {
         throw new Error("API 키가 설정되지 않았습니다.");
       }
 
-      // 서비스 인스턴스 생성
-      const upbitService = new UpbitService(
-        upbitExchange.apiKey,
-        upbitExchange.apiSecret
-      );
-      const binanceService = new BinanceService(
-        binanceExchange.apiKey,
-        binanceExchange.apiSecret
-      );
+      const { upbitService, binanceService } = services;
 
-      const quantity = Number(position.quantity);
+      // DB에 저장된 실제 수량 사용 (API 조회로 업데이트된 수량)
+      const quantity = Number(position.upbitQuantity || position.quantity);
+      console.log(`📊 청산 수량: DB 저장된 실제 수량 ${quantity} BTC (upbitQuantity: ${position.upbitQuantity}, quantity: ${position.quantity})`);
 
       // 1. 업비트에서 현물 매도 (에러 처리 강화)
       const market = `KRW-${signal.symbol}`;
@@ -996,6 +1036,8 @@ export class MultiStrategyTradingService {
       const strategy = await storage.getTradingStrategy(signal.strategyId);
       const strategyName = strategy?.name || "전략";
 
+      console.log(`✅ 청산 완료: 새로운 진입 허용`);
+
       // 5. 성공 알림
       await storage.createSystemAlert({
         type: "success",
@@ -1007,6 +1049,7 @@ export class MultiStrategyTradingService {
       throw error;
     }
   }
+
 
   // 새로운 김프 손절 (현재 사용하지 않음)
   /*
@@ -1088,31 +1131,27 @@ export class MultiStrategyTradingService {
     binanceBtcNeeded: number
   ): Promise<{ sufficient: boolean; message: string }> {
     try {
-      // 사용자의 거래소 API 키 조회
-      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
-      const upbitExchange = exchanges.find((e: any) => e.exchange === "upbit" && e.isActive);
-      const binanceExchange = exchanges.find((e: any) => e.exchange === "binance" && e.isActive);
-      
-      if (!upbitExchange || !binanceExchange) {
+      // 거래소 서비스 초기화
+      const services = await this.initializeExchangeServices(userId);
+
+      if (!services.upbitService || !services.binanceService) {
         return {
           sufficient: false,
           message: "거래소 API 키가 설정되지 않았습니다"
         };
       }
-      
+
       // 업비트 KRW 잔고 확인
-      const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
-      const upbitAccounts = await upbitService.getAccounts();
+      const upbitAccounts = await services.upbitService.getAccounts();
       const krwAccount = upbitAccounts.find((acc: any) => acc.currency === 'KRW');
       const availableKrw = krwAccount ? parseFloat(krwAccount.balance) : 0;
-      
+
       // 바이낸스 USDT 잔고 확인
-      const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
-      const binanceAccount = await binanceService.getFuturesAccountInfo();
+      const binanceAccount = await services.binanceService.getFuturesAccountInfo();
       const availableUsdt = parseFloat(binanceAccount.availableBalance || '0');
       
       // 필요한 증거금 계산 (USD)
-      const currentBtcPriceUsd = 115000; // 기본값, 실제로는 실시간 가격 사용
+      const currentBtcPriceUsd = MultiStrategyTradingService.DEFAULT_BINANCE_PRICE_USD;
       const neededMarginUsdt = (binanceBtcNeeded * currentBtcPriceUsd) / 10; // 10배 레버리지 가정
       
       console.log(`💰 잔고 확인:`, {

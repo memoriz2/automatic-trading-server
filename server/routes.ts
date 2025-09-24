@@ -51,6 +51,7 @@ import { getCurrentServerIP, isReplit } from "./utils/ip.js";
 import { registerAuthRoutes, authenticateSession } from "./routes/auth.js";
 import { registerTradingRoutes } from "./routes/trading.js";
 import { registerApiRoutes } from "./routes/api.js";
+import { registerMonitoringRoutes } from "./routes/monitoring.js";
 import {
   generateToken,
   verifyToken,
@@ -459,7 +460,42 @@ export async function registerRoutes(
       }
       
       console.log(`✅ [realtime-balances] 최종 결과: 업비트 ${upbitBtc} BTC, 바이낸스 ${binanceBtc} BTC`);
-      
+
+      // 포지션 상태 및 수량 자동 동기화
+      try {
+        const allPositions = await storage.getAllPositions(parseInt(userId));
+        const openPositions = allPositions.filter((pos: any) => pos.status === 'open' && pos.symbol === 'BTC');
+
+        for (const position of openPositions) {
+          let updated = false;
+
+          // 1. 바이낸스 포지션이 0인데 DB에 open 상태 포지션이 있으면 닫기
+          if (binanceBtc === 0 && position.side === 'short' && position.binance_order_id) {
+            console.log(`🔄 [auto-sync] 바이낸스 포지션 0이므로 포지션 ID ${position.id} 자동 닫기`);
+            await storage.closePosition(position.id);
+            console.log(`✅ [auto-sync] 포지션 ID ${position.id} 상태를 closed로 변경 완료`);
+            updated = true;
+          }
+
+          // 2. 업비트 실제 잔고와 DB quantity가 다르면 업데이트 (차이가 0.00001 이상인 경우만)
+          if (!updated && Math.abs(upbitBtc - parseFloat(position.quantity || '0')) > 0.00001) {
+            console.log(`🔄 [auto-sync] 포지션 ID ${position.id} 수량 동기화: DB(${position.quantity}) → 실제(${upbitBtc})`);
+            await storage.updatePosition(position.id, {
+              quantity: upbitBtc
+            });
+            console.log(`✅ [auto-sync] 포지션 ID ${position.id} 수량 업데이트 완료`);
+            updated = true;
+          }
+        }
+
+        const syncCount = openPositions.length;
+        if (syncCount > 0) {
+          console.log(`🎯 [auto-sync] 총 ${syncCount}개 포지션 동기화 검사 완료`);
+        }
+      } catch (error) {
+        console.error('❌ [auto-sync] 포지션 동기화 실패:', error);
+      }
+
       res.json({
         upbitBtc,
         binanceBtc,
@@ -835,6 +871,7 @@ export async function registerRoutes(
     const result = kimpgaSvc.forceExit();
     res.json(result);
   });
+
 
   // 백테스트 실행 API
   app.post("/api/backtest", async (req, res) => {
@@ -1509,6 +1546,41 @@ export async function registerRoutes(
         error: error instanceof Error ? error.message : error 
       });
       res.status(500).json({ error: "Failed to close all positions" });
+    }
+  });
+
+  // 포지션 업비트 수량 업데이트 API
+  app.put("/api/positions/:id/upbit-quantity", authenticateSession, async (req: any, res) => {
+    try {
+      const positionId = req.params.id;
+      const { actualQuantity } = req.body;
+
+      if (!actualQuantity || isNaN(actualQuantity) || actualQuantity <= 0) {
+        return res.status(400).json({ error: "유효한 actualQuantity가 필요합니다" });
+      }
+
+      const updatedPosition = await storage.updatePositionUpbitQuantity(positionId, actualQuantity);
+
+      if (!updatedPosition) {
+        return res.status(404).json({ error: "포지션을 찾을 수 없습니다" });
+      }
+
+      logInfo('포지션 업비트 수량 업데이트', {
+        positionId,
+        actualQuantity,
+        userId: req.user?.id
+      });
+
+      res.json({
+        success: true,
+        position: updatedPosition
+      });
+    } catch (error) {
+      logError("포지션 업비트 수량 업데이트 실패", {
+        positionId: req.params.id,
+        error: error instanceof Error ? error.message : error
+      });
+      res.status(500).json({ error: "포지션 수량 업데이트 실패" });
     }
   });
 
@@ -5076,6 +5148,7 @@ window.onload = () => {
   registerAuthRoutes(app);
   registerTradingRoutes(app);
   registerApiRoutes(app);
+  registerMonitoringRoutes(app);
 
   return;
 }

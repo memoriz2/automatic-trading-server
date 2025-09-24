@@ -112,6 +112,27 @@ export class UpbitService {
     }
   }
 
+  // 현재가 조회
+  async getCurrentPrice(market: string): Promise<number> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v1/ticker?markets=${market}`);
+
+      if (!response.ok) {
+        throw new Error(`Upbit API error: ${response.status}`);
+      }
+
+      const ticker = await response.json();
+      if (ticker && ticker[0] && ticker[0].trade_price) {
+        return ticker[0].trade_price;
+      }
+
+      throw new Error('가격 정보를 찾을 수 없습니다');
+    } catch (error) {
+      console.error('Upbit getCurrentPrice error:', error);
+      throw error;
+    }
+  }
+
   async getAccounts(): Promise<any[]> {
     try {
       const authToken = this.generateAuthToken();
@@ -194,6 +215,17 @@ export class UpbitService {
     }
   }
 
+  // 주문 상세 조회 (체결가 확인용)
+  async getOrderDetail(uuid: string): Promise<any> {
+    try {
+      const params = `uuid=${uuid}`;
+      return this.sendRequest(`order?${params}`, 'GET');
+    } catch (error) {
+      console.error('Upbit getOrderDetail error:', error);
+      throw new Error(`주문 상세 조회 실패: ${(error as Error).message}`);
+    }
+  }
+
   async placeSellOrder(market: string, volume: number, orderType: 'market' | 'limit' = 'market', retries: number = 3): Promise<any> {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
@@ -212,7 +244,7 @@ export class UpbitService {
         const params: any = {
           market,
           side: 'ask',
-          volume: parseFloat(volume.toFixed(4)).toString(), // 정밀도 조정
+          volume: parseFloat(volume.toFixed(8)).toString(), // BTC는 8자리 정밀도
           ord_type: orderType,
         };
         

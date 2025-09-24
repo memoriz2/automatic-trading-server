@@ -437,7 +437,11 @@ export class DatabaseStorage {
   async getActivePositions(userId: number): Promise<any[]> {
     try {
       const result = await this.pool.query(
-        'SELECT * FROM positions WHERE user_id = $1 AND status = $2 ORDER BY entry_time DESC',
+        `SELECT p.*, ts.name as strategy_name
+         FROM positions p
+         LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+         WHERE p.user_id = $1 AND p.status = $2
+         ORDER BY p.entry_time DESC`,
         [userId, 'open']
       );
       return result.rows;
@@ -497,10 +501,10 @@ export class DatabaseStorage {
         INSERT INTO positions (
           user_id, strategy_id, symbol, type, entry_price, quantity,
           entry_premium_rate, status, side, binance_leverage,
-          created_at, updated_at, entry_time
+          binance_entry_price, created_at, updated_at, entry_time
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10,
+          $7, $8, $9, $10, $11,
           NOW(), NOW(), NOW()
         )
         RETURNING *
@@ -515,7 +519,8 @@ export class DatabaseStorage {
         data.status || 'open',
         data.side,
         // 우선순위: 명시 전달값 → 전략 레버리지 → 안전 기본값 5
-        (data.binanceLeverage ?? data.leverage ?? 5)
+        (data.binanceLeverage ?? data.leverage ?? 5),
+        data.binanceEntryPrice
       ]);
       
       return result.rows[0];
@@ -560,24 +565,82 @@ export class DatabaseStorage {
     }
   }
 
+  // 포지션의 업비트 수량 업데이트 (API 조회 결과 기반)
+  async updatePositionUpbitQuantity(positionId: string | number, actualQuantity: number): Promise<any> {
+    try {
+      const result = await this.pool.query(`
+        UPDATE positions
+        SET upbit_quantity = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `, [actualQuantity, positionId]);
+
+      console.log(`📊 포지션 ${positionId} 업비트 수량 업데이트: ${actualQuantity}`);
+      return result.rows[0] || undefined;
+    } catch (error) {
+      console.error('포지션 업비트 수량 업데이트 실패:', error);
+      return undefined;
+    }
+  }
+
   // === 거래 관련 메서드들 ===
   
   async createTrade(data: any): Promise<any> {
     try {
+      // 필수 필드 검증
+      const requiredFields = ['userId', 'symbol', 'side', 'exchange', 'quantity', 'price'];
+      for (const field of requiredFields) {
+        if (data[field] === undefined || data[field] === null) {
+          throw new Error(`Required field '${field}' is missing`);
+        }
+      }
+
+      // 숫자 필드 검증
+      const numericFields = ['quantity', 'price'];
+      for (const field of numericFields) {
+        if (isNaN(parseFloat(data[field])) || parseFloat(data[field]) <= 0) {
+          console.warn(`⚠️ Invalid ${field}: ${data[field]}, using 0.00000001 as fallback`);
+          data[field] = 0.00000001; // 최소값으로 설정
+        }
+      }
+
+      console.log('📝 [createTrade] 저장 시도:', {
+        userId: data.userId,
+        symbol: data.symbol,
+        side: data.side,
+        exchange: data.exchange,
+        quantity: data.quantity,
+        price: data.price,
+        exchangeOrderId: data.exchangeOrderId
+      });
+
       const result = await this.pool.query(`
         INSERT INTO trades (
-          user_id, position_id, strategy_id, symbol, side, exchange, quantity, price, fee,
-          order_type, executed_at, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          user_id, position_id, strategy_id, trade_log_id, symbol, side, exchange, quantity, price, fee,
+          order_type, exchange_order_id, exchange_trade_id, executed_at, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
         RETURNING *
       `, [
-        data.userId, data.positionId, data.strategyId, data.symbol, data.side, data.exchange,
-        data.quantity, data.price, data.fee || 0, data.orderType || 'market'
+        data.userId,
+        data.positionId || null,
+        data.strategyId || null,
+        data.tradeLogId || null,
+        data.symbol,
+        data.side,
+        data.exchange,
+        data.quantity,
+        data.price,
+        data.fee || 0,
+        data.orderType || 'market',
+        data.exchangeOrderId || null,
+        data.exchangeTradeId || null
       ]);
-      
+
+      console.log('✅ [createTrade] 저장 성공:', { id: result.rows[0].id });
       return result.rows[0];
     } catch (error) {
-      console.error('Error creating trade:', error);
+      console.error('❌ [createTrade] 저장 실패:', error);
+      console.error('📊 [createTrade] 실패한 데이터:', data);
       throw error;
     }
   }
@@ -621,6 +684,198 @@ export class DatabaseStorage {
       return result.rows[0];
     } catch (error) {
       console.error('Error creating trade log:', error);
+      throw error;
+    }
+  }
+
+  // === 모니터링 관련 메서드들 ===
+
+  async getTradesWithLogs(limit: number = 20): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT
+          t.id,
+          t.user_id,
+          t.symbol,
+          t.side,
+          t.exchange,
+          t.quantity,
+          t.price,
+          t.order_type,
+          t.executed_at,
+          t.created_at,
+          t.position_id,
+          t.strategy_id,
+          tl.id as trade_log_id,
+          tl.kimp,
+          tl.action,
+          tl.amount as trade_log_amount,
+          tl.result,
+          tl.timestamp as trade_log_timestamp
+        FROM trades t
+        LEFT JOIN trade_logs tl ON t.trade_log_id = tl.id
+        ORDER BY t.created_at DESC
+        LIMIT $1
+      `, [limit]);
+
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching trades with logs:', error);
+      throw error;
+    }
+  }
+
+  async getDailyTradeStats(days: number = 7): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT
+          DATE(t.created_at) as date,
+          COUNT(*) as total_trades,
+          COUNT(DISTINCT t.position_id) as positions,
+          COUNT(DISTINCT t.strategy_id) as strategies_used,
+          SUM(CASE WHEN t.side IN ('buy', 'short') THEN t.quantity * t.price ELSE 0 END) as entry_volume,
+          SUM(CASE WHEN t.side IN ('sell', 'cover') THEN t.quantity * t.price ELSE 0 END) as exit_volume,
+          AVG(CASE WHEN tl.kimp IS NOT NULL THEN tl.kimp END) as avg_kimp,
+          COUNT(CASE WHEN tl.result = 'success' THEN 1 END) as successful_trades,
+          COUNT(CASE WHEN tl.result = 'failed' THEN 1 END) as failed_trades
+        FROM trades t
+        LEFT JOIN trade_logs tl ON t.trade_log_id = tl.id
+        WHERE t.created_at >= NOW() - INTERVAL '${days} days'
+        GROUP BY DATE(t.created_at)
+        ORDER BY date DESC
+      `);
+
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching daily trade stats:', error);
+      throw error;
+    }
+  }
+
+  async getExchangeStats(hours: number = 24): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT
+          t.exchange,
+          COUNT(*) as trade_count,
+          SUM(t.quantity * t.price) as total_volume,
+          AVG(t.price) as avg_price,
+          COUNT(CASE WHEN tl.result = 'success' THEN 1 END) as successful_trades,
+          COUNT(CASE WHEN tl.result = 'failed' THEN 1 END) as failed_trades,
+          ROUND(
+            CASE WHEN COUNT(*) > 0
+            THEN (COUNT(CASE WHEN tl.result = 'success' THEN 1 END) * 100.0 / COUNT(*))
+            ELSE 0 END, 2
+          ) as success_rate
+        FROM trades t
+        LEFT JOIN trade_logs tl ON t.trade_log_id = tl.id
+        WHERE t.created_at >= NOW() - INTERVAL '${hours} hours'
+        GROUP BY t.exchange
+        ORDER BY total_volume DESC
+      `);
+
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching exchange stats:', error);
+      throw error;
+    }
+  }
+
+  async getKimpAnalysis(days: number = 7): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT
+          DATE(timestamp) as date,
+          action,
+          COUNT(*) as count,
+          ROUND(AVG(kimp), 4) as avg_kimp,
+          ROUND(MIN(kimp), 4) as min_kimp,
+          ROUND(MAX(kimp), 4) as max_kimp,
+          ROUND(SUM(amount), 0) as total_amount
+        FROM trade_logs
+        WHERE timestamp >= NOW() - INTERVAL '${days} days'
+        GROUP BY DATE(timestamp), action
+        ORDER BY date DESC, action
+      `);
+
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching kimp analysis:', error);
+      throw error;
+    }
+  }
+
+  async getDashboardData(): Promise<any> {
+    try {
+      // 최근 1시간 요약
+      const summaryResult = await this.pool.query(`
+        SELECT
+          COUNT(*) as total_trades_1h,
+          COUNT(DISTINCT t.position_id) as active_positions,
+          COUNT(DISTINCT t.strategy_id) as active_strategies,
+          SUM(t.quantity * t.price) as total_volume_1h,
+          AVG(CASE WHEN tl.kimp IS NOT NULL THEN tl.kimp END) as avg_kimp_1h,
+          COUNT(CASE WHEN tl.result = 'success' THEN 1 END) as successful_trades_1h
+        FROM trades t
+        LEFT JOIN trade_logs tl ON t.trade_log_id = tl.id
+        WHERE t.created_at >= NOW() - INTERVAL '1 hour'
+      `);
+
+      // 최근 거래 5건
+      const recentTradesResult = await this.pool.query(`
+        SELECT
+          t.symbol,
+          t.side,
+          t.exchange,
+          t.quantity,
+          t.price,
+          t.created_at,
+          tl.kimp,
+          tl.action
+        FROM trades t
+        LEFT JOIN trade_logs tl ON t.trade_log_id = tl.id
+        ORDER BY t.created_at DESC
+        LIMIT 5
+      `);
+
+      // 거래 문제 감지
+      const issuesResult = await this.pool.query(`
+        SELECT COUNT(*) as zero_price_trades
+        FROM trades
+        WHERE price = 0 AND created_at >= NOW() - INTERVAL '1 hour'
+      `);
+
+      return {
+        summary: summaryResult.rows[0],
+        recentTrades: recentTradesResult.rows,
+        issues: issuesResult.rows[0]
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      throw error;
+    }
+  }
+
+  async getTradeLogPatterns(): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT
+          action,
+          result,
+          COUNT(*) as count,
+          AVG(kimp) as avg_kimp,
+          AVG(amount) as avg_amount,
+          MIN(timestamp) as first_occurrence,
+          MAX(timestamp) as last_occurrence
+        FROM trade_logs
+        WHERE timestamp >= NOW() - INTERVAL '24 hours'
+        GROUP BY action, result
+        ORDER BY action, result
+      `);
+
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching trade log patterns:', error);
       throw error;
     }
   }
@@ -748,27 +1003,35 @@ export class DatabaseStorage {
 
   async getAllPositions(userId?: number): Promise<any[]> {
     try {
-      let query = 'SELECT * FROM positions ORDER BY entry_time DESC';
+      let query = `SELECT p.*, ts.name as strategy_name
+                   FROM positions p
+                   LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+                   ORDER BY p.entry_time DESC`;
       let params: any[] = [];
-      
+
       if (userId) {
-        query = 'SELECT * FROM positions WHERE user_id = $1 ORDER BY entry_time DESC';
+        query = `SELECT p.*, ts.name as strategy_name
+                 FROM positions p
+                 LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+                 WHERE p.user_id = $1
+                 ORDER BY p.entry_time DESC`;
         params = [userId];
       }
-      
+
       const result = await this.pool.query(query, params);
-      
+
       // 디버깅: 포지션 데이터 로그
       if (result.rows.length > 0) {
         console.log('🔍 [getAllPositions] 조회된 포지션 데이터:', {
           count: result.rows.length,
           firstPosition: result.rows[0],
-          openPositions: result.rows.filter(p => p.status === 'open').length
+          openPositions: result.rows.filter(p => p.status === 'open').length,
+          strategyNames: result.rows.map(p => ({ id: p.id, strategy_id: p.strategy_id, strategy_name: p.strategy_name }))
         });
       } else {
         console.log('🔍 [getAllPositions] 포지션 없음');
       }
-      
+
       return result.rows;
     } catch (error) {
       console.error('Error getting all positions:', error);
