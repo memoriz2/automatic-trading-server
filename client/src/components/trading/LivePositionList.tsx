@@ -159,11 +159,10 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       const netPnlKRW = pnlResult.netPnl;
                       const premiumPnlPercentRaw = pnlResult.netEntryExposure > 0 ? (netPnlKRW / pnlResult.netEntryExposure * 100) : 0;
 
-                      // 소수점 3자리 절삭 + 최소 표시 단위 적용
-                      const absPct = Math.abs(premiumPnlPercentRaw);
-                      const factor = 1000;
-                      const truncated = Math.floor(absPct * factor) / factor;
-                      const premiumPnlPercent = (truncated === 0 && absPct > 0) ? 0.001 : truncated;
+                      // 디버깅용 로그
+                      console.log(`Position ${position.id}: netPnl=${netPnlKRW}, netEntryExposure=${pnlResult.netEntryExposure}, percent=${premiumPnlPercentRaw}`);
+
+                      const premiumPnlPercent = Math.abs(premiumPnlPercentRaw);
 
                       // 실제 손익에 따라 표시
                       const isProfit = netPnlKRW >= 0;

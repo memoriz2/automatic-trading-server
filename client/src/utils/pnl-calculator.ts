@@ -31,21 +31,39 @@ export interface PnLResult {
  * @returns PnL 계산 결과
  */
 export function calculatePositionPnL(position: Position, marketData: MarketData | null): PnLResult {
+  console.log(`DEBUG [${position.id}] position keys:`, Object.keys(position));
+  console.log(`DEBUG [${position.id}] all price fields:`, {
+    upbitPrice: position.upbitPrice,
+    binancePrice: position.binancePrice,
+    // @ts-ignore
+    entryUpbitPrice: (position as any).entryUpbitPrice,
+    // @ts-ignore
+    entryBinancePrice: (position as any).entryBinancePrice,
+    // @ts-ignore
+    upbitEntryPrice: (position as any).upbitEntryPrice,
+    // @ts-ignore
+    binanceEntryPrice: (position as any).binanceEntryPrice
+  });
+
   const currentPremium = marketData?.kimp ?? position.entryPremiumRate;
   const premiumDelta = currentPremium - position.entryPremiumRate;
   const usdkrw = marketData?.usdkrw || 1390;
 
   // === 업비트 계산 ===
-  const upbitInvestmentKRW = position.upbitQuantity * position.upbitPrice;
+  // upbitPrice가 0이면 현재 시장가 사용
+  const effectiveUpbitPrice = position.upbitPrice || marketData?.upbit_price || 0;
+  const upbitInvestmentKRW = position.upbitQuantity * effectiveUpbitPrice;
   const upbitEntryFeeKRW = upbitInvestmentKRW * 0.0005;
-  const currentUpbitPrice = marketData?.upbit_price || position.upbitPrice;
+  const currentUpbitPrice = marketData?.upbit_price || effectiveUpbitPrice;
   const upbitSellAmountKRW = position.upbitQuantity * currentUpbitPrice;
   const upbitExitFeeKRW = upbitSellAmountKRW * 0.0005;
 
   // === 바이낸스 계산 ===
-  const entryBinancePriceUsd = (position.binancePrice || 0) > 1000000
-    ? position.binancePrice / usdkrw
-    : position.binancePrice;
+  // binancePrice가 0이면 현재 시장가 사용
+  const effectiveBinancePrice = position.binancePrice || marketData?.binance_price || 0;
+  const entryBinancePriceUsd = effectiveBinancePrice > 1000000
+    ? effectiveBinancePrice / usdkrw
+    : effectiveBinancePrice;
   const binanceMarginUsd = (position.binanceQuantity * entryBinancePriceUsd) / position.leverage;
   const binanceEntryFeeKRW = (position.binanceQuantity * entryBinancePriceUsd * 0.0004) * usdkrw;
 
@@ -59,6 +77,11 @@ export function calculatePositionPnL(position: Position, marketData: MarketData 
   const upbitNetInvestment = upbitInvestmentKRW - upbitEntryFeeKRW;
   const binanceNetMarginKRW = (binanceMarginUsd * usdkrw) - binanceEntryFeeKRW;
   const netEntryExposure = upbitNetInvestment + binanceNetMarginKRW;
+
+  // 디버깅 로그
+  console.log(`DEBUG [${position.id}]: upbitInv=${upbitInvestmentKRW}, upbitFee=${upbitEntryFeeKRW}, upbitNet=${upbitNetInvestment}`);
+  console.log(`DEBUG [${position.id}]: binanceMargin=${binanceMarginUsd}, binanceMarginKRW=${binanceMarginUsd * usdkrw}, binanceFee=${binanceEntryFeeKRW}, binanceNet=${binanceNetMarginKRW}`);
+  console.log(`DEBUG [${position.id}]: netEntryExposure=${netEntryExposure}`);
 
   // === 최종 손익 계산 ===
   const premiumPnl = (premiumDelta / 100) * netEntryExposure; // 김프 증가=수익, 김프 감소=손실
