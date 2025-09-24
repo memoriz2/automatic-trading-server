@@ -1,6 +1,7 @@
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
+import { log } from '../utils/logger.js';
 
 export interface ExchangeServices {
   upbitService?: UpbitService;
@@ -31,19 +32,19 @@ export class ExchangeServiceFactory {
       const upbitExchange = exchanges.find((ex: any) => ex.exchange === 'upbit' && ex.isActive);
       if (upbitExchange?.apiKey && upbitExchange?.apiSecret) {
         services.upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
-        console.log(`✅ 업비트 서비스 초기화 완료 (사용자: ${userId})`);
+        log.debug('업비트 서비스 초기화 완료', { userId });
       }
 
       // 바이낸스 서비스 초기화
       const binanceExchange = exchanges.find((ex: any) => ex.exchange === 'binance' && ex.isActive);
       if (binanceExchange?.apiKey && binanceExchange?.apiSecret) {
         services.binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
-        console.log(`✅ 바이낸스 서비스 초기화 완료 (사용자: ${userId})`);
+        log.debug('바이낸스 서비스 초기화 완료', { userId });
       }
 
       return services;
     } catch (error) {
-      console.error(`❌ 거래소 서비스 초기화 실패 (사용자: ${userId}):`, error);
+      log.error('거래소 서비스 초기화 실패', error, { userId });
       return {};
     }
   }
@@ -57,13 +58,13 @@ export class ExchangeServiceFactory {
     // 업비트 서비스 초기화
     if (credentials.upbitApiKey && credentials.upbitApiSecret) {
       services.upbitService = new UpbitService(credentials.upbitApiKey, credentials.upbitApiSecret);
-      console.log('✅ 업비트 서비스 초기화 완료 (직접 키)');
+      log.debug('업비트 서비스 초기화 완료 (직접 키)');
     }
 
     // 바이낸스 서비스 초기화
     if (credentials.binanceApiKey && credentials.binanceApiSecret) {
       services.binanceService = new BinanceService(credentials.binanceApiKey, credentials.binanceApiSecret);
-      console.log('✅ 바이낸스 서비스 초기화 완료 (직접 키)');
+      log.debug('바이낸스 서비스 초기화 완료 (직접 키)');
     }
 
     return services;
@@ -78,7 +79,7 @@ export class ExchangeServiceFactory {
       const upbitExchange = exchanges.find((ex: any) => ex.exchange === 'upbit' && ex.isActive);
 
       if (upbitExchange?.apiKey && upbitExchange?.apiSecret) {
-        console.log(`✅ 업비트 서비스 초기화 완료 (사용자: ${userId})`);
+        log.debug('업비트 서비스 초기화 완료', { userId });
         return new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
       }
 
@@ -98,7 +99,7 @@ export class ExchangeServiceFactory {
       const binanceExchange = exchanges.find((ex: any) => ex.exchange === 'binance' && ex.isActive);
 
       if (binanceExchange?.apiKey && binanceExchange?.apiSecret) {
-        console.log(`✅ 바이낸스 서비스 초기화 완료 (사용자: ${userId})`);
+        log.debug('바이낸스 서비스 초기화 완료', { userId });
         return new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
       }
 

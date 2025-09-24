@@ -26,10 +26,7 @@ export const isLiveTradingMode = (): boolean => {
   return true; // 항상 Live 모드
 };
 
-// 환경별 로그 출력 (Live 모드 전용)
+// 환경별 로그 출력 (Live 모드 전용) - 로그 스팸 방지로 제거
 export const logTradingMode = (): void => {
-  console.log(`🎯 [${new Date().toISOString()}] 거래 모드: LIVE (실거래)`);
-  console.log(`🔧 [${new Date().toISOString()}] Live 거래 활성화: ${TRADING_CONFIG.isLiveTradingEnabled}`);
-  console.log(`🌍 [${new Date().toISOString()}] 환경: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🚨 [${new Date().toISOString()}] Live 거래 모드 - 실제 자금으로 거래가 실행됩니다! 🚨`);
+  // LOG_LEVEL=WARN 설정으로 거래 모드 로그 스팸 제거
 };

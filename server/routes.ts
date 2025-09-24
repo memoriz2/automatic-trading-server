@@ -105,7 +105,7 @@ async function findActiveUserWithApiKeys(): Promise<string> {
         );
         
         if (binanceExchange) {
-          logDebug('활성 사용자 발견', { userId, exchange: 'binance' });
+          logDebug('활성 사용자 발견', { userId: parseInt(userId), exchange: 'binance' });
           return userId;
         }
         
@@ -115,7 +115,7 @@ async function findActiveUserWithApiKeys(): Promise<string> {
         );
         
         if (upbitExchange) {
-          logDebug('활성 사용자 발견', { userId, exchange: 'upbit' });
+          logDebug('활성 사용자 발견', { userId: parseInt(userId), exchange: 'upbit' });
           return userId;
         }
       } catch (error) {
@@ -142,11 +142,11 @@ async function executeRealLiquidation(userId: string, position: any): Promise<{
   pnl?: number;
 }> {
   try {
-    logInfo('실제 거래소 청산 시작', { 
-      userId, 
+    logInfo('실제 거래소 청산 시작', {
+      userId: parseInt(userId),
       positionId: position.id,
       symbol: position.symbol,
-      side: position.side 
+      side: position.side
     });
     
     // 사용자의 거래소 API 키 조회
@@ -257,10 +257,10 @@ async function executeRealLiquidation(userId: string, position: any): Promise<{
     };
     
   } catch (error: any) {
-    logError('실제 거래소 청산 오류', { 
-      userId, 
+    logError('실제 거래소 청산 오류', {
+      userId: parseInt(userId),
       positionId: position.id,
-      error: error.message 
+      error: error.message
     });
     
     return {
@@ -1470,7 +1470,7 @@ export async function registerRoutes(
       const userId = String(req.user.id);
       const { symbol, strategyId, type } = (req.body || {}) as { symbol?: string; strategyId?: number; type?: string };
       
-      logInfo('전체 포지션 청산 시작', { userId, symbol, strategyId, type });
+      logInfo('전체 포지션 청산 시작', { userId: parseInt(userId), symbol, strategyId, type });
       
       // 1. 먼저 활성 포지션 조회
       const activePositions = await storage.getActivePositions(parseInt(userId));

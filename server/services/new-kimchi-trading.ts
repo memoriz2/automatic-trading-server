@@ -9,6 +9,7 @@ import {
   StrategySignal
 } from '../types/trading.js';
 import { TRADING_CONSTANTS } from '../types/constants.js';
+import { log } from '../utils/logger.js';
 
 export class MultiStrategyTradingService {
 
@@ -61,12 +62,12 @@ export class MultiStrategyTradingService {
 
       if (services.upbitService) {
         upbitCurrentPrice = await services.upbitService.getCurrentPrice(`KRW-${symbol}`);
-        console.log(`✅ API로 업비트 현재가 조회: ₩${upbitCurrentPrice.toLocaleString()}`);
+        log.debug('API로 업비트 현재가 조회', { symbol, price: upbitCurrentPrice });
       } else {
         // API 키가 없으면 웹소켓 데이터 사용
         const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi([symbol]);
         upbitCurrentPrice = kimchiData.find(d => d.symbol === symbol)?.upbitPrice || TRADING_CONSTANTS.DEFAULT_UPBIT_BTC_PRICE;
-        console.log(`✅ 웹소켓으로 업비트 현재가 조회: ₩${upbitCurrentPrice.toLocaleString()}`);
+        log.debug('웹소켓으로 업비트 현재가 조회', { symbol, price: upbitCurrentPrice });
       }
     } catch (priceError) {
       console.warn('업비트 현재가 조회 실패, 기본값 사용:', upbitCurrentPrice);
@@ -262,25 +263,25 @@ export class MultiStrategyTradingService {
           upbitBtcBalance = parseFloat(btcAccount?.balance || '0');
         }
       } catch (error) {
-        console.warn('업비트 잔고 조회 실패:', error);
+        log.warn('업비트 잔고 조회 실패', { userId: parseInt(userId) });
       }
 
       if (hasOpenPositions || upbitBtcBalance >= 0.00008) {
-        console.log(`⏳ 진입 제한 → 오픈포지션: ${hasOpenPositions}, 업비트BTC: ${upbitBtcBalance}`);
+        log.debug('진입 제한', { hasOpenPositions, upbitBtcBalance, userId: parseInt(userId) });
 
         // 🚀 업비트 BTC 잔고가 있으면 자동 청산 시도 (최소 거래 단위 확인)
         if (upbitBtcBalance >= TRADING_CONSTANTS.BTC_MIN_QUANTITY && services?.upbitService) {
-          console.log(`🔄 업비트 BTC ${upbitBtcBalance} 자동 청산 시도 시작...`);
+          log.info('업비트 BTC 자동 청산 시도 시작', { balance: upbitBtcBalance });
 
           try {
-            console.log(`📊 청산 조건 확인 - 잔고: ${upbitBtcBalance} BTC (최소거래단위: 0.0001)`);
+            log.debug('청산 조건 확인', { balance: upbitBtcBalance, minQuantity: TRADING_CONSTANTS.BTC_MIN_QUANTITY });
 
             // 현재가 조회해서 거래 금액 확인
             const ticker = await services.upbitService.getTicker(['KRW-BTC']);
             const currentPrice = ticker[0]?.trade_price || 0;
             const tradeAmount = upbitBtcBalance * currentPrice;
 
-            console.log(`💰 예상 거래금액: ${upbitBtcBalance} BTC × ${currentPrice.toLocaleString()}원 = ${tradeAmount.toLocaleString()}원`);
+            log.debug('예상 거래금액 계산', { btcAmount: upbitBtcBalance, price: currentPrice, totalAmount: tradeAmount });
 
             if (tradeAmount < 5000) {
               throw new Error(`거래 금액이 최소 기준 미달: ${tradeAmount.toLocaleString()}원 < 5,000원`);
@@ -292,7 +293,7 @@ export class MultiStrategyTradingService {
             const availableBalance = parseFloat(btcAccount?.balance || '0');
             const lockedBalance = parseFloat(btcAccount?.locked || '0');
 
-            console.log(`📊 업비트 BTC 잔고 상세: 총잔고=${upbitBtcBalance}, 사용가능=${availableBalance}, 잠긴잔고=${lockedBalance}`);
+            log.debug('업비트 BTC 잔고 상세', { totalBalance: upbitBtcBalance, available: availableBalance, locked: lockedBalance });
 
             if (availableBalance < 0.0001) {
               throw new Error(`사용 가능한 BTC 잔고 부족: ${availableBalance} (잠긴잔고: ${lockedBalance})`);
@@ -300,11 +301,11 @@ export class MultiStrategyTradingService {
 
             // 안전한 매도 수량 계산 (사용가능 잔고의 99% 또는 정밀도 조정)
             const safeSellAmount = Math.min(availableBalance * 0.99, parseFloat(availableBalance.toFixed(8)));
-            console.log(`🔄 안전 매도 수량 계산: ${safeSellAmount} BTC (원래: ${upbitBtcBalance}, 사용가능: ${availableBalance})`);
+            log.debug('안전 매도 수량 계산', { safeSellAmount, original: upbitBtcBalance, available: availableBalance });
 
             // 업비트 시장가 매도
             const sellResult = await services.upbitService.placeSellOrder(`KRW-BTC`, safeSellAmount, 'market');
-            console.log(`✅ 업비트 BTC 청산 완료:`, sellResult);
+            log.success('업비트 BTC 청산 완료', { orderId: sellResult.uuid, amount: safeSellAmount });
 
             // 청산 로그 저장
             await storage.createTradeLog({
@@ -318,7 +319,7 @@ export class MultiStrategyTradingService {
             });
 
           } catch (error) {
-            console.error(`❌ 업비트 BTC 자동 청산 실패:`, error);
+            log.error('업비트 BTC 자동 청산 실패', error, { balance: upbitBtcBalance });
 
             // 실패 로그 저장
             await storage.createTradeLog({
@@ -345,8 +346,8 @@ export class MultiStrategyTradingService {
 
         if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
           const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-          console.log(`⏳ DB 기반 진입 쿨다운 진행중(${remainSec}s 남음) → 이번 진입 스킵`);
-          console.log(`📅 최근 진입: ${recentPosition.entryTime.toISOString()}`);
+          log.debug('DB 기반 진입 쿨다운 진행중', { remainSec });
+          log.debug('최근 진입 시간', { lastEntry: recentPosition.entryTime.toISOString() });
           return null;
         }
       }
@@ -451,7 +452,11 @@ export class MultiStrategyTradingService {
     
     const upbitEntryAmount = Math.round(investmentBtcAmount * upbitCurrentPrice); // BTC수량 × 현재가
     
-    console.log(`💰 주문 금액 계산: ${investmentBtcAmount} BTC × ₩${upbitCurrentPrice.toLocaleString()} = ₩${upbitEntryAmount.toLocaleString()}`);
+    log.trade('주문 금액 계산', {
+      btcAmount: investmentBtcAmount,
+      price: upbitCurrentPrice,
+      totalKrw: upbitEntryAmount
+    });
 
     // 현재 김프 방향 자동 판단
     const isPositiveKimp = signal.premiumRate > 0;
@@ -487,7 +492,7 @@ export class MultiStrategyTradingService {
       return; // 진입 취소
     }
     
-    console.log(`✅ 잔고 확인 완료: ${balanceCheck.message}`);
+    log.info('잔고 확인 완료');
 
     // 🚨 진입 조건 2차 검증 (단순 로직)
     const entryRate = Number(strategy.entryRate);
@@ -795,7 +800,7 @@ export class MultiStrategyTradingService {
         message: `${symbol} ${strategy.name} 전략 진입 완료. 김프율: ${signal.premiumRate}%, 수량: ${adjustedQuantity}`,
       });
 
-      console.log(`🎉 ${symbol} 포지션 진입 완료!`);
+      log.success('포지션 진입 완료', { symbol });
 
       // ✅ DB 기반 쿨다운으로 변경: Position 테이블의 entryTime이 자동으로 쿨다운 역할
       console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
