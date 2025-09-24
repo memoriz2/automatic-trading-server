@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-// import { Badge } from "@/components/ui/badge"; // 사용하지 않음
 import { useToast } from "@/hooks/use-toast";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
 import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModal';
@@ -12,88 +11,17 @@ import { useRealTimeBalances } from '@/hooks/useRealTimeBalances';
 import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime } from '@/utils/datetime';
 import { calculatePositionPnL } from '@/utils/pnl-calculator';
+import { TRADING_CONSTANTS } from '@/constants/trading-constants';
+import { saveLiveTradeToDB, saveLivePositionToDB, updateLivePositionInDB, apiFetch } from '@/utils/trading-api';
+import {
+  isValidPriceData,
+  checkEntryCondition,
+  checkExitCondition,
+  checkCooldown,
+  calculateTradingAmounts,
+  logEntryConditions
+} from '@/utils/trading-logic';
 
-// API 호출 함수
-const apiFetch = async (url: string, options: RequestInit = {}) => {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
-  }
-  
-  return response.json();
-};
-
-// 거래 저장 함수들
-const saveLiveTradeToDB = async (trade: LiveTrade, userId: string) => {
-  // 실거래 모드: DB에 저장
-  try {
-    await apiFetch('/api/live-trades', {
-      method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify({
-        id: trade.id,
-        timestamp: trade.timestamp.toISOString(),
-        type: trade.type,
-        symbol: trade.symbol,
-        quantity: trade.quantity,
-        price: trade.price,
-        fee: trade.fee,
-        exchange: trade.exchange,
-        strategyId: trade.strategyId,
-        premiumRate: trade.premiumRate,
-        isMock: false, // 실거래는 항상 false
-        strategyName: trade.strategyName || 'Unknown'
-      })
-    });
-    // 실거래 DB 저장 성공
-  } catch (error) {
-    console.error(`❌ 실거래 DB 저장 실패:`, error);
-  }
-};
-
-const saveLivePositionToDB = async (position: LivePosition, userId: string) => {
-  // 실거래 모드: DB에 저장
-  try {
-    await apiFetch('/api/live-positions', {
-      method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify({
-        ...position,
-        userId: parseInt(userId),
-        entryTime: position.entryTime.toISOString(),
-        isMock: false // 실거래는 항상 false
-      })
-    });
-    // 실거래 포지션 DB 저장 성공
-  } catch (error) {
-    console.error('❌ 실거래 포지션 DB 저장 실패:', error);
-  }
-};
-
-const updateLivePositionInDB = async (position: LivePosition, userId: string) => {
-  // 실거래 모드: DB 업데이트
-  try {
-    await apiFetch(`/api/live-positions/${position.id}`, {
-      method: 'PUT',
-      credentials: 'include',
-      body: JSON.stringify({
-        status: position.status,
-        unrealizedPnl: position.unrealizedPnl,
-        realizedPnl: position.realizedPnl
-      })
-    });
-    // 실거래 포지션 DB 업데이트 성공
-  } catch (error) {
-    console.error('❌ 실거래 포지션 DB 업데이트 실패:', error);
-  }
-};
 
 // Live 거래 타입 정의
 interface LiveBalance {
@@ -228,7 +156,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 토글 방지용: 최소 보유시간
   const MIN_HOLD_MS = 30_000; // 진입 후 최소 보유 30초
   // const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격 (사용하지 않음)
-  const COOLDOWN_MS = 800;    // 동일 전략 연속 액션 쿨다운(민감도 향상)
+  const COOLDOWN_MS = TRADING_CONSTANTS.COOLDOWN_MS;
   const lastActionAtRef = useRef<Record<string, number>>({});
   const prevPremiumRef = useRef<number | null>(null); // 임계값 교차 감지용 이전 김프
   // 원자적 거래 처리: 거래 잠금 시스템
@@ -236,7 +164,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const processingEntryRef = useRef<Set<string>>(new Set());
   // 재진입 차단 토스트 중복 억제
   const lastReentryToastAtRef = useRef<number>(0);
-  const REENTRY_TOAST_INTERVAL_MS = 10000; // 10초 이내 중복 차단
   
 
   // 거래 잔고 (실거래: 실제 잔고 사용)
@@ -888,7 +815,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // 재진입 차단/반복 주문 실패 토스트 억제
           if (isReentryBlock) {
             const now = Date.now();
-            if (now - lastReentryToastAtRef.current < REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
+            if (now - lastReentryToastAtRef.current < TRADING_CONSTANTS.REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
               // 로그/토스트 모두 생략
               return;
             }
@@ -1081,7 +1008,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       if (error?.message?.includes('재진입 차단') || error?.message?.includes('이미') || error?.message?.includes('OPEN 포지션')) {
         // 중복 토스트 방지: 최근 N초 내에 동일 유형 토스트가 있었다면 표시 생략
         const now = Date.now();
-        if (now - lastReentryToastAtRef.current < REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
+        if (now - lastReentryToastAtRef.current < TRADING_CONSTANTS.REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
           // 메시지 상태만 업데이트하고 토스트는 생략
           setLastToastMessage('reentry-block');
           return;
@@ -1737,7 +1664,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // 중복 경고 방지를 위한 ref
   const lastPriceDataWarningRef = useRef<number>(0);
-  const PRICE_DATA_WARNING_INTERVAL = 30000; // 30초마다 한 번만 경고
 
   // 김치프리미엄 기반 실거래 실행
   const executeRealTrade = useCallback(async (strategy: any, forceEntry = false) => {
@@ -1750,7 +1676,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     if (!currentKimchiData.upbit_price || !currentKimchiData.binance_price) {
       const now = Date.now();
       // 30초마다 한 번만 경고 출력 (스팸 방지)
-      if (now - lastPriceDataWarningRef.current > PRICE_DATA_WARNING_INTERVAL) {
+      if (now - lastPriceDataWarningRef.current > TRADING_CONSTANTS.PRICE_DATA_WARNING_INTERVAL) {
         console.warn('⚠️ 실거래 모드: 가격 데이터 부족으로 거래 대기 중', {
           upbit_price: currentKimchiData.upbit_price,
           binance_price: currentKimchiData.binance_price,
@@ -1774,7 +1700,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 자동 정리를 위한 타임아웃 (10초 후 강제 정리)
     const timeoutId = setTimeout(() => {
       processingEntryRef.current.delete(strategyId);
-    }, 10000);
+    }, TRADING_CONSTANTS.DEFAULTS.TIMEOUT_CLEANUP);
 
     try {
       // executeRealTrade 호출 로그 제거
@@ -1790,11 +1716,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       );
 
       // 허용오차 설정
-      const tolerance = parseFloat(strategy.tolerance || '0.1'); // 기본 허용오차 0.1%
+      const tolerance = parseFloat(strategy.tolerance || String(TRADING_CONSTANTS.TOLERANCE.DEFAULT));
       
       // 스크롤2 전략 특별 조건 (더 높은 진입조건)
       const isScroll2 = strategy.name === '스크롤2';
-      const minKimchiRate = 5.0; // 최소 김프율 조건 (더 높게 설정)
+      const minKimchiRate = TRADING_CONSTANTS.TOLERANCE.MIN_KIMCHI_RATE;
       
       // 쿨다운 가드
       const now = Date.now();
