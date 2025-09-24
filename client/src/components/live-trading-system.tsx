@@ -8,6 +8,7 @@ import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModa
 import { LivePositionList } from '@/components/trading/LivePositionList';
 import { LiveTradeHistory } from '@/components/trading/LiveTradeHistory';
 import { LiveBalanceDisplay } from '@/components/trading/LiveBalanceDisplay';
+import { useRealTimeBalances } from '@/hooks/useRealTimeBalances';
 import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime } from '@/utils/datetime';
 import { calculatePositionPnL } from '@/utils/pnl-calculator';
@@ -181,8 +182,8 @@ interface LiveTradingSystemProps {
   strategiesError?: string | null; // 전략 로딩 에러
 }
 
-export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({ 
-  strategies, 
+export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
+  strategies,
   setStrategies,
   currentKimchiData,
   userId = "1", // 기본 사용자 ID
@@ -194,6 +195,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   strategiesError = null
 }) => {
   const { toast } = useToast();
+
+  // 실시간 잔고 동기화 (실거래 모드에서만 사용)
+  const { forceRefresh: refreshRealTimeBalances, setLoading: setBalanceLoading } = useRealTimeBalances(
+    isLiveMode ? parseInt(userId) : undefined
+  );
   
   // 거래 모드 (prop으로 명확하게 결정됨)
   const actualTradingMode = isLiveMode ? 'real' : 'mock';
@@ -778,16 +784,20 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // Live 진입 (원자적 처리)
   const liveEntry = useCallback(async (strategy: any, premiumRate: number) => {
     console.log('🎯 liveEntry 시작:', strategy.name, premiumRate);
-    
-    // 거래 잠금 확인
-    if (tradingLockRef.current) {
-      console.warn('⏸️ 다른 거래 진행 중 - 진입 대기');
+
+    const strategyId = String(strategy.id);
+
+    // 거래 잠금 & 중복 처리 확인 (2차 방어)
+    if (tradingLockRef.current || processingEntryRef.current.has(strategyId)) {
+      console.warn(`⏸️ 진입 차단 - 거래잠금: ${tradingLockRef.current}, 처리중: ${processingEntryRef.current.has(strategyId)}`);
       return;
     }
-    
+
+    setIsTrading(true);
+
     try {
       tradingLockRef.current = true; // 거래 잠금
-      processingEntryRef.current.add(String(strategy.id));
+      processingEntryRef.current.add(strategyId);
 
       if (!currentKimchiData) {
         console.error('❌ currentKimchiData is null in liveEntry');
@@ -912,28 +922,37 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           console.log('🎉 실거래 주문 모두 완료! (바이낸스 → 업비트)', { binanceOrderId, upbitOrderId });
           
-          // 🔄 거래 완료 후 즉시 잔고 새로고침 (React Query 캐시 무효화)
+          // 🔄 거래 완료 후 즉시 잔고 새로고침
           setTimeout(async () => {
             try {
-              // 잔고 관련 캐시 무효화
-              await fetch('/api/v2/balance/refresh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ forceRefresh: true })
-              });
-              
-              // 실시간 잔고도 즉시 업데이트
-              await fetch('/api/realtime-balances', { credentials: 'include' });
-              
+              // 로딩 상태 시작 (스피너 표시)
+              setBalanceLoading && setBalanceLoading(true);
+
+              // 병렬로 잔고 새로고침 실행
+              await Promise.all([
+                fetch('/api/v2/balance/refresh', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ forceRefresh: true })
+                }),
+                // 실시간 잔고 즉시 새로고침
+                refreshRealTimeBalances && refreshRealTimeBalances()
+              ]);
+
               console.log('🔄 거래 후 잔고 새로고침 완료');
-              
+
               // DB 거래 기록도 새로고침
               setTradeRefreshTrigger(prev => prev + 1);
             } catch (refreshError) {
               console.error('❌ 잔고 새로고침 실패:', refreshError);
+            } finally {
+              // 로딩 상태 종료 (1.5초 후 - 사용자가 볼 수 있도록)
+              setTimeout(() => {
+                setBalanceLoading && setBalanceLoading(false);
+              }, 1500);
             }
-          }, 2000);
+          }, 500); // 0.5초 후 새로고침 (더 빠르게)
           
         } catch (realTradingError) {
           const msg = (realTradingError as any)?.message || '';
@@ -1173,6 +1192,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       }
     } finally {
       tradingLockRef.current = false; // 거래 잠금 해제
+      processingEntryRef.current.delete(strategyId); // 처리 상태 해제 (중요!)
       setIsTrading(false);
     }
   }, [
@@ -1811,10 +1831,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     }
 
     const strategyId = String(strategy.id);
-    if (processingEntryRef.current.has(strategyId)) {
-      console.warn(`⏯️ ${strategy.name} 전략은 이미 진입 처리 중입니다. 중복 호출을 건너뜁니다.`);
+
+    // 원자적 중복 진입 방지 (더 강화된 체크)
+    if (processingEntryRef.current.has(strategyId) || tradingLockRef.current) {
+      console.warn(`⏯️ ${strategy.name} 전략 중복 진입 차단 (처리중: ${processingEntryRef.current.has(strategyId)}, 거래잠금: ${tradingLockRef.current})`);
       return;
     }
+
+    // 즉시 처리 상태로 마킹하여 동시 호출 차단
+    processingEntryRef.current.add(strategyId);
 
     try {
       // executeMockTrade 호출 로그 제거
@@ -2536,22 +2561,34 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                       // 🔄 청산 완료 후 즉시 잔고 새로고침
                       setTimeout(async () => {
                         try {
-                          await fetch('/api/v2/balance/refresh', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ forceRefresh: true })
-                          });
-                          
-                          await fetch('/api/realtime-balances', { credentials: 'include' });
+                          // 로딩 상태 시작 (스피너 표시)
+                          setBalanceLoading && setBalanceLoading(true);
+
+                          // 병렬로 잔고 새로고침 실행
+                          await Promise.all([
+                            fetch('/api/v2/balance/refresh', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ forceRefresh: true })
+                            }),
+                            // 실시간 잔고 즉시 새로고침
+                            refreshRealTimeBalances && refreshRealTimeBalances()
+                          ]);
+
                           console.log('🔄 청산 후 잔고 새로고침 완료');
-                          
+
                           // DB 거래 기록도 새로고침
                           setTradeRefreshTrigger(prev => prev + 1);
                         } catch (refreshError) {
                           console.error('❌ 청산 후 잔고 새로고침 실패:', refreshError);
+                        } finally {
+                          // 로딩 상태 종료 (1.5초 후 - 사용자가 볼 수 있도록)
+                          setTimeout(() => {
+                            setBalanceLoading && setBalanceLoading(false);
+                          }, 1500);
                         }
-                      }, 2000);
+                      }, 500); // 0.5초 후 새로고침 (더 빠르게)
                     } else {
                       toast({
                         title: "청산 실패",

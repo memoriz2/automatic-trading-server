@@ -89,8 +89,8 @@ export const useRealTimeBalances = (userId?: number) => {
     // 즉시 실행
     fetchRealTimeBalances();
 
-    // 10초마다 업데이트
-    intervalRef.current = setInterval(fetchRealTimeBalances, 10000);
+    // 1분마다 업데이트 (진입/청산시 즉시 동기화로 충분)
+    intervalRef.current = setInterval(fetchRealTimeBalances, 60000);
     
     return () => {
       if (intervalRef.current) {
@@ -105,6 +105,8 @@ export const useRealTimeBalances = (userId?: number) => {
     isLoading,
     error,
     isAuthFailed,
-    refetch: fetchRealTimeBalances
+    refetch: fetchRealTimeBalances,
+    forceRefresh: fetchRealTimeBalances, // 즉시 동기화용
+    setLoading: setIsLoading // 외부에서 로딩 상태 제어
   };
 };

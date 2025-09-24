@@ -28,7 +28,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   totalPnl
 }) => {
   const { user } = useAuth();
-  const { balances: realtimeBalances } = useRealTimeBalances(user?.id);
+  const { balances: realtimeBalances, isLoading: balanceLoading } = useRealTimeBalances(user?.id);
   return (
     <>
       {/* 잔고 표시 */}
@@ -41,17 +41,27 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 BTC</h4>
-          <p className="text-xl font-bold text-yellow-400">
-            {formatBTC(realtimeBalances?.upbitBtc || 0)} BTC
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xl font-bold text-yellow-400">
+              {formatBTC(realtimeBalances?.upbitBtc || 0)} BTC
+            </p>
+            {balanceLoading && (
+              <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+            )}
+          </div>
           <p className="text-xs text-slate-500">실시간</p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>
-          <p className="text-xl font-bold text-orange-400">
-            {formatBTC(Math.abs(realtimeBalances?.binanceBtc || 0))} BTC
-            {(realtimeBalances?.binanceBtc || 0) < 0 && <span className="text-red-400 ml-1">(숏)</span>}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xl font-bold text-orange-400">
+              {formatBTC(Math.abs(realtimeBalances?.binanceBtc || 0))} BTC
+              {(realtimeBalances?.binanceBtc || 0) < 0 && <span className="text-red-400 ml-1">(숏)</span>}
+            </p>
+            {balanceLoading && (
+              <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+            )}
+          </div>
           <p className="text-xs text-slate-500">실시간</p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
