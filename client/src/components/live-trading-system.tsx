@@ -31,13 +31,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 };
 
 // 거래 저장 함수들
-const saveLiveTradeToDB = async (trade: LiveTrade, userId: string, isLiveMode: boolean = false) => {
-  if (!isLiveMode) {
-    // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
-    // Mock 거래는 로컬스토리지만 사용
-    return;
-  }
-  
+const saveLiveTradeToDB = async (trade: LiveTrade, userId: string) => {
   // 실거래 모드: DB에 저장
   try {
     await apiFetch('/api/live-trades', {
@@ -64,13 +58,7 @@ const saveLiveTradeToDB = async (trade: LiveTrade, userId: string, isLiveMode: b
   }
 };
 
-const saveLivePositionToDB = async (position: LivePosition, userId: string, isLiveMode: boolean = false) => {
-  if (!isLiveMode) {
-    // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
-    // Mock 포지션은 로컬스토리지만 사용
-    return;
-  }
-  
+const saveLivePositionToDB = async (position: LivePosition, userId: string) => {
   // 실거래 모드: DB에 저장
   try {
     await apiFetch('/api/live-positions', {
@@ -89,13 +77,7 @@ const saveLivePositionToDB = async (position: LivePosition, userId: string, isLi
   }
 };
 
-const updateLivePositionInDB = async (position: LivePosition, userId: string, isLiveMode: boolean = false) => {
-  if (!isLiveMode) {
-    // Mock 모드: DB 업데이트 안함
-    // Mock 포지션 업데이트는 로컬스토리지만 사용
-    return;
-  }
-  
+const updateLivePositionInDB = async (position: LivePosition, userId: string) => {
   // 실거래 모드: DB 업데이트
   try {
     await apiFetch(`/api/live-positions/${position.id}`, {
@@ -188,7 +170,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   currentKimchiData,
   userId = "1", // 기본 사용자 ID
   onDailyStatsUpdate,
-  isLiveMode = false, // 기본값은 Mock 모드
+  isLiveMode = true, // 기본값은 실거래 모드
   liveBalances, // 실제 잔고 데이터
   onStrategyStatsUpdate,
   isLoadingStrategies = false,
@@ -257,90 +239,20 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const REENTRY_TOAST_INTERVAL_MS = 10000; // 10초 이내 중복 차단
   
 
-  // 거래 잔고 (실거래: 실제 잔고 사용, Mock: 로컬스토리지)
+  // 거래 잔고 (실거래: 실제 잔고 사용)
   const [liveBalance, setLiveBalance] = useState<LiveBalance>(() => {
-    // 실거래 모드: 실제 거래소 잔고 사용 (로컬스토리지 무시)
-    if (isLiveMode) {
-      // 실거래 모드: 실제 거래소 잔고 사용
-      return {
-        krw: 0, // 실제 잔고는 liveBalances에서 가져옴
-        btc: 0,
-        usdt: 0,
-        binanceBtc: 0,
-        binanceSpotBtc: 0,
-        binanceUsdt: 0
-      };
-    }
-    
-    // Mock 모드: 간단한 기본 잔고
-    console.log('🧪 Mock 모드: 기본 잔고 사용');
-    
-    // Mock 모드 기본 잔고
     return {
-      krw: 100000000,
+      krw: 0, // 실제 잔고는 liveBalances에서 가져옴
       btc: 0,
-      usdt: 100000,
+      usdt: 0,
       binanceBtc: 0,
       binanceSpotBtc: 0,
-      binanceUsdt: 100000
+      binanceUsdt: 0
     };
   });
 
-  // Live 거래 기록 (실거래: DB에서 조회, Mock: 간단한 로컬 저장)
-  const [liveTrades, setLiveTrades] = useState<LiveTrade[]>(() => {
-    // 실거래 모드: DB에서 조회하므로 빈 배열로 시작
-    if (isLiveMode) {
-      // 실거래 모드: 거래 기록은 DB에서 조회
-      return [];
-    }
-    
-    // Mock 모드: 간단한 로컬스토리지 사용
-    try {
-      const storageKey = `live-trades-${userId}`;
-      const saved = localStorage.getItem(storageKey);
-      
-      console.log('🔄 liveTrades 초기화 (강화):', {
-        userId,
-        storageKey,
-        hasSavedData: !!saved,
-        savedData: saved,
-        savedDataType: typeof saved,
-        savedDataLength: saved?.length
-      });
-
-      // 저장된 데이터가 있고 빈 문자열이 아닌 경우
-      if (saved && saved.trim() !== '' && saved !== '[]' && saved !== 'null' && saved !== 'undefined') {
-        try {
-          const parsed = JSON.parse(saved);
-          
-          // 배열이고 요소가 있는 경우
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // 각 거래 객체가 유효한지 검증
-            const validTrades = parsed.filter(trade => 
-              trade && 
-              typeof trade === 'object' && 
-              trade.id && 
-              trade.type && 
-              trade.exchange
-            );
-            
-            if (validTrades.length > 0) {
-              // 거래 기록 로드 성공
-              return validTrades;
-            }
-          }
-        } catch (parseError) {
-          console.error('❌ 거래 기록 파싱 실패:', parseError, saved);
-        }
-      }
-      
-      console.log('📭 유효한 저장된 거래 기록 없음');
-      return [];
-    } catch (error) {
-      console.error('❌ liveTrades 초기화 전체 실패:', error);
-      return [];
-    }
-  });
+  // Live 거래 기록 (실거래: DB에서 조회)
+  const [liveTrades, setLiveTrades] = useState<LiveTrade[]>([]);
 
   // liveTrades 상태 변화 추적
   React.useEffect(() => {
@@ -789,9 +701,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     // 거래 잠금 & 중복 처리 확인 (2차 방어)
     if (tradingLockRef.current || processingEntryRef.current.has(strategyId)) {
-      console.warn(`⏸️ 진입 차단 - 거래잠금: ${tradingLockRef.current}, 처리중: ${processingEntryRef.current.has(strategyId)}`);
+      console.log(`⚠️ [${strategy.name}] liveEntry 차단됨:`, {
+        거래잠금: tradingLockRef.current,
+        처리중: processingEntryRef.current.has(strategyId),
+        전체처리중목록: Array.from(processingEntryRef.current)
+      });
       return;
     }
+
+    console.log(`✅ [${strategy.name}] liveEntry 진행 - 잠금 및 중복 체크 통과`);
 
     setIsTrading(true);
 
@@ -831,12 +749,22 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const totalUpbitCost = upbitBuyAmountKRW + upbitFee; // 총 업비트 비용
       
       // 균형 검증 로그
+      console.log('💰 2단계 - 업비트 현물 매수:', {
+        upbitBuyAmountBTC: upbitBuyAmountBTC.toFixed(6),
+        upbitPrice: upbitPrice.toLocaleString(),
+        upbitBuyAmountKRW: upbitBuyAmountKRW.toLocaleString(),
+        upbitFee: upbitFee.toLocaleString(),
+        totalUpbitCost: totalUpbitCost.toLocaleString()
+      });
+
       console.log('⚖️ 포지션 균형 검증:', {
         binanceShortAmountBTC: binanceShortAmountBTC.toFixed(6),
         upbitBuyAmountBTC: upbitBuyAmountBTC.toFixed(6),
         isBalanced: Math.abs(binanceShortAmountBTC - upbitBuyAmountBTC) < 0.000001,
         difference: (binanceShortAmountBTC - upbitBuyAmountBTC).toFixed(8)
       });
+
+      console.log(`📈 [${strategy.name}] 진입 실행 시작 - 실제 거래 API 호출`);
 
       // 거래 기록 추가
       const currentCounter = tradeCounter + 1;
@@ -991,7 +919,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         totalUpbitCost
       });
 
-      // 잔고 확인 (실거래: 실제 잔고, Mock: 로컬 잔고)
+      // 잔고 확인
       const availableKrw = isLiveMode ? (liveBalances?.real?.krw || 0) : liveBalance.krw;
       if (availableKrw < totalUpbitCost) {
         const errorMsg = `KRW 부족: 필요 ₩${totalUpbitCost.toLocaleString()}, 보유 ₩${availableKrw.toLocaleString()}`;
@@ -1030,7 +958,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         return;
       }
 
-      // 잔고 변경 (Mock 모드에서만, 실거래는 실제 잔고 사용)
+      // 잔고 변경 (실거래는 실제 잔고 사용)
       if (!isLiveMode) {
         setLiveBalance(prev => {
         const newBalance = {
@@ -1106,9 +1034,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       setLiveTrades(prev => [...prev, ...newTrades]);
       
-      // 거래 기록 저장 (실거래만 DB, Mock은 로컬스토리지만)
+      // 거래 기록 저장
       newTrades.forEach(trade => {
-        saveLiveTradeToDB(trade, userId, isLiveMode);
+        saveLiveTradeToDB(trade, userId);
       });
 
       // 포지션은 DB에서만 관리 (로컬 상태 추가 제거)
@@ -1726,9 +1654,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       setLiveTrades(prev => [...prev, ...exitTrades]);
       
-      // 청산 거래 기록 저장 (실거래만 DB, Mock은 로컬스토리지만)
+      // 청산 거래 기록 저장
       exitTrades.forEach(trade => {
-        saveLiveTradeToDB(trade, userId, isLiveMode);
+        saveLiveTradeToDB(trade, userId);
       });
 
       // 포지션 업데이트 (비율에 따라 부분/전체 청산)
@@ -1757,10 +1685,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       };
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
       
-      // 포지션 업데이트 저장 (실거래만 DB, Mock은 로컬스토리지만)
+      // 포지션 업데이트 저장
       const updatedPosition = updatedPositions.find(p => p.id === position.id);
       if (updatedPosition) {
-        updateLivePositionInDB(updatedPosition, userId, isLiveMode);
+        updateLivePositionInDB(updatedPosition, userId);
       }
 
       const totalFeesKRW = (entryUpbitFee + upbitFee) + ((entryBinanceFee + binanceFee) * usdKrwRate);
@@ -1811,12 +1739,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const lastPriceDataWarningRef = useRef<number>(0);
   const PRICE_DATA_WARNING_INTERVAL = 30000; // 30초마다 한 번만 경고
 
-  // 김치프리미엄 기반 모의 거래 실행
-  const executeMockTrade = useCallback(async (strategy: any, forceEntry = false) => {
-    if (!currentKimchiData) return;
-    
-    // 실거래 모드에서는 기본적인 데이터만 검증
-    if (isLiveMode && (!currentKimchiData.upbit_price || !currentKimchiData.binance_price)) {
+  // 김치프리미엄 기반 실거래 실행
+  const executeRealTrade = useCallback(async (strategy: any, forceEntry = false) => {
+    if (!currentKimchiData) {
+      console.warn(`🚫 [${strategy.name}] 김치데이터 없음`);
+      return;
+    }
+
+    // 실거래 모드: 가격 데이터 검증
+    if (!currentKimchiData.upbit_price || !currentKimchiData.binance_price) {
       const now = Date.now();
       // 30초마다 한 번만 경고 출력 (스팸 방지)
       if (now - lastPriceDataWarningRef.current > PRICE_DATA_WARNING_INTERVAL) {
@@ -1834,15 +1765,19 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     // 원자적 중복 진입 방지 (더 강화된 체크)
     if (processingEntryRef.current.has(strategyId) || tradingLockRef.current) {
-      console.warn(`⏯️ ${strategy.name} 전략 중복 진입 차단 (처리중: ${processingEntryRef.current.has(strategyId)}, 거래잠금: ${tradingLockRef.current})`);
-      return;
+      return; // 로그 스팸 방지를 위해 경고 제거
     }
 
     // 즉시 처리 상태로 마킹하여 동시 호출 차단
     processingEntryRef.current.add(strategyId);
 
+    // 자동 정리를 위한 타임아웃 (10초 후 강제 정리)
+    const timeoutId = setTimeout(() => {
+      processingEntryRef.current.delete(strategyId);
+    }, 10000);
+
     try {
-      // executeMockTrade 호출 로그 제거
+      // executeRealTrade 호출 로그 제거
 
       const currentPremium = currentKimchiData.kimp || 0;
       const prevPremium = prevPremiumRef.current ?? currentPremium;
@@ -1868,18 +1803,68 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       const diffEntry = Math.abs(currentPremium - entryRate);
       const crossedEntry = (prevPremium - entryRate) * (currentPremium - entryRate) <= 0 && Math.abs(prevPremium - entryRate) > tolerance;
-      
+
       // 진입 조건: 허용오차 범위 내 또는 교차점 통과 (포지션이 없을 때만)
       const entryOk = !currentPosition && (diffEntry <= tolerance || crossedEntry);
+
+      // 디버깅: 진입 조건 상세 로그 (모든 활성 전략에 대해)
+      if (strategy.name && diffEntry <= tolerance + 1.0) { // 근접한 경우 모든 로그
+        console.log(`🔍 [${strategy.name}] 진입 조건 체크:`, {
+          현재김프: `${currentPremium.toFixed(3)}%`,
+          목표진입: `${entryRate}%`,
+          오차: `${diffEntry.toFixed(3)}%`,
+          허용오차: `${tolerance}%`,
+          오차조건만족: diffEntry <= tolerance,
+          교차조건만족: crossedEntry,
+          포지션없음: !currentPosition,
+          포지션개수: livePositions.length,
+          전략활성화: strategy.isActive !== false,
+          최종진입가능: entryOk,
+          쿨다운체크: `${Math.max(0, COOLDOWN_MS - (now - lastAction))}ms 남음`
+        });
+
+        // entryOk가 false인 이유를 명확히 로그
+        if (!entryOk) {
+          const reason = [];
+          if (currentPosition) reason.push('이미 포지션 보유중');
+          if (diffEntry > tolerance && !crossedEntry) reason.push('허용오차 초과 및 교차점 미통과');
+          console.log(`❌ [${strategy.name}] 진입 불가 이유:`, reason.join(', '));
+        }
+      }
       
       // 청산 조건: 익절조건 이상이면 청산 (포지션이 있을 때만)
       const exitOk = currentPosition && (exitRate <= currentPremium);
 
       if (entryOk) {
+        console.log(`🚀 [${strategy.name}] 진입 조건 만족! liveEntry 호출 시도`);
+        console.log(`📊 [${strategy.name}] 진입 상세 정보:`, {
+          현재김프: `${currentPremium.toFixed(3)}%`,
+          목표진입: `${entryRate}%`,
+          허용오차범위: `${tolerance}%`,
+          실제오차: `${diffEntry.toFixed(3)}%`,
+          교차여부: crossedEntry,
+          포지션상태: currentPosition ? '보유중' : '없음'
+        });
         // 진입 조건 만족 - 새 포지션 생성
         console.log(`🎯 진입 조건: ${strategy.name} - 김프 ${currentPremium.toFixed(3)}% ≈ ${entryRate}% (오차: ${Math.abs(currentPremium - entryRate).toFixed(3)}%)`);
+        console.log(`🚀 liveEntry 호출 전 상태 체크:`, {
+          전략명: strategy.name,
+          전략ID: strategy.id,
+          현재김프: currentPremium,
+          실거래모드: isLiveMode,
+          거래잠금: tradingLockRef.current,
+          처리중: processingEntryRef.current.has(String(strategy.id))
+        });
         addTradingLog(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
+
+        console.log(`🎯 liveEntry 함수 호출 시작: ${strategy.name}`);
+        // liveEntry 호출 전에 처리 상태 정리 (liveEntry에서 자체적으로 잠금 관리)
+        processingEntryRef.current.delete(strategyId);
+        clearTimeout(timeoutId); // 타임아웃도 정리
+
         await liveEntry(strategy, currentPremium);
+        console.log(`🎯 liveEntry 함수 호출 완료: ${strategy.name}`);
+
         lastActionAtRef.current[strategy.id] = now;
         console.log(`✅ 진입 완료: ${strategy.name} - 청산 전까지 재진입 제한`);
       } else if (exitOk) {
@@ -1911,7 +1896,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       // 모든 디버깅 로그 제거
       // 그 외에는 대기 (정확한 조건 만족 시에만 거래)
     } finally {
-      processingEntryRef.current.delete(strategyId);
+      // liveEntry를 호출하지 않은 경우에만 처리 상태 정리
+      if (processingEntryRef.current.has(strategyId)) {
+        clearTimeout(timeoutId); // 타임아웃 취소
+        processingEntryRef.current.delete(strategyId);
+      }
     }
   }, [currentKimchiData, isTrading, livePositions, liveBalance, toast, liveEntry, liveExit, addTradingLog]);
 
@@ -1955,10 +1944,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         // 실시간 김프 변경 감지 로그 제거
         
         // 비동기로 즉시 병렬 실행
-        Promise.all(activeStrategies.map(strategy => executeMockTrade(strategy)));
+        Promise.all(activeStrategies.map(strategy => executeRealTrade(strategy)));
       }
     }
-  }, [currentKimchiData?.kimp, strategies, isTrading, executeMockTrade]);
+  }, [currentKimchiData?.kimp, strategies, isTrading, executeRealTrade]);
 
   // 실시간 데이터 연결 상태 모니터링 (실거래 모드 전용)
   useEffect(() => {
@@ -2019,7 +2008,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       // 즉시 자동매매 체크 로그 제거
       
       // 비동기로 즉시 병렬 실행
-      Promise.all(activeStrategies.map(strategy => executeMockTrade(strategy)));
+      Promise.all(activeStrategies.map(strategy => executeRealTrade(strategy)));
     }
     
     // 주기적 체크 설정
@@ -2029,13 +2018,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // 주기적 자동매매 체크 로그 제거
           
           // 비동기로 병렬 실행
-          Promise.all(activeStrategies.map(strategy => executeMockTrade(strategy)));
+          Promise.all(activeStrategies.map(strategy => executeRealTrade(strategy)));
         }
       }, 2000); // 2초마다 체크 (매매 기회 놓치지 않도록)
 
       return () => clearInterval(interval);
     }
-  }, [strategies, currentKimchiData, executeMockTrade]);
+  }, [strategies, currentKimchiData, executeRealTrade]);
 
 
 
@@ -2343,6 +2332,30 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     return () => { if (typeof cancel === 'function') cancel(); };
   }, [rawOpenBinanceQty]);
 
+  // 버튼 텍스트 깜박임 방지를 위한 안정화된 값들
+  const stableButtonText = useMemo(() => {
+    if (isTrading) {
+      return `🔄 실거래 실행 중...`;
+    }
+    if (isLoadingStrategies) {
+      return "loading";
+    }
+    if (strategiesError) {
+      return "error";
+    }
+    if (strategies.some(s => s.isActive)) {
+      const activeCount = strategies.filter(s => s.isActive).length;
+      return `✅ ${activeCount}개 전략 활성 (실거래)`;
+    }
+    return "❌ 활성 전략 없음";
+  }, [isTrading, actualTradingMode, isLoadingStrategies, strategiesError, strategies]);
+
+  const stableButtonVariant = useMemo(() => {
+    if (isTrading) return "destructive";
+    if (strategies.some(s => s.isActive)) return "default";
+    return "outline";
+  }, [isTrading, strategies]);
+
   return (
     <>
     <Card className="bg-slate-850 border-slate-700">
@@ -2364,25 +2377,21 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             )}
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant={isTrading ? "destructive" : strategies.some(s => s.isActive) ? "default" : "outline"}
+            <Button
+              variant={stableButtonVariant}
               size="sm"
               disabled
               className="min-w-[200px]"
             >
-              {isTrading ? (
-                `🔄 ${actualTradingMode === 'real' ? '실거래' : 'Mock 거래'} 실행 중...`
-              ) : isLoadingStrategies ? (
+              {stableButtonText === "loading" ? (
                 <span className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                   전략 로딩 중...
                 </span>
-              ) : strategiesError ? (
+              ) : stableButtonText === "error" ? (
                 <span className="text-red-400">⚠️ 전략 로드 실패</span>
-              ) : strategies.some(s => s.isActive) ? (
-                `✅ ${strategies.filter(s => s.isActive).length}개 전략 활성 (${actualTradingMode === 'real' ? '실거래' : 'Mock'})`
               ) : (
-                "❌ 활성 전략 없음"
+                stableButtonText
               )}
             </Button>
             <Button 
