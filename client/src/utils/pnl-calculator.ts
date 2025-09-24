@@ -31,15 +31,10 @@ export interface PnLResult {
  * @returns PnL 계산 결과
  */
 export function calculatePositionPnL(position: Position, marketData: MarketData | null): PnLResult {
-  if (position.upbitPrice === 0 || position.binancePrice === 0) {
-    console.log(`⚠️ [${position.id}] 가격 정보 부족:`, {
-      upbitPrice: position.upbitPrice,
-      binancePrice: position.binancePrice,
-      hasMarketData: !!marketData,
-      marketUpbitPrice: marketData?.upbit_price,
-      marketBinancePrice: marketData?.binance_price
-    });
-  }
+  // 가격 정보 부족시 경고 (디버깅 필요시에만 활성화)
+  // if (position.upbitPrice === 0 || position.binancePrice === 0) {
+  //   console.log(`⚠️ [${position.id}] 가격 정보 부족:`, { upbitPrice: position.upbitPrice, binancePrice: position.binancePrice });
+  // }
 
   const currentPremium = marketData?.kimp ?? position.entryPremiumRate;
   const premiumDelta = currentPremium - position.entryPremiumRate;
@@ -75,9 +70,8 @@ export function calculatePositionPnL(position: Position, marketData: MarketData 
   const netEntryExposure = upbitNetInvestment + binanceNetMarginKRW;
 
   // 디버깅 로그
-  console.log(`DEBUG [${position.id}]: upbitInv=${upbitInvestmentKRW}, upbitFee=${upbitEntryFeeKRW}, upbitNet=${upbitNetInvestment}`);
-  console.log(`DEBUG [${position.id}]: binanceMargin=${binanceMarginUsd}, binanceMarginKRW=${binanceMarginUsd * usdkrw}, binanceFee=${binanceEntryFeeKRW}, binanceNet=${binanceNetMarginKRW}`);
-  console.log(`DEBUG [${position.id}]: netEntryExposure=${netEntryExposure}`);
+  // DEBUG 로그 (필요시에만 활성화)
+  // console.log(`DEBUG [${position.id}]: upbitInv=${upbitInvestmentKRW}, binanceMargin=${binanceMarginKRW}, total=${netEntryExposure}`);
 
   // === 최종 손익 계산 ===
   const premiumPnl = (premiumDelta / 100) * netEntryExposure; // 김프 증가=수익, 김프 감소=손실

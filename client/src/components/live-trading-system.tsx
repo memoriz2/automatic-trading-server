@@ -1983,13 +1983,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   
   // === 🎯 개별 포지션 PnL 계산 (수수료 제외 방식) ===
   const openPositions = livePositions.filter(p => p.status === 'open');
-  console.log('🔍 활성 포지션 수:', openPositions.length, openPositions);
 
   // 🎯 중앙화된 PnL 계산 함수 사용
   const totalPositionPnl = openPositions
     .reduce((sum, position) => {
       const pnlResult = calculatePositionPnL(position, currentKimchiData);
-      console.log(`🔍 포지션 ${position.id}: PnL=${Math.round(pnlResult.netPnl)}원, 업비트가격=${position.upbitPrice}, 바이낸스가격=${position.binancePrice}`);
       return sum + pnlResult.netPnl;
     }, 0);
   
@@ -2001,20 +1999,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // === ⚠️ 총 수익률은 현재 활성 포지션만 계산 (실현손익 제외) ===
   const totalPnl = totalPositionPnl; // 실현손익 제외, 활성 포지션 PnL만 사용
 
-  console.log('🔍 총 수익금 계산:', {
-    openPositionsCount: openPositions.length,
-    totalPositionPnl,
-    totalPnl
-  });
 
   // === 총 순투자금 계산 (활성 포지션만) ===
   const activePositions = livePositions.filter(p => p.status === 'open');
   const closedPositions = livePositions.filter(p => p.status === 'closed');
 
-  console.log('🔍 활성/완료 포지션 수:', {
-    activePositions: activePositions.length,
-    closedPositions: closedPositions.length
-  });
 
   // === 💰 총 순투자금 계산 (수수료 제외 방식으로 일관성 유지) ===
   const totalActiveInvestment = activePositions
@@ -2055,13 +2044,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const binanceNetMargin = binanceGrossMargin - binanceEntryFee;          // 바이낸스 순증거금 = 증거금 - 진입수수료만
       const binanceNetMarginKRW = binanceNetMargin * currentUsdKrw;           // 바이낸스 순증거금 (KRW)
 
-      console.log(`💰 포지션 ${position.id} 투자금:`, {
-        upbitPrice: effectiveUpbitPrice,
-        binancePrice: effectiveBinancePrice,
-        upbitInvestment: Math.round(upbitNetInvestment),
-        binanceInvestment: Math.round(binanceNetMarginKRW),
-        total: Math.round(upbitNetInvestment + binanceNetMarginKRW)
-      });
 
       return sum + upbitNetInvestment + binanceNetMarginKRW;                  // 순투자금만 누적 (수수료 차감 후)
     }, 0);
@@ -2071,12 +2053,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     ? ((totalPnl / totalActiveInvestment) * 100)                              // 현재 포지션 손익만으로 수익률 계산
     : 0;
 
-  console.log('📊 수익률 계산 상세:', {
-    totalActiveInvestment: Math.round(totalActiveInvestment),
-    totalPnl: Math.round(totalPnl),
-    profitRate: profitRate.toFixed(2) + '%',
-    hasKimchiData: !!currentKimchiData
-  });
+  // 수익률 계산 완료 - 디버깅이 필요한 경우에만 활성화
+  // console.log('📊 수익률:', { investment: Math.round(totalActiveInvestment), pnl: Math.round(totalPnl), rate: profitRate.toFixed(2) + '%' });
   
   // 수익률 계산 완료 (로그 제거)
     
