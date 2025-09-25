@@ -1337,13 +1337,14 @@ export class DatabaseStorage {
     try {
       const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
       
-      // 한국시간 기준 오늘 범위 계산
+      // 🔧 한국시간 기준 오늘 범위 계산 (올바른 방법)
       const now = new Date();
-      const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+      // 한국시간으로 올바르게 변환 (UTC + 9시간)
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       const kstToday = new Date(kstNow);
-      kstToday.setHours(0, 0, 0, 0);
+      kstToday.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
       const kstTomorrow = new Date(kstToday);
-      kstTomorrow.setDate(kstTomorrow.getDate() + 1);
+      kstTomorrow.setUTCDate(kstTomorrow.getUTCDate() + 1); // UTC 메서드 사용
       
       console.log(`🔍 [getTodayTradesByUserId] 한국시간 기준:`, {
         현재: kstNow.toISOString(),
@@ -1357,7 +1358,7 @@ export class DatabaseStorage {
         AND executed_at >= $2
         AND executed_at < $3
         ORDER BY executed_at DESC
-      `, [userIdNum, kstToday.toISOString(), kstTomorrow.toISOString()]);
+      `, [userIdNum, new Date(kstToday.getTime() - 9 * 60 * 60 * 1000).toISOString(), new Date(kstTomorrow.getTime() - 9 * 60 * 60 * 1000).toISOString()]);
       
       console.log(`🔍 [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘 거래: ${result.rows.length}개`);
       return result.rows;
@@ -1370,13 +1371,14 @@ export class DatabaseStorage {
   // 오늘 포지션만 조회 (한국시간 기준)
   async getTodayPositionsByUserId(userId: number): Promise<any[]> {
     try {
-      // 한국시간 기준 오늘 범위 계산 (trades와 동일한 로직)
+      // 🔧 한국시간 기준 오늘 범위 계산 (올바른 방법, trades와 동일한 로직)
       const now = new Date();
-      const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+      // 한국시간으로 올바르게 변환 (UTC + 9시간)
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       const kstToday = new Date(kstNow);
-      kstToday.setHours(0, 0, 0, 0);
+      kstToday.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
       const kstTomorrow = new Date(kstToday);
-      kstTomorrow.setDate(kstTomorrow.getDate() + 1);
+      kstTomorrow.setUTCDate(kstTomorrow.getUTCDate() + 1); // UTC 메서드 사용
 
       console.log(`🔍 [getTodayPositionsByUserId] 한국시간 기준:`, {
         현재: kstNow.toISOString(),
@@ -1390,7 +1392,7 @@ export class DatabaseStorage {
         AND entry_time >= $2
         AND entry_time < $3
         ORDER BY entry_time DESC
-      `, [userId, kstToday.toISOString(), kstTomorrow.toISOString()]);
+      `, [userId, new Date(kstToday.getTime() - 9 * 60 * 60 * 1000).toISOString(), new Date(kstTomorrow.getTime() - 9 * 60 * 60 * 1000).toISOString()]);
 
       console.log(`🔍 [getTodayPositionsByUserId] 사용자 ${userId} 오늘 포지션: ${result.rows.length}개`);
       return result.rows;

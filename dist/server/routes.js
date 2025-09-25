@@ -460,12 +460,12 @@ export async function registerRoutes(app, server) {
         try {
             const userId = req.user.id;
             const minutes = parseInt(req.query.minutes) || 1440; // 기본 24시간
-            // 한국시간 기준 오늘 자정 계산 (더 정확한 방법)
+            // 🔧 한국시간 기준 오늘 자정 계산 (올바른 방법)
             const now = new Date();
-            // 한국시간 오늘 자정 (KST 기준)
-            const kstNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+            // 한국시간으로 올바르게 변환 (UTC + 9시간)
+            const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
             const kstMidnight = new Date(kstNow);
-            kstMidnight.setHours(0, 0, 0, 0);
+            kstMidnight.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
             console.log(`🔍 [daily-stats] 한국시간 기준:`, {
                 현재UTC: now.toISOString(),
                 현재한국시간: kstNow.toISOString(),
@@ -479,35 +479,44 @@ export async function registerRoutes(app, server) {
             const allTrades = await storage.getTradesByUserId(String(userId), 100);
             const allPositions = await storage.getPositions({ user_id: userId });
             console.log(`🔍 [daily-stats] SQL 직접 조회 결과:`, {
+                userId: userId,
                 전체거래: allTrades.length,
                 오늘거래: todayTrades.length,
                 전체포지션: allPositions.length,
                 오늘포지션: todayPositions.length,
-                오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
+                오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
+                오늘거래상세: todayTrades.map(t => ({ side: t.side, exchange: t.exchange }))
             });
             // 포지션 시간 상세 확인
             if (allPositions.length > 0) {
                 console.log(`🔍 [daily-stats] 포지션 시간 상세:`, allPositions.map(p => {
                     const positionTime = new Date(p.created_at || p.entry_time);
-                    const positionKst = new Date(positionTime.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-                    const positionDate = positionKst.toDateString();
-                    const todayDate = kstMidnight.toDateString();
+                    // 🔧 올바른 한국시간 변환
+                    const positionKst = new Date(positionTime.getTime() + 9 * 60 * 60 * 1000);
+                    const positionDateStr = positionKst.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+                    const todayDateStr = kstMidnight.toISOString().split('T')[0];
                     return {
                         id: p.id,
                         status: p.status,
                         entry_time: p.entry_time,
                         created_at: p.created_at,
                         한국시간: positionKst.toISOString(),
-                        오늘포함여부: positionDate === todayDate
+                        오늘포함여부: positionDateStr === todayDateStr
                     };
                 }));
             }
-            // 진입/청산 거래만 필터링 (실제 의미있는 거래)
-            const entryTrades = todayTrades.filter(t => t.side === 'buy' || t.type === 'buy' || t.action === 'entry' ||
-                (t.exchange === 'upbit' && (t.side === 'bid' || t.ord_type === 'limit')));
-            const exitTrades = todayTrades.filter(t => t.side === 'sell' || t.type === 'sell' || t.action === 'exit' ||
-                t.side === 'short' || // 바이낸스 숏 포지션도 청산으로 분류
-                (t.exchange === 'binance' && (t.side === 'ask' || t.type === 'short')));
+            // 🔧 진입/청산 거래 정확한 분류
+            const entryTrades = todayTrades.filter(t => t.side === 'buy' || // 업비트 매수 (롱 진입)
+                t.side === 'short' // 바이낸스 숏 (숏 진입)
+            );
+            const exitTrades = todayTrades.filter(t => t.side === 'sell' || // 업비트 매도 (롱 청산)
+                t.side === 'cover' // 바이낸스 커버 (숏 청산) - 아직 없음
+            );
+            console.log(`🔍 [daily-stats] 거래 분류 결과:`, {
+                entryTrades: entryTrades.length,
+                exitTrades: exitTrades.length,
+                meaningfulTrades: entryTrades.length + exitTrades.length
+            });
             // 실제 포지션 생성/청산 횟수
             const todayEntries = todayPositions.filter(p => p.status === 'open').length;
             const todayExits = todayPositions.filter(p => p.status === 'closed').length;
@@ -587,14 +596,16 @@ export async function registerRoutes(app, server) {
                     const btcData = realtimeData.find(d => d.symbol === 'BTC');
                     const currentKimchiRate = btcData?.premiumRate || 0;
                     const currentUsdKrw = btcData?.usdKrwRate || 1390;
-                    logDebug('김치 차익거래 수익 계산 시작', {
+                    logDebug('김치 차익거래 수익 계산 시작 (오늘 포지션만)', {
                         현재김프: currentKimchiRate,
                         환율: currentUsdKrw,
-                        활성포지션: allPositions.filter(p => p.status === 'open').length,
-                        완료포지션: allPositions.filter(p => p.status === 'closed').length
+                        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
+                        오늘완료포지션: todayPositions.filter(p => p.status === 'closed').length,
+                        전체포지션: allPositions.length,
+                        오늘포지션: todayPositions.length
                     });
-                    // 모든 포지션에 대해 김치프리미엄 변화 수익 계산
-                    for (const position of allPositions) {
+                    // 🔧 오늘 포지션에 대해서만 김치프리미엄 변화 수익 계산
+                    for (const position of todayPositions) {
                         const entryKimchiRate = Number(position.entry_premium_rate || 0);
                         let entryPrice = Number(position.entry_price || 0); // KRW 투자금액
                         const leverage = Number(position.binance_leverage || 1);
@@ -657,7 +668,15 @@ export async function registerRoutes(app, server) {
                     });
                     return Math.floor(finalProfit);
                 })(),
-                loops: 0,
+                loops: (() => {
+                    // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
+                    const completedPositions = todayPositions.filter(p => p.status === 'closed');
+                    console.log(`🔄 [daily-stats] 루프 계산:`, {
+                        오늘완료포지션: completedPositions.length,
+                        전체오늘포지션: todayPositions.length
+                    });
+                    return completedPositions.length;
+                })(),
                 errors: 0
             };
             res.json(stats);

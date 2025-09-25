@@ -518,13 +518,13 @@ export async function registerRoutes(
       const userId = req.user.id;
       const minutes = parseInt(req.query.minutes as string) || 1440; // 기본 24시간
       
-      // 한국시간 기준 오늘 자정 계산 (더 정확한 방법)
+      // 🔧 한국시간 기준 오늘 자정 계산 (올바른 방법)
       const now = new Date();
-      
-      // 한국시간 오늘 자정 (KST 기준)
-      const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+
+      // 한국시간으로 올바르게 변환 (UTC + 9시간)
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
       const kstMidnight = new Date(kstNow);
-      kstMidnight.setHours(0, 0, 0, 0);
+      kstMidnight.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
       
       console.log(`🔍 [daily-stats] 한국시간 기준:`, {
         현재UTC: now.toISOString(),
@@ -555,17 +555,18 @@ export async function registerRoutes(
       if (allPositions.length > 0) {
         console.log(`🔍 [daily-stats] 포지션 시간 상세:`, allPositions.map(p => {
           const positionTime = new Date(p.created_at || p.entry_time);
-          const positionKst = new Date(positionTime.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
-          const positionDate = positionKst.toDateString();
-          const todayDate = kstMidnight.toDateString();
-          
+          // 🔧 올바른 한국시간 변환
+          const positionKst = new Date(positionTime.getTime() + 9 * 60 * 60 * 1000);
+          const positionDateStr = positionKst.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+          const todayDateStr = kstMidnight.toISOString().split('T')[0];
+
           return {
             id: p.id,
             status: p.status,
             entry_time: p.entry_time,
             created_at: p.created_at,
             한국시간: positionKst.toISOString(),
-            오늘포함여부: positionDate === todayDate
+            오늘포함여부: positionDateStr === todayDateStr
           };
         }));
       }
