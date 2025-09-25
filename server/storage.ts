@@ -1367,17 +1367,31 @@ export class DatabaseStorage {
     }
   }
 
-  // 오늘 포지션만 조회 (간단한 날짜 비교)
+  // 오늘 포지션만 조회 (한국시간 기준)
   async getTodayPositionsByUserId(userId: number): Promise<any[]> {
     try {
+      // 한국시간 기준 오늘 범위 계산 (trades와 동일한 로직)
+      const now = new Date();
+      const kstNow = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+      const kstToday = new Date(kstNow);
+      kstToday.setHours(0, 0, 0, 0);
+      const kstTomorrow = new Date(kstToday);
+      kstTomorrow.setDate(kstTomorrow.getDate() + 1);
+
+      console.log(`🔍 [getTodayPositionsByUserId] 한국시간 기준:`, {
+        현재: kstNow.toISOString(),
+        오늘시작: kstToday.toISOString(),
+        내일시작: kstTomorrow.toISOString()
+      });
+
       const result = await this.pool.query(`
-        SELECT * FROM positions 
-        WHERE user_id = $1 
-        AND entry_time >= CURRENT_DATE
-        AND entry_time < CURRENT_DATE + INTERVAL '1 day'
+        SELECT * FROM positions
+        WHERE user_id = $1
+        AND entry_time >= $2
+        AND entry_time < $3
         ORDER BY entry_time DESC
-      `, [userId]);
-      
+      `, [userId, kstToday.toISOString(), kstTomorrow.toISOString()]);
+
       console.log(`🔍 [getTodayPositionsByUserId] 사용자 ${userId} 오늘 포지션: ${result.rows.length}개`);
       return result.rows;
     } catch (error) {

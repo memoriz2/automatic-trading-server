@@ -676,15 +676,17 @@ export async function registerRoutes(
           const currentKimchiRate = btcData?.premiumRate || 0;
           const currentUsdKrw = btcData?.usdKrwRate || 1390;
           
-          logDebug('김치 차익거래 수익 계산 시작', {
+          logDebug('김치 차익거래 수익 계산 시작 (오늘 포지션만)', {
             현재김프: currentKimchiRate,
             환율: currentUsdKrw,
-            활성포지션: allPositions.filter(p => p.status === 'open').length,
-            완료포지션: allPositions.filter(p => p.status === 'closed').length
+            오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
+            오늘완료포지션: todayPositions.filter(p => p.status === 'closed').length,
+            전체포지션: allPositions.length,
+            오늘포지션: todayPositions.length
           });
-          
-          // 모든 포지션에 대해 김치프리미엄 변화 수익 계산
-          for (const position of allPositions) {
+
+          // 🔧 오늘 포지션에 대해서만 김치프리미엄 변화 수익 계산
+          for (const position of todayPositions) {
             const entryKimchiRate = Number(position.entry_premium_rate || 0);
             let entryPrice = Number(position.entry_price || 0); // KRW 투자금액
             const leverage = Number(position.binance_leverage || 1);
@@ -760,7 +762,15 @@ export async function registerRoutes(
           
           return Math.floor(finalProfit);
         })(),
-        loops: 0,
+        loops: (() => {
+          // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
+          const completedPositions = todayPositions.filter(p => p.status === 'closed');
+          console.log(`🔄 [daily-stats] 루프 계산:`, {
+            오늘완료포지션: completedPositions.length,
+            전체오늘포지션: todayPositions.length
+          });
+          return completedPositions.length;
+        })(),
         errors: 0
       };
       
