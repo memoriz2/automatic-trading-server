@@ -542,13 +542,15 @@ export async function registerRoutes(
       const allPositions = await storage.getPositions({ user_id: userId });
       
       console.log(`🔍 [daily-stats] SQL 직접 조회 결과:`, {
+        userId: userId,
         전체거래: allTrades.length,
         오늘거래: todayTrades.length,
         전체포지션: allPositions.length,
         오늘포지션: todayPositions.length,
-        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
+        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
+        오늘거래상세: todayTrades.map(t => ({ side: t.side, exchange: t.exchange }))
       });
-      
+
       // 포지션 시간 상세 확인
       if (allPositions.length > 0) {
         console.log(`🔍 [daily-stats] 포지션 시간 상세:`, allPositions.map(p => {
@@ -568,16 +570,21 @@ export async function registerRoutes(
         }));
       }
       
-      // 진입/청산 거래만 필터링 (실제 의미있는 거래)
-      const entryTrades = todayTrades.filter(t => 
-        t.side === 'buy' || t.type === 'buy' || t.action === 'entry' || 
-        (t.exchange === 'upbit' && (t.side === 'bid' || t.ord_type === 'limit'))
+      // 🔧 진입/청산 거래 정확한 분류
+      const entryTrades = todayTrades.filter(t =>
+        t.side === 'buy' ||     // 업비트 매수 (롱 진입)
+        t.side === 'short'      // 바이낸스 숏 (숏 진입)
       );
-      const exitTrades = todayTrades.filter(t => 
-        t.side === 'sell' || t.type === 'sell' || t.action === 'exit' ||
-        t.side === 'short' || // 바이낸스 숏 포지션도 청산으로 분류
-        (t.exchange === 'binance' && (t.side === 'ask' || t.type === 'short'))
+      const exitTrades = todayTrades.filter(t =>
+        t.side === 'sell' ||    // 업비트 매도 (롱 청산)
+        t.side === 'cover'      // 바이낸스 커버 (숏 청산) - 아직 없음
       );
+
+      console.log(`🔍 [daily-stats] 거래 분류 결과:`, {
+        entryTrades: entryTrades.length,
+        exitTrades: exitTrades.length,
+        meaningfulTrades: entryTrades.length + exitTrades.length
+      });
       
       // 실제 포지션 생성/청산 횟수
       const todayEntries = todayPositions.filter(p => p.status === 'open').length;
