@@ -18,7 +18,7 @@ export const useRealTimeBalances = (userId?: number) => {
     timestamp: new Date().toISOString()
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthFailed, setIsAuthFailed] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);

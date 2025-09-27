@@ -127,7 +127,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-xl mb-4">
             <Shield className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">김치프리미엄 거래</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">에이펙스아비트라지㈜</h1>
           <p className="text-slate-400">보안 강화된 자동매매 시스템</p>
         </div>
 
