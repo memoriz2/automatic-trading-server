@@ -139,6 +139,13 @@ export function registerAuthRoutes(app: Express): void {
         role: user.role
       };
 
+      // 관리자 그룹은 세션 무제한으로 설정
+      if (user.role === 'admin') {
+        console.log(`🔓 관리자 ${user.username}의 세션을 무제한으로 설정`);
+        (req as any).session.cookie.maxAge = null; // 무제한 세션
+        (req as any).session.isAdminSession = true; // 관리자 세션 표시
+      }
+
       const token = generateToken(user.id, user.username);
 
       res.json({

@@ -619,9 +619,9 @@ export class MultiStrategyTradingService {
     // 전략 청산: 업비트 매도 + 바이낸스 포지션 청산
     async executeStrategyExit(userId, signal) {
         const positions = await storage.getActivePositions(parseInt(userId));
-        const position = positions.find((p) => p.symbol === signal.symbol && p.strategyId === signal.strategyId);
+        const position = positions.find((p) => p.symbol === signal.symbol && p.status === "open");
         if (!position) {
-            console.log(`청산할 ${signal.symbol} (전략 ${signal.strategyId}) 포지션을 찾을 수 없습니다.`);
+            console.log(`청산할 ${signal.symbol} 활성 포지션을 찾을 수 없습니다.`);
             return;
         }
         console.log(`${signal.strategyName} 청산 시작: ${signal.symbol}, 김프율: ${signal.premiumRate}%`);

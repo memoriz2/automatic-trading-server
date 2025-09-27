@@ -145,8 +145,11 @@ app.use((req, res, next) => {
             sessionId: req.sessionID
         });
         req.session.touch();
-        // 환경변수 기반 TTL로 갱신
-        req.session.cookie.maxAge = SESSION_TTL_MS;
+        // 관리자 세션이 아닌 경우에만 TTL 갱신
+        if (!req.session.isAdminSession) {
+            // 환경변수 기반 TTL로 갱신
+            req.session.cookie.maxAge = SESSION_TTL_MS;
+        }
         // 마지막 활동 시간 기록 (세션 정리용)
         req.session.lastActivity = Date.now();
     }

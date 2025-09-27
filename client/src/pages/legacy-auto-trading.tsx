@@ -2434,7 +2434,7 @@ const LegacyAutoTradingPage = () => {
                   type="number"
                   step="0.01"
                   min="0.01"
-                  max="2.0"
+                  max="10.0"
                   placeholder="0.05"
                   data-testid="input-tolerance"
                   id="tolerance-input"

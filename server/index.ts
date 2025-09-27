@@ -159,15 +159,20 @@ app.use((req, res, next) => {
   );
   
   if (user && isActivity) {
-    logDebug('세션 갱신', { 
-      method, 
-      path, 
+    logDebug('세션 갱신', {
+      method,
+      path,
       userId: user.id,
-      sessionId: (req as any).sessionID 
+      sessionId: (req as any).sessionID
     });
     (req as any).session.touch();
-    // 환경변수 기반 TTL로 갱신
-    (req as any).session.cookie.maxAge = SESSION_TTL_MS;
+
+    // 관리자 세션이 아닌 경우에만 TTL 갱신
+    if (!(req as any).session.isAdminSession) {
+      // 환경변수 기반 TTL로 갱신
+      (req as any).session.cookie.maxAge = SESSION_TTL_MS;
+    }
+
     // 마지막 활동 시간 기록 (세션 정리용)
     (req as any).session.lastActivity = Date.now();
   }
