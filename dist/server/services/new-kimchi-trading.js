@@ -174,13 +174,14 @@ export class MultiStrategyTradingService {
     async analyzeStrategySignal(kimchiData, strategy, activePositions, hasActivePosition = false) {
         const premiumRate = kimchiData.premiumRate;
         // const symbol = "BTC"; // BTC 고정 - 현재 사용하지 않음
-        // BTC 활성 포지션 확인 (전략 상관없이 1개만 허용)
-        const existingPosition = activePositions.find((p) => p.symbol === "BTC" && p.status === "open");
+        // BTC 활성 포지션 확인 (해당 전략의 포지션만)
+        const existingPosition = activePositions.find((p) => p.symbol === "BTC" && p.status === "open" && p.strategyId === strategy.id);
         // 사용자 설정 값
         const entryRate = Number(strategy.entryRate);
         const exitRate = Number(strategy.exitRate);
         const tolerance = Number(strategy.toleranceRate);
-        console.log(`🔍 BTC 자동매매 체크: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`);
+        console.log(`🔍 [서버] BTC 자동매매 체크 - 전략 #${strategy.id}: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`);
+        console.log(`🔍 [서버] 포지션 확인: existingPosition=${existingPosition ? 'O' : 'X'}, hasActivePosition=${hasActivePosition}`);
         // 진입 조건 체크 (포지션이 없을 때만)
         if (!hasActivePosition && !existingPosition) {
             const userId = String(strategy.userId);
@@ -296,12 +297,9 @@ export class MultiStrategyTradingService {
         }
         // 청산 조건 체크 (포지션이 있을 때만)
         if (existingPosition) {
-            // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
-            const exitDifference = Math.abs(premiumRate - exitRate);
-            const exitSameSign = (exitRate >= 0 && premiumRate >= 0) ||
-                (exitRate < 0 && premiumRate < 0);
-            const shouldExit = exitDifference <= tolerance && exitSameSign;
-            console.log(`🔍 청산 조건 체크: 차이=${exitDifference.toFixed(4)}% (허용=${tolerance}%), 동일부호=${exitSameSign} → ${shouldExit}`);
+            // 🎯 청산은 단순 임계값 비교 (허용오차 없음)
+            const shouldExit = premiumRate >= exitRate; // 김프율이 청산율 이상이면 청산
+            console.log(`🔍 [서버] 청산 조건 체크: 현재김프=${premiumRate.toFixed(4)}% >= 청산율=${exitRate}% → ${shouldExit}`);
             if (shouldExit) {
                 console.log(`💰 BTC 청산 신호 발생! 현재=${premiumRate.toFixed(2)}%, 설정청산율=${exitRate}% (±${tolerance}%) → 포지션 전량 청산`);
                 return {
@@ -314,7 +312,7 @@ export class MultiStrategyTradingService {
                 };
             }
             else {
-                console.log(`❌ BTC 청산 조건 미충족: 차이=${exitDifference.toFixed(4)}% > 허용오차=${tolerance}%`);
+                console.log(`❌ [서버] BTC 청산 조건 미충족: 현재김프=${premiumRate.toFixed(4)}% < 청산율=${exitRate}%`);
             }
         }
         return null;
