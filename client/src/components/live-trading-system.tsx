@@ -156,11 +156,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           if (response.ok) {
             const dbPositions = await response.json();
-            console.log('📊 DB 포지션 조회 결과:', dbPositions);
+            // DB 포지션 조회 완료
             
             // DB 포지션을 LivePosition 형태로 변환
             const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
-              console.log('🔍 포지션 변환:', { id: pos.id, strategy_id: pos.strategy_id, strategy_name: pos.strategy_name });
+              // 포지션 변환 처리
               return {
                 id: `db-${pos.id}`,
                 strategyId: pos.strategy_id,
@@ -192,7 +192,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             });
             
             setLivePositions(convertedPositions);
-            console.log('✅ DB 포지션을 LivePosition으로 변환 완료:', convertedPositions.length, '개');
+            // DB 포지션 변환 완료
           }
         } catch (error) {
           console.error('❌ DB 포지션 조회 실패:', error);
@@ -1680,30 +1680,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       // 진입 조건: 허용오차 범위 내 또는 교차점 통과 (포지션이 없을 때만)
       const entryOk = !currentPosition && (diffEntry <= tolerance || crossedEntry);
 
-      // 디버깅: 진입 조건 상세 로그 (모든 활성 전략에 대해)
-      if (strategy.name && diffEntry <= tolerance + 1.0) { // 근접한 경우 모든 로그
-        console.log(`🔍 [${strategy.name}] 진입 조건 체크:`, {
-          현재김프: `${currentPremium.toFixed(3)}%`,
-          목표진입: `${entryRate}%`,
-          오차: `${diffEntry.toFixed(3)}%`,
-          허용오차: `${tolerance}%`,
-          오차조건만족: diffEntry <= tolerance,
-          교차조건만족: crossedEntry,
-          포지션없음: !currentPosition,
-          포지션개수: livePositions.length,
-          전략활성화: strategy.isActive !== false,
-          최종진입가능: entryOk,
-          쿨다운체크: `${Math.max(0, COOLDOWN_MS - (now - lastAction))}ms 남음`
-        });
-
-        // entryOk가 false인 이유를 명확히 로그
-        if (!entryOk) {
-          const reason = [];
-          if (currentPosition) reason.push('이미 포지션 보유중');
-          if (diffEntry > tolerance && !crossedEntry) reason.push('허용오차 초과 및 교차점 미통과');
-          console.log(`❌ [${strategy.name}] 진입 불가 이유:`, reason.join(', '));
-        }
-      }
+      // 진입 조건 체크 완료
       
       // 청산 조건: 익절조건 이상이면 청산 (포지션이 있을 때만)
       const exitOk = currentPosition && (exitRate <= currentPremium);

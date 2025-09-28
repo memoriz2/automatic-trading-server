@@ -101,25 +101,13 @@ export const logEntryConditions = (
     const now = Date.now();
     const lastAction = lastActionAt[strategy.id] || 0;
 
-    console.log(`🔍 [${strategy.name}] 진입 조건 체크:`, {
-      현재김프: `${currentPremium.toFixed(3)}%`,
-      목표진입: `${entryRate}%`,
-      오차: `${diffEntry.toFixed(3)}%`,
-      허용오차: `${tolerance}%`,
-      오차조건만족: diffEntry <= tolerance,
-      교차조건만족: crossedEntry,
-      포지션없음: !currentPosition,
-      포지션개수: livePositions.length,
-      전략활성화: strategy.isActive !== false,
-      최종진입가능: entryOk,
-      쿨다운체크: `${Math.max(0, TRADING_CONSTANTS.COOLDOWN_MS - (now - lastAction))}ms 남음`
-    });
+    // 진입 조건 체크 완료
 
     if (!entryOk) {
       const reason = [];
       if (currentPosition) reason.push('이미 포지션 보유중');
       if (diffEntry > tolerance && !crossedEntry) reason.push('허용오차 초과 및 교차점 미통과');
-      console.log(`❌ [${strategy.name}] 진입 불가 이유:`, reason.join(', '));
+      // 진입 불가 사유 확인됨
     }
   }
 };

@@ -54,17 +54,8 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
   const activePositions = livePositions.filter(p => p.status === 'open');
 
   const getStrategyName = (position: LivePosition): string => {
-    console.log('🔍 getStrategyName 호출:', {
-      positionId: position.id,
-      strategyId: position.strategyId,
-      strategyName: position.strategyName,
-      strategiesLength: strategies.length,
-      strategiesIds: strategies.map(s => s.id)
-    });
-
     // 우선 position.strategyName이 있으면 사용
     if (position.strategyName) {
-      console.log('✅ position.strategyName 사용:', position.strategyName);
       return position.strategyName;
     }
 
@@ -90,16 +81,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
     // 중앙화된 PnL 계산 함수 사용
     const pnlResult = calculatePositionPnL(position, lastKimchiData);
 
-    // 디버그 로그
-    console.log(`🔍 [LivePositionList-unified] 포지션 ${position.id}:`, {
-      entryPremium: position.entryPremiumRate,
-      currentPremium: lastKimchiData?.kimp || position.entryPremiumRate,
-      premiumDelta: pnlResult.premiumDelta,
-      premiumPnl: Math.round(pnlResult.premiumPnl),
-      estimatedExitFeesKRW: Math.round(pnlResult.estimatedExitFees),
-      unrealizedPnl: Math.round(pnlResult.netPnl),
-      netEntryExposureKRW: Math.round(pnlResult.netEntryExposure)
-    });
+    // PnL 계산 완료
 
     return {
       currentPremium: lastKimchiData?.kimp ?? position.entryPremiumRate,
@@ -160,7 +142,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       const premiumPnlPercentRaw = pnlResult.netEntryExposure > 0 ? (netPnlKRW / pnlResult.netEntryExposure * 100) : 0;
 
                       // 디버깅용 로그
-                      console.log(`Position ${position.id}: netPnl=${netPnlKRW}, netEntryExposure=${pnlResult.netEntryExposure}, percent=${premiumPnlPercentRaw}`);
+                      // Position PnL 계산됨
 
                       const premiumPnlPercent = Math.abs(premiumPnlPercentRaw);
 

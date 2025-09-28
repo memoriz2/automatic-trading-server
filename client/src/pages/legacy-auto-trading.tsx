@@ -721,120 +721,33 @@ const LegacyAutoTradingPage = () => {
   // ===== 활성 전략들의 포지션 상태 확인 (중복 진입 방지) =====
   const checkActiveStrategiesPositions = useCallback(async (strategies: any[]) => {
     try {
-      console.log('🔒 [DEBUG] checkActiveStrategiesPositions 함수 호출됨');
-      console.log('🔒 [DEBUG] 전달받은 strategies 개수:', strategies.length);
-      console.log('🔒 [DEBUG] strategies 데이터:', strategies);
       const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
-      
+
       if (positionsResponse.ok) {
         const positions = await positionsResponse.json();
-        console.log('📊 [DEBUG] 포지션 API 응답 성공');
-        console.log('📊 [DEBUG] 포지션 개수:', positions.length);
-        console.log('📊 [DEBUG] 포지션 데이터:', positions);
-        
-        // 포지션 데이터 상태 업데이트
         setCurrentPositions(positions);
-        
+
         const activeStrategies = strategies.filter(s => s.isActive);
-        console.log('🎯 [DEBUG] 활성 전략 필터링 결과:', activeStrategies.length);
-        console.log('🎯 [DEBUG] 활성 전략 목록:', activeStrategies.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })));
-        
+
         for (const strategy of activeStrategies) {
-          console.log(`🔍 [DEBUG] 전략 "${strategy.name}" (ID: ${strategy.id}) 포지션 검색 시작`);
-          
-          const activePosition = positions.find((p: any) => 
-            p.status === 'open' && 
-            p.strategyId === parseInt(strategy.id) && 
+          const activePosition = positions.find((p: any) =>
+            p.status === 'open' &&
+            p.strategyId === parseInt(strategy.id) &&
             p.symbol === (strategy.crypto || 'BTC')
           );
-          
-          console.log(`🔍 [DEBUG] 전략 "${strategy.name}" 포지션 검색 결과:`, activePosition ? 'FOUND' : 'NOT_FOUND');
+
           if (activePosition) {
-            console.log(`🔍 [DEBUG] 찾은 포지션:`, {
-              id: activePosition.id,
-              strategyId: activePosition.strategyId,
-              status: activePosition.status,
-              entryTime: activePosition.entryTime
-            });
-          }
-          
-          if (activePosition) {
-            const entryTime = new Date(activePosition.entryTime);
-            const elapsed = Date.now() - entryTime.getTime();
-            const remainMinutes = Math.ceil((600000 - elapsed) / 60000); // 10분 쿨다운
-            
-            console.log(`⏰ [DEBUG] 쿨다운 계산:`, {
-              entryTime: entryTime.toISOString(),
-              currentTime: new Date().toISOString(),
-              elapsedMs: elapsed,
-              elapsedMinutes: Math.floor(elapsed / 60000),
-              remainMinutes,
-              cooldownComplete: elapsed >= 600000
-            });
-            
-            console.log(`🔒 전략 "${strategy.name}" 쿨다운 상태:`, {
-              positionId: activePosition.id,
-              entryTime: entryTime.toISOString(),
-              elapsed: Math.floor(elapsed / 1000) + 's',
-              remainMinutes: remainMinutes > 0 ? remainMinutes + 'min' : '완료'
-            });
-            
             // 활성 포지션이 있으면 전략 비활성화 (청산 전까지 재진입 방지)
             if (activePosition.status === 'open') {
-              console.log(`🔒 전략 "${strategy.name}" 포지션 보유 중 - 재진입 제한`);
-              // 자동으로 전략 비활성화 (UI 반영)
               strategy.isActive = false;
-            } else {
-              // 포지션이 닫혔으면 자동 활성화
-              if (!strategy.isActive) {
-                console.log(`✅ 전략 "${strategy.name}" 포지션 없음 - 자동 활성화`);
-                strategy.isActive = true;
-                
-                // DB에도 즉시 반영 (fetchJson 사용)
-                try {
-                  const payload = {
-                    name: strategy.name,
-                    strategyType: 'positive_kimchi',
-                    entryRate: strategy.entryCondition,
-                    exitRate: strategy.takeProfitCondition,
-                    toleranceRate: strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
-                    leverage: getSafeLeverage(strategy.leverage),
-                    investmentAmount: strategy.investmentAmount,
-                    symbol: strategy.crypto || 'BTC',
-                    isActive: true,
-                    isAutoTrading: true,
-                    tolerance: strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
-                  };
-                  
-                  console.log('🔄 자동 활성화 payload:', payload);
-                  
-                  await fetchJson('/api/trading-strategies', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                    nonCancelable: true as any
-                  });
-                  
-                  console.log('✅ 자동 활성화 DB 저장 성공');
-                  toast({
-                    title: '전략 활성화',
-                    description: `${strategy.name} 전략의 쿨다운이 완료되어 자동으로 활성화되었습니다.`
-                  });
-                } catch (error) {
-                  console.error('자동 활성화 DB 저장 실패:', error);
-                }
-              }
             }
           }
         }
-      } else {
-        console.error('❌ [DEBUG] 포지션 API 응답 실패:', positionsResponse.status, positionsResponse.statusText);
       }
     } catch (error) {
-      console.error('❌ [DEBUG] 포지션 상태 확인 실패:', error);
-      console.error('❌ [DEBUG] 에러 상세:', error instanceof Error ? error.message : String(error));
+      // 에러 발생 시 조용히 처리 (로그 스팸 방지)
     }
-  }, []);
+  }, [setCurrentPositions]);
 
   // 간단한 전략 로드 함수
   const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean; userId?: string | number } = {}) => {
@@ -847,7 +760,7 @@ const LegacyAutoTradingPage = () => {
     });
     
     if (!opts.force && hasLoadedStrategiesRef.current) {
-      console.log('📋 [전략로드] 이미 로드됨 - 건너뜀');
+      // 이미 로드됨 - 건너뜀
       return [];
     }
     
@@ -859,26 +772,15 @@ const LegacyAutoTradingPage = () => {
       }
       
       const userId = String(targetUserId);
-      console.log('🔍 [전략로드] API 호출:', `/api/trading-strategies/${userId}`);
+      // API 호출
       
       let dbStrategies: any;
       try {
         dbStrategies = await fetchJson(`/api/trading-strategies/${userId}`);
-        console.log('📥 [전략로드] DB 응답:', { 
-          type: typeof dbStrategies, 
-          isArray: Array.isArray(dbStrategies),
-          length: Array.isArray(dbStrategies) ? dbStrategies.length : 'N/A',
-          data: dbStrategies 
-        });
+        // DB 응답 받음
         
         if (Array.isArray(dbStrategies) && dbStrategies.length > 0) {
-          console.log('📋 [전략로드] 첫 번째 전략 상세:', {
-            id: dbStrategies[0].id,
-            name: dbStrategies[0].name,
-            entryCondition: dbStrategies[0].entryCondition,
-            takeProfitCondition: dbStrategies[0].takeProfitCondition,
-            isActive: dbStrategies[0].isActive
-          });
+          // 전략 상세 확인됨
         }
       } catch (fetchError) {
         console.error('❌ [전략로드] fetchJson 에러:', fetchError);
@@ -929,11 +831,11 @@ const LegacyAutoTradingPage = () => {
         });
         
         hasLoadedStrategiesRef.current = true;
-        console.log('✅ [전략로드] 포맷팅 완료:', formattedStrategies.length, '개 전략');
-        console.log('📋 [전략로드] 전략 목록:', formattedStrategies.map((s: any) => ({ id: s.id, name: s.name, isActive: s.isActive })));
+        // 포맷팅 완료
+        // 전략 목록 확인됨
         return formattedStrategies;
       }
-      console.log('❌ [전략로드] DB 응답이 배열이 아님');
+      // DB 응답이 배열이 아님
       return [];
     } catch (error) {
       console.error('❌ [전략로드] 전략 로드 실패:', error);
