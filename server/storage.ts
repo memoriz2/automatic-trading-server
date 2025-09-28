@@ -23,6 +23,7 @@ export type User = {
   username: string;
   role: string;
   isActive: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +39,7 @@ export type InsertUser = {
   username: string;
   password: string;
   role?: string;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -131,9 +133,20 @@ export class DatabaseStorage {
 
   async getUserById(id: string | number): Promise<User | undefined> {
     try {
+      if (id === undefined || id === null) {
+        console.error('getUserById: ID is undefined or null');
+        return undefined;
+      }
+
+      const numericId = typeof id === 'string' ? parseInt(id) : id;
+      if (isNaN(numericId)) {
+        console.error('getUserById: Invalid ID provided:', id);
+        return undefined;
+      }
+
       const result = await this.pool.query(
         'SELECT * FROM users WHERE id = $1',
-        [parseInt(id.toString())]
+        [numericId]
       );
       return result.rows[0] || undefined;
     } catch (error) {
@@ -165,21 +178,23 @@ export class DatabaseStorage {
     try {
       const result = await this.pool.query(`
         INSERT INTO users (
-          username, 
-          password, 
-          role, 
-          email, 
-          first_name, 
-          last_name, 
+          username,
+          password,
+          role,
+          approval_status,
+          email,
+          first_name,
+          last_name,
           profile_image_url,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
         RETURNING *
       `, [
         insertUser.username,
         hashedPassword,
         insertUser.role || 'user',
+        insertUser.approvalStatus || 'pending',
         insertUser.email || null,
         insertUser.firstName || null,
         insertUser.lastName || null,
@@ -243,15 +258,6 @@ export class DatabaseStorage {
     }
   }
 
-  async getAllUsers(): Promise<User[]> {
-    try {
-      const result = await this.pool.query('SELECT * FROM users ORDER BY created_at DESC');
-      return result.rows;
-    } catch (error) {
-      console.error('Error getting all users:', error);
-      return [];
-    }
-  }
 
   // === 거래소 API 관련 메서드들 ===
 
@@ -1457,6 +1463,81 @@ export class DatabaseStorage {
     } catch (error) {
       console.error('어드민 권한 확인 오류:', error);
       return { isAdmin: false };
+    }
+  }
+
+  // ===== 사용자 승인 관련 메서드 =====
+
+  // 모든 사용자 목록 조회 (관리자용)
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT * FROM users
+        ORDER BY created_at DESC
+      `);
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      return [];
+    }
+  }
+
+  // 승인 대기 중인 사용자 목록 조회
+  async getPendingUsers(): Promise<User[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT * FROM users
+        WHERE approval_status = 'pending'
+        ORDER BY created_at DESC
+      `);
+      return result.rows;
+    } catch (error) {
+      console.error('Error getting pending users:', error);
+      return [];
+    }
+  }
+
+  // 사용자 승인 상태 업데이트
+  async updateUserApprovalStatus(
+    userId: number,
+    status: 'approved' | 'rejected'
+  ): Promise<User | undefined> {
+    try {
+      const result = await this.pool.query(`
+        UPDATE users
+        SET approval_status = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `, [status, userId]);
+
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error updating user approval status:', error);
+      return undefined;
+    }
+  }
+
+  // 사용자 승인
+  async approveUser(userId: number): Promise<User | undefined> {
+    return this.updateUserApprovalStatus(userId, 'approved');
+  }
+
+  // 사용자 거부
+  async rejectUser(userId: number): Promise<User | undefined> {
+    return this.updateUserApprovalStatus(userId, 'rejected');
+  }
+
+  // 사용자 승인 상태 확인
+  async isUserApproved(userId: number): Promise<boolean> {
+    try {
+      const result = await this.pool.query(`
+        SELECT approval_status FROM users WHERE id = $1
+      `, [userId]);
+
+      return result.rows[0]?.approval_status === 'approved';
+    } catch (error) {
+      console.error('Error checking user approval status:', error);
+      return false;
     }
   }
 

@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'user',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'pending',
     last_login_at TIMESTAMP(3),
     created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP(3) NOT NULL,
@@ -575,4 +576,24 @@ BEGIN
     RAISE NOTICE '기본 암호화폐: BTC, ETH, XRP, ADA, DOT';
     RAISE NOTICE '타임존: Asia/Seoul';
     RAISE NOTICE '모든 인덱스, 제약조건, 트리거 설정 완료';
+END $$;
+
+-- ===== 8. 기존 테이블 스키마 업데이트 =====
+
+-- users 테이블에 approval_status 컬럼 추가 (기존 테이블에 없는 경우)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'approval_status'
+    ) THEN
+        ALTER TABLE users ADD COLUMN approval_status VARCHAR(20) NOT NULL DEFAULT 'pending';
+
+        -- 기존 관리자 사용자는 승인된 상태로 설정
+        UPDATE users SET approval_status = 'approved' WHERE role = 'admin';
+
+        RAISE NOTICE 'approval_status 컬럼이 users 테이블에 추가되었습니다.';
+    ELSE
+        RAISE NOTICE 'approval_status 컬럼이 이미 존재합니다.';
+    END IF;
 END $$;
