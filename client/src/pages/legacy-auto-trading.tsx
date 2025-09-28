@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { useLegacyTradingState } from '@/hooks/useLegacyTradingState';
+import { useLegacyTradingHandlers } from '@/hooks/useLegacyTradingHandlers';
+import { useTradingDataOperations } from '@/hooks/useTradingDataOperations';
+import { useTradingUIHelpers } from '@/hooks/useTradingUIHelpers';
+import { useTradingMarginHelpers } from '@/hooks/useTradingMarginHelpers';
 import { LiveTradingSystem } from '@/components/live-trading-system';
 import { StrategyList } from '@/components/trading/StrategyList';
 import { KimchiChart } from '@/components/trading/KimchiChart';
 import { TradingHeader } from '@/components/trading/TradingHeader';
 import { SessionInfoPanel } from '@/components/trading/SessionInfoPanel';
 import { MarketSnapshot } from '@/components/trading/MarketSnapshot';
-import { useTradingMode } from '@/hooks/useTradingMode';
 import { useApiConnection } from '@/hooks/useApiConnection';
 import { isNum, fx, loc, formatBTC, formatPercent, floorQty, formatKRW, formatUSD, formatCompact } from '@/utils/trading/formatters';
 import { normalizeAmountBtc } from '@/utils/trading/calculations';
@@ -48,51 +52,29 @@ const LegacyAutoTradingPage = () => {
     DEFAULT_TOLERANCE: '0.1'
   };
 
-  // 인증 정보
-  const { user, isAuthenticated, isLoading, checkSession } = useAuth();
-  const { isConnected, isConnecting: wsConnecting, connectionAttempts, lastHeartbeat, subscribe } = useWebSocket();
-  const { toast } = useToast();
-  
-  // 세션 조회 관련 상태
-  const [sessionInfo, setSessionInfo] = useState<any>(null);
-  const [showSessionInfo, setShowSessionInfo] = useState(false);
-  
-  // 포지션 데이터 상태 추가
-  const [currentPositions, setCurrentPositions] = useState<any[]>([]);
-  
-  // userId 동적 결정: Auth → URL(?userId|uid) → localStorage(x-user-id) → null (하드코딩 금지)
-  const initialUserId = (() => {
-    try {
-      const fromAuth = user?.id != null ? String(user.id) : undefined;
-      const search = new URLSearchParams(window.location.search);
-      const fromQuery = search.get('userId') || search.get('uid') || undefined;
-      const fromStorage = localStorage.getItem('x-user-id') || undefined;
-      return fromAuth || fromQuery || fromStorage || null; // 하드코딩 '6' 제거
-    } catch {
-      return user?.id != null ? String(user.id) : null;
-    }
-  })();
-  // 🔒 인증된 사용자 ID 우선 사용 (데이터 일관성 보장)
-  const effectiveUserId = user?.id ? String(user.id) : userIdManager.getCurrentUserId();
-  
-  // 포지션 데이터 초기 로드
-  useEffect(() => {
-    const fetchPositions = async () => {
-      try {
-        const response = await fetch('/api/positions', { credentials: 'include' });
-        if (response.ok) {
-          const positions = await response.json();
-          setCurrentPositions(positions);
-        }
-      } catch (error) {
-        console.warn('포지션 데이터 로드 실패:', error);
-      }
-    };
-    
-    if (effectiveUserId) {
-      fetchPositions();
-    }
-  }, [effectiveUserId]);
+  // 레거시 트레이딩 상태 관리 (모든 useState들이 여기 포함됨)
+  const {
+    // Auth 관련
+    user, isAuthenticated, isLoading, checkSession,
+    // WebSocket 관련
+    isConnected, wsConnecting, connectionAttempts, lastHeartbeat, subscribe,
+    // 상태들
+    sessionInfo, setSessionInfo, showSessionInfo, setShowSessionInfo,
+    currentPositions, setCurrentPositions, kimp, setKimp, sparkData, setSparkData,
+    logs, setLogs, balances, setBalances, metrics, setMetrics, bands, setBands,
+    serverBands, setServerBands, serverStatusBands, setServerStatusBands,
+    registeringIndex, setRegisteringIndex, unregisteringIndex, setUnregisteringIndex,
+    starting, setStarting, boardActingId, setBoardActingId, strategies, setStrategies,
+    realStrategies, setRealStrategies, dailyStats, setDailyStats, serverState, setServerState,
+    netMs, setNetMs, netOk, setNetOk, errCount, setErrCount, tradingMode, setTradingMode,
+    apiConnections, setApiConnections, ws, setWs, refreshTrigger, setRefreshTrigger,
+    showCreateModal, setShowCreateModal, newStrategy, setNewStrategy,
+    editingStrategyId, setEditingStrategyId, loadingState, setLoadingState,
+    // 유틸리티
+    effectiveUserId, toast, fetchPositions,
+    // Trading mode related
+    isAdmin, canUseMock, loadRealStrategies, isLoadingStrategies, strategiesError, lastLoadTime
+  } = useLegacyTradingState();
   
   // 사용자 ID 통일 및 데이터 마이그레이션
   useEffect(() => {
@@ -202,43 +184,9 @@ const LegacyAutoTradingPage = () => {
     const timer = setTimeout(recoverStrategies, 1000);
     return () => clearTimeout(timer);
   }, [effectiveUserId, toast]);
-  
-  
-  // 상태 관리 (useState)
-  const [bands, setBands] = useState<Band[]>([]);
+
+  // 타입 정의 (hook에서 이미 상태는 관리됨)
   type SparkPoint = { t: number; v: number };
-  const [sparkData, setSparkData] = useState<SparkPoint[]>(() => {
-    // 로컬스토리지에서 차트 데이터 복원
-    try {
-      const saved = localStorage.getItem(`kimchi-chart-data-${effectiveUserId}`);
-      if (saved) {
-        const data = JSON.parse(saved);
-        // 24시간 이내 데이터만 유지
-        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-        const filtered = data.filter((point: SparkPoint) => point.t > oneDayAgo);
-        // 김치프리미엄 차트 데이터 복원
-        return filtered;
-      }
-    } catch (error) {
-      console.error('차트 데이터 복원 실패:', error);
-    }
-    return [];
-  });
-  const [logs, setLogs] = useState('Loading...');
-  const [kimp, setKimp] = useState<any>({});
-  const [balances, setBalances] = useState<any>({ real: {}, connected: {} });
-  const [metrics, setMetrics] = useState<any>({});
-  const [serverState, setServerState] = useState<any>({});
-  const [serverBands, setServerBands] = useState<any[]>([]);
-  const [serverStatusBands, setServerStatusBands] = useState<any[]>([]);
-  const [registeringIndex, setRegisteringIndex] = useState<number | null>(null);
-  const [unregisteringIndex, setUnregisteringIndex] = useState<number | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [netMs, setNetMs] = useState<number | null>(null);
-  const [netOk, setNetOk] = useState<boolean>(true);
-  const [errCount, setErrCount] = useState<number>(0);
-  const [boardActingId, setBoardActingId] = useState<string | number | null>(null);
-  const [strategies, setStrategies] = useState<any[]>([]); // 전략 목록 상태 추가
   
   // 🛡️ 전략 데이터 백업 시스템
   const { 
@@ -252,7 +200,6 @@ const LegacyAutoTradingPage = () => {
   } = useStrategyBackup();
 
   // 실시간 거래 모드: 로딩 상태 단순화
-  const [loadingState, setLoadingState] = useState<'stable' | 'loading'>('stable');
   
   // 실시간 데이터 유효성 검증 (단순화)
   const isRealTimeDataValid = (kimchiData: any) => {
@@ -270,119 +217,8 @@ const LegacyAutoTradingPage = () => {
   const hasValidRealTimeData = isRealTimeDataValid(kimp);
   const dataAge = kimp?.timestamp ? Date.now() - new Date(kimp.timestamp).getTime() : 0;
 
-  // 거래 기록 및 전략 복원 함수
-  const restoreTradesFromPositions = useCallback(() => {
-    const positionKey = `mock-positions-${effectiveUserId}`;
-    const tradeKey = `mock-trades-${effectiveUserId}`;
-    
-    try {
-      const savedPositions = localStorage.getItem(positionKey);
-      const savedTrades = localStorage.getItem(tradeKey);
-      
-      // 복원 체크
-      
-      // 포지션은 있는데 거래 기록이 없거나 빈 배열이면 복원
-      if (savedPositions && (!savedTrades || savedTrades === '[]' || savedTrades === 'null')) {
-        const positions = JSON.parse(savedPositions);
-        // 포지션 복원 진행
-        
-        if (positions.length > 0) {
-          const restoredTrades: any[] = [];
-          
-          positions.forEach((position: any) => {
-            // 포지션 복원 중
-            const tradeId = `trade-${position.id}`;
-            
-            // 업비트 매수 거래
-            if (position.upbitQuantity > 0) {
-              restoredTrades.push({
-                id: `${tradeId}-upbit`,
-                timestamp: new Date(position.entryTime),
-                type: 'buy',
-                symbol: position.symbol || 'BTC',
-                quantity: position.upbitQuantity,
-                price: position.upbitPrice,
-                fee: (position.upbitQuantity * position.upbitPrice * 0.0005) || 0,
-                exchange: 'upbit',
-                strategyId: position.strategyId,
-                strategyName: '복원된 거래',
-                premiumRate: position.entryPremiumRate || 0
-              });
-            }
-            
-            // 바이낸스 선물 매도 거래
-            if (position.binanceQuantity > 0) {
-              restoredTrades.push({
-                id: `${tradeId}-binance`,
-                timestamp: new Date(position.entryTime),
-                type: 'short',
-                symbol: position.symbol || 'BTC',
-                quantity: position.binanceQuantity,
-                price: position.binancePrice,
-                fee: (position.binanceQuantity * position.binancePrice * 0.0004) || 0,
-                exchange: 'binance',
-                strategyId: position.strategyId,
-                strategyName: '복원된 거래',
-                premiumRate: position.entryPremiumRate || 0
-              });
-            }
-          });
-          
-          // Local Storage에 거래 기록 저장
-          localStorage.setItem(tradeKey, JSON.stringify(restoredTrades));
-          // 포지션에서 거래 기록 복원 완료
-          
-          return restoredTrades;
-        }
-      }
-      
-      // 기존 거래 기록이 있다면 반환
-      if (savedTrades && savedTrades !== '[]') {
-        const existingTrades = JSON.parse(savedTrades);
-        // 기존 거래 기록 사용
-        return existingTrades;
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('❌ 거래 기록 복원 실패:', error);
-      return [];
-    }
-  }, [effectiveUserId]);
 
-  // 전략 목록 저장/복원 함수
-  const saveStrategiesToLocal = useCallback((strategiesToSave: any[]) => {
-    try {
-      const strategyKey = `mock-strategies-${effectiveUserId}`;
-      localStorage.setItem(strategyKey, JSON.stringify(strategiesToSave));
-      // 전략 목록 로컬 저장 완료
-    } catch (error) {
-      console.error('❌ 전략 목록 저장 실패:', error);
-    }
-  }, []);
 
-  const loadStrategiesFromLocal = useCallback(() => {
-    try {
-      // loadStrategiesFromLocal 시작
-      
-      const strategyKey = `mock-strategies-${effectiveUserId}`;
-      const savedStrategies = localStorage.getItem(strategyKey);
-      
-      // 전략 키 및 저장된 전략 확인
-      
-      if (savedStrategies && savedStrategies !== '[]') {
-        const strategies = JSON.parse(savedStrategies);
-        // 로컬 전략 목록 복원 완료
-        return strategies;
-      }
-      
-      // 실시간 거래 모드: DB에서 전략 조회
-      return [];
-    } catch (error) {
-      console.error('❌ 전략 목록 복원 실패:', error);
-      return [];
-    }
-  }, [effectiveUserId, toast]);
 
   // 로컬스토리지 변경 감지 (디버깅용)
   useEffect(() => {
@@ -450,64 +286,41 @@ const LegacyAutoTradingPage = () => {
     riskLevel: string;
     activateImmediately: boolean;
   };
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newStrategy, setNewStrategy] = useState<NewStrategyForm>(
-    getInitialStrategy()
-  );
 
   // 차트 관련 상태는 KimchiChart 컴포넌트로 이동됨
 
 
   // 투자수량 변경 시 기본투자금액 자동 계산 (비동기 처리로 깜박임 방지)
   useEffect(() => {
+    if (!newStrategy) return; // null 체크 추가
+
     const timeoutId = setTimeout(() => {
       const raw = newStrategy.investmentAmount;
       if (raw == null || raw === '') return;
-      
+
       const n = Number(raw);
       if (!Number.isFinite(n)) return;
-      
+
       // 기본투자금액만 업데이트 (투자수량은 건드리지 않음)
       const btcAmount = n || parseFloat(STRATEGY_DEFAULTS.INVESTMENT_AMOUNT);
       const leverage = getSafeLeverage(newStrategy.leverage);
-                    const btcPrice = Number(kimp?.upbit_price) || 0;
+      const btcPrice = Number(kimp?.upbit_price) || 0;
       const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
-      
+
       if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
         setNewStrategy(prev => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
       }
     }, 800); // 800ms 디바운스로 깜박임 방지
 
     return () => clearTimeout(timeoutId);
-  }, [newStrategy.investmentAmount, newStrategy.leverage, kimp?.upbit_price]);
+  }, [newStrategy?.investmentAmount, newStrategy?.leverage, kimp?.upbit_price]);
 
   // 전략 목록 상태는 위에서 이미 선언됨 (line 118)
 
-  const [editingStrategyId, setEditingStrategyId] = useState<string | null>(null);
-  const [dailyStats, setDailyStats] = useState({
-    totalTrades: 0,
-    upbitTrades: 0,
-    binanceTrades: 0,
-    activePositions: 0,
-    totalFees: 0,
-    realizedPnl: 0
-  });
   
   // 실제 DB 기반 통계는 DailyStatsPanel 컴포넌트로 이동됨
 
-  // 거래 모드 관리 (커스텀 훅)
-  const {
-    tradingMode,
-    setTradingMode,
-    isAdmin,
-    canUseMock,
-    realStrategies,
-    setRealStrategies,
-    loadRealStrategies,
-    isLoadingStrategies,
-    strategiesError,
-    lastLoadTime
-  } = useTradingMode({ user });
+  // 거래 모드는 이미 hook에서 관리됨
 
 
   // 실시간 거래 모드: 전략 변경 시 자동 DB 동기화
@@ -537,29 +350,6 @@ const LegacyAutoTradingPage = () => {
   // 중복 로직들이 커스텀 훅으로 이동됨
 
   // ===== Memoized maps for O(1) lookups =====
-  const configuredByName = useMemo(() => {
-    const m = new Map<string, any>();
-    for (const s of serverBands || []) {
-      if (s?.name) m.set(String(s.name), s);
-    }
-    return m;
-  }, [serverBands]);
-
-  const statusById = useMemo(() => {
-    const m = new Map<string, any>();
-    for (const s of serverStatusBands || []) {
-      if (s?.id != null) m.set(String(s.id), s);
-    }
-    return m;
-  }, [serverStatusBands]);
-
-  const statusByName = useMemo(() => {
-    const m = new Map<string, any>();
-    for (const s of serverStatusBands || []) {
-      if (s?.name) m.set(String(s.name), s);
-    }
-    return m;
-  }, [serverStatusBands]);
 
   // DOM 요소 참조 (useRef)
   const bandTbodyRef = useRef<HTMLTableSectionElement>(null);
@@ -698,6 +488,65 @@ const LegacyAutoTradingPage = () => {
     }
   }, [effectiveUserId]);
 
+  // Trading handlers
+  const {
+    handleAddBand,
+    handleBandChange,
+    handleSaveBands,
+    handleLoadBands,
+    handleDeleteBand,
+    handleRegisterBand,
+    handleUnregisterBandAt,
+    handleStart,
+    handleStop,
+    handleCheckSession
+  } = useLegacyTradingHandlers(
+    setBands,
+    toast,
+    bands,
+    user,
+    effectiveUserId,
+    fetchJson,
+    setRegisteringIndex,
+    setUnregisteringIndex,
+    setStarting,
+    serverState
+  );
+
+  // Data operations hook
+  const {
+    restoreTradesFromPositions,
+    saveStrategiesToLocal,
+    loadStrategiesFromLocal
+  } = useTradingDataOperations(
+    setStrategies,
+    strategies,
+    effectiveUserId,
+    currentPositions
+  );
+
+  // UI helpers hook
+  const {
+    configuredByName,
+    statusById,
+    statusByName,
+    createCircleHTML,
+    updatePreviewForRow
+  } = useTradingUIHelpers(
+    serverBands,
+    serverStatusBands
+  );
+
+  // Margin helpers hook
+  const {
+    updateUsedMarginFromMock,
+    updateUsedMarginFromStatus,
+    removeBoardRowOptimistic
+  } = useTradingMarginHelpers(
+    setBalances,
+    realStrategies
+  );
+
   const refreshServerBands = useCallback(async (options: { force?: boolean } = {}) => {
     if (!options.force && hasLoadedStrategiesRef.current) return;
     try {
@@ -719,77 +568,7 @@ const LegacyAutoTradingPage = () => {
   }, [fetchJson, effectiveUserId]);
 
   // ===== 미리보기 원형 차트 =====
-  const createCircleHTML = useCallback((label: string, valueText: string, unitText: string, sizePx: number, titleText?: string, extraStyle?: string) => {
-    const valueFont = Math.max(10, Math.min(16, Math.floor(sizePx / 6)));
-    return `
-      <div class="circle" style="width:${sizePx}px;height:${sizePx}px;display:grid;place-items:center;border-radius:999px;border:1px solid var(--border);background:#0a1220;box-shadow:var(--shadow);overflow:hidden;${extraStyle || ''}" title="${titleText || ''}">
-        <div style="text-align:center;max-width:${sizePx - 12}px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          <small style="display:block;font-size:11px;color:#9db0d0;margin-bottom:2px">${label}</small>
-          <span style="display:inline-flex;align-items:baseline;gap:4px">
-            <strong style="font-size:${valueFont}px;font-variant-numeric:tabular-nums">${valueText}</strong>
-            <small style="font-size:10px;color:#9db0d0">${unitText}</small>
-          </span>
-        </div>
-      </div>
-    `;
-  }, []);
 
-  const updatePreviewForRow = useCallback((tr: HTMLTableRowElement) => {
-    const amtInput = tr.querySelector('input[data-k="amount_btc"]') as HTMLInputElement;
-    const levInput = tr.querySelector('input[data-k="leverage"]') as HTMLInputElement;
-    const holder = tr.querySelector('[data-size]') as HTMLElement;
-    
-    if (!amtInput || !levInput || !holder) return;
-
-    const qty = floorQty(parseFloat(amtInput.value) || 0);
-    const lev = Math.max(1, parseInt(levInput.value || '3', 10));
-    
-    // 실시간 가격 데이터 사용
-    const currentUpbitPrice = kimp.upbit_price || 0;
-    const currentBinancePrice = kimp.binance_price || 0;
-    
-    // 디버깅: 가격 데이터 확인
-    /*
-    console.log('🔍 미리보기 가격 데이터:', {
-      kimp_full: kimp,
-      currentUpbitPrice,
-      currentBinancePrice,
-      qty,
-      lev
-    });
-    */
-    
-    // 현재 가격 정보가 없으면 기본 표시
-    if (!isNum(currentUpbitPrice) || !isNum(currentBinancePrice) || qty <= 0) {
-      holder.innerHTML = '<span class="badge">-</span>';
-      return;
-    }
-
-    const UPBIT_TAKER_FEE = 0.0005;
-    const BINANCE_TAKER_FEE = 0.0004; // 가정치: 필요 시 서버 설정과 동기화
-    const krwGross = Math.ceil((qty * currentUpbitPrice) / (1 - UPBIT_TAKER_FEE));
-    const usdtMargin = ((qty * currentBinancePrice) / (1 - BINANCE_TAKER_FEE)) / lev;
-
-    // 원형 차트 크기 계산 (상대적 크기)
-    const kN = krwGross / 1_000_000; // 백만원 단위
-    const uN = usdtMargin / 100; // 100달러 단위
-    const maxN = Math.max(kN, uN, 0.0001);
-    // 원 크기 상향 (가독성 향상)
-    const base = 44, span = 72;
-    const kSize = Math.round(base + span * (kN / maxN));
-    const uSize = Math.round(base + span * (uN / maxN));
-
-    const krwFull = formatKRW(krwGross);
-    const usdFull = formatUSD(usdtMargin);
-    const krwCompact = formatCompact(krwGross, 1);
-    const usdCompact = formatCompact(usdtMargin, 2);
-    holder.innerHTML = `
-      <div class="circle-wrap" style="display:flex;gap:0;align-items:center;justify-content:flex-start" title="가격과 레버리지에 따라 미리보기가 변합니다.">
-        ${createCircleHTML('Upbit KRW', `${krwCompact}`, '₩', kSize, `${krwFull} 원`)}
-        ${createCircleHTML('Binance USDT', `${usdCompact}`, '$', uSize, `$ ${usdFull}`, 'margin-left:-10px;')}
-      </div>
-    `;
-  }, [kimp.upbit_price, kimp.binance_price, createCircleHTML]);
 
   // ===== Data Fetching & Polling Functions =====
   const tickLight = useCallback(async () => {
@@ -838,68 +617,6 @@ const LegacyAutoTradingPage = () => {
   }, [fetchJson, updatePreviewForRow]);
 
   // ===== 진입 증거금 계산 =====
-  // Fallback: 서버 bands가 없을 때 로컬 mock 포지션으로 추정
-  const updateUsedMarginFromMock = useCallback(() => {
-    try {
-      const usedKrwEl = document.querySelector('#used-krw');
-      if (!usedKrwEl) return;
-
-      const uid = String(effectiveUserId ?? localStorage.getItem('userId') ?? '1');
-      const saved = localStorage.getItem(`mock-positions-${uid}`);
-      const positions = saved ? JSON.parse(saved) : [];
-      const open = Array.isArray(positions) ? positions.filter((p: any) => p?.status === 'open') : [];
-      if (!open.length) { usedKrwEl.textContent = '-'; return; }
-
-      const fallbackPrice = isNum(kimp.binance_price) ? Number(kimp.binance_price) : 0;
-      let total = 0;
-      for (const p of open) {
-        const lev = getSafeLeverage(p?.leverage);
-        const qty = Number(p?.binanceQuantity || 0);
-        const price = Number(p?.binancePrice || fallbackPrice || 0);
-        if (qty > 0 && price > 0 && isFinite(lev)) total += (qty * price) / lev;
-      }
-      const usdkrw = isNum(kimp.usdkrw) ? Number(kimp.usdkrw) : 0;
-      usedKrwEl.textContent = total > 0 && usdkrw > 0 ? loc(total * usdkrw) : '-';
-    } catch {}
-  }, [effectiveUserId, kimp.binance_price]);
-  const updateUsedMarginFromStatus = useCallback((status: any) => {
-    try {
-      const usedKrwEl = document.querySelector('#used-krw');
-      if (!usedKrwEl) return;
-
-      const bands = Array.isArray(status?.bands) ? status.bands : [];
-      if (!bands.length) {
-        // 서버에 런타임 밴드가 없으면 mock 포지션으로 추정
-        updateUsedMarginFromMock();
-        return;
-      }
-
-      // 최신 바이낸스 선물가격 사용
-      const binancePrice = isNum(kimp.binance_price) ? kimp.binance_price : NaN;
-      if (!isNum(binancePrice) || binancePrice <= 0) {
-        updateUsedMarginFromMock();
-        return;
-      }
-
-      let totalUsedMargin = 0;
-      const includeStates = new Set(['entered','hedging']);
-      for (const band of bands) {
-        const state = band?.state;
-        const qty = Number(band?.filled_qty || 0);
-        const leverage = getSafeLeverage(band?.leverage);
-        
-        if (includeStates.has(state) && qty > 0 && isFinite(leverage)) {
-          // 증거금 = 명목가치 / 레버리지
-          totalUsedMargin += (qty * binancePrice) / leverage;
-        }
-      }
-
-      const usdkrw = isNum(kimp.usdkrw) ? Number(kimp.usdkrw) : 0;
-      usedKrwEl.textContent = totalUsedMargin > 0 && usdkrw > 0 ? loc(totalUsedMargin * usdkrw) : '-';
-    } catch (error) {
-      updateUsedMarginFromMock();
-    }
-  }, [kimp.binance_price, updateUsedMarginFromMock]);
 
   const tickHeavy = useCallback(async () => {
     try {
@@ -988,359 +705,17 @@ const LegacyAutoTradingPage = () => {
 
 
   // ===== Component Event Handlers =====
-  const handleAddBand = useCallback(() => {
-    setBands(prevBands => {
-      const idx = prevBands.length + 1;
-      return [...prevBands, { 
-        name: `B${idx}`, 
-        target_kimp: 0.0, 
-        exit_kimp: 0.0, 
-        tolerance: 0.05, 
-        leverage: 1, 
-        amount_btc: 0.000 
-      }];
-    });
-  }, []);
+  // All handler functions moved to useLegacyTradingHandlers hook
 
-  const handleBandChange = useCallback((index: number, key: keyof Band, value: string | number) => {
-    setBands(prevBands => {
-      const newBands = [...prevBands];
-      const bandToUpdate = { ...newBands[index] };
-      (bandToUpdate[key] as any) = value;
-      newBands[index] = bandToUpdate;
-      return newBands;
-    });
-  }, []);
 
-  const handleSaveBands = useCallback(() => {
-    try {
-      localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: bands }));
-      toast({ title: '설정 저장 완료', description: '브라우저 로컬에 저장되었습니다.' });
-    } catch (e) {
-      console.error(e);
-      toast({ title: '저장 실패', description: String(e), variant: 'destructive' });
-    }
-  }, [bands, toast]);
 
-  const handleLoadBands = useCallback(async () => {
-    try {
-      // 세션 우선: 세션/효과적 사용자 ID가 없으면 보류
-      if (!user?.id && !effectiveUserId) {
-        console.warn('⏸️ 세션 미확정: 서버 밴드 로드를 보류합니다.');
-        return;
-      }
 
-      // 세션 기반 사용자 ID 우선
-      const targetUserId = user?.id ? String(user.id) : String(effectiveUserId);
 
-      const primary = await fetchJson(`/api/trading-strategies/${targetUserId}`);
-      if (Array.isArray(primary) && primary.length > 0) {
-        // 서버 investmentAmount(원화)가 클라 BTC 수량으로 잘못 들어오는 경우 보정
-        let up: number | undefined = isNum(kimp.upbit_price) ? kimp.upbit_price : undefined;
-        if (!up || up <= 0) {
-          try {
-            const cur = await fetchJson('/current');
-            if (isNum(cur?.upbit_price)) up = cur.upbit_price;
-          } catch {}
-        }
-        const raw = primary.map(mapStrategyToBand);
-        const next = raw.map((b: any) => {
-          const amt = normalizeAmountBtc(b?.amount_btc, up);
-          return { ...b, amount_btc: amt };
-        });
-        setBands(next);
-        try { localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: next })); } catch {}
-        toast({ title: '불러오기 완료', description: '세션 사용자 전략을 적용했습니다.' });
-        return;
-      }
-      // 세션 사용자 ID가 없으면 에러 표시 (폴백 제거)
-      if (!user?.id) {
-        console.error('❌ 세션에서 사용자 ID를 받을 수 없어 전략을 불러올 수 없습니다');
-        toast({
-          title: '세션 필요',
-          description: '전략을 불러오려면 로그인이 필요합니다. 다시 로그인해주세요.',
-          variant: 'destructive'
-        });
-        return;
-      }
-      // 3) 최종 폴백: 로컬 저장
-      const raw = localStorage.getItem('kimp_cfg_bands_v2');
-      if (raw) {
-        const j = JSON.parse(raw);
-        setBands(j.bands || []);
-        toast({ title: '서버 전략 없음', description: '로컬 저장본을 불러왔습니다.' });
-      } else {
-        toast({ title: '불러오기 실패', description: '서버/로컬에 저장된 전략이 없습니다.', variant: 'destructive' });
-      }
-    } catch (e) {
-      console.error(e);
-      toast({ title: '불러오기 실패', description: String(e), variant: 'destructive' });
-    }
-  }, [effectiveUserId, fetchJson, toast, user?.id, kimp.upbit_price]);
 
-  const handleDeleteBand = useCallback((indexToDelete: number) => {
-    setBands(prevBands => prevBands.filter((_, index) => index !== indexToDelete));
-  }, []);
 
-  const handleRegisterBand = useCallback(async (index: number) => {
-    const band = bands[index];
-    try {
-      setRegisteringIndex(index);
-      const payload = {
-        // 서버 스키마에 맞춘 필드명 매핑
-        name: band.name || '김치 프리미엄 전략',
-        strategyType: 'positive_kimchi',
-        entryRate: String(band.target_kimp ?? 0),
-        exitRate: String(band.exit_kimp ?? 0),
-        toleranceRate: String(band.tolerance ?? 0.1),
-        leverage: getSafeLeverage(band.leverage),
-        // 서버는 KRW 금액을 기대하므로 BTC 수량 → KRW로 변환하여 저장
-        investmentAmount: (() => {
-          const qty = Number(band.amount_btc ?? 0) || 0;
-          const up = isNum(kimp.upbit_price) ? kimp.upbit_price : 0;
-          const krw = up > 0 ? Math.max(0, Math.round(qty * up)) : 0;
-          return String(krw);
-        })(),
-        isActive: true,
-        symbol: 'BTC',
-      } as const;
-      // 서버 등록 요청
-      const result = await fetchJson(`/api/trading-strategies/${effectiveUserId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      // 서버 등록 성공
-      toast({ title: '서버 등록 완료', description: `${band.name} 전략이 서버에 저장되었습니다.` });
-      // 서버 ID를 즉시 로컬 상태에 반영하고 상태 배지를 갱신
-      const newId = result?.strategy?.id ?? result?.id;
-      if (newId != null) {
-        setBands(prev => {
-          const copy = [...prev];
-          const b = { ...(copy[index] || {}) } as Band;
-          b.serverId = String(newId);
-          copy[index] = b;
-          try { localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: copy })); } catch {}
-          return copy;
-        });
-        // DOM 강제 업데이트 제거: React 상태에 의해 표시됨
-      }
-      refreshServerBands();
-    } catch (e) {
-      console.error('❌ 서버 등록 실패:', e);
-      toast({ title: '서버 등록 실패', description: String(e), variant: 'destructive' });
-    } finally {
-      setRegisteringIndex(null);
-    }
-  }, [bands, fetchJson, refreshServerBands, toast, effectiveUserId, kimp.upbit_price]);
 
-  const handleUnregisterBandAt = useCallback(async (index: number) => {
-    const band = bands[index];
-    if (!band) return;
-    // serverId가 있으면 우선 사용, 없으면 이름으로 서버 목록에서 검색
-    setUnregisteringIndex(index);
-    let targetId = band.serverId ?? serverBands.find(sb => sb.name === (band.name || ''))?.id;
-    if (targetId == null) {
-      try {
-        await refreshServerBands();
-        const refetched = serverBands.find(sb => sb.name === (band.name || ''))?.id;
-        if (refetched != null) targetId = refetched;
-      } catch {}
-    }
-    try {
-      if (targetId != null) {
-        await fetchJson(`/api/trading-strategies/${targetId}`, { method: 'DELETE' });
-        toast({ title: '등록 취소 완료', description: `${band.name || '-'} 전략이 서버에서 삭제되었습니다.` });
-      } else {
-        toast({ title: '서버 기록 없음', description: '서버에 해당 전략 ID를 찾지 못했습니다. 로컬에서 제거합니다.', variant: 'destructive' });
-      }
-      // UI 목록에서도 해당 밴드 삭제
-      setBands(prev => {
-        const next = prev.filter((_, i) => i !== index);
-        try { localStorage.setItem('kimp_cfg_bands_v2', JSON.stringify({ bands: next })); } catch {}
-        return next;
-      });
-      // 서버 상태/보드 동기화
-      refreshServerBands();
-      tickHeavy();
-    } catch (e) {
-      console.error(e);
-      toast({ title: '서버 등록 취소 실패', description: String(e), variant: 'destructive' });
-    }
-    finally {
-      setUnregisteringIndex(null);
-    }
-  }, [bands, serverBands, fetchJson, refreshServerBands, tickHeavy, toast]);
-
-  // ===== Band Board Optimistic Actions =====
-  const removeBoardRowOptimistic = useCallback((id: string | number) => {
-    const key = String(id);
-    setServerStatusBands(prev => prev.filter((x: any) => String(x?.id) !== key));
-    // 구성 목록에서도 같은 id가 있으면 제거(일관성)
-    setServerBands(prev => Array.isArray(prev) ? prev.filter((x: any) => String(x?.id) !== key) : prev);
-  }, []);
-
-  const handleBoardClose = useCallback(async (id: string | number) => {
-    // 청산 버튼 클릭
-    try {
-      setBoardActingId(id);
-      // 서버에 청산 요청 전송
-      // 서버에서 전략 삭제
-      await fetchJson(`/api/trading-strategies/${id}`, { method: 'DELETE' });
-      // 삭제된 전략 기록 (복원 방지)
-      markStrategyAsDeleted(effectiveUserId, String(id));
-      // 낙관적 제거
-      removeBoardRowOptimistic(id);
-      // 서버 요청 성공 후 UI에서 해당 전략 제거
-      toast({ title: '청산 완료', description: `전략 #${id}가 삭제되었습니다.` });
-      
-      // 청산 완료 후 잔고 재조회
-      try {
-        console.log('🔄 청산 후 잔고 재조회 시작...');
-        await fetch('/api/realtime-balances', { 
-          method: 'GET',
-          credentials: 'include' 
-        });
-        console.log('✅ 청산 후 잔고 재조회 완료');
-      } catch (balanceError) {
-        console.warn('⚠️ 잔고 재조회 실패:', balanceError);
-      }
-      
-    } catch (e) {
-      console.error(`[레거시 클라이언트] 청산 요청 실패. 전략 ID: ${id}`, e);
-      toast({ title: '청산 실패', description: String(e), variant: 'destructive' });
-    } finally {
-      setBoardActingId(null);
-      try { 
-        // 청산 프로세스 완료 후 데이터 새로고침
-        tickHeavy(); 
-      } catch {}
-    }
-  }, [removeBoardRowOptimistic, fetchJson, tickHeavy, toast]);
-
-  const handleBoardCancelWaiting = useCallback(async (id: string | number) => {
-    try {
-      setBoardActingId(id);
-      await fetchJson(`/api/trading-strategies/${id}`, { method: 'DELETE' });
-      // 삭제된 전략 기록 (복원 방지)
-      markStrategyAsDeleted(effectiveUserId, String(id));
-      removeBoardRowOptimistic(id);
-      toast({ title: '대기 취소', description: `전략 #${id}가 삭제되었습니다.` });
-    } catch (e) {
-      console.error(e);
-      toast({ title: '대기 취소 실패', description: String(e), variant: 'destructive' });
-    } finally {
-      setBoardActingId(null);
-      try { tickHeavy(); } catch {}
-    }
-  }, [removeBoardRowOptimistic, fetchJson, tickHeavy, toast]);
-  
-  const handleStart = useCallback(async () => {
-    if (serverState.running || starting) {
-      toast({ title: '이미 실행 중', description: '자동매매가 실행 상태입니다.' });
-      return;
-    }
-    setStarting(true);
-    try {
-      await fetchJson(`/api/trading/start/${effectiveUserId}`, { method: 'POST', headers: { 'X-Trace-Id': `cli-${Date.now()}` } });
-      toast({ title: '전략 시작', description: '자동매매가 시작되었습니다.' });
-    } catch (e) {
-      console.error(e);
-      try {
-        const stat = await fetchJson(`/api/trading/status/${effectiveUserId}`);
-        if (stat?.isRunning) {
-          toast({ title: '이미 실행 중', description: '자동매매가 이미 실행 중입니다.' });
-        } else {
-          toast({ title: '시작 실패', description: String(e), variant: 'destructive' });
-        }
-      } catch {
-        toast({ title: '시작 실패', description: String(e), variant: 'destructive' });
-      }
-    } finally {
-      tickHeavy();
-      setStarting(false);
-    }
-  }, [fetchJson, tickHeavy, toast, effectiveUserId, serverState.running, starting]);
-
-  const handleStop = useCallback(async () => {
-    try {
-      await fetchJson(`/api/trading/stop/${effectiveUserId}`, { method: 'POST' });
-      toast({ title: '전략 중지', description: '자동매매가 중지되었습니다.' });
-      tickHeavy();
-    } catch (e) {
-      console.error(e);
-      toast({ title: '중지 실패', description: String(e), variant: 'destructive' });
-    }
-  }, [fetchJson, tickHeavy, toast, effectiveUserId]);
-
-  const handleCheckSession = useCallback(async () => {
-    try {
-      const data = await apiFetchJson('/api/auth/me', { method: 'GET' });
-      setSessionInfo(data);
-      setShowSessionInfo(true);
-      toast({
-        title: "세션 조회 성공",
-        description: `현재 로그인된 사용자: ${data.username}`,
-      });
-    } catch (error: any) {
-      setSessionInfo(null);
-      setShowSessionInfo(true);
-      toast({
-        title: "세션 없음",
-        description: "현재 로그인된 사용자가 없거나 인증이 만료되었습니다",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
 
   // ===== Render Functions =====
-  const renderBands = (): JSX.Element | JSX.Element[] => {
-    if (!bands || bands.length === 0) {
-      return <tr><td colSpan={10} className="muted">밴드를 추가하세요</td></tr>;
-    }
-    return bands.map((b, index) => {
-      const configured = b.serverId != null ? undefined : configuredByName.get(String(b.name || ''));
-      const isRegistered = !!(b.serverId != null || configured);
-      const runtime = b.serverId != null
-        ? statusById.get(String(b.serverId))
-        : statusByName.get(String(b.name || ''));
-      const stateText: string | undefined = runtime?.state ? String(runtime.state) : (isRegistered ? '대기중' : undefined);
-      const stateClass = stateText === 'entered' ? 'good' : (stateText === 'waiting' ? 'warn' : '');
-      return (
-        <tr key={index} ref={el => {
-          bandRefs.current[index] = el;
-          // 행이 렌더링된 후 미리보기 업데이트
-          if (el) {
-            setTimeout(() => updatePreviewForRow(el), 0);
-          }
-        }}>
-          <td><input className="ctrl" data-k="name" value={b.name || ''} onChange={(e) => handleBandChange(index, 'name', e.target.value)} /></td>
-          <td><input className="ctrl" data-k="target_kimp" type="number" step="0.01" value={b.target_kimp || ''} onChange={(e) => handleBandChange(index, 'target_kimp', e.target.value)} /></td>
-          <td><input className="ctrl" data-k="exit_kimp" type="number" step="0.01" value={b.exit_kimp || ''} onChange={(e) => handleBandChange(index, 'exit_kimp', e.target.value)} /></td>
-          <td><input className="ctrl" data-k="tolerance" type="number" step="0.01" value={b.tolerance ?? 0.1} onChange={(e) => handleBandChange(index, 'tolerance', e.target.value)} /></td>
-          <td><input className="ctrl" data-k="leverage" type="number" step={LEVERAGE_CONFIG.STEP} min={LEVERAGE_CONFIG.MIN} max={LEVERAGE_CONFIG.MAX} value={b.leverage ?? LEVERAGE_CONFIG.DEFAULT} onChange={(e) => {
-            handleBandChange(index, 'leverage', e.target.value);
-            const tr = bandRefs.current[index];
-            if (tr) setTimeout(() => updatePreviewForRow(tr), 0);
-          }} /></td>
-          <td><input className="ctrl" data-k="amount_btc" type="number" step="0.001" value={b.amount_btc ?? 0.001} onChange={(e) => {
-            handleBandChange(index, 'amount_btc', e.target.value);
-            const tr = bandRefs.current[index];
-            if (tr) setTimeout(() => updatePreviewForRow(tr), 0);
-          }} /></td>
-          <td data-size>-</td>
-          <td><span className={`badge ${stateClass}`} data-state>{stateText ?? '미등록'}</span></td>
-          <td className="pos-actions">
-            <div className="row" style={{ flexDirection: 'column', gap: '6px' }}>
-              <button className="btn" onClick={() => handleRegisterBand(index)} disabled={registeringIndex === index}>{registeringIndex === index ? '등록 중…' : '서버 등록'}</button>
-              <button className="btn secondary" onClick={() => handleUnregisterBandAt(index)} disabled={unregisteringIndex === index}>{unregisteringIndex === index ? '취소 중…' : '등록 취소'}</button>
-            </div>
-          </td>
-          <td><button className="btn secondary" onClick={() => handleDeleteBand(index)}>삭제</button></td>
-        </tr>
-      );
-    });
-  };
 
 
   // ===== 활성 전략들의 포지션 상태 확인 (중복 진입 방지) =====
@@ -2105,7 +1480,7 @@ const LegacyAutoTradingPage = () => {
                 // 기존 전략 수정 (실시간 거래 모드)
                 try {
                   const normalizedInvestment = (() => {
-                    const n = Number(newStrategy.investmentAmount);
+                    const n = Number(newStrategy?.investmentAmount || 0);
                     return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : STRATEGY_DEFAULTS.INVESTMENT_AMOUNT;
                   })();
                   const payload = {
@@ -2192,7 +1567,7 @@ const LegacyAutoTradingPage = () => {
                 // 실시간 거래 모드: DB 저장
                 try {
                   const normalizedInvestment = (() => {
-                    const n = Number(newStrategy.investmentAmount);
+                    const n = Number(newStrategy?.investmentAmount || 0);
                     return Number.isFinite(n) && n >= 0.001 ? n.toFixed(3) : STRATEGY_DEFAULTS.INVESTMENT_AMOUNT;
                   })();
                   const payload = {
@@ -2211,7 +1586,7 @@ const LegacyAutoTradingPage = () => {
                   
                   console.log('🔍 전략 생성 payload:', payload);
                   console.log('🔍 newStrategy 상태:', {
-                    investmentAmount: newStrategy.investmentAmount,
+                    investmentAmount: newStrategy?.investmentAmount || '0.001',
                     baseAmount: newStrategy.baseAmount,
                     leverage: newStrategy.leverage
                   });
@@ -2518,7 +1893,7 @@ const LegacyAutoTradingPage = () => {
                   placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
                   data-testid="input-investment-amount"
                   id=":r12:-form-item"
-                  value={newStrategy.investmentAmount}
+                  value={newStrategy?.investmentAmount || ''}
                   inputMode="decimal"
                   pattern="^\\d*(\\.\\d{0,3})?$"
                   onChange={(e) => {
