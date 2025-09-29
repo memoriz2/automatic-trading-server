@@ -1472,14 +1472,67 @@ export class DatabaseStorage {
   // 모든 사용자 목록 조회 (관리자용)
   async getAllUsers(): Promise<User[]> {
     try {
+      // 먼저 approval_status 컬럼이 존재하는지 확인하고 없으면 추가
+      await this.ensureApprovalStatusColumn();
+
       const result = await this.pool.query(`
         SELECT * FROM users
         ORDER BY created_at DESC
       `);
-      return result.rows;
+
+      // snake_case를 camelCase로 변환
+      return result.rows.map(row => ({
+        id: row.id,
+        username: row.username,
+        role: row.role,
+        email: row.email,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        profileImageUrl: row.profile_image_url,
+        password: row.password,
+        passwordHash: row.password, // 호환성을 위해
+        isActive: row.is_active,
+        approvalStatus: row.approval_status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        lastLoginAt: row.last_login_at
+      }));
     } catch (error) {
       console.error('Error getting all users:', error);
       return [];
+    }
+  }
+
+  // approval_status 컬럼이 존재하는지 확인하고 없으면 추가
+  private async ensureApprovalStatusColumn(): Promise<void> {
+    try {
+      // 컬럼 존재 여부 확인
+      const checkColumn = await this.pool.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'approval_status'
+      `);
+
+      if (checkColumn.rows.length === 0) {
+        console.log('approval_status 컬럼이 없습니다. 추가하는 중...');
+
+        // 컬럼 추가
+        await this.pool.query(`
+          ALTER TABLE users
+          ADD COLUMN approval_status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        `);
+
+        // 기존 관리자 사용자들은 승인된 상태로 설정
+        await this.pool.query(`
+          UPDATE users
+          SET approval_status = 'approved'
+          WHERE role = 'admin'
+        `);
+
+        console.log('approval_status 컬럼이 성공적으로 추가되었습니다.');
+      }
+    } catch (error) {
+      console.error('approval_status 컬럼 확인/추가 중 오류:', error);
     }
   }
 

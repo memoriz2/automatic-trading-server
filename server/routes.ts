@@ -2489,40 +2489,8 @@ export async function registerRoutes(
     }
   });
 
-  // 관리자 전용: 모든 사용자 조회
-  app.get("/api/admin/users", authenticateSession, async (req: any, res) => {
-    try {
-      // 관리자 권한 확인
-      const userId = (req as any).user?.userId || (req as any).user?.id;
-      if (!userId) {
-        console.error('routes.ts:2491 - user.userId/id is undefined:', (req as any).user);
-        return res.status(401).json({ message: "사용자 인증 정보가 없습니다" });
-      }
-
-      const currentUser = await storage.getUser(userId);
-      if (!currentUser || currentUser.role !== "admin") {
-        return res.status(403).json({ message: "관리자 권한이 필요합니다" });
-      }
-
-      const users = await storage.getAllUsers();
-
-      // 비밀번호 제외하고 반환
-      const safeUsers = users.map((user) => ({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        createdAt: user.createdAt || null,
-        updatedAt: user.updatedAt || null,
-      }));
-
-      res.json(safeUsers);
-    } catch (error) {
-      console.error("사용자 목록 조회 오류:", error);
-      res
-        .status(500)
-        .json({ error: "사용자 목록 조회 중 오류가 발생했습니다" });
-    }
-  });
+  // 중복된 /api/admin/users 엔드포인트 제거됨
+  // routes/auth.ts의 엔드포인트 사용
 
   // 관리자 전용: 사용자 권한 변경
   app.put(

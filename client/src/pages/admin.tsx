@@ -36,10 +36,10 @@ interface User {
   id: number;
   username: string;
   role: string;
-  isActive: boolean;
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   lastLoginAt?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   _count?: {
     positions: number;
     trades: number;
@@ -74,7 +74,14 @@ export default function AdminPage() {
   // 사용자 목록 조회
   const { data: users = [], refetch: refetchUsers } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
-    queryFn: () => authenticatedApiRequest('/api/admin/users'),
+    queryFn: async () => {
+      const result = await authenticatedApiRequest('/api/admin/users');
+      console.log('🔍 받은 사용자 데이터:', result);
+      if (result && result.length > 0) {
+        console.log('🔍 첫 번째 사용자 approvalStatus:', result[0].approvalStatus, typeof result[0].approvalStatus);
+      }
+      return result;
+    },
   });
 
   // 사용자 상태 변경
@@ -89,6 +96,7 @@ export default function AdminPage() {
       toast({ title: "사용자 정보 업데이트", description: "성공적으로 업데이트되었습니다." });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+      refetchUsers(); // 강제로 사용자 목록 다시 불러오기
       setIsEditDialogOpen(false);
     },
     onError: (error: any) => {
@@ -174,9 +182,10 @@ export default function AdminPage() {
   );
 
   const handleToggleUserStatus = (user: User) => {
+    const newStatus = user.approvalStatus === 'approved' ? 'rejected' : 'approved';
     updateUserMutation.mutate({
       userId: user.id,
-      updates: { isActive: !user.isActive }
+      updates: { approvalStatus: newStatus }
     });
   };
 
@@ -362,8 +371,12 @@ export default function AdminPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.isActive ? 'default' : 'outline'}>
-                      {user.isActive ? '활성' : '비활성'}
+                    <Badge variant={
+                      user.approvalStatus === 'approved' ? 'default' :
+                      user.approvalStatus === 'pending' ? 'secondary' : 'destructive'
+                    }>
+                      {user.approvalStatus === 'approved' ? '승인됨' :
+                       user.approvalStatus === 'pending' ? '승인대기' : '거부됨'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -400,9 +413,9 @@ export default function AdminPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleToggleUserStatus(user)}
-                        title={user.isActive ? "비활성화" : "활성화"}
+                        title={user.approvalStatus === 'approved' ? "거부" : "승인"}
                       >
-                        {user.isActive ? (
+                        {user.approvalStatus === 'approved' ? (
                           <UserX className="h-4 w-4 text-red-500" />
                         ) : (
                           <UserCheck className="h-4 w-4 text-green-500" />
@@ -463,12 +476,22 @@ export default function AdminPage() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-active" className="text-right">활성 상태</Label>
-                <Switch
-                  id="edit-active"
-                  checked={selectedUser.isActive}
-                  onCheckedChange={(checked) => setSelectedUser(prev => prev ? { ...prev, isActive: checked } : null)}
-                />
+                <Label htmlFor="edit-approval-status" className="text-right">승인 상태</Label>
+                <Select
+                  value={selectedUser.approvalStatus}
+                  onValueChange={(value: 'pending' | 'approved' | 'rejected') =>
+                    setSelectedUser(prev => prev ? { ...prev, approvalStatus: value } : null)
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">승인 대기</SelectItem>
+                    <SelectItem value="approved">승인됨</SelectItem>
+                    <SelectItem value="rejected">거부됨</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
@@ -478,7 +501,7 @@ export default function AdminPage() {
               updates: {
                 username: selectedUser.username,
                 role: selectedUser.role,
-                isActive: selectedUser.isActive
+                approvalStatus: selectedUser.approvalStatus
               }
             })}>
               저장

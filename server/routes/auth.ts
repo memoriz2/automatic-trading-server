@@ -285,9 +285,11 @@ export function registerAuthRoutes(app: Express): void {
 
       // 비밀번호 정보 제거하고 날짜 필드 안전하게 처리
       const safeUsers = users.map(user => {
-        console.log('User date fields:', {
+        console.log('User data fields:', {
           id: user.id,
           username: user.username,
+          approvalStatus: user.approvalStatus,
+          approvalStatusType: typeof user.approvalStatus,
           createdAt: user.createdAt,
           createdAtType: typeof user.createdAt,
           lastLoginAt: user.lastLoginAt,
@@ -298,7 +300,6 @@ export function registerAuthRoutes(app: Express): void {
           id: user.id,
           username: user.username,
           role: user.role,
-          isActive: user.isActive,
           approvalStatus: user.approvalStatus,
           email: user.email,
           firstName: user.firstName,
@@ -396,21 +397,39 @@ export function registerAuthRoutes(app: Express): void {
   // 사용자 상태 변경 (관리자 전용) - PATCH 방식
   app.patch("/api/admin/users/:userId", authenticateAdmin, async (req: any, res) => {
     try {
+      console.log('PATCH /api/admin/users/:userId - 요청 데이터:', {
+        params: req.params,
+        body: req.body,
+        userId: req.params.userId
+      });
+
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
+        console.error('Invalid userId:', req.params.userId);
         return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
       }
 
       const { approvalStatus } = req.body;
+      console.log('Extracted approvalStatus:', approvalStatus);
+
+      if (!approvalStatus) {
+        return res.status(400).json({ error: "approvalStatus가 필요합니다" });
+      }
+
       if (!['approved', 'rejected'].includes(approvalStatus)) {
-        return res.status(400).json({ error: "유효하지 않은 승인 상태입니다" });
+        console.error('Invalid approvalStatus:', approvalStatus);
+        return res.status(400).json({ error: "유효하지 않은 승인 상태입니다. 'approved' 또는 'rejected'여야 합니다." });
       }
 
       let user;
+      let actionTaken = '';
+
       if (approvalStatus === 'approved') {
         user = await storage.approveUser(userId);
+        actionTaken = '승인';
       } else {
         user = await storage.rejectUser(userId);
+        actionTaken = '거부';
       }
 
       if (!user) {
@@ -418,7 +437,7 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       res.json({
-        message: `사용자 ${user.username}이 ${approvalStatus === 'approved' ? '승인' : '거부'}되었습니다`,
+        message: `사용자 ${user.username}이 ${actionTaken}되었습니다`,
         user: {
           id: user.id,
           username: user.username,
