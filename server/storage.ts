@@ -135,6 +135,7 @@ export class DatabaseStorage {
     try {
       if (id === undefined || id === null) {
         console.error('getUserById: ID is undefined or null');
+        console.error('getUserById: Call stack:', new Error().stack);
         return undefined;
       }
 

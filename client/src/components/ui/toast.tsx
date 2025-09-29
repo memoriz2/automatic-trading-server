@@ -15,7 +15,7 @@ const ToastViewport = React.forwardRef<
     ref={ref}
     className={cn(
       // 우하단 고정, 가로폭 확장, 세로 스택
-      "fixed bottom-4 right-4 z-[100] flex w-auto max-w-[600px] flex-col gap-2 p-0",
+      "fixed bottom-4 right-4 z-[100] flex w-auto max-w-[800px] flex-col gap-2 p-0",
       className
     )}
     {...props}
@@ -24,8 +24,8 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  // 가로 배치 최적화, 넓은 폭, 등장/퇴장 애니메이션 단순화
-  "group pointer-events-auto flex items-start justify-between gap-4 overflow-hidden rounded-md border px-6 py-4 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full min-w-[400px]",
+  // 단순한 블록 레이아웃, 자연스러운 폭
+  "group pointer-events-auto relative overflow-hidden rounded-md border px-6 py-4 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-bottom-full w-auto min-w-[300px] max-w-[500px]",
   {
     variants: {
       variant: {
