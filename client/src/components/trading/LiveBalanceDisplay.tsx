@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatBTC, formatPrice, formatInteger } from '@/utils/trading/formatters';
+import { formatBTC, formatBTCUpbit, formatPrice, formatInteger } from '@/utils/trading/formatters';
 import { useRealTimeBalances } from '@/hooks/useRealTimeBalances';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -43,7 +43,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
           <h4 className="text-slate-400 text-sm">업비트 BTC</h4>
           <div className="flex items-center gap-2">
             <p className="text-xl font-bold text-yellow-400">
-              {formatBTC(realtimeBalances?.upbitBtc || 0)} BTC
+              {formatBTCUpbit(realtimeBalances?.upbitBtc || 0)} BTC
             </p>
             {balanceLoading && (
               <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
