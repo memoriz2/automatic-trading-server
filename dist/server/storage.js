@@ -35,7 +35,17 @@ export class DatabaseStorage {
     // === 사용자 관련 메서드들 ===
     async getUserById(id) {
         try {
-            const result = await this.pool.query('SELECT * FROM users WHERE id = $1', [parseInt(id.toString())]);
+            if (id === undefined || id === null) {
+                console.error('getUserById: ID is undefined or null');
+                console.error('getUserById: Call stack:', new Error().stack);
+                return undefined;
+            }
+            const numericId = typeof id === 'string' ? parseInt(id) : id;
+            if (isNaN(numericId)) {
+                console.error('getUserById: Invalid ID provided:', id);
+                return undefined;
+            }
+            const result = await this.pool.query('SELECT * FROM users WHERE id = $1', [numericId]);
             return result.rows[0] || undefined;
         }
         catch (error) {
@@ -61,21 +71,23 @@ export class DatabaseStorage {
         try {
             const result = await this.pool.query(`
         INSERT INTO users (
-          username, 
-          password, 
-          role, 
-          email, 
-          first_name, 
-          last_name, 
+          username,
+          password,
+          role,
+          approval_status,
+          email,
+          first_name,
+          last_name,
           profile_image_url,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
         RETURNING *
       `, [
                 insertUser.username,
                 hashedPassword,
                 insertUser.role || 'user',
+                insertUser.approvalStatus || 'pending',
                 insertUser.email || null,
                 insertUser.firstName || null,
                 insertUser.lastName || null,
@@ -128,16 +140,6 @@ export class DatabaseStorage {
         catch (error) {
             console.error('Error deleting user:', error);
             return false;
-        }
-    }
-    async getAllUsers() {
-        try {
-            const result = await this.pool.query('SELECT * FROM users ORDER BY created_at DESC');
-            return result.rows;
-        }
-        catch (error) {
-            console.error('Error getting all users:', error);
-            return [];
         }
     }
     // === 거래소 API 관련 메서드들 ===
@@ -476,6 +478,25 @@ export class DatabaseStorage {
         catch (error) {
             console.error('❌ [createTrade] 저장 실패:', error);
             console.error('📊 [createTrade] 실패한 데이터:', data);
+            throw error;
+        }
+    }
+    // positionId로 거래 기록 업데이트
+    async updateTradePositionId(exchangeOrderId, positionId) {
+        try {
+            const result = await this.pool.query(`
+        UPDATE trades
+        SET position_id = $1
+        WHERE exchange_order_id = $2
+        RETURNING *
+      `, [positionId, exchangeOrderId]);
+            if (result.rows.length === 0) {
+                console.warn(`⚠️ 거래 기록을 찾을 수 없음: ${exchangeOrderId}`);
+            }
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('거래 기록 positionId 업데이트 실패:', error);
             throw error;
         }
     }
@@ -1205,6 +1226,120 @@ export class DatabaseStorage {
         catch (error) {
             console.error('어드민 권한 확인 오류:', error);
             return { isAdmin: false };
+        }
+    }
+    // ===== 사용자 승인 관련 메서드 =====
+    // 모든 사용자 목록 조회 (관리자용)
+    async getAllUsers() {
+        try {
+            // 먼저 approval_status 컬럼이 존재하는지 확인하고 없으면 추가
+            await this.ensureApprovalStatusColumn();
+            const result = await this.pool.query(`
+        SELECT * FROM users
+        ORDER BY created_at DESC
+      `);
+            // snake_case를 camelCase로 변환
+            return result.rows.map(row => ({
+                id: row.id,
+                username: row.username,
+                role: row.role,
+                email: row.email,
+                firstName: row.first_name,
+                lastName: row.last_name,
+                profileImageUrl: row.profile_image_url,
+                password: row.password,
+                passwordHash: row.password, // 호환성을 위해
+                isActive: row.is_active,
+                approvalStatus: row.approval_status,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                lastLoginAt: row.last_login_at
+            }));
+        }
+        catch (error) {
+            console.error('Error getting all users:', error);
+            return [];
+        }
+    }
+    // approval_status 컬럼이 존재하는지 확인하고 없으면 추가
+    async ensureApprovalStatusColumn() {
+        try {
+            // 컬럼 존재 여부 확인
+            const checkColumn = await this.pool.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'approval_status'
+      `);
+            if (checkColumn.rows.length === 0) {
+                console.log('approval_status 컬럼이 없습니다. 추가하는 중...');
+                // 컬럼 추가
+                await this.pool.query(`
+          ALTER TABLE users
+          ADD COLUMN approval_status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        `);
+                // 기존 관리자 사용자들은 승인된 상태로 설정
+                await this.pool.query(`
+          UPDATE users
+          SET approval_status = 'approved'
+          WHERE role = 'admin'
+        `);
+                console.log('approval_status 컬럼이 성공적으로 추가되었습니다.');
+            }
+        }
+        catch (error) {
+            console.error('approval_status 컬럼 확인/추가 중 오류:', error);
+        }
+    }
+    // 승인 대기 중인 사용자 목록 조회
+    async getPendingUsers() {
+        try {
+            const result = await this.pool.query(`
+        SELECT * FROM users
+        WHERE approval_status = 'pending'
+        ORDER BY created_at DESC
+      `);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting pending users:', error);
+            return [];
+        }
+    }
+    // 사용자 승인 상태 업데이트
+    async updateUserApprovalStatus(userId, status) {
+        try {
+            const result = await this.pool.query(`
+        UPDATE users
+        SET approval_status = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING *
+      `, [status, userId]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error updating user approval status:', error);
+            return undefined;
+        }
+    }
+    // 사용자 승인
+    async approveUser(userId) {
+        return this.updateUserApprovalStatus(userId, 'approved');
+    }
+    // 사용자 거부
+    async rejectUser(userId) {
+        return this.updateUserApprovalStatus(userId, 'rejected');
+    }
+    // 사용자 승인 상태 확인
+    async isUserApproved(userId) {
+        try {
+            const result = await this.pool.query(`
+        SELECT approval_status FROM users WHERE id = $1
+      `, [userId]);
+            return result.rows[0]?.approval_status === 'approved';
+        }
+        catch (error) {
+            console.error('Error checking user approval status:', error);
+            return false;
         }
     }
     // 연결 종료

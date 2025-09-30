@@ -337,7 +337,7 @@ export async function registerRoutes(app, server) {
             // 거래 데이터 포맷팅 (고정된 시간 사용)
             const formattedTrades = trades.map(trade => ({
                 id: trade.id,
-                timestamp: trade.executed_at || trade.created_at, // DB의 고정된 시간
+                timestamp: trade.executed_at || trade.created_at || new Date().toISOString(), // DB의 고정된 시간, 안전하게 처리
                 type: trade.side, // 'buy', 'sell', 'short' 등
                 symbol: trade.symbol || 'BTC',
                 quantity: Number(trade.quantity || 0),
@@ -947,7 +947,11 @@ export async function registerRoutes(app, server) {
     // 현재 사용자 정보 조회
     app.get("/api/auth/me", authenticateSession, async (req, res) => {
         try {
-            const userId = req.user.id;
+            const userId = req.user?.id;
+            if (!userId) {
+                console.error('routes.ts:1090 - req.user.id is undefined:', req.user);
+                return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
+            }
             const user = await storage.getUser(userId);
             if (!user) {
                 return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
@@ -1103,7 +1107,7 @@ export async function registerRoutes(app, server) {
                 binancePrice: data.binancePriceKRW,
                 binancePriceUSD: data.binanceFuturesPrice,
                 premiumRate: data.premiumRate,
-                timestamp: new Date(data.timestamp),
+                timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
                 exchangeRate: data.usdKrwRate,
                 exchangeRateSource: "Google Finance (실시간 환율)",
             }));
@@ -2137,32 +2141,8 @@ export async function registerRoutes(app, server) {
             });
         }
     });
-    // 관리자 전용: 모든 사용자 조회
-    app.get("/api/admin/users", authenticateSession, async (req, res) => {
-        try {
-            // 관리자 권한 확인
-            const currentUser = await storage.getUser(req.user.userId);
-            if (!currentUser || currentUser.role !== "admin") {
-                return res.status(403).json({ message: "관리자 권한이 필요합니다" });
-            }
-            const users = await storage.getAllUsers();
-            // 비밀번호 제외하고 반환
-            const safeUsers = users.map((user) => ({
-                id: user.id,
-                username: user.username,
-                role: user.role,
-                createdAt: user.createdAt,
-                updatedAt: user.updatedAt,
-            }));
-            res.json(safeUsers);
-        }
-        catch (error) {
-            console.error("사용자 목록 조회 오류:", error);
-            res
-                .status(500)
-                .json({ error: "사용자 목록 조회 중 오류가 발생했습니다" });
-        }
-    });
+    // 중복된 /api/admin/users 엔드포인트 제거됨
+    // routes/auth.ts의 엔드포인트 사용
     // 관리자 전용: 사용자 권한 변경
     app.put("/api/admin/users/:userId/role", authenticateSession, async (req, res) => {
         try {

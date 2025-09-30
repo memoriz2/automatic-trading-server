@@ -13,7 +13,7 @@ import { TradingHeader } from '@/components/trading/TradingHeader';
 import { SessionInfoPanel } from '@/components/trading/SessionInfoPanel';
 import { MarketSnapshot } from '@/components/trading/MarketSnapshot';
 import { useApiConnection } from '@/hooks/useApiConnection';
-import { isNum, fx, loc, formatBTC, formatPercent, floorQty, formatKRW, formatUSD, formatCompact } from '@/utils/trading/formatters';
+import { isNum, fx, loc, formatBTCUpbit, formatPercent, floorQty, formatKRW, formatUSD, formatCompact } from '@/utils/trading/formatters';
 import { normalizeAmountBtc } from '@/utils/trading/calculations';
 import { getInitialStrategy, STRATEGY_DEFAULTS, getSafeLeverage } from '@/config/strategy-defaults';
 import { LEVERAGE_CONFIG, parseLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
@@ -1789,23 +1789,23 @@ const LegacyAutoTradingPage = () => {
                   }}
                   name="investmentAmount"
                   type="number"
-                  step="0.001"
-                  min="0.001"
+                  step="0.00000001"
+                  min="0.00000001"
                   max="10"
                   placeholder={TRADING_CONSTANTS.DEFAULT_TOLERANCE}
                   data-testid="input-investment-amount"
                   id=":r12:-form-item"
                   value={newStrategy?.investmentAmount || ''}
                   inputMode="decimal"
-                  pattern="^\\d*(\\.\\d{0,3})?$"
+                  pattern="^\\d*(\\.\\d{0,8})?$"
                   onChange={(e) => {
                     // 입력 중에는 원본값 유지 (소수점 입력 허용)
                     setNewStrategy(prev => ({ ...prev, investmentAmount: e.target.value }));
                   }}
                   onBlur={(e) => {
-                    // 입력 완료 시에만 포맷팅 적용
+                    // 입력 완료 시에만 포맷팅 적용 (업비트용 8자리)
                     const rawValue = parseFloat(e.target.value) || 0;
-                    const formattedValue = formatBTC(rawValue);
+                    const formattedValue = formatBTCUpbit(rawValue);
                     setNewStrategy(prev => ({ ...prev, investmentAmount: formattedValue }));
                   }}
                 />
@@ -1840,14 +1840,14 @@ const LegacyAutoTradingPage = () => {
                     const btcPrice = Number(kimp?.upbit_price) || 0;
                     
                     // BTC 가격이 없으면 계산하지 않음
-                    const calculatedBTC = btcPrice > 0 && baseAmount > 0 
-                      ? parseFloat((baseAmount / leverage / btcPrice).toFixed(3))
+                    const calculatedBTC = btcPrice > 0 && baseAmount > 0
+                      ? parseFloat((baseAmount / leverage / btcPrice).toFixed(8))
                       : 0;
                     
                     setNewStrategy(prev => ({
-                      ...prev, 
+                      ...prev,
                       baseAmount: e.target.value,
-                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.000',
+                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.00000000',
                       tolerance: prev.tolerance
                     }));
                   }}

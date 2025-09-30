@@ -36,12 +36,23 @@ export const floorQty = (q: number | string | undefined | null) =>
 // BTC 포맷팅 (소수점 3자리 고정 표시)
 export const formatBTC = (value: number): string => {
   if (value === 0) return '0.000';
-  
+
   // 소수점 3자리까지 절삭 (반올림 아님)
   const truncated = Math.floor(value * 1000) / 1000;
-  
+
   // 소수점 3자리로 고정 표시
   return truncated.toFixed(3);
+};
+
+// BTC 포맷팅 - 업비트용 (소수점 8자리)
+export const formatBTCUpbit = (value: number): string => {
+  if (value === 0) return '0.00000000';
+
+  // 소수점 8자리까지 절삭 (반올림 아님)
+  const truncated = Math.floor(value * 100000000) / 100000000;
+
+  // 소수점 8자리로 고정 표시
+  return truncated.toFixed(8);
 };
 
 // 스마트 퍼센트 포맷팅 (소수점 3자리까지, 절삭)

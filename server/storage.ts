@@ -652,8 +652,29 @@ export class DatabaseStorage {
     }
   }
 
+  // positionId로 거래 기록 업데이트
+  async updateTradePositionId(exchangeOrderId: string, positionId: number): Promise<any> {
+    try {
+      const result = await this.pool.query(`
+        UPDATE trades
+        SET position_id = $1
+        WHERE exchange_order_id = $2
+        RETURNING *
+      `, [positionId, exchangeOrderId]);
+
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ 거래 기록을 찾을 수 없음: ${exchangeOrderId}`);
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error('거래 기록 positionId 업데이트 실패:', error);
+      throw error;
+    }
+  }
+
   // === 시스템 알림 관련 메서드들 ===
-  
+
   async createSystemAlert(data: any): Promise<any> {
     try {
       const result = await this.pool.query(`

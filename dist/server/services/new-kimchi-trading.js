@@ -408,126 +408,85 @@ export class MultiStrategyTradingService {
             // 김치프리미엄 차익거래 (양수/음수 동일한 전략)
             const market = `KRW-${symbol}`;
             console.log(`${kimchDirection} 진입: 업비트 ${market} 매수 ₩${upbitEntryAmount}, 바이낸스 숏 포지션`);
+            // 단순 차익거래 실행: 바이낸스 숏 먼저 → 업비트 매수
+            console.log(`🔵 단순 차익거래 실행: 바이낸스 숏 → 업비트 매수`);
+            console.log(`📊 현재 김프율: ${signal.premiumRate}%, 진입설정: ${entryRate}%`);
+            // 1단계: 바이낸스 숏 포지션 (정확한 수량)
             try {
-                // 단순 차익거래 실행: 업비트 매수 + 바이낸스 숏
-                console.log(`🔵 단순 차익거래 실행: 업비트 매수 + 바이낸스 숏`);
-                console.log(`📊 현재 김프율: ${signal.premiumRate}%, 진입설정: ${entryRate}%`);
-                upbitResult = await upbitService.placeBuyOrder(market, upbitEntryAmount, "price");
-                console.log(`업비트 매수 결과:`, upbitResult);
-                // 업비트 체결 결과 분석
-                const executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
-                const avgPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
-                const totalPaid = parseFloat(upbitResult.paid_fee || "0") + parseFloat(upbitResult.locked || upbitEntryAmount.toString());
-                // 실제 체결된 BTC 수량 계산
-                let purchasedQuantity = executedVolume;
-                if (purchasedQuantity === 0 && avgPrice > 0) {
-                    // executed_volume이 0이면 paid 금액으로 역산
-                    purchasedQuantity = (totalPaid - parseFloat(upbitResult.paid_fee || "0")) / avgPrice;
-                }
-                if (purchasedQuantity === 0 && upbitCurrentPrice > 0) {
-                    // 그래도 0이면 주문 금액으로 추정
-                    purchasedQuantity = upbitEntryAmount / upbitCurrentPrice;
-                }
-                console.log(`📊 업비트 체결 분석:`, {
-                    주문금액: upbitEntryAmount,
-                    체결수량: executedVolume,
-                    평균가격: avgPrice,
-                    계산수량: purchasedQuantity,
-                    최종수량: Math.floor(purchasedQuantity * 100000) / 100000
-                });
-                if (purchasedQuantity < 0.00001) {
-                    throw new Error(`구매 수량이 최소 기준에 미달: ${purchasedQuantity} BTC`);
-                }
-                adjustedQuantity = Math.floor(purchasedQuantity * 100000) / 100000; // 소수점 5자리까지
-                currentPrice = avgPrice || upbitCurrentPrice;
-                // 바이낸스 선물에서 동일 수량으로 숏 포지션
+                adjustedQuantity = Math.floor(investmentBtcAmount * 100000000) / 100000000; // 소수점 8자리까지
                 console.log(`바이낸스 선물 숏: ${symbol}, 수량: ${adjustedQuantity}, 레버리지: ${strategy.leverage || 3}x`);
                 await binanceService.setLeverage(symbol, strategy.leverage || 3);
                 binanceResult = await binanceService.placeFuturesShortOrder(symbol, adjustedQuantity);
                 console.log(`바이낸스 숏 결과:`, binanceResult);
-                // 🔄 자동 리밸런싱 체크 (3초 후)
-                setTimeout(async () => {
-                    try {
-                        console.log(`🔍 [자동매매] 포지션 불균형 체크 시작: ${symbol}`);
-                        // 불균형 분석 실행
-                        const rollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                symbol: symbol,
-                                tolerance: 0.001,
-                                autoExecute: false
-                            })
-                        });
-                        if (rollbackResponse.ok) {
-                            const rollbackData = await rollbackResponse.json();
-                            const imbalance = rollbackData.analysis?.imbalance;
-                            if (imbalance?.isUnbalanced) {
-                                console.log(`⚠️ [자동매매] 불균형 감지: ${imbalance.ratio.toFixed(1)}% (차이: ${imbalance.difference.toFixed(8)} BTC)`);
-                                // 리밸런싱 시도 (80% 이하 불균형)
-                                if (imbalance.ratio <= TRADING_CONSTANTS.MIN_LIQUIDATION_RATIO && imbalance.difference > TRADING_CONSTANTS.MIN_QUANTITY_DIFFERENCE) {
-                                    console.log(`🔄 [자동매매] 리밸런싱 시도...`);
-                                    try {
-                                        // 부족한 수량 추가 매수
-                                        const shortageQty = imbalance.difference;
-                                        const ticker = await upbitService.getTicker([`KRW-${symbol}`]);
-                                        const currentPrice = ticker[0]?.trade_price || 0;
-                                        if (currentPrice > 0) {
-                                            const buyAmount = Math.round(shortageQty * currentPrice * 0.99);
-                                            if (buyAmount >= 5000) {
-                                                console.log(`💰 [자동매매] 리밸런싱 매수: ${buyAmount}원 (${shortageQty.toFixed(8)} BTC)`);
-                                                const rebalanceOrder = await upbitService.placeBuyOrder(`KRW-${symbol}`, buyAmount, 'price');
-                                                console.log(`✅ [자동매매] 리밸런싱 완료:`, rebalanceOrder);
-                                                // 5초 후 재검사
-                                                setTimeout(async () => {
-                                                    console.log(`🔍 [자동매매] 리밸런싱 후 재검사...`);
-                                                    // 재검사 후 여전히 불균형이면 롤백 (생략 - 필요시 추가)
-                                                }, 5000);
-                                                return;
-                                            }
-                                        }
-                                    }
-                                    catch (rebalanceError) {
-                                        console.error(`❌ [자동매매] 리밸런싱 실패:`, rebalanceError.message);
-                                    }
-                                }
-                                // 심각한 불균형이거나 리밸런싱 실패 시 롤백
-                                if (imbalance.ratio > 80) {
-                                    console.log(`🚨 [자동매매] 심각한 불균형 - 자동 롤백 실행: ${imbalance.ratio.toFixed(1)}%`);
-                                    const autoRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json'
-                                        },
-                                        body: JSON.stringify({
-                                            symbol: symbol,
-                                            tolerance: 0.001,
-                                            autoExecute: true
-                                        })
-                                    });
-                                    if (autoRollbackResponse.ok) {
-                                        console.log(`✅ [자동매매] 자동 롤백 완료`);
-                                    }
-                                    else {
-                                        console.error(`❌ [자동매매] 자동 롤백 실패`);
-                                    }
-                                }
-                            }
-                            else {
-                                console.log(`✅ [자동매매] 포지션 균형 양호: ${imbalance?.ratio?.toFixed(1) || 0}%`);
-                            }
-                        }
-                    }
-                    catch (autoCheckError) {
-                        console.error(`❌ [자동매매] 자동 체크 실패:`, autoCheckError.message);
-                    }
-                }, 3000);
+                // 바이낸스 체결가 저장
+                const binancePrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
+                currentPrice = binancePrice || upbitCurrentPrice;
+                // 바이낸스 거래 즉시 DB 저장
+                try {
+                    await storage.createTrade({
+                        userId: parseInt(userId),
+                        positionId: null, // 포지션 생성 전이므로 null
+                        strategyId: strategy.id,
+                        symbol,
+                        side: "sell",
+                        exchange: "binance",
+                        quantity: String(adjustedQuantity),
+                        price: String(currentPrice),
+                        exchangeOrderId: binanceResult.orderId,
+                    });
+                    console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료`);
+                }
+                catch (dbError) {
+                    console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);
+                }
             }
             catch (error) {
-                console.error(`❌ 자동매매 거래 실행 실패: ${error.message}`);
-                throw new Error(`거래 실행 실패: ${error.message}`);
+                console.error(`❌ 바이낸스 숏 실패: ${error.message}`);
+                throw new Error(`바이낸스 숏 실패: ${error.message}`);
+            }
+            // 2단계: 업비트 매수 (바이낸스 수량 기준)
+            try {
+                // 바이낸스 체결 수량을 원화로 환산
+                const upbitBuyAmount = Math.round(adjustedQuantity * upbitCurrentPrice);
+                console.log(`업비트 매수: ${market}, 금액: ${upbitBuyAmount}원 (${adjustedQuantity} BTC 기준)`);
+                upbitResult = await upbitService.placeBuyOrder(market, upbitBuyAmount, "price");
+                console.log(`업비트 매수 결과:`, upbitResult);
+                // 업비트 체결 결과 확인
+                const executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
+                const avgPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
+                console.log(`📊 업비트 체결 분석:`, {
+                    목표수량: adjustedQuantity,
+                    실제체결: executedVolume,
+                    체결가: avgPrice,
+                });
+                // 업비트 거래 즉시 DB 저장
+                try {
+                    await storage.createTrade({
+                        userId: parseInt(userId),
+                        positionId: null, // 포지션 생성 전이므로 null
+                        strategyId: strategy.id,
+                        symbol,
+                        side: "buy",
+                        exchange: "upbit",
+                        quantity: String(adjustedQuantity),
+                        price: String(avgPrice || upbitCurrentPrice),
+                        exchangeOrderId: upbitResult.uuid,
+                    });
+                    console.log(`✅ 업비트 매수 거래 기록 즉시 저장 완료`);
+                }
+                catch (dbError) {
+                    console.error(`❌ 업비트 거래 기록 저장 실패:`, dbError);
+                }
+            }
+            catch (error) {
+                console.error(`❌ 업비트 매수 실패: ${error.message}`);
+                // 업비트 실패 시 바이낸스 숏은 이미 완료됨 → 경고 알림
+                await storage.createSystemAlert({
+                    type: "error",
+                    title: "업비트 매수 실패 (바이낸스 숏 완료됨)",
+                    message: `${symbol} 업비트 매수 실패. 바이낸스에 ${adjustedQuantity} BTC 숏 포지션 보유 중. 수동 처리 필요: ${error.message}`,
+                });
+                throw new Error(`업비트 매수 실패: ${error.message}`);
             }
             console.log(`📊 최종 거래 결과:`);
             console.log(`업비트:`, upbitResult);
@@ -574,31 +533,21 @@ export class MultiStrategyTradingService {
             catch (levErr) {
                 console.warn('⚠️ 레버리지 저장 실패(무시 가능):', levErr);
             }
-            // 거래 기록 생성
-            await Promise.all([
-                storage.createTrade({
-                    userId: parseInt(userId),
-                    positionId: positionId,
-                    strategyId: strategy.id, // 전략 ID 추가
-                    symbol,
-                    side: "buy",
-                    exchange: "upbit",
-                    quantity: String(adjustedQuantity),
-                    price: String(currentPrice),
-                    exchangeOrderId: upbitResult.uuid,
-                }),
-                storage.createTrade({
-                    userId: parseInt(userId),
-                    positionId: positionId,
-                    strategyId: strategy.id, // 전략 ID 추가
-                    symbol,
-                    side: "sell",
-                    exchange: "binance",
-                    quantity: String(adjustedQuantity),
-                    price: String(currentPrice),
-                    exchangeOrderId: binanceResult.orderId,
-                }),
-            ]);
+            // 거래 기록에 positionId 업데이트 (이미 저장된 거래 기록 업데이트)
+            try {
+                await storage.updateTradePositionId(binanceResult.orderId, positionId);
+                console.log(`✅ 바이낸스 거래 기록 positionId 업데이트 완료`);
+            }
+            catch (error) {
+                console.error(`❌ 바이낸스 거래 기록 업데이트 실패:`, error);
+            }
+            try {
+                await storage.updateTradePositionId(upbitResult.uuid, positionId);
+                console.log(`✅ 업비트 거래 기록 positionId 업데이트 완료`);
+            }
+            catch (error) {
+                console.error(`❌ 업비트 거래 기록 업데이트 실패:`, error);
+            }
             // 성공 알림
             await storage.createSystemAlert({
                 type: "success",
