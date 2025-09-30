@@ -450,23 +450,22 @@ export default function AdminPage() {
             </DialogDescription>
           </DialogHeader>
           {selectedUser && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-username" className="text-right">사용자명</Label>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-username">사용자명</Label>
                 <Input
                   id="edit-username"
                   value={selectedUser.username}
                   onChange={(e) => setSelectedUser(prev => prev ? { ...prev, username: e.target.value } : null)}
-                  className="col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-role" className="text-right">역할</Label>
-                <Select 
-                  value={selectedUser.role} 
+              <div className="space-y-2">
+                <Label htmlFor="edit-role">역할</Label>
+                <Select
+                  value={selectedUser.role}
                   onValueChange={(value) => setSelectedUser(prev => prev ? { ...prev, role: value } : null)}
                 >
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -475,15 +474,15 @@ export default function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-approval-status" className="text-right">승인 상태</Label>
+              <div className="space-y-2">
+                <Label htmlFor="edit-approval-status">승인 상태</Label>
                 <Select
                   value={selectedUser.approvalStatus}
                   onValueChange={(value: 'pending' | 'approved' | 'rejected') =>
                     setSelectedUser(prev => prev ? { ...prev, approvalStatus: value } : null)
                   }
                 >
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
