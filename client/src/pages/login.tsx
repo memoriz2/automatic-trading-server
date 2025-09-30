@@ -8,6 +8,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Shield, Lock, User, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 // import { apiRequest } from '@/lib/queryClient'; // fetch로 대체
 import { useLocation } from 'wouter';
 
@@ -23,6 +30,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [loginForm, setLoginForm] = useState<AuthForm>({ username: '', password: '' });
   const [registerForm, setRegisterForm] = useState<AuthForm>({ username: '', password: '' });
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalMessage, setApprovalMessage] = useState('');
   
   // 인증 상태가 변경되면 홈페이지로 이동
   useEffect(() => {
@@ -50,8 +59,16 @@ export default function LoginPage() {
       console.log('로그인 응답:', data);
       console.log('응답 상태:', response.ok, response.status);
 
+      // 403 에러 - 승인 대기/거부 상태
+      if (response.status === 403) {
+        setApprovalMessage(data.error || '관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+        setShowApprovalModal(true);
+        setIsLoading(false);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(data.message || '로그인에 실패했습니다');
+        throw new Error(data.error || data.message || '로그인에 실패했습니다');
       }
 
       // 쿠키 기반 인증: 서버가 HttpOnly 쿠키를 설정하므로 토큰 없이 사용자만 갱신
@@ -249,6 +266,26 @@ export default function LoginPage() {
           <p>🔑 API 키는 AES 암호화로 안전하게 저장됩니다</p>
         </div>
       </div>
+
+      {/* 승인 대기 모달 */}
+      <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-500" />
+              관리자 승인 필요
+            </DialogTitle>
+            <DialogDescription className="text-base pt-4">
+              {approvalMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => setShowApprovalModal(false)}>
+              확인
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

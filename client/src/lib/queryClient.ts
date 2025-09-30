@@ -31,21 +31,32 @@ export async function apiRequest(
 
 export async function apiFetch(url: string, init: RequestInit = {}) {
   const res = await fetch(url, { credentials: 'include', ...init });
-  
+
   // 401 Unauthorized - 인증 실패 이벤트 발생
   if (res.status === 401) {
     console.log('🔒 인증 실패 - 로그인 페이지로 이동');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('authToken');
     localStorage.removeItem('authToken');
-    
+
     // 전역 이벤트로 인증 실패 알림 (상태 업데이트 포함)
-    window.dispatchEvent(new CustomEvent('auth-failed', { 
-      detail: { clearAuth: true } 
+    window.dispatchEvent(new CustomEvent('auth-failed', {
+      detail: { clearAuth: true }
     }));
     throw new Error('Unauthorized');
   }
-  
+
+  // 403 Forbidden - 승인 대기 상태
+  if (res.status === 403) {
+    try {
+      const errorData = await res.json();
+      alert(errorData.message || '관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+    } catch {
+      alert('관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+    }
+    throw new Error('Forbidden');
+  }
+
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res;
 }
@@ -68,6 +79,15 @@ export async function apiFetchJson<T = any>(url: string, init: RequestInit = {})
       localStorage.removeItem('authToken');
       window.dispatchEvent(new CustomEvent('auth-failed', { detail: { clearAuth: true } }));
       throw new Error('Unauthorized');
+    }
+    if (res.status === 403) {
+      try {
+        const errorData = await res.json();
+        alert(errorData.message || '관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+      } catch {
+        alert('관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+      }
+      throw new Error('Forbidden');
     }
     if (!res.ok) throw new Error(`Request failed: ${res.status}`);
     return res.json();

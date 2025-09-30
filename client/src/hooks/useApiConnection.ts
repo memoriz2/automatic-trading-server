@@ -17,18 +17,31 @@ export const useApiConnection = ({ tradingMode }: UseApiConnectionProps) => {
         
         // 거래소 API 연결 상태 확인
         try {
-          const response = await fetch('/api/v2/exchanges/status', { 
+          const response = await fetch('/api/v2/exchanges/status', {
             credentials: 'include'
           });
-          
+
+          // 403 에러 처리 (승인 대기 상태)
+          if (response.status === 403) {
+            try {
+              const errorData = await response.json();
+              alert(errorData.message || '관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+            } catch {
+              alert('관리자 승인을 기다리고 있습니다. 관리자에게 문의하세요.');
+            }
+            setApiConnected(false);
+            setIsConnecting(false);
+            return;
+          }
+
           if (response.ok) {
             const data = await response.json();
             const isConnected = data.connected && data.connectedExchanges > 0;
             const wasConnected = apiConnected;
-            
+
             setApiConnected(isConnected);
             setIsConnecting(false);
-            
+
             // 연결 상태 변경 시에만 로그 출력
             if (wasConnected !== isConnected) {
               if (isConnected) {

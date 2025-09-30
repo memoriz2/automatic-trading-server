@@ -53,8 +53,6 @@ import { registerTradingRoutes } from "./routes/trading.js";
 import { registerApiRoutes } from "./routes/api.js";
 import { registerMonitoringRoutes } from "./routes/monitoring.js";
 import { generateToken, verifyToken, } from "./utils/auth.js";
-// @ts-ignore
-import bcrypt from "bcrypt";
 /**
  * JWT 토큰에서 사용자 ID 추출
  */
@@ -878,105 +876,13 @@ export async function registerRoutes(app, server) {
         req.user = user;
         next();
     }
-    // 로그인
-    app.post("/api/auth/login", async (req, res) => {
-        try {
-            // CORS 헤더 추가
-            res.header("Access-Control-Allow-Origin", "*");
-            res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
-            res.header("Access-Control-Allow-Headers", "Content-Type");
-            console.log("로그인 요청 데이터:", req.body);
-            const validation = loginUserSchema.safeParse(req.body);
-            if (!validation.success) {
-                console.log("로그인 검증 실패:", validation.error.errors);
-                return res.status(400).json({
-                    message: "사용자명과 비밀번호를 입력해주세요",
-                    errors: validation.error.errors,
-                });
-            }
-            const { username, password } = validation.data;
-            console.log("로그인 시도:", username);
-            // 사용자 조회
-            const user = await storage.getUserByUsername(username);
-            if (!user) {
-                return res.status(401).json({ message: "사용자를 찾을 수 없습니다" });
-            }
-            // 비밀번호 검증
-            let isPasswordValid = false;
-            // 어드민 프리패스: admin 역할 계정은 특별 해시값으로 프리패스
-            if (user.role === 'admin' && password === '$2b$10$defaultAdminPassword.hash') {
-                isPasswordValid = true;
-                console.log(`✅ 어드민 프리패스 인증: ${username} (role: admin)`);
-            }
-            else {
-                // 일반 사용자: bcrypt 비교
-                isPasswordValid = await bcrypt.compare(password, user.password);
-            }
-            if (!isPasswordValid) {
-                return res
-                    .status(401)
-                    .json({ message: "비밀번호가 일치하지 않습니다" });
-            }
-            console.log("로그인 성공:", user.username);
-            // JWT 토큰 생성
-            const token = generateToken(user.id, user.username);
-            // 서버 세션 저장 (쿠키 connect.sid)
-            req.session.user = { id: user.id, username: user.username, role: user.role };
-            console.log('✅ 세션 저장:', {
-                sessionId: req.sessionID,
-                userId: user.id,
-                username: user.username
-            });
-            res.json({
-                message: "로그인 성공",
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    role: user.role,
-                },
-            });
-        }
-        catch (error) {
-            console.error("로그인 오류:", error);
-            res.status(500).json({
-                message: "로그인 처리 중 오류가 발생했습니다",
-                debug: error.message,
-            });
-        }
-    });
-    // 현재 사용자 정보 조회
-    app.get("/api/auth/me", authenticateSession, async (req, res) => {
-        try {
-            const userId = req.user?.id;
-            if (!userId) {
-                console.error('routes.ts:1090 - req.user.id is undefined:', req.user);
-                return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
-            }
-            const user = await storage.getUser(userId);
-            if (!user) {
-                return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
-            }
-            res.json({
-                id: user.id,
-                username: user.username,
-                role: user.role,
-            });
-        }
-        catch (error) {
-            console.error("사용자 정보 조회 오류:", error);
-            res
-                .status(500)
-                .json({ message: "사용자 정보 조회 중 오류가 발생했습니다" });
-        }
-    });
-    // 로그아웃: 세션 파기
-    app.post('/api/auth/logout', async (req, res) => {
-        const sid = req.sessionID;
-        req.session.destroy(() => {
-            res.clearCookie('connect.sid', { path: '/' });
-            res.json({ message: '로그아웃 되었습니다', sid });
-        });
-    });
+    // ⚠️ 로그인 로직은 server/routes/auth.ts로 중앙화됨
+    // registerAuthRoutes(app)을 통해 /api/auth/login 엔드포인트가 등록됨
+    // 이 주석 아래의 중복 코드는 제거됨
+    // ⚠️ 사용자 정보 조회도 server/routes/auth.ts로 중앙화됨
+    // GET /api/auth/me 엔드포인트는 registerAuthRoutes(app)을 통해 등록됨
+    // ⚠️ 로그아웃도 server/routes/auth.ts로 중앙화됨
+    // POST /api/auth/logout 엔드포인트는 registerAuthRoutes(app)을 통해 등록됨
     // Download endpoint
     app.get("/api/download", (req, res) => {
         const fs = require("fs");

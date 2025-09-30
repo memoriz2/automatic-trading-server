@@ -149,7 +149,27 @@ export class DatabaseStorage {
         'SELECT * FROM users WHERE id = $1',
         [numericId]
       );
-      return result.rows[0] || undefined;
+
+      if (!result.rows[0]) return undefined;
+
+      const row = result.rows[0];
+      // snake_case를 camelCase로 변환
+      return {
+        id: row.id,
+        username: row.username,
+        role: row.role,
+        email: row.email,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        profileImageUrl: row.profile_image_url,
+        password: row.password,
+        passwordHash: row.password,
+        isActive: row.is_active,
+        approvalStatus: row.approval_status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        lastLoginAt: row.last_login_at
+      };
     } catch (error) {
       console.error('Error getting user by ID:', error);
       return undefined;
@@ -162,7 +182,27 @@ export class DatabaseStorage {
         'SELECT * FROM users WHERE username = $1',
         [username]
       );
-      return result.rows[0] || undefined;
+
+      if (!result.rows[0]) return undefined;
+
+      const row = result.rows[0];
+      // snake_case를 camelCase로 변환
+      return {
+        id: row.id,
+        username: row.username,
+        role: row.role,
+        email: row.email,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        profileImageUrl: row.profile_image_url,
+        password: row.password,
+        passwordHash: row.password,
+        isActive: row.is_active,
+        approvalStatus: row.approval_status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        lastLoginAt: row.last_login_at
+      };
     } catch (error) {
       console.error('Error getting user by username:', error);
       return undefined;
@@ -1613,6 +1653,20 @@ export class DatabaseStorage {
     } catch (error) {
       console.error('Error checking user approval status:', error);
       return false;
+    }
+  }
+
+  // 마지막 로그인 시간 업데이트
+  async updateLastLogin(userId: number): Promise<void> {
+    try {
+      await this.pool.query(`
+        UPDATE users
+        SET last_login_at = NOW()
+        WHERE id = $1
+      `, [userId]);
+      console.log(`✅ 사용자 ${userId} 마지막 로그인 시간 업데이트 완료`);
+    } catch (error) {
+      console.error('마지막 로그인 시간 업데이트 실패:', error);
     }
   }
 
