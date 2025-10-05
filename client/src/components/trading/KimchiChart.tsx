@@ -10,7 +10,7 @@ interface KimchiChartProps {
 }
 
 export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
-  const [chartTimeframe, setChartTimeframe] = useState('1H');
+  const [chartTimeframe] = useState('1D'); // 1D로 고정
   const sparkCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // 시간대별 데이터 필터링(타임스탬프 윈도우 + 리샘플)
@@ -130,11 +130,11 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
       const max = Math.max(...chartData.map(p => p.v));
       const span = Math.max(0.01, max - min);
 
-      // 여백 설정 (좌측 y축 라벨 공간 확보)
+      // 여백 설정 (좌측 y축 라벨, 하단 x축 라벨 공간 확보)
       const leftPad = 44;
       const rightPad = 8;
       const topPad = 8;
-      const bottomPad = 12;
+      const bottomPad = 24; // x축 레이블 공간 확보
       const plotW = Math.max(1, w - leftPad - rightPad);
       const plotH = Math.max(1, h - topPad - bottomPad);
 
@@ -160,14 +160,26 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
         ctx.fillText(`${labelVal.toFixed(2)}%`, leftPad - 6, y);
       }
 
-      // 데이터 라인 그리기
+      // 데이터 라인 그리기 (한국 시간 9시 기준 24시간)
       ctx.beginPath();
       ctx.strokeStyle = '#10b981';
       ctx.lineWidth = 2;
 
-      const t0 = chartData[0].t;
-      const t1 = chartData[chartData.length - 1].t;
-      const tSpan = Math.max(1, t1 - t0);
+      // 한국 시간 오전 9시 계산 (데이터 필터링 로직과 동일)
+      const koreaTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const today9AM = new Date(koreaTime);
+      today9AM.setHours(9, 0, 0, 0);
+
+      // 현재 한국 시간이 오전 9시 이전이면 어제 9시, 아니면 오늘 9시
+      const startTime9AM = koreaTime.getTime() < today9AM.getTime()
+        ? new Date(today9AM.getTime() - 24 * 60 * 60 * 1000)
+        : today9AM;
+
+      const t0 = startTime9AM.getTime(); // 오전 9시
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const t1 = t0 + oneDayMs; // 다음날 오전 9시
+      const tSpan = oneDayMs;
+
       chartData.forEach((point, index) => {
         const x = leftPad + (plotW * (point.t - t0)) / tSpan;
         const y = topPad + plotH * (1 - ((point.v - min) / span));
@@ -177,12 +189,29 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
 
       // 현재 값 포인트
       const lastPoint = chartData[chartData.length - 1];
-      const lastX = leftPad + plotW;
+      const lastX = leftPad + (plotW * (lastPoint.t - t0)) / tSpan;
       const lastY = topPad + plotH * (1 - ((lastPoint.v - min) / span));
       ctx.beginPath();
       ctx.fillStyle = '#10b981';
-      ctx.arc(lastX - 5, lastY, 4, 0, 2 * Math.PI);
+      ctx.arc(lastX, lastY, 4, 0, 2 * Math.PI);
       ctx.fill();
+
+      // x축 시간 레이블 (9시부터 다음날 9시까지 3시간 간격)
+      ctx.fillStyle = '#9fb0c9';
+      ctx.font = '11px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const labelCount = 8; // 24시간 / 3시간 = 8개
+      const timeLabels = ['09:00', '12:00', '15:00', '18:00', '21:00', '00:00', '03:00', '06:00', '09:00'];
+
+      for (let i = 0; i <= labelCount; i++) {
+        const ratio = i / labelCount;
+        const x = leftPad + plotW * ratio;
+        const y = topPad + plotH + 4;
+
+        ctx.fillText(timeLabels[i], x, y);
+      }
     }
   }, [getChartData]);
 
@@ -190,36 +219,7 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
     <section className="card col-6">
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border" data-testid="card-premium-chart">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">김치프리미엄 차트</h2>
-          <div className="flex space-x-2">
-            <button 
-              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
-                chartTimeframe === '1H' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
-              }`}
-              data-testid="button-timeframe-1H"
-              onClick={() => setChartTimeframe('1H')}
-            >
-              1H
-            </button>
-            <button 
-              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
-                chartTimeframe === '4H' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
-              }`}
-              data-testid="button-timeframe-4H"
-              onClick={() => setChartTimeframe('4H')}
-            >
-              4H
-            </button>
-            <button 
-              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-9 rounded-md px-3 ${
-                chartTimeframe === '1D' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
-              }`}
-              data-testid="button-timeframe-1D"
-              onClick={() => setChartTimeframe('1D')}
-            >
-              1D
-            </button>
-          </div>
+          <h2 className="text-xl font-semibold">김치프리미엄 차트 (24시간)</h2>
         </div>
         <div className="h-64 bg-muted rounded-lg p-4">
           <canvas 
