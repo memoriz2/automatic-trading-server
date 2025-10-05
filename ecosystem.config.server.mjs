@@ -15,6 +15,9 @@ export default {
     log_file: './logs/combined.log',
     out_file: './logs/out.log',
     error_file: './logs/error.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss',
+    // 로그 로테이션 설정
+    merge_logs: true,
     max_memory_restart: '1G',
     max_restarts: 10,
     min_uptime: '10s'

@@ -30,7 +30,6 @@ export const useLegacyTradingState = () => {
     kimp: 0,
     timestamp: null
   });
-  const [sparkData, setSparkData] = useState<any[]>([]);
   const [logs, setLogs] = useState<string>('Loading...');
   const [balances, setBalances] = useState<any>({ real: {}, connected: {} });
   const [metrics, setMetrics] = useState<any>({});
@@ -240,8 +239,6 @@ export const useLegacyTradingState = () => {
     setCurrentPositions,
     kimp,
     setKimp,
-    sparkData,
-    setSparkData,
     logs,
     setLogs,
     balances,

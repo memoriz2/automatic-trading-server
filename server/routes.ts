@@ -54,6 +54,7 @@ import { registerAuthRoutes, authenticateSession } from "./routes/auth.js";
 import { registerTradingRoutes } from "./routes/trading.js";
 import { registerApiRoutes } from "./routes/api.js";
 import { registerMonitoringRoutes } from "./routes/monitoring.js";
+import { registerChartRoutes } from "./routes/chart.js";
 import {
   generateToken,
   verifyToken,
@@ -526,83 +527,49 @@ export async function registerRoutes(
       const kstMidnight = new Date(kstNow);
       kstMidnight.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
       
-      console.log(`🔍 [daily-stats] 한국시간 기준:`, {
-        현재UTC: now.toISOString(),
-        현재한국시간: kstNow.toISOString(),
-        오늘자정한국시간: kstMidnight.toISOString(),
-        필터링기준: kstMidnight.toISOString()
-      });
       
       // 🚀 SQL에서 직접 한국시간 기준 오늘 데이터만 조회 (더 정확하고 효율적)
       const todayTrades = await storage.getTodayTradesByUserId(String(userId));
       const todayPositions = await storage.getTodayPositionsByUserId(userId);
       
-      // 전체 데이터도 조회 (비교용)
-      const allTrades = await storage.getTradesByUserId(String(userId), 100);
-      const allPositions = await storage.getPositions({ user_id: userId });
-      
-      console.log(`🔍 [daily-stats] SQL 직접 조회 결과:`, {
-        userId: userId,
-        전체거래: allTrades.length,
-        오늘거래: todayTrades.length,
-        전체포지션: allPositions.length,
+      // 🔧 실제 체결된 거래만 필터링 (order_type = 'LIVE')
+      const liveTrades = todayTrades.filter(t => t.order_type === 'LIVE');
+
+      console.log(`📊 [daily-stats] 오늘 통계:`, {
+        전체거래기록: todayTrades.length,
+        실제거래: liveTrades.length,
         오늘포지션: todayPositions.length,
-        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
-        오늘거래상세: todayTrades.map(t => ({ side: t.side, exchange: t.exchange }))
+        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
       });
 
-      // 포지션 시간 상세 확인
-      if (allPositions.length > 0) {
-        console.log(`🔍 [daily-stats] 포지션 시간 상세:`, allPositions.map(p => {
-          const positionTime = new Date(p.created_at || p.entry_time);
-          // 🔧 올바른 한국시간 변환
-          const positionKst = new Date(positionTime.getTime() + 9 * 60 * 60 * 1000);
-          const positionDateStr = positionKst.toISOString().split('T')[0]; // YYYY-MM-DD 형식
-          const todayDateStr = kstMidnight.toISOString().split('T')[0];
-
-          return {
-            id: p.id,
-            status: p.status,
-            entry_time: p.entry_time,
-            created_at: p.created_at,
-            한국시간: positionKst.toISOString(),
-            오늘포함여부: positionDateStr === todayDateStr
-          };
-        }));
-      }
-      
-      // 🔧 진입/청산 거래 정확한 분류
-      const entryTrades = todayTrades.filter(t =>
+      // 🔧 진입/청산 거래 정확한 분류 (실제 체결된 거래만)
+      const entryTrades = liveTrades.filter(t =>
         t.side === 'buy' ||     // 업비트 매수 (롱 진입)
         t.side === 'short'      // 바이낸스 숏 (숏 진입)
       );
-      const exitTrades = todayTrades.filter(t =>
+      const exitTrades = liveTrades.filter(t =>
         t.side === 'sell' ||    // 업비트 매도 (롱 청산)
         t.side === 'cover'      // 바이낸스 커버 (숏 청산) - 아직 없음
       );
 
-      console.log(`🔍 [daily-stats] 거래 분류 결과:`, {
-        entryTrades: entryTrades.length,
-        exitTrades: exitTrades.length,
-        meaningfulTrades: entryTrades.length + exitTrades.length
-      });
-      
+
       // 실제 포지션 생성/청산 횟수
-      const todayEntries = todayPositions.filter(p => p.status === 'open').length;
-      const todayExits = todayPositions.filter(p => p.status === 'closed').length;
+      const todayEntries = todayPositions.length; // 오늘 생성된 포지션 수
+      // 청산 횟수는 exit_time 기준으로 계산
+      const todayExits = await storage.getTodayExitedPositionsCount(userId);
 
       // 통계 계산 (의미있는 거래만)
       const meaningfulTrades = entryTrades.length + exitTrades.length;
-      
+
       const stats = {
         total_orders: meaningfulTrades, // 진입+청산 거래만
         entries: entryTrades.length, // 거래 기반 진입 수 (더 직관적)
-        exits: exitTrades.length, // 거래 기반 청산 수 (더 직관적)
+        exits: todayExits, // 포지션 기반 청산 수 (exit_time 기준)
         upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
         binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
         total_fees: (() => {
-          // 완료된 거래 수수료
-          const completedFees = todayTrades.reduce((sum, trade) => {
+          // 완료된 거래 수수료 (실제 체결된 거래만)
+          const completedFees = liveTrades.reduce((sum, trade) => {
             const fee = Number(trade.fee || 0);
             return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
           }, 0);
@@ -611,18 +578,12 @@ export async function registerRoutes(
           let activePositionFees = 0;
           const todayActivePositions = todayPositions.filter(p => p.status === 'open');
           
-          console.log(`🔍 [daily-stats] 오늘 활성 포지션: ${todayActivePositions.length}개`);
           
           if (todayActivePositions.length > 0) {
             // 실시간 김치 데이터 한 번만 조회
             const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
             const btcData = realtimeData.find(d => d.symbol === 'BTC');
             
-            console.log(`🔍 [daily-stats] BTC 데이터:`, {
-              upbitPrice: btcData?.upbitPrice,
-              binancePrice: btcData?.binanceFuturesPrice,
-              usdKrw: btcData?.usdKrwRate
-            });
             
             const currentUpbitPrice = btcData?.upbitPrice || 160000000; // 기본값
             const currentBinancePrice = btcData?.binanceFuturesPrice || 115000; // 기본값
@@ -640,25 +601,17 @@ export async function registerRoutes(
               const binanceSellAmount = binanceQuantity * currentBinancePrice;
               const binanceExitFee = (binanceSellAmount * 0.0004) * currentUsdKrw;
               
-              console.log(`🔍 [daily-stats] 포지션 ${index + 1}:`, {
-                upbitQuantity,
-                binanceQuantity,
-                upbitExitFee: upbitExitFee.toFixed(2),
-                binanceExitFee: binanceExitFee.toFixed(2),
-                totalFee: (upbitExitFee + binanceExitFee).toFixed(2)
-              });
               
               return sum + upbitExitFee + binanceExitFee;
             }, 0);
             
-            console.log(`🔍 [daily-stats] 총 예상 매도 수수료: ₩${activePositionFees.toFixed(2)}`);
           }
           
           return completedFees + activePositionFees;
         })(),
         total_profit_rate: (() => {
-          // 간단한 수익률 계산: 총 수수료 대비 손익
-          const totalFeesKrw = todayTrades.reduce((sum, trade) => {
+          // 간단한 수익률 계산: 총 수수료 대비 손익 (실제 체결된 거래만)
+          const totalFeesKrw = liveTrades.reduce((sum, trade) => {
             return sum + Number(trade.fee || 0);
           }, 0);
           
@@ -689,7 +642,6 @@ export async function registerRoutes(
             환율: currentUsdKrw,
             오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
             오늘완료포지션: todayPositions.filter(p => p.status === 'closed').length,
-            전체포지션: allPositions.length,
             오늘포지션: todayPositions.length
           });
 
@@ -773,10 +725,6 @@ export async function registerRoutes(
         loops: (() => {
           // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
           const completedPositions = todayPositions.filter(p => p.status === 'closed');
-          console.log(`🔄 [daily-stats] 루프 계산:`, {
-            오늘완료포지션: completedPositions.length,
-            전체오늘포지션: todayPositions.length
-          });
           return completedPositions.length;
         })(),
         errors: 0
@@ -1331,11 +1279,39 @@ export async function registerRoutes(
 
   // 활성 포지션 조회 (세션 인증) - 중복 제거됨
 
+  // 활성 포지션 중복 체크 API (진입 전 확인용) - 반드시 :userId 라우트보다 앞에 위치
+  app.get("/api/positions/check-active", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { strategyId, symbol } = req.query;
+
+      const activePosition = await storage.getActivePositionByStrategy(
+        parseInt(strategyId as string),
+        symbol as string
+      );
+
+      res.json({
+        hasActivePosition: !!activePosition,
+        position: activePosition || null
+      });
+    } catch (error) {
+      console.error("활성 포지션 체크 오류:", error);
+      res.status(500).json({ error: "활성 포지션 확인 중 오류가 발생했습니다" });
+    }
+  });
+
   // 활성 포지션 조회
   app.get("/api/positions/:userId", async (req, res) => {
     try {
-      const userId = req.params.userId; // string으로 처리
-      const positions = await storage.getActivePositions(parseInt(userId));
+      const userId = req.params.userId;
+      const userIdNum = parseInt(userId);
+
+      if (isNaN(userIdNum)) {
+        console.error(`❌ [getActivePositions] 잘못된 userId: "${userId}"`);
+        return res.status(400).json({ error: "Invalid userId" });
+      }
+
+      const positions = await storage.getActivePositions(userIdNum);
       res.json(positions);
     } catch (error) {
       console.error("포지션 조회 오류:", error);
@@ -2807,21 +2783,20 @@ export async function registerRoutes(
     try {
       const userId = req.user.id;
       const { isMock } = req.query;
-      
+
       const whereClause: any = { userId };
       if (isMock !== undefined) {
         whereClause.isMock = isMock === 'true';
       }
-      
+
       const positions = await storage.getPositions(whereClause);
-      
+
       res.json(positions);
     } catch (error) {
       console.error("포지션 조회 오류:", error);
       res.status(500).json({ error: "포지션 조회 중 오류가 발생했습니다" });
     }
   });
-
 
   // 실거래 API 엔드포인트
   app.post("/api/live-trades", authenticateSession, async (req: any, res) => {
@@ -4443,12 +4418,13 @@ window.onload = () => {
       // ReduceOnly 오류 = 이미 청산된 것으로 간주하여 포지션 자동 닫기
       if (error.message && (error.message.includes('ReduceOnly Order is rejected') || error.message.includes('-2022'))) {
         console.log(`✅ 바이낸스 BTC 포지션 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
-        
+
         try {
           const symbol = req.body.symbol?.replace('USDT', '') || 'BTC';
-          // 해당 심볼의 활성 포지션들을 모두 닫기
-          const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
-          console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+          const strategyId = req.body.strategyId;
+          // 해당 심볼의 활성 포지션들을 모두 닫기 (strategyId가 있으면 해당 전략만)
+          const result = await storage.closeAllPositionsByUser(req.user.id, { symbol, strategyId });
+          console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료 (strategyId: ${strategyId || 'all'})`);
         } catch (closeError: any) {
           console.error(`❌ 포지션 자동 청산 실패:`, closeError);
         }
@@ -4698,12 +4674,13 @@ window.onload = () => {
       // 잔고 부족 오류 = 이미 청산된 것으로 간주하여 포지션 자동 닫기
       if (error.message && (error.message.includes('insufficient_funds_ask') || error.message.includes('주문 가능한 금액'))) {
         console.log(`✅ 업비트 BTC 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
-        
+
         try {
           const symbol = req.body.market?.replace('KRW-', '') || 'BTC';
-          // 해당 심볼의 활성 포지션들을 모두 닫기
-          const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
-          console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+          const strategyId = req.body.strategyId;
+          // 해당 심볼의 활성 포지션들을 모두 닫기 (strategyId가 있으면 해당 전략만)
+          const result = await storage.closeAllPositionsByUser(req.user.id, { symbol, strategyId });
+          console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료 (strategyId: ${strategyId || 'all'})`);
         } catch (closeError: any) {
           console.error(`❌ 포지션 자동 청산 실패:`, closeError);
         }
@@ -5047,6 +5024,7 @@ window.onload = () => {
   registerTradingRoutes(app);
   registerApiRoutes(app);
   registerMonitoringRoutes(app);
+  registerChartRoutes(app);
 
   return;
 }

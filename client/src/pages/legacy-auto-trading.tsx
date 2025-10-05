@@ -6,6 +6,7 @@ import { useLegacyTradingHandlers } from '@/hooks/useLegacyTradingHandlers';
 import { useTradingDataOperations } from '@/hooks/useTradingDataOperations';
 import { useTradingUIHelpers } from '@/hooks/useTradingUIHelpers';
 import { useTradingMarginHelpers } from '@/hooks/useTradingMarginHelpers';
+import { useKimchiChartData } from '@/hooks/useKimchiChartData';
 import { LiveTradingSystem } from '@/components/live-trading-system';
 import { StrategyList } from '@/components/trading/StrategyList';
 import { KimchiChart } from '@/components/trading/KimchiChart';
@@ -60,7 +61,7 @@ const LegacyAutoTradingPage = () => {
     isConnected, wsConnecting, connectionAttempts, lastHeartbeat, subscribe,
     // 상태들
     sessionInfo, setSessionInfo, showSessionInfo, setShowSessionInfo,
-    currentPositions, setCurrentPositions, kimp, setKimp, sparkData, setSparkData,
+    currentPositions, setCurrentPositions, kimp, setKimp,
     logs, setLogs, balances, setBalances, metrics, setMetrics, bands, setBands,
     serverBands, setServerBands, serverStatusBands, setServerStatusBands,
     registeringIndex, setRegisteringIndex, unregisteringIndex, setUnregisteringIndex,
@@ -75,7 +76,10 @@ const LegacyAutoTradingPage = () => {
     // Trading mode related
     isAdmin, canUseMock, loadRealStrategies, isLoadingStrategies, strategiesError, lastLoadTime
   } = useLegacyTradingState();
-  
+
+  // 김치 프리미엄 차트 데이터 관리
+  const { chartData, isLoading: chartLoading, addDataPoint } = useKimchiChartData('BTC');
+
   // 사용자 ID 통일 및 데이터 마이그레이션
   useEffect(() => {
     if (user?.id) {
@@ -110,7 +114,18 @@ const LegacyAutoTradingPage = () => {
       }
     }
   }, [user?.id]);
-  
+
+  // localStorage 정리 (차트 데이터 마이그레이션)
+  useEffect(() => {
+    // 기존 localStorage의 차트 데이터 삭제 (이제 DB 사용)
+    Object.keys(localStorage)
+      .filter(k => k.includes('kimchi-chart-data'))
+      .forEach(k => {
+        console.log(`🗑️ localStorage 정리: ${k}`);
+        localStorage.removeItem(k);
+      });
+  }, []);
+
   // 🔍 컴포넌트 마운트 시 사라진 전략 데이터 자동 복구
   useEffect(() => {
     const recoverStrategies = async () => {
@@ -576,27 +591,14 @@ const LegacyAutoTradingPage = () => {
       const k = await fetchJson('/api/kimpga/current');
       if (!k) return; // Abort 등으로 undefined일 때 조용히 무시
       setKimp(k);
-      if (isNum(k.kimp)) {
-        setSparkData(prev => {
-          const next = { t: Date.now(), v: Number(k.kimp) };
-          const newData = [...prev, next];
-          
-          // 24시간 이내 데이터만 유지 + 최대 5000 포인트
-          const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-          const filtered = newData.filter(point => point.t > oneDayAgo).slice(-5000);
-          
-          // 로컬스토리지에 저장 (5분마다 또는 100개 포인트마다)
-          if (filtered.length % 100 === 0 || Date.now() % 300000 < 1000) {
-            try {
-              localStorage.setItem(`kimchi-chart-data-${effectiveUserId}`, JSON.stringify(filtered));
-                  // 김치프리미엄 차트 데이터 저장
-            } catch (error) {
-              console.error('차트 데이터 저장 실패:', error);
-            }
-          }
-          
-          return filtered;
-        });
+      if (isNum(k.kimp) && k.upbit_price && k.binance_price && k.usdkrw) {
+        // 차트 데이터 추가 (DB 저장 포함)
+        addDataPoint(
+          Number(k.kimp),
+          Number(k.upbit_price),
+          Number(k.binance_price),
+          Number(k.usdkrw)
+        );
       }
       
       // 가격 업데이트 시 모든 밴드 행의 미리보기 업데이트
@@ -905,28 +907,14 @@ const LegacyAutoTradingPage = () => {
           
           setKimp(newKimpData);
           
-          // 웹소켓 데이터도 차트에 추가
-          if (isNum(btcData.premiumRate)) {
-            setSparkData(prev => {
-              const next = { t: Date.now(), v: Number(btcData.premiumRate) };
-              const newData = [...prev, next];
-              
-              // 24시간 이내 데이터만 유지 + 최대 5000 포인트
-              const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-              const filtered = newData.filter(point => point.t > oneDayAgo).slice(-5000);
-              
-              // 로컬스토리지에 저장 (100개 포인트마다)
-              if (filtered.length % 100 === 0) {
-                try {
-                  localStorage.setItem(`kimchi-chart-data-${effectiveUserId}`, JSON.stringify(filtered));
-                  // 웹소켓 김프 데이터 저장
-                } catch (error) {
-                  console.error('웹소켓 차트 데이터 저장 실패:', error);
-                }
-              }
-              
-              return filtered;
-            });
+          // 웹소켓 데이터도 차트에 추가 (DB 저장 포함)
+          if (isNum(btcData.premiumRate) && btcData.upbitPrice && btcData.binanceFuturesPrice && btcData.usdKrwRate) {
+            addDataPoint(
+              Number(btcData.premiumRate),
+              Number(btcData.upbitPrice),
+              Number(btcData.binanceFuturesPrice),
+              Number(btcData.usdKrwRate)
+            );
           }
         }
       }
@@ -1321,7 +1309,7 @@ const LegacyAutoTradingPage = () => {
           />
 
           {/* 김치프리미엄 차트 */}
-          <KimchiChart sparkData={sparkData} />
+          <KimchiChart sparkData={chartData} />
         </div>
       </div>
 
