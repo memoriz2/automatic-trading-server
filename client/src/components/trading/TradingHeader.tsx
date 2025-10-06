@@ -58,7 +58,8 @@ export const TradingHeader: React.FC<TradingHeaderProps> = ({
           <span>세션 확인</span>
         </button>
         <span id="kimp-brief" className="kimp-brief mono" aria-live="polite">
-          {`김프 ${fx(kimp.kimp, 3)}% · 업비트 ${loc(kimp.upbit_price)} KRW · 바이낸스 $${Math.floor(kimp.binance_price).toLocaleString('en-US')} · 환율 ${fx(kimp.usdkrw, 2)}`}
+          <div>김프 {fx(kimp.kimp, 3)}% · 업비트 {loc(kimp.upbit_price)} KRW</div>
+          <div>환율 {fx(kimp.usdkrw, 2)} · 바이낸스 ${Math.floor(kimp.binance_price).toLocaleString('en-US')}</div>
         </span>
       </div>
     </header>
