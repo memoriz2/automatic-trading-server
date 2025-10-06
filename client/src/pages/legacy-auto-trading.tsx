@@ -29,25 +29,9 @@ import { strategyBackupManager, useStrategyBackup } from '@/utils/strategy-backu
 import { Badge as _Badge } from '@/components/ui/badge';
 import { DailyStatsPanel } from '@/components/trading/DailyStatsPanel';
 
-// interface _Band {
-//   name?: string;
-//   target_kimp?: number | string;
-//   exit_kimp?: number | string;
-//   tolerance?: number | string;
-//   leverage?: number | string;
-//   amount_btc?: number | string;
-//   serverId?: string | number;
-// }
-
 // 유틸리티 함수들은 별도 파일로 분리됨
 
 const LegacyAutoTradingPage = () => {
-  // 유틸리티 함수들
-  // const _mapStrategyToBand = (strategy: any) => ({
-  //   ...strategy,
-  //   band: strategy.band || 'default'
-  // });
-
   // 상수들
   const TRADING_CONSTANTS = {
     DEFAULT_TOLERANCE: '0.1'

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Square, AlertTriangle, TrendingUp, Settings } from "lucide-react";
-  // import { apiRequest } from "@/lib/queryClient";
 import type { TradingSettings } from "@/types/trading";
 
 interface NewKimchiControlProps {
@@ -123,10 +122,6 @@ export function NewKimchiControl({ userId }: NewKimchiControlProps) {
       console.log('🔄 자동매매 중지 뮤테이션 완료');
     }
   });
-
-  const ___handleStart = () => {
-    startTradingMutation.mutate();
-  };
 
   const handleStop = () => {
     stopTradingMutation.mutate();

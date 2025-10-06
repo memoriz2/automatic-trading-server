@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { KimchiCards } from "@/components/kimchi-cards";
 import { PositionsTable } from "@/components/positions-table";
-  // import { BalanceDisplay } from "@/components/balance-display";
-
 import { RealTimePrices } from "@/components/real-time-prices";
 import { CryptoPricesGrid } from "@/components/crypto-prices-grid";
 import { useWebSocket } from "@/hooks/use-websocket";

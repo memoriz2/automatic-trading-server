@@ -1,7 +1,5 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-// import { isNum, loc, formatBTC, formatPercent } from '@/utils/trading/formatters';
-  // import { getSafeLeverage } from '@/config/strategy-defaults';
 
 interface Band {
   name?: string;

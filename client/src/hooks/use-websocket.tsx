@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { WebSocketMessage } from '@/types/trading';
-  // import { formatKoreanTime } from '@/utils/datetime';
 import { logger } from '@/utils/logger';
 
 export function useWebSocket() {

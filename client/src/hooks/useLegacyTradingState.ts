@@ -65,27 +65,7 @@ export const useLegacyTradingState = () => {
   const [strategiesError, setStrategiesError] = useState<string | null>(null);
   const [lastLoadTime, setLastLoadTime] = useState<Date | null>(null);
 
-  // 사용자 ID 관리
-  const ___initialUserId = (() => {
-    try {
-      const fromAuth = user?.id != null ? String(user.id) : undefined;
-      const search = new URLSearchParams(window.location.search);
-      const fromQuery = search.get('userId') || search.get('uid') || undefined;
-      const fromStorage = localStorage.getItem('x-user-id') || undefined;
-      return fromAuth || fromQuery || fromStorage || null;
-    } catch {
-      return user?.id != null ? String(user.id) : null;
-    }
-  })();
-
   const effectiveUserId = user?.id ? String(user.id) : userIdManager.getCurrentUserId();
-
-  // 안전 숫자 변환기
-  const ___toNum = (v: any, d = 0) => {
-    if (v === null || v === undefined) return d;
-    const n = typeof v === 'string' ? parseFloat(v) : Number(v);
-    return Number.isFinite(n) ? n : d;
-  };
 
   // 서버 rows → 프론트 스키마로 정규화 (원본 값 보존 우선)
   const normalizeStrategies = (rows: any[]) =>

@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-  // import { Badge } from "@/components/ui/badge";
 import { Play, Pause, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import type { TradingSettings } from "@/types/trading";

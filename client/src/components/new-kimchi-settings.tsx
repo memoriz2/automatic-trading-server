@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-  // import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -116,11 +115,6 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
       ...currentSettings,
       ...settings,
     });
-  };
-
-  // 최소 구매 수량 계산 (0.001 이상 보장)
-  const ___calculateMinPurchaseAmount = (coinPrice: number) => {
-    return Math.ceil((0.001 * coinPrice) / 100) * 100; // 100원 단위로 올림
   };
 
   return (

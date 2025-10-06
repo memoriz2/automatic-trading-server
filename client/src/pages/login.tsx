@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-// import { apiRequest } from '@/lib/queryClient'; // fetch로 대체
 import { useLocation } from 'wouter';
 
 interface AuthForm {

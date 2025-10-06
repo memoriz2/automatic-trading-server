@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth"; // useAuth 훅 가져오기
 import { Square, Settings, AlertTriangle, Activity, Rocket } from "lucide-react";
-  // import type { TradingSettings } from "@/types/trading";
 
 export default function UltraTrading() {
   const { toast } = useToast();

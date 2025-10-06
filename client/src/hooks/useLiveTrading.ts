@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef} from 'react';
-  // import { useToast } from '@/hooks/use-toast';
-// import { TRADING_CONSTANTS } from '@/constants/trading-constants';
-// import { saveLiveTradeToDB, saveLivePositionToDB, updateLivePositionInDB } from '@/utils/trading-api';
 import { LiveTrade, LivePosition, LiveBalance, KimchiData, Strategy } from '@/types/trading';
-  // import { formatKoreanTime } from '@/utils/datetime';
-  // import { calculatePositionPnL } from '@/utils/pnl-calculator';
 
 interface UseLiveTradingProps {
   strategies: Strategy[];
