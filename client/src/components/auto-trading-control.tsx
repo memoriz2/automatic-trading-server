@@ -88,7 +88,6 @@ export function AutoTradingControl() {
         variant: "destructive",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/trading/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/positions/1'] });
       queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
     },
     onError: (error: any) => {

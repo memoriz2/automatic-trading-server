@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ForceEntryModal } from '@/components/trading/ForceEntryModal';
-import { RollbackSettingsModal } from '@/components/trading/RollbackSettingsModal';
 import { LivePositionList } from '@/components/trading/LivePositionList';
 import { LiveTradeHistory } from '@/components/trading/LiveTradeHistory';
 import { LiveBalanceDisplay } from '@/components/trading/LiveBalanceDisplay';
@@ -54,7 +53,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const { toast } = useToast();
 
   // 실시간 잔고 동기화 (실거래 모드에서만 사용)
-  const { forceRefresh: refreshRealTimeBalances, setLoading: setBalanceLoading } = useRealTimeBalances(
+  const {
+    balances: realtimeBalances,
+    isLoading: balanceLoading,
+    forceRefresh: refreshRealTimeBalances,
+    setLoading: setBalanceLoading
+  } = useRealTimeBalances(
     isLiveMode ? parseInt(userId) : undefined
   );
   
@@ -95,23 +99,27 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   
   // 강제진입 모달 상태
   const [showForceEntryModal, setShowForceEntryModal] = useState(false);
-  
-  // 롤백 설정 모달 상태
-  const [showRollbackSettingsModal, setShowRollbackSettingsModal] = useState(false);
   const [tradeRefreshTrigger, setTradeRefreshTrigger] = useState(0); // DB 거래 기록 새로고침 트리거
   
   // 토글 방지용: 최소 보유시간
-  const MIN_HOLD_MS = 30_000; // 진입 후 최소 보유 30초
+  const MIN_HOLD_MS = 10_000; // 진입 후 최소 보유 10초 (청산 속도 개선)
   // const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격 (사용하지 않음)
   const COOLDOWN_MS = TRADING_CONSTANTS.COOLDOWN_MS;
   const lastActionAtRef = useRef<Record<string, number>>({});
   const prevPremiumRef = useRef<number | null>(null); // 임계값 교차 감지용 이전 김프
   // 원자적 거래 처리: 거래 잠금 시스템
-  const tradingLockRef = useRef<boolean>(false);
+  const tradingLockRef = useRef<Record<number, boolean>>({}); // 전략별 거래 잠금
   const processingEntryRef = useRef<Set<string>>(new Set());
   // 재진입 차단 토스트 중복 억제
   const lastReentryToastAtRef = useRef<number>(0);
-  
+
+  // 컴포넌트 마운트 시 처리 상태 초기화
+  useEffect(() => {
+    processingEntryRef.current.clear();
+    Object.keys(tradingLockRef.current).forEach(key => {
+      tradingLockRef.current[parseInt(key)] = false;
+    });
+  }, []);
 
   // 거래 잔고 (실거래: 실제 잔고 사용)
   const [liveBalance, setLiveBalance] = useState<LiveBalance>(() => {
@@ -144,22 +152,22 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // Live 포지션 (DB에서만 조회 - 로컬스토리지 완전 제거)
   const [livePositions, setLivePositions] = useState<LivePosition[]>([]);
   
-  // 모든 디바이스에서 DB 포지션만 사용 (PC/모바일 통일)
+  // 🔒 DB 포지션 주기적 동기화 (3초마다 - 절대 로컬 메모리만 사용 금지!)
   useEffect(() => {
-    if (userId) {
-      const fetchDbPositions = async () => {
-        try {
-          console.log('🔍 DB 포지션 조회 중... (PC/모바일 통일, 로컬스토리지 미사용)');
-          const response = await fetch('/api/positions', {
-            credentials: 'include'
-          });
-          
-          if (response.ok) {
-            const dbPositions = await response.json();
-            // DB 포지션 조회 완료
-            
-            // DB 포지션을 LivePosition 형태로 변환
-            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
+    if (!userId) return;
+
+    const fetchDbPositions = async () => {
+      try {
+        const response = await fetch('/api/positions', {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const dbPositions = await response.json();
+          // DB 포지션 조회 완료
+
+          // DB 포지션을 LivePosition 형태로 변환
+          const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
               // 포지션 변환 처리
               return {
                 id: `db-${pos.id}`,
@@ -199,13 +207,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         }
       };
       
-      // 초기 조회
-      fetchDbPositions();
-      
-      // 3초마다 DB 포지션 동기화 (더 빠른 동기화)
-      const interval = setInterval(fetchDbPositions, 3000);
-      return () => clearInterval(interval);
-    }
+    // 초기 조회
+    fetchDbPositions();
+
+    // 3초마다 DB 포지션 동기화 (더 빠른 동기화)
+    const interval = setInterval(fetchDbPositions, 3000);
+    return () => clearInterval(interval);
   }, [userId]);
 
   // 잔고-포지션 일관성 검증 및 자동 수정
@@ -235,10 +242,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             ...prev,
             btc: totalUpbitBtc // 활성 포지션과 정확히 일치시킴
           }));
-          
-          console.log('✅ 업비트 BTC 잔고 정확히 수정:', currentUpbitBtc, '→', totalUpbitBtc);
         }
-        
+
         // 활성 포지션이 있는데 해당 전략이 없으면 복원
         if (setStrategies) {
           const positionStrategyIds = Array.from(new Set(openPositions.map(p => p.strategyId)));
@@ -275,7 +280,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     ...originalStrategy,
                     isActive: true // 활성 포지션이 있으므로 활성화
                   });
-                  console.log('📋 활성 포지션 전략 복원:', originalStrategy.name);
                 }
               }
             });
@@ -284,25 +288,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               const allStrategies = [...strategies, ...restoredStrategies];
               setStrategies(allStrategies);
               localStorage.setItem(`mock-strategies-${userId}`, JSON.stringify(allStrategies));
-              console.log('✅ 활성 포지션 전략 자동 복원:', restoredStrategies.length, '개');
             }
           }
         }
         
         if (Math.abs(totalBinanceBtc - currentBinanceBtc) > 0.000001) {
-          console.warn('🚨 바이낸스 BTC 잔고 불일치 감지:', {
-            활성포지션BTC: totalBinanceBtc,
-            현재잔고BTC: currentBinanceBtc,
-            차이: totalBinanceBtc - currentBinanceBtc,
-            수정필요: true
-          });
-          
           setLiveBalance(prev => ({
             ...prev,
             binanceBtc: totalBinanceBtc // 활성 포지션과 정확히 일치시킴
           }));
-          
-          console.log('✅ 바이낸스 BTC 잔고 정확히 수정:', currentBinanceBtc, '→', totalBinanceBtc);
         }
       }
     }
@@ -320,12 +314,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const missingStrategyIds = positionStrategyIds.filter(id => !currentStrategyIds.includes(id));
       
       if (missingStrategyIds.length > 0) {
-        console.log('🚨 전략-포지션 불일치 감지:', {
-          포지션전략: positionStrategyIds,
-          현재전략: currentStrategyIds,
-          누락전략: missingStrategyIds
-        });
-        
         // 누락된 전략들을 포지션에서 복원
         const restoredStrategies: any[] = [];
         
@@ -345,7 +333,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                   const backup = JSON.parse(backupData);
                   originalStrategy = backup.strategies?.find((s: any) => s.id === strategyId);
                   if (originalStrategy) {
-                    console.log(`📋 백업에서 원래 전략 발견: ${originalStrategy.name}`);
                     break;
                   }
                 }
@@ -385,9 +372,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           // 로컬스토리지에도 저장
           localStorage.setItem(`mock-strategies-${userId}`, JSON.stringify(allStrategies));
-          
-          console.log('🔄 전략 자동 복원 완료:', restoredStrategies.length, '개');
-          
+
           toast({
             title: "🛡️ 전략 자동 복원",
             description: `${restoredStrategies.length}개 전략이 포지션에서 복원되었습니다!`,
@@ -480,7 +465,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     
     // 강제 업데이트 이벤트 리스너
     const handleForceUpdate = (event: any) => {
-      console.log('🔄 강제 업데이트 이벤트 수신:', event.detail);
       if (event.detail && Array.isArray(event.detail)) {
         setLiveTrades(event.detail);
       }
@@ -523,41 +507,41 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     };
   }, [fetchTradingData, userId]);
 
-  // 로컬스토리지에 저장 (사용자별)
-  useEffect(() => {
-    const storageKey = `live-balance-${userId}`;
-    localStorage.setItem(storageKey, JSON.stringify(liveBalance));
-  }, [liveBalance, userId]);
+  // 로컬스토리지에 저장 (전체 삭제 - Mock 모드 없음)
+  // useEffect(() => {
+  //   const storageKey = `live-balance-${userId}`;
+  //   localStorage.setItem(storageKey, JSON.stringify(liveBalance));
+  // }, [liveBalance, userId]);
 
-  useEffect(() => {
-    const storageKey = `mock-trades-${userId}`;
-    // 거래 기록 로컬스토리지 저장
-    
-    // 빈 배열로 덮어쓰는 것을 방지 (기존 데이터가 있는 경우)
-    const existing = localStorage.getItem(storageKey);
-    if (liveTrades.length === 0 && existing && existing !== '[]' && existing !== 'null') {
-      // 빈 배열로 덮어쓰기 방지
-      
-      // 기존 데이터를 다시 로드하여 상태와 동기화
-      try {
-        const existingParsed = JSON.parse(existing);
-        if (Array.isArray(existingParsed) && existingParsed.length > 0) {
-          // 덮어쓰기 방지 중 자동 복원
-          setLiveTrades(existingParsed);
-        }
-      } catch (error) {
-        console.error('❌ 덮어쓰기 방지 중 복원 실패:', error);
-      }
-      return;
-    }
-    
-    localStorage.setItem(storageKey, JSON.stringify(liveTrades));
-  }, [liveTrades, userId]);
+  // useEffect(() => {
+  //   const storageKey = `mock-trades-${userId}`;
+  //   // 거래 기록 로컬스토리지 저장
+  //
+  //   // 빈 배열로 덮어쓰는 것을 방지 (기존 데이터가 있는 경우)
+  //   const existing = localStorage.getItem(storageKey);
+  //   if (liveTrades.length === 0 && existing && existing !== '[]' && existing !== 'null') {
+  //     // 빈 배열로 덮어쓰기 방지
+  //
+  //     // 기존 데이터를 다시 로드하여 상태와 동기화
+  //     try {
+  //       const existingParsed = JSON.parse(existing);
+  //       if (Array.isArray(existingParsed) && existingParsed.length > 0) {
+  //         // 덮어쓰기 방지 중 자동 복원
+  //         setLiveTrades(existingParsed);
+  //       }
+  //     } catch (error) {
+  //       console.error('❌ 덮어쓰기 방지 중 복원 실패:', error);
+  //     }
+  //     return;
+  //   }
+  //
+  //   localStorage.setItem(storageKey, JSON.stringify(liveTrades));
+  // }, [liveTrades, userId]);
 
-  useEffect(() => {
-    const storageKey = `live-positions-${userId}`;
-    localStorage.setItem(storageKey, JSON.stringify(livePositions));
-  }, [livePositions, userId]);
+  // useEffect(() => {
+  //   const storageKey = `live-positions-${userId}`;
+  //   localStorage.setItem(storageKey, JSON.stringify(livePositions));
+  // }, [livePositions, userId]);
 
   // 거래 로그 추가 함수
   const addTradingLog = useCallback((message: string) => {
@@ -569,31 +553,33 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // Live 진입 (원자적 처리)
   const liveEntry = useCallback(async (strategy: any, premiumRate: number) => {
-    console.log('🎯 liveEntry 시작:', strategy.name, premiumRate);
-
     const strategyId = String(strategy.id);
 
-    // 거래 잠금 & 중복 처리 확인 (2차 방어)
-    if (tradingLockRef.current || processingEntryRef.current.has(strategyId)) {
-      console.log(`⚠️ [${strategy.name}] liveEntry 차단됨:`, {
-        거래잠금: tradingLockRef.current,
-        처리중: processingEntryRef.current.has(strategyId),
-        전체처리중목록: Array.from(processingEntryRef.current)
-      });
+    // 거래 잠금 확인 (전략별 체크만)
+    if (tradingLockRef.current[strategy.id]) {
       return;
     }
 
-    console.log(`✅ [${strategy.name}] liveEntry 진행 - 잠금 및 중복 체크 통과`);
-
-    setIsTrading(true);
+    // 거래 잠금 먼저 설정 (동기적) - 전략별 잠금
+    tradingLockRef.current[strategy.id] = true;
+    setIsTrading(true); // 이후 비동기 상태 업데이트
 
     try {
-      tradingLockRef.current = true; // 거래 잠금
-      processingEntryRef.current.add(strategyId);
-
       if (!currentKimchiData) {
         console.error('❌ currentKimchiData is null in liveEntry');
-        return;
+        return; // finally에서 lock 해제
+      }
+
+      // 🔒 DB에서 활성 포지션 중복 체크 (동일 전략+심볼)
+      const dbCheckResponse = await fetch(`/api/positions/check-active?strategyId=${strategy.id}&symbol=BTC`, {
+        credentials: 'include'
+      });
+      if (dbCheckResponse.ok) {
+        const { hasActivePosition } = await dbCheckResponse.json();
+        if (hasActivePosition) {
+          console.warn(`🚫 [${strategy.name}] DB에 이미 활성 포지션 존재 - 진입 취소`);
+          return;
+        }
       }
 
       const baseAmount = parseFloat(strategy.investmentAmount); // 기준 BTC 수량
@@ -608,37 +594,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const binanceMargin = binanceShortValueUSD / leverage; // 필요 증거금 (USDT)
       const binanceFee = binanceShortValueUSD * 0.0004; // 바이낸스 진입 수수료 (0.04%)
 
-      console.log('🔥 1단계 - 바이낸스 선물 숏:', {
-        binanceShortAmountBTC,
-        binancePrice,
-        binanceShortValueUSD,
-        binanceMargin,
-        binanceFee
-      });
-
       // 2단계: 바이낸스 숏 수량에 맞춰 업비트에서 동일한 BTC 수량 매수
       const upbitBuyAmountBTC = binanceShortAmountBTC; // 바이낸스와 동일한 BTC 수량
       const upbitBuyAmountKRW = upbitBuyAmountBTC * upbitPrice; // 업비트 매수 금액 (KRW)
       const upbitFee = upbitBuyAmountKRW * 0.0005; // 업비트 매수 수수료 (0.05%)
       const totalUpbitCost = upbitBuyAmountKRW + upbitFee; // 총 업비트 비용
-      
-      // 균형 검증 로그
-      console.log('💰 2단계 - 업비트 현물 매수:', {
-        upbitBuyAmountBTC: upbitBuyAmountBTC.toFixed(6),
-        upbitPrice: upbitPrice.toLocaleString(),
-        upbitBuyAmountKRW: upbitBuyAmountKRW.toLocaleString(),
-        upbitFee: upbitFee.toLocaleString(),
-        totalUpbitCost: totalUpbitCost.toLocaleString()
-      });
-
-      console.log('⚖️ 포지션 균형 검증:', {
-        binanceShortAmountBTC: binanceShortAmountBTC.toFixed(6),
-        upbitBuyAmountBTC: upbitBuyAmountBTC.toFixed(6),
-        isBalanced: Math.abs(binanceShortAmountBTC - upbitBuyAmountBTC) < 0.000001,
-        difference: (binanceShortAmountBTC - upbitBuyAmountBTC).toFixed(8)
-      });
-
-      console.log(`📈 [${strategy.name}] 진입 실행 시작 - 실제 거래 API 호출`);
 
       // 거래 기록 추가
       const currentCounter = tradeCounter + 1;
@@ -653,14 +613,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       if (isLiveMode) {
         try {
           // 실거래 모드 - 실제 거래소 주문 실행 시작
-          
+
           // 1. 바이낸스 BTC 숏 주문 (먼저 실행 - 중요!)
-          console.log('📉 바이낸스 BTC 숏 주문 (1단계):', {
-            symbol: 'BTCUSDT',
-            quantity: binanceShortAmountBTC,
-            leverage: leverage
-          });
-          
           const binanceOrderResponse = await fetch('/api/trading/binance/short', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -689,15 +643,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           const binanceResult = await binanceOrderResponse.json();
           binanceOrderId = binanceResult.orderId || binanceResult.uuid || binanceOrderId;
-          console.log('✅ 바이낸스 숏 주문 성공 (1단계 완료):', binanceOrderId);
-          
+
           // 2. 바이낸스 성공 후 업비트 BTC 매수 주문
-          console.log('📈 업비트 BTC 매수 주문 (2단계):', {
-            symbol: 'BTC',
-            quantity: upbitBuyAmountBTC,
-            estimatedCost: totalUpbitCost
-          });
-          
           const upbitOrderResponse = await fetch('/api/trading/upbit/buy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -720,10 +667,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           
           const upbitResult = await upbitOrderResponse.json();
           upbitOrderId = upbitResult.uuid || upbitResult.orderId || upbitOrderId;
-          console.log('✅ 업비트 매수 주문 성공 (2단계 완료):', upbitOrderId);
-          
-          console.log('🎉 실거래 주문 모두 완료! (바이낸스 → 업비트)', { binanceOrderId, upbitOrderId });
-          
+
           // 🔄 거래 완료 후 즉시 잔고 새로고침
           setTimeout(async () => {
             try {
@@ -741,8 +685,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 // 실시간 잔고 즉시 새로고침
                 refreshRealTimeBalances && refreshRealTimeBalances()
               ]);
-
-              console.log('🔄 거래 후 잔고 새로고침 완료');
 
               // DB 거래 기록도 새로고침
               setTradeRefreshTrigger(prev => prev + 1);
@@ -785,14 +727,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         }
       }
 
-      console.log('📈 2단계 - 업비트 현물 매수:', {
-        upbitBuyAmountBTC,
-        upbitPrice,
-        upbitBuyAmountKRW,
-        upbitFee,
-        totalUpbitCost
-      });
-
       // 잔고 확인
       const availableKrw = isLiveMode ? (liveBalances?.real?.krw || 0) : liveBalance.krw;
       if (availableKrw < totalUpbitCost) {
@@ -807,16 +741,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         }
         return;
       }
-
-      console.log('💰 증거금 계산:', {
-        binanceShortAmountBTC,
-        binancePrice,
-        leverage,
-        binanceMargin,
-        binanceFee,
-        totalNeeded: binanceMargin + binanceFee,
-        currentUSDT: liveBalance.usdt
-      });
 
       const availableUsdt = isLiveMode ? (liveBalances?.real?.usdt || 0) : liveBalance.usdt;
       if (availableUsdt < binanceMargin + binanceFee) {
@@ -844,36 +768,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // 선물 숏 진입 시 숏 포지션 수량 증가 (양수)
           binanceBtc: Math.max(0, (prev.binanceBtc || 0) + binanceShortAmountBTC)
         };
-        
-        // 잔고 검증 로그
-        console.log('💰 진입 후 잔고 업데이트:', {
-          이전잔고: { krw: prev.krw, btc: prev.btc, usdt: prev.usdt },
-          새잔고: { krw: newBalance.krw, btc: newBalance.btc, usdt: newBalance.usdt },
-          거래정보: { upbitBTC: upbitBuyAmountBTC, 비용: totalUpbitCost }
-        });
-        
-        return newBalance;
-        
-        // 진입 후 균형 검증
-        console.log('⚖️ 진입 후 잔고 균형 검증:', {
-          upbitBtc: newBalance.btc.toFixed(6),
-          binanceBtc: newBalance.binanceBtc.toFixed(6),
-          upbitBtcAbs: Math.abs(newBalance.btc).toFixed(6),
-          binanceBtcAbs: Math.abs(newBalance.binanceBtc).toFixed(6),
-          isBalanced: Math.abs(Math.abs(newBalance.btc) - Math.abs(newBalance.binanceBtc)) < 0.001,
-          difference: (Math.abs(newBalance.btc) - Math.abs(newBalance.binanceBtc)).toFixed(6)
-        });
-        
+
         return newBalance;
         });
       }
-
-      console.log('💰 진입 시 잔고 변화:', {
-        upbitCost: totalUpbitCost,
-        binanceMargin,
-        binanceFee,
-        totalCost: totalUpbitCost + (binanceMargin + binanceFee) * entryUsdKrw
-      });
 
       // 거래 기록 생성
       const tradeTimestamp = new Date(); // 거래 시점 고정
@@ -938,16 +836,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         description: `🎯 ${strategy.name} 전략 → 김프율 ${premiumRate.toFixed(3)}%에서 완벽 진입! 💎`,
       });
 
-      console.log(`✅ ${isLiveMode ? '실거래' : '모의'} 진입 완료:`, {
-        strategy: strategy.name,
-        premium: premiumRate,
-        upbitCost: totalUpbitCost,
-        binanceMargin,
-        mode: isLiveMode ? 'REAL' : 'MOCK',
-        upbitOrderId,
-        binanceOrderId
-      });
-
     } catch (error: any) {
       console.error(`❌ ${isLiveMode ? '실거래' : '모의'} 진입 실패:`, error);
       
@@ -993,7 +881,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         });
       }
     } finally {
-      tradingLockRef.current = false; // 거래 잠금 해제
+      tradingLockRef.current[strategy.id] = false; // 전략별 거래 잠금 해제
       processingEntryRef.current.delete(strategyId); // 처리 상태 해제 (중요!)
       setIsTrading(false);
     }
@@ -1014,13 +902,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 강제진입 처리 함수 (DB 우선 저장)
   const handleForceEntry = useCallback(async (forceSettings: { margin: string; leverage: string; investmentAmount: string }) => {
     const currentKimp = currentKimchiData?.kimp || 0;
-    
+
     try {
-      console.log('🧪 강제 진입 실행:', { 
-        kimp: currentKimp.toFixed(3) + '%',
-        settings: forceSettings
-      });
-      
       // 1. 먼저 DB에 포지션 저장하여 실제 ID 받기
       const response = await fetch('/api/force-entry', {
         method: 'POST',
@@ -1042,9 +925,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const result = await response.json();
       const dbPositionId = result.position.id;
       const strategyName = result.strategyName; // "강제진입207" 형식
-      
-      console.log('✅ DB 포지션 생성 완료:', { dbPositionId, strategyName });
-      
+
       // 2. DB ID를 사용한 강제진입 전략 생성
       const forceStrategy = {
         id: `force-entry-${dbPositionId}`,
@@ -1077,106 +958,69 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // 모의 청산 (원자적 처리)
   const liveExit = useCallback(async (position: LivePosition, premiumRate: number, ratio: number = 1.0) => {
-    // 거래 잠금 확인
-    if (tradingLockRef.current) {
-      console.warn('⏸️ 다른 거래 진행 중 - 청산 대기');
+    // 거래 잠금 확인 - 이미 잠금 중이면 즉시 리턴 (다음 틱에서 재시도)
+    // 전략별 잠금 체크
+    if (tradingLockRef.current[position.strategyId] || isTrading) {
       return;
     }
-    
+
+    // 거래 잠금 설정 (동기적 ref 먼저, 비동기 state 나중에) - 전략별 잠금
+    tradingLockRef.current[position.strategyId] = true;
     setIsTrading(true);
-    tradingLockRef.current = true; // 거래 잠금
+
+    // 청산 시작 시 잔고 로딩 스피너 활성화
+    setBalanceLoading?.(true);
 
     try {
       if (!currentKimchiData) {
         console.error('❌ currentKimchiData is null in liveExit');
-        setIsTrading(false);
-        return;
+        return; // finally에서 lock 해제
       }
-
-      console.log(`🔄 포지션 청산 시작: ${position.symbol} (${ratio === 1.0 ? '전체' : Math.round(ratio * 100) + '%'} 청산)`);
 
       // 실거래 모드에서는 실제 API 호출
       if (actualTradingMode === 'real') {
         try {
-          const exitUpbitQuantity = position.upbitQuantity * ratio;
-          const exitBinanceQuantity = Math.abs(position.binanceQuantity) * ratio;
-          
-          console.log(`🚨 실거래 개별 포지션 청산:`, {
-            포지션ID: position.id,
-            심볼: position.symbol,
-            업비트청산: exitUpbitQuantity,
-            바이낸스청산: exitBinanceQuantity,
-            청산비율: Math.round(ratio * 100) + '%'
-          });
-          
           const liquidationResults = [];
-          
-          // 1. 업비트 실제 잔고 조회 후 전량 매도
+
+          // 1. 실시간 거래소 잔고 조회 (업비트 + 바이낸스)
           let actualUpbitBalance = 0;
+          let actualBinanceBalance = 0;
           try {
-            // 업비트 BTC 잔고 조회
-            const balanceResponse = await fetch('/api/trading/upbit/balance', {
+            // 실시간 거래소 잔고 조회
+            const balanceResponse = await fetch('/api/realtime-balances', {
               method: 'GET',
               credentials: 'include'
             });
 
             if (balanceResponse.ok) {
               const balanceData = await balanceResponse.json();
-              console.log(`🔍 업비트 전체 잔고 정보:`, balanceData);
 
-              const btcBalance = balanceData.find((b: any) => b.currency === position.symbol);
-              console.log(`🔍 ${position.symbol} 잔고 상세:`, btcBalance);
-
-              actualUpbitBalance = parseFloat(btcBalance?.balance || '0');
-              console.log(`📊 업비트 실제 ${position.symbol} 잔고: ${actualUpbitBalance} (원래 포지션 수량: ${position.upbitQuantity})`);
-
-              // 실제 잔고와 포지션 수량이 다르면 DB 업데이트
-              if (Math.abs(actualUpbitBalance - position.upbitQuantity) > 0.00001) {
-                console.log(`🔄 포지션 수량 업데이트: ${position.upbitQuantity} → ${actualUpbitBalance}`);
-                try {
-                  await fetch(`/api/positions/${position.id}/upbit-quantity`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ actualQuantity: actualUpbitBalance })
-                  });
-                } catch (updateError) {
-                  console.warn('⚠️ 포지션 수량 업데이트 실패:', updateError);
-                }
-              }
+              // upbitBtc 필드에서 BTC 잔고 추출
+              actualUpbitBalance = parseFloat(balanceData.upbitBtc || '0');
+              // binanceBtc 필드에서 BTC 포지션 추출 (숏은 음수)
+              actualBinanceBalance = Math.abs(parseFloat(balanceData.binanceBtc || '0'));
+            } else {
+              console.error('❌ 잔고 조회 실패');
             }
           } catch (error) {
-            console.warn('⚠️ 업비트 잔고 조회 실패, 포지션 수량 사용:', error);
-            actualUpbitBalance = exitUpbitQuantity;
+            console.error('❌ 실시간 잔고 조회 오류:', error);
           }
 
-          // 업비트 BTC 최소 거래 단위: 0.00008 BTC
-          const UPBIT_MIN_BTC_UNIT = 0.00008;
-
-          // 실제 잔고 기준으로 매도 (전량 청산을 위해 실제 잔고 우선)
-          const finalSellQuantity = actualUpbitBalance > 0.00001 ? actualUpbitBalance : exitUpbitQuantity;
-
-          console.log(`🔍 청산 수량 분석:`, {
-            포지션저장수량: position.upbitQuantity,
-            계산된청산수량: exitUpbitQuantity,
-            API실제잔고: actualUpbitBalance,
-            최종매도수량: finalSellQuantity,
-            청산비율: `${Math.round(ratio * 100)}%`,
-            최소거래단위: UPBIT_MIN_BTC_UNIT,
-            최소거래가능여부: finalSellQuantity >= UPBIT_MIN_BTC_UNIT
-          });
-
-          // 0.000957 BTC와 같은 특정 케이스 분석
-          if (finalSellQuantity > 0.0009 && finalSellQuantity < 0.001) {
-            console.log(`🔍 특별 분석 - ${finalSellQuantity} BTC 케이스:`, {
-              최소거래단위대비: `${(finalSellQuantity / UPBIT_MIN_BTC_UNIT).toFixed(2)}배`,
-              원화환산예상: `약 ${(finalSellQuantity * 100000000).toFixed(0)}원 (BTC가 1억원 가정)`
+          // 잔고가 모두 0이면 청산 불필요
+          if (actualUpbitBalance <= 0 && actualBinanceBalance <= 0) {
+            toast({
+              title: "청산 완료",
+              description: `전략 #${position.strategyId}는 이미 청산되었습니다.`,
             });
+            return;
           }
+
+          // 2. 업비트 매도 (잔고가 있는 경우만)
+          const UPBIT_MIN_BTC_UNIT = 0.00008;
+          const finalSellQuantity = actualUpbitBalance * ratio;
 
           if (finalSellQuantity >= UPBIT_MIN_BTC_UNIT) {
             try {
-              console.log(`🔄 업비트 매도 실행: 포지션수량(${exitUpbitQuantity}) vs 실제잔고(${actualUpbitBalance}) → 최종매도(${finalSellQuantity})`);
 
               const upbitSellResponse = await fetch('/api/trading/upbit/sell', {
                 method: 'POST',
@@ -1191,11 +1035,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               
               if (upbitSellResponse.ok) {
                 const upbitResult = await upbitSellResponse.json();
-                console.log(`✅ 업비트 개별 매도 완료:`, upbitResult);
 
                 // 실제 매도된 수량 확인
                 const executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || '0');
-                console.log(`📊 실제 매도된 수량: ${executedVolume} BTC (요청: ${finalSellQuantity} BTC)`);
 
                 // 매도 후 잔고 재확인 (남은 수량 추적)
                 setTimeout(async () => {
@@ -1208,11 +1050,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                       const afterBalanceData = await afterSellBalance.json();
                       const afterBtcBalance = afterBalanceData.find((b: any) => b.currency === position.symbol);
                       const remainingBalance = parseFloat(afterBtcBalance?.balance || '0');
-                      console.log(`🔍 매도 후 남은 ${position.symbol} 잔고: ${remainingBalance} BTC`);
-
-                      if (remainingBalance > 0.00001) {
-                        console.log(`⚠️ 청산 후에도 ${remainingBalance} BTC가 남아있음 - 부분 체결 또는 최소 거래 단위 미달 가능성`);
-                      }
                     }
                   } catch (error) {
                     console.warn('⚠️ 매도 후 잔고 재확인 실패:', error);
@@ -1226,7 +1063,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 
                 // 잔고 부족 오류 = 이미 청산된 것으로 간주
                 if (errorText.includes('insufficient_funds_ask') || errorText.includes('주문 가능한 금액')) {
-                  console.log(`✅ 업비트 BTC 이미 청산됨 - 포지션 자동 닫기`);
                   liquidationResults.push({ type: 'upbit_already_closed', result: 'already_liquidated' });
                 } else {
                   liquidationResults.push({ type: 'upbit_error', error: errorText });
@@ -1237,27 +1073,27 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               liquidationResults.push({ type: 'upbit_error', error: upbitError.message });
             }
           } else {
-            console.log(`⚠️ 업비트 매도 수량이 최소 거래 단위보다 작음: ${finalSellQuantity} BTC (최소: ${UPBIT_MIN_BTC_UNIT} BTC)`);
-            console.log(`📝 소액 BTC 잔고 ${finalSellQuantity}는 수수료보다 작아서 자동으로 남겨둡니다.`);
             liquidationResults.push({ type: 'upbit_skip', reason: 'below_minimum_trade_unit', quantity: finalSellQuantity });
           }
 
-          // 2. 바이낸스 선물 청산 (포지션이 있으면)
-          if (exitBinanceQuantity > 0.00001) {
+          // 3. 바이낸스 선물 청산 (실제 잔고 기준)
+          const finalBinanceQuantity = actualBinanceBalance * ratio;
+
+          if (finalBinanceQuantity > 0.00001) {
             try {
+
               const binanceCloseResponse = await fetch('/api/trading/binance/close-short', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                   symbol: `${position.symbol}USDT`,
-                  quantity: exitBinanceQuantity
+                  quantity: finalBinanceQuantity
                 })
               });
               
               if (binanceCloseResponse.ok) {
                 const binanceResult = await binanceCloseResponse.json();
-                console.log(`✅ 바이낸스 개별 청산 완료:`, binanceResult);
                 liquidationResults.push({ type: 'binance_close', result: binanceResult });
               } else {
                 const errorText = await binanceCloseResponse.text();
@@ -1265,7 +1101,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 
                 // ReduceOnly 오류 = 이미 청산된 것으로 간주
                 if (errorText.includes('ReduceOnly Order is rejected') || errorText.includes('-2022')) {
-                  console.log(`✅ 바이낸스 BTC 포지션 이미 청산됨 - 포지션 자동 닫기`);
                   liquidationResults.push({ type: 'binance_already_closed', result: 'already_liquidated' });
                 } else {
                   liquidationResults.push({ type: 'binance_error', error: errorText });
@@ -1276,39 +1111,43 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               liquidationResults.push({ type: 'binance_error', error: binanceError.message });
             }
           }
-          
-          console.log('🏁 개별 포지션 청산 결과:', liquidationResults);
-          
+
           // 성공한 청산이나 이미 청산된 경우 UI 업데이트
-          if (liquidationResults.some(r => 
-            r.type === 'upbit_sell' || r.type === 'binance_close' || 
+          if (liquidationResults.some(r =>
+            r.type === 'upbit_sell' || r.type === 'binance_close' ||
             r.type === 'upbit_already_closed' || r.type === 'binance_already_closed'
           )) {
+            // 실시간 잔고 갱신
+            await refreshRealTimeBalances?.();
+
             // 부분 청산인 경우 수량 조정, 전체 청산인 경우 상태 변경
             if (ratio < 1.0) {
-              // 부분 청산: 수량만 조정
-              setLivePositions(prev => 
-                prev.map(p => 
-                  p.id === position.id 
+              // 부분 청산: 실제 남은 잔고 기준으로 수량 조정
+              const remainingUpbit = actualUpbitBalance * (1 - ratio);
+              const remainingBinance = actualBinanceBalance * (1 - ratio);
+
+              setLivePositions(prev =>
+                prev.map(p =>
+                  p.id === position.id
                     ? {
                         ...p,
-                        upbitQuantity: p.upbitQuantity * (1 - ratio),
-                        binanceQuantity: p.binanceQuantity * (1 - ratio),
+                        upbitQuantity: remainingUpbit,
+                        binanceQuantity: remainingBinance,
                         unrealizedPnl: p.unrealizedPnl * (1 - ratio)
                       }
                     : p
                 )
               );
-              
+
               toast({
                 title: `${Math.round(ratio * 100)}% 청산 완료`,
-                description: `포지션 ${position.id}의 일부가 실제로 청산되었습니다.`,
+                description: `전략 #${position.strategyId}의 일부가 실제로 청산되었습니다.`,
               });
             } else {
               // 전체 청산: 상태 변경
-              setLivePositions(prev => 
-                prev.map(p => 
-                  p.id === position.id 
+              setLivePositions(prev =>
+                prev.map(p =>
+                  p.id === position.id
                     ? {
                         ...p,
                         status: 'closed' as const,
@@ -1318,13 +1157,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     : p
                 )
               );
-              
+
               toast({
                 title: "개별 포지션 청산 완료",
-                description: `포지션 ${position.id}가 실제로 청산되었습니다.`,
+                description: `전략 #${position.strategyId}가 실제로 청산되었습니다.`,
               });
             }
-            
+
             return; // 실거래 처리 완료, Mock 로직 실행하지 않음
           } else {
             toast({
@@ -1342,11 +1181,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             description: `청산 중 오류가 발생했습니다: ${realTradeError.message}`,
             variant: "destructive"
           });
-          return;
-        } finally {
-          setIsTrading(false);
-          tradingLockRef.current = false;
+          return; // finally에서 lock 해제
         }
+
+        return; // 실거래 처리 완료 후 mock 로직 실행하지 않음
       }
 
       // Mock 모드: 기존 로직 계속 실행
@@ -1365,15 +1203,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       // 2. 바이낸스 숏 청산 (롱 매수로 커버)
       const binanceCloseQuantity = position.binanceQuantity * exitRatio;
-      
-      // 청산 시 균형 검증 로그
-      console.log('⚖️ 청산 시 균형 검증:', {
-        exitRatio: exitRatio.toFixed(3),
-        upbitSellQuantity: upbitSellQuantity.toFixed(6),
-        binanceCloseQuantity: binanceCloseQuantity.toFixed(6),
-        isBalanced: Math.abs(upbitSellQuantity - binanceCloseQuantity) < 0.000001,
-        difference: (upbitSellQuantity - binanceCloseQuantity).toFixed(8)
-      });
+
       const binanceCoverCost = binanceCloseQuantity * currentBinancePrice;
       const binanceFee = binanceCoverCost * 0.0004;
       const binanceMarginReturn = (binanceCloseQuantity * position.binancePrice) / position.leverage;
@@ -1403,19 +1233,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       
       // 실제 손익 = 회수액 - 투입액
       const totalPnl = totalExitRevenueKRW - totalEntryCostKRW;
-      
-      console.log('📊 PnL 계산 상세:', {
-        totalEntryCostKRW: Math.round(totalEntryCostKRW),
-        totalExitRevenueKRW: Math.round(totalExitRevenueKRW),
-        totalPnl: Math.round(totalPnl),
-        profitRate: ((totalPnl / totalEntryCostKRW) * 100).toFixed(2) + '%'
-      });
-
-      console.log('💰 청산 시 잔고 변화:', {
-        binanceCloseQuantity,
-        currentBinanceBtc: liveBalance.binanceBtc,
-        newBinanceBtc: (liveBalance.binanceBtc || 5.0) + binanceCloseQuantity
-      });
 
       // 청산 시 정확한 잔고 업데이트
       const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice; // 업비트 매도 총액
@@ -1432,63 +1249,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // 선물 커버(청산) 시 숏 포지션 수량 감소
           binanceBtc: Math.max(0, (prev.binanceBtc || 0) - binanceCloseQuantity) // 음수 방지
         };
-        
-        // 청산 후 잔고 검증 로그
-        console.log('💰 청산 후 잔고 업데이트:', {
-          이전잔고: { krw: prev.krw, btc: prev.btc, usdt: prev.usdt },
-          새잔고: { krw: newBalance.krw, btc: newBalance.btc, usdt: newBalance.usdt },
-          청산정보: { upbitBTC: upbitSellQuantity, 수익: upbitNetRevenue }
-        });
-        
-        return newBalance;
-        
-        // 청산 후 균형 검증 및 오류 감지
-        console.log('⚖️ 청산 후 잔고 균형 검증:', {
-          exitRatio: exitRatio.toFixed(3),
-          upbitSellQuantity: upbitSellQuantity.toFixed(6),
-          binanceCloseQuantity: binanceCloseQuantity.toFixed(6),
-          prevUpbitBtc: prev.btc.toFixed(6),
-          prevBinanceBtc: prev.binanceBtc.toFixed(6),
-          newUpbitBtc: newBalance.btc.toFixed(6),
-          newBinanceBtc: newBalance.binanceBtc.toFixed(6),
-          upbitBtcAbs: Math.abs(newBalance.btc).toFixed(6),
-          binanceBtcAbs: Math.abs(newBalance.binanceBtc).toFixed(6),
-          isBalanced: Math.abs(Math.abs(newBalance.btc) - Math.abs(newBalance.binanceBtc)) < 0.001,
-          difference: (Math.abs(newBalance.btc) - Math.abs(newBalance.binanceBtc)).toFixed(6)
-        });
-        
-        // 음수 BTC 감지 시 경고
-        if (newBalance.btc < 0) {
-          console.error('🚨 업비트 BTC 음수 감지!', {
-            beforeBtc: prev.btc,
-            sellQuantity: upbitSellQuantity,
-            afterBtc: newBalance.btc,
-            positionId: position.id
-          });
-        }
-        
-        // 바이낸스 BTC가 음수인 경우 경고 (숏 포지션 수량은 양수여야 함)
-        if (newBalance.binanceBtc < 0) {
-          console.error('🚨 바이낸스 BTC 음수 감지! (숏 포지션 수량은 양수여야 함)', {
-            beforeBinanceBtc: prev.binanceBtc,
-            closeQuantity: binanceCloseQuantity,
-            afterBinanceBtc: newBalance.binanceBtc,
-            positionId: position.id
-          });
-        }
-        
-        return newBalance;
-      });
 
-      console.log('💰 청산 시 잔고 변화:', {
-        upbitSellRevenue,
-        upbitFee,
-        upbitNetRevenue,
-        binanceMarginReturn,
-        binanceCoverCost,
-        binanceFee,
-        binanceNetReturn: binanceNetReturnForBalance,
-        totalNetPnL: upbitNetRevenue + (binanceNetReturn * (currentKimchiData?.usdkrw || 1390))
+        return newBalance;
       });
 
       // 거래 기록 추가
@@ -1578,12 +1340,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         variant: profitColor as any
       });
 
-      console.log('✅ 모의 청산 완료:', {
-        position: position.id,
-        premium: premiumRate,
-        pnl: totalPnl
-      });
-
     } catch (error) {
       console.error('❌ 모의 청산 실패:', error);
       toast({
@@ -1592,7 +1348,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         variant: "destructive"
       });
     } finally {
-      tradingLockRef.current = false; // 거래 잠금 해제
+      tradingLockRef.current[position.strategyId] = false; // 전략별 거래 잠금 해제
       setIsTrading(false);
     }
   }, [
@@ -1606,7 +1362,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     livePositions,
     onStrategyStatsUpdate,
     addTradingLog,
-    toast
+    toast,
+    setBalanceLoading,
+    refreshRealTimeBalances
   ]);
 
   // 중복 경고 방지를 위한 ref
@@ -1636,9 +1394,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     const strategyId = String(strategy.id);
 
-    // 원자적 중복 진입 방지 (더 강화된 체크)
-    if (processingEntryRef.current.has(strategyId) || tradingLockRef.current) {
-      return; // 로그 스팸 방지를 위해 경고 제거
+    // 원자적 중복 진입 방지 (더 강화된 체크) - 전략별 체크
+    if (processingEntryRef.current.has(strategyId) || tradingLockRef.current[strategy.id]) {
+      return;
     }
 
     // 즉시 처리 상태로 마킹하여 동시 호출 차단
@@ -1657,10 +1415,43 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const entryRate = parseFloat(strategy.entryCondition);
       const exitRate = parseFloat(strategy.takeProfitCondition);
 
-      // 기존 포지션 확인
-      const currentPosition: LivePosition | undefined = livePositions.find(p => 
-        p.strategyId === strategy.id && p.status === 'open'
-      );
+      // 🔒 DB에서 기존 포지션 확인 (절대 로컬 메모리 사용 금지!)
+      let currentPosition: LivePosition | undefined = undefined;
+      try {
+        const posCheckRes = await fetch(`/api/positions/check-active?strategyId=${strategy.id}&symbol=BTC`, {
+          credentials: 'include'
+        });
+        if (posCheckRes.ok) {
+          const { hasActivePosition, position } = await posCheckRes.json();
+          // DB raw 데이터를 LivePosition 형태로 변환
+          if (hasActivePosition && position) {
+            currentPosition = {
+              id: position.id,
+              strategyId: position.strategy_id,
+              strategyName: position.strategy_name || `전략 #${position.strategy_id}`,
+              symbol: position.symbol,
+              entryTime: new Date(position.entry_time),
+              entryPremiumRate: position.entry_premium_rate || 0,
+              upbitQuantity: position.quantity || 0,
+              upbitPrice: position.entry_price || 0,
+              entryUsdKrw: 1394,
+              binanceQuantity: position.binance_quantity || 0,
+              binancePrice: position.binance_entry_price || 0,
+              binanceSpotQuantity: position.binance_spot_quantity || 0,
+              leverage: position.leverage || 1,
+              side: position.side as 'long' | 'short',
+              status: position.status as 'open' | 'closed',
+              unrealizedPnl: 0,
+              unrealizedPnlKrw: 0,
+              realizedPnl: 0,
+              currentPremiumRate: 0
+            } as LivePosition;
+          }
+        }
+      } catch (error) {
+        console.error('❌ DB 포지션 조회 실패:', error);
+        return; // DB 조회 실패시 진입/청산 중단
+      }
 
       // 허용오차 설정
       const tolerance = parseFloat(strategy.tolerance || String(TRADING_CONSTANTS.TOLERANCE.DEFAULT));
@@ -1669,77 +1460,45 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const isScroll2 = strategy.name === '스크롤2';
       const minKimchiRate = TRADING_CONSTANTS.TOLERANCE.MIN_KIMCHI_RATE;
       
-      // 쿨다운 가드
       const now = Date.now();
-      const lastAction = lastActionAtRef.current[strategy.id] || 0;
-      if (now - lastAction < COOLDOWN_MS) return;
-
       const diffEntry = Math.abs(currentPremium - entryRate);
       const crossedEntry = (prevPremium - entryRate) * (currentPremium - entryRate) <= 0 && Math.abs(prevPremium - entryRate) > tolerance;
 
       // 진입 조건: 허용오차 범위 내 또는 교차점 통과 (포지션이 없을 때만)
-      const entryOk = !currentPosition && (diffEntry <= tolerance || crossedEntry);
+      let entryOk = !currentPosition && (diffEntry <= tolerance || crossedEntry);
 
-      // 진입 조건 체크 완료
-      
+      // 청산 후 5초 텀 체크 (진입할 때만)
+      if (entryOk) {
+        const lastAction = lastActionAtRef.current[strategy.id] || 0;
+        if (now - lastAction < 5000) {
+          entryOk = false;
+        }
+      }
+
       // 청산 조건: 익절조건 이상이면 청산 (포지션이 있을 때만)
-      const exitOk = currentPosition && (exitRate <= currentPremium);
+      const exitOk = currentPosition && (currentPremium >= exitRate);
 
       if (entryOk) {
-        console.log(`🚀 [${strategy.name}] 진입 조건 만족! liveEntry 호출 시도`);
-        console.log(`📊 [${strategy.name}] 진입 상세 정보:`, {
-          현재김프: `${currentPremium.toFixed(3)}%`,
-          목표진입: `${entryRate}%`,
-          허용오차범위: `${tolerance}%`,
-          실제오차: `${diffEntry.toFixed(3)}%`,
-          교차여부: crossedEntry,
-          포지션상태: currentPosition ? '보유중' : '없음'
-        });
-        // 진입 조건 만족 - 새 포지션 생성
-        console.log(`🎯 진입 조건: ${strategy.name} - 김프 ${currentPremium.toFixed(3)}% ≈ ${entryRate}% (오차: ${Math.abs(currentPremium - entryRate).toFixed(3)}%)`);
-        console.log(`🚀 liveEntry 호출 전 상태 체크:`, {
-          전략명: strategy.name,
-          전략ID: strategy.id,
-          현재김프: currentPremium,
-          실거래모드: isLiveMode,
-          거래잠금: tradingLockRef.current,
-          처리중: processingEntryRef.current.has(String(strategy.id))
-        });
         addTradingLog(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
 
-        console.log(`🎯 liveEntry 함수 호출 시작: ${strategy.name}`);
-        // liveEntry 호출 전에 처리 상태 정리 (liveEntry에서 자체적으로 잠금 관리)
-        processingEntryRef.current.delete(strategyId);
-        clearTimeout(timeoutId); // 타임아웃도 정리
-
-        await liveEntry(strategy, currentPremium);
-        console.log(`🎯 liveEntry 함수 호출 완료: ${strategy.name}`);
-
-        lastActionAtRef.current[strategy.id] = now;
-        console.log(`✅ 진입 완료: ${strategy.name} - 청산 전까지 재진입 제한`);
+        try {
+          await liveEntry(strategy, currentPremium);
+        } finally {
+          // liveEntry 완료 후 무조건 처리 상태 정리
+          clearTimeout(timeoutId);
+          processingEntryRef.current.delete(strategyId);
+        }
       } else if (exitOk) {
-        // 청산 조건 만족 - 포지션 청산
-        console.log(`📊 청산 조건 체크: ${strategy.name}`);
-        console.log(`   현재 김프율: ${currentPremium.toFixed(3)}%`);
-        console.log(`   익절 조건: ${exitRate}%`);
-        console.log(`   청산 여부: true (${exitRate} <= ${currentPremium.toFixed(3)})`);
-        
-        // 최소 보유시간 가드
-        const heldMs = now - new Date((currentPosition as any).entryTime).getTime();
-        console.log(`   보유 시간: ${heldMs}ms (최소: ${MIN_HOLD_MS}ms)`);
-        
-        if (heldMs < MIN_HOLD_MS) {
-          console.log(`⏰ 최소 보유시간 미달로 청산 보류`);
+        // 거래 잠금 상태 확인 (ref만 체크 - 동기적) - 전략별 체크
+        if (tradingLockRef.current[strategy.id]) {
           return;
         }
-        
-        console.log(`✅ 청산 조건 만족! 청산 실행 중...`);
+
         addTradingLog(`🎯 ${strategy.name} 청산 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${exitRate}%`);
+
         await liveExit(currentPosition, currentPremium);
-        lastActionAtRef.current[strategy.id] = now;
-      } else if (currentPosition) {
-        // 포지션이 있지만 청산 조건 불만족
-        // 포지션 보유 중 로그 제거
+
+        lastActionAtRef.current[strategy.id] = now; // 현재 시각 저장 (진입 시 5초 체크)
       }
       prevPremiumRef.current = currentPremium; // 마지막에 갱신
       
@@ -1928,20 +1687,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     localStorage.removeItem(`live-positions-${userId}`);
     
     // 전략 데이터는 보존 (실수로 삭제 방지)
-    console.log('💡 전략 데이터는 보존됩니다 - 잔고/거래/포지션만 초기화');
-    
+
     // 9. 강제진입 관련 로컬스토리지도 초기화
     localStorage.removeItem('forceEntrySettings');
-    
-    console.log('🧹 모든 Mock 데이터 완전 초기화 완료:', {
-      잔고: '초기화',
-      거래기록: '삭제',
-      포지션: '삭제', 
-      통계: '초기화',
-      로그: '삭제',
-      로컬스토리지: '완전삭제'
-    });
-    
+
     toast({
       title: "🧹 Mock 데이터 완전 초기화!",
       description: "💸 잔고, 거래기록, 포지션, 수수료, 통계 등 모든 데이터가 깔끔하게 리셋되었습니다! 새 출발! ✨",
@@ -2087,29 +1836,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       }
     }, 0);
 
-    // 🔄 활성 포지션의 실시간 예상 매도 수수료 계산 (최적화)
-    let activeFees = 0;
-    const todayActivePositions = todayPositions.filter(p => p.status === 'open');
-    
-    if (todayActivePositions.length > 0 && (currentUpbitPrice || currentBinancePrice)) {
-      // 가격 정보가 있을 때만 계산 (불필요한 계산 방지)
-      activeFees = todayActivePositions.reduce((sum, position) => {
-        const upbitPrice = currentUpbitPrice || position.upbitPrice;
-        const binancePrice = currentBinancePrice || position.binancePrice;
-        
-        // 업비트 예상 매도 수수료 (실시간)
-        const upbitSellAmount = position.upbitQuantity * upbitPrice;
-        const upbitExitFee = upbitSellAmount * 0.0005;
-        
-        // 바이낸스 예상 매도 수수료 (실시간)
-        const binanceSellAmount = position.binanceQuantity * binancePrice;
-        const binanceExitFee = (binanceSellAmount * 0.0004) * currentUsdKrw;
-        
-        return sum + upbitExitFee + binanceExitFee;
-      }, 0);
-    }
-
-    const totalFees = completedFees + activeFees; // 완료된 수수료 + 예상 매도 수수료
+    // 완료된 거래의 실제 수수료만 표시 (예상 매도 수수료 제외)
+    const totalFees = completedFees;
 
     // 수익 통계 (실제로는 더 복잡한 계산이 필요하지만 간단히)
     const realizedPnl = livePositions
@@ -2191,27 +1919,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // 버튼 텍스트 깜박임 방지를 위한 안정화된 값들
   const stableButtonText = useMemo(() => {
-    if (isTrading) {
-      return `🔄 실거래 실행 중...`;
+    const openPositions = livePositions.filter(p => p.status === 'open');
+    if (openPositions.length > 0) {
+      return `✅ ${openPositions.length}개 포지션 진입 중`;
     }
-    if (isLoadingStrategies) {
-      return "loading";
-    }
-    if (strategiesError) {
-      return "error";
-    }
-    if (strategies.some(s => s.isActive)) {
-      const activeCount = strategies.filter(s => s.isActive).length;
-      return `✅ ${activeCount}개 전략 활성 (실거래)`;
-    }
-    return "❌ 활성 전략 없음";
-  }, [isTrading, actualTradingMode, isLoadingStrategies, strategiesError, strategies]);
-
-  const stableButtonVariant = useMemo(() => {
-    if (isTrading) return "destructive";
-    if (strategies.some(s => s.isActive)) return "default";
-    return "outline";
-  }, [isTrading, strategies]);
+    return "❌ 진입 포지션 없음";
+  }, [livePositions]);
 
   return (
     <>
@@ -2235,10 +1948,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           </div>
           <div className="flex gap-2">
             <Button
-              variant={stableButtonVariant}
+              variant="outline"
               size="sm"
               disabled
-              className="min-w-[200px]"
+              className={`min-w-[200px] ${livePositions.some(p => p.status === 'open') ? 'bg-orange-600 hover:bg-orange-600 text-white border-orange-600' : ''}`}
             >
               {stableButtonText === "loading" ? (
                 <span className="flex items-center gap-2">
@@ -2258,22 +1971,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             >
               🧪 강제 진입
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowRollbackSettingsModal(true)}
-              className="border-orange-600 text-orange-400 hover:bg-orange-600 hover:text-white"
-            >
-              🛡️ 롤백 설정
-            </Button>
-            <Button 
+            <Button
               variant="destructive" 
               size="sm" 
               onClick={async () => {
                 // 활성 포지션 전체 청산 (실제 API 호출 포함)
                 const activePositions = livePositions.filter(p => p.status === 'open');
                 if (activePositions.length === 0) {
-                  console.log('❌ 청산할 포지션이 없습니다');
                   toast({
                     title: "청산할 포지션 없음",
                     description: "활성 포지션이 없습니다.",
@@ -2283,20 +1987,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 }
 
                 const currentKimp = currentKimchiData?.kimp || 0;
-                console.log('🔴 전체 청산 실행: 포지션', activePositions.length, '개');
-                
+
                 // 실거래 모드에서는 실제 API 호출
                 if (actualTradingMode === 'real') {
                   try {
-                    console.log('🚨 실거래 전체 청산 API 호출 시작...');
-                    
                     // 각 포지션별로 실제 청산 API 호출
                     const liquidationResults = [];
                     
                     for (const position of activePositions) {
                       try {
-                        console.log(`🔄 포지션 청산 중: ${position.symbol} (업비트: ${position.upbitQuantity}, 바이낸스: ${position.binanceQuantity})`);
-                        
                         // 1. 업비트 현물 매도 (보유량이 있으면)
                         if (position.upbitQuantity > 0.00001) {
                           const upbitSellResponse = await fetch('/api/trading/upbit/sell', {
@@ -2312,7 +2011,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                           
                           if (upbitSellResponse.ok) {
                             const upbitResult = await upbitSellResponse.json();
-                            console.log(`✅ 업비트 매도 완료:`, upbitResult);
                             liquidationResults.push({ type: 'upbit_sell', symbol: position.symbol, result: upbitResult });
                           } else {
                             console.error(`❌ 업비트 매도 실패:`, await upbitSellResponse.text());
@@ -2333,7 +2031,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                           
                           if (binanceCloseResponse.ok) {
                             const binanceResult = await binanceCloseResponse.json();
-                            console.log(`✅ 바이낸스 청산 완료:`, binanceResult);
                             liquidationResults.push({ type: 'binance_close', symbol: position.symbol, result: binanceResult });
                           } else {
                             console.error(`❌ 바이낸스 청산 실패:`, await binanceCloseResponse.text());
@@ -2345,13 +2042,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                         liquidationResults.push({ type: 'error', symbol: position.symbol, error: positionError.message });
                       }
                     }
-                    
-                    console.log('🏁 실거래 청산 결과:', liquidationResults);
-                    
+
                     // 성공한 청산이 있으면 실제 거래소 상태 확인 후 UI 업데이트
                     if (liquidationResults.some(r => r.type !== 'error')) {
-                      console.log('🔍 실거래 청산 후 거래소 상태 재확인...');
-                      
                       // 3초 후 실제 거래소 상태 확인
                       setTimeout(async () => {
                         try {
@@ -2365,22 +2058,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                           const upbitResponse = await fetch('/api/test/upbit-balance', { credentials: 'include' });
                           const upbitData = await upbitResponse.json();
                           const upbitBtc = parseFloat(upbitData.summary?.btc?.balance || '0');
-                          
-                          console.log('📊 실제 거래소 상태:', {
-                            바이낸스포지션: hasBinancePosition ? btcPosition.positionAmt : '없음',
-                            업비트BTC: upbitBtc
-                          });
-                          
+
                           // 실제 거래소에 포지션이 없으면 UI에서도 제거
-                          setLivePositions(prev => 
+                          setLivePositions(prev =>
                             prev.map(p => {
                               if (p.status === 'open') {
-                                const shouldClose = 
+                                const shouldClose =
                                   (p.symbol === 'BTC' && !hasBinancePosition && p.binanceQuantity !== 0) ||
                                   (p.symbol === 'BTC' && upbitBtc < 0.001 && p.upbitQuantity !== 0);
-                                
+
                                 if (shouldClose) {
-                                  console.log(`🔄 포지션 ${p.id} 실제 청산 확인됨 - UI 업데이트`);
                                   return {
                                     ...p,
                                     status: 'closed' as const,
@@ -2441,8 +2128,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                             // 실시간 잔고 즉시 새로고침
                             refreshRealTimeBalances && refreshRealTimeBalances()
                           ]);
-
-                          console.log('🔄 청산 후 잔고 새로고침 완료');
 
                           // DB 거래 기록도 새로고침
                           setTradeRefreshTrigger(prev => prev + 1);
@@ -2530,6 +2215,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           openBinanceQty={openBinanceQty}
           profitRate={profitRate}
           totalPnl={totalPnl}
+          realtimeBalances={realtimeBalances}
+          balanceLoading={balanceLoading}
         />
 
 
@@ -2551,15 +2238,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                   onClick={() => {
                     const tradeKey = `mock-trades-${userId}`;
                     const savedTrades = localStorage.getItem(tradeKey);
-                    console.log('🔄 수동 복원 시도:', { tradeKey, savedTrades });
-                    
+
                     if (savedTrades && savedTrades !== '[]' && savedTrades !== 'null') {
                       try {
                         const parsed = JSON.parse(savedTrades);
-                        console.log('🔄 파싱된 거래:', parsed);
                         setLiveTrades(parsed);
-                        console.log('🔄 수동 거래 기록 복원:', parsed.length, '건');
-                        
+
                         // 강제 리렌더링
                         setTimeout(() => {
                           window.dispatchEvent(new Event('resize'));
@@ -2568,7 +2252,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                         console.error('❌ 수동 복원 실패:', error);
                       }
                     } else {
-                      console.log('❌ 복원할 거래 기록이 없습니다');
                     }
                   }}
                   className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded"
@@ -2586,7 +2269,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                           const parsed = JSON.parse(savedTrades);
                           if (parsed.length > 0) {
                             setLiveTrades(parsed);
-                            console.log('🔄 자동 복원 성공:', parsed.length, '건');
                             return true;
                           }
                         } catch (error) {
@@ -2630,12 +2312,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       currentKimp={currentKimchiData?.kimp || 0}
       onForceEntry={handleForceEntry}
       isLiveMode={actualTradingMode === 'real'}
-    />
-
-    {/* 롤백 설정 모달 */}
-    <RollbackSettingsModal
-      isOpen={showRollbackSettingsModal}
-      onClose={() => setShowRollbackSettingsModal(false)}
     />
     </>
   );

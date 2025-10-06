@@ -132,8 +132,6 @@ export class TradingExecutionService {
       });
 
       if (!upbitResult.success) {
-        // 바이낸스 주문 취소 시도 (롤백)
-        // TODO: 바이낸스 주문 취소 로직 구현
         return upbitResult;
       }
 

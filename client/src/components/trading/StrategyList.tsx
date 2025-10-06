@@ -236,7 +236,6 @@ export const StrategyList: React.FC<StrategyListProps> = React.memo(({
         });
       } catch (error) {
         console.error('Mock 전략 삭제 실패:', error);
-        // 실패 시 롤백
         onStrategyUpdate(strategies);
         toast({ title: '전략 삭제 실패', description: '로컬 저장에 실패했습니다.', variant: 'destructive' });
       }
@@ -254,7 +253,6 @@ export const StrategyList: React.FC<StrategyListProps> = React.memo(({
         toast({ title: '전략 삭제 완료', description: `${strategy.name} 전략이 삭제되었습니다.` });
       } catch (error) {
         console.error('❌ 전략 삭제 실패:', error);
-        // 실패 시 UI에 다시 추가 (롤백)
         onStrategyUpdate([...updatedStrategies, strategy]);
         toast({ title: '전략 삭제 실패', description: '서버에서 삭제에 실패했습니다.', variant: 'destructive' });
       }

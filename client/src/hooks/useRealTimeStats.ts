@@ -36,25 +36,42 @@ export const useRealTimeStats = (userId?: number) => {
   const [isAuthFailed, setIsAuthFailed] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 한국시간 자정부터 경과 분 계산
-  const getKstMinutesSinceMidnight = () => {
+  // 한국시간 오전 9시부터 경과 분 계산 (KST 09:00 = UTC 00:00)
+  const getKstMinutesSince9AM = () => {
     const now = new Date();
-    const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-    const kstMidnightUtc = Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate(), -9, 0, 0);
-    return Math.max(1, Math.floor((now.getTime() - kstMidnightUtc) / 60000));
+
+    // UTC 기준 오늘 00:00 계산 (= 한국시간 오늘 09:00)
+    const today9AM_UTC = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0, 0, 0, 0
+    ));
+
+    // 현재 UTC 시간이 오늘 00:00 이전이면 어제 00:00 사용 (= 어제 한국시간 09:00)
+    if (now.getTime() < today9AM_UTC.getTime()) {
+      today9AM_UTC.setUTCDate(today9AM_UTC.getUTCDate() - 1);
+    }
+
+    return Math.max(1, Math.floor((now.getTime() - today9AM_UTC.getTime()) / 60000));
   };
 
   // 실제 DB 통계 가져오기
   const fetchRealStats = async () => {
-    if (!userId || isAuthFailed) return;
+    if (!userId || isAuthFailed) {
+      console.log(`⏸️ [useRealTimeStats] 통계 조회 건너뜀: userId=${userId}, isAuthFailed=${isAuthFailed}`);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const minutes = getKstMinutesSinceMidnight();
+      const minutes = getKstMinutesSince9AM();
       const token = localStorage.getItem('authToken');
-      
+
+      console.log(`🔍 [useRealTimeStats] 통계 조회 시작: userId=${userId}, minutes=${minutes}`);
+
       const res = await fetch(`/api/trading/daily-stats?minutes=${minutes}`, {
         method: 'GET',
         headers: {
@@ -64,6 +81,8 @@ export const useRealTimeStats = (userId?: number) => {
         credentials: 'include',
         cache: 'no-store',
       });
+
+      console.log(`📡 [useRealTimeStats] API 응답: status=${res.status}`);
 
       if (res.status === 401) {
         console.log('🔒 [useRealTimeStats] 인증 실패로 통계 조회 중단');
@@ -80,9 +99,11 @@ export const useRealTimeStats = (userId?: number) => {
 
       if (res.ok) {
         const metrics = await res.json();
-        
+
+        console.log(`📊 [useRealTimeStats] 서버 응답 데이터:`, metrics);
+
         const calculatedTotalTrades = Number(metrics.total_orders || 0); // 서버에서 이미 계산됨
-        
+
         const realStats: RealTimeStats = {
           totalTrades: calculatedTotalTrades,
           upbitTrades: Number(metrics.upbit_orders || 0),
@@ -95,11 +116,12 @@ export const useRealTimeStats = (userId?: number) => {
             totalProfitRate: Number(metrics.total_profit_rate || 0),
             totalProfitKrw: Number(metrics.total_profit_krw || 0)
         };
-        
+
+        console.log(`✅ [useRealTimeStats] 통계 업데이트:`, realStats);
+
         setStats(realStats);
         // 성공 시 인증 실패 상태 초기화
         setIsAuthFailed(false);
-        // 모든 useRealTimeStats 로그 제거
       } else {
         throw new Error(`API 응답 오류: ${res.status}`);
       }

@@ -18,6 +18,8 @@ interface LiveBalanceDisplayProps {
   openBinanceQty: number;
   profitRate: number;
   totalPnl: number;
+  realtimeBalances?: { upbitBtc: number; binanceBtc: number; timestamp: string };
+  balanceLoading?: boolean;
 }
 
 export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
@@ -25,10 +27,10 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   openUpbitQty,
   openBinanceQty,
   profitRate,
-  totalPnl
+  totalPnl,
+  realtimeBalances,
+  balanceLoading
 }) => {
-  const { user } = useAuth();
-  const { balances: realtimeBalances, isLoading: balanceLoading } = useRealTimeBalances(user?.id);
   return (
     <>
       {/* 잔고 표시 */}

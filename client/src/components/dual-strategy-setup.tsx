@@ -84,7 +84,6 @@ export function DualStrategySetup() {
         description: `${variables.name}이 시작되었습니다.`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/trading/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/positions/1'] });
     },
     onError: (error: any) => {
       toast({
@@ -115,7 +114,6 @@ export function DualStrategySetup() {
         description: "모든 자동매매가 중지되었습니다.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/trading/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/positions/1'] });
     },
     onError: (error: any) => {
       toast({

@@ -751,7 +751,7 @@ export class MultiStrategyTradingService {
   ): Promise<void> {
     const positions = await storage.getActivePositions(parseInt(userId));
     const position = positions.find(
-      (p: any) => p.symbol === signal.symbol && p.status === "open"
+      (p: any) => p.symbol === signal.symbol && p.status === "open" && p.strategyId === signal.strategyId
     );
 
     if (!position) {

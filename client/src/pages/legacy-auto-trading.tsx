@@ -121,7 +121,6 @@ const LegacyAutoTradingPage = () => {
     Object.keys(localStorage)
       .filter(k => k.includes('kimchi-chart-data'))
       .forEach(k => {
-        console.log(`🗑️ localStorage 정리: ${k}`);
         localStorage.removeItem(k);
       });
   }, []);
@@ -807,13 +806,6 @@ const LegacyAutoTradingPage = () => {
           
           const entryValue = safeString(s.entry_rate, '0');
           const exitValue = safeString(s.exit_rate, '0');
-          
-          console.log(`🔍 [legacy-auto-trading] 전략 ${s.id} 변환:`, {
-            'DB entry_rate': s.entry_rate,
-            'DB exit_rate': s.exit_rate,
-            'safeString entry': entryValue,
-            'safeString exit': exitValue
-          });
 
           return {
             id: String(s.id),
@@ -927,7 +919,6 @@ const LegacyAutoTradingPage = () => {
         if (response.ok) {
           const data = await response.json();
           if (data && (data.upbit_price > 0 || data.binance_price > 0)) {
-            console.log('📡 폴백 API로 가격 데이터 수신:', data);
             setKimp(data);
           }
         }
@@ -990,7 +981,6 @@ const LegacyAutoTradingPage = () => {
 
   // 로딩 중이거나 인증되지 않은 경우 처리
   if (isLoading) {
-    console.log('⏳ 로딩 중...');
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center text-white">
@@ -1002,7 +992,6 @@ const LegacyAutoTradingPage = () => {
   }
 
   if (!isAuthenticated) {
-    console.log('❌ 인증되지 않음');
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center text-white">
@@ -1221,7 +1210,6 @@ const LegacyAutoTradingPage = () => {
                 isLoadingStrategies={isLoadingStrategies}
                 onStrategyUpdate={setRealStrategies} // 실거래에서는 realStrategies 업데이트
                 onStrategyEdit={(strategy: any) => {
-                  console.log('🔍 [onStrategyEdit] 편집할 전략 데이터:', strategy);
                   
                   setNewStrategy({
                     name: strategy.name || '',
@@ -1278,7 +1266,7 @@ const LegacyAutoTradingPage = () => {
                   isRealTimeValid: hasValidRealTimeData,
                   dataAge: Math.round(dataAge / 1000)
                 }}
-                userId={user?.id ? String(user.id) : "1"}
+                userId={String(user.id)}
                 onDailyStatsUpdate={setDailyStats}
                 isLiveMode={true}
                 liveBalances={balances}
@@ -1386,9 +1374,7 @@ const LegacyAutoTradingPage = () => {
                     isAutoTrading: newStrategy.activateImmediately,
                     tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
                   };
-                  
-                  console.log('🔍 전략 수정 payload:', payload);
-                  
+
                   await fetchJson(`/api/trading-strategies/${editingStrategyId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -1400,19 +1386,13 @@ const LegacyAutoTradingPage = () => {
                     title: '전략 수정 완료! 🎉',
                     description: `${newStrategy.name} 전략이 업데이트되었습니다.`,
                   });
-                  
+
                   // 전략 목록 새로고침 (비동기, 로딩 스피너 포함)
-                  console.log('🔄 [전략수정] 전략 목록 새로고침 시작...');
-                  
-                  // useTradingMode 훅의 loadRealStrategies 호출 (로딩 상태 포함)
                   await loadRealStrategies();
-                  
+
                   // 추가로 로컬 함수로도 확인 (이중 안전장치)
                   try {
                     const newStrategies = await loadStrategiesFromDB({ force: true });
-                    if (newStrategies && newStrategies.length > 0) {
-                      console.log('🔄 [전략수정] 로컬 함수로 추가 확인:', newStrategies.length, '개');
-                    }
                   } catch (localError) {
                     console.warn('⚠️ [전략수정] 로컬 함수 새로고침 실패:', localError);
                   }
@@ -1473,36 +1453,22 @@ const LegacyAutoTradingPage = () => {
                     isAutoTrading: newStrategy.activateImmediately,
                     tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
                   };
-                  
-                  console.log('🔍 전략 생성 payload:', payload);
-                  console.log('🔍 newStrategy 상태:', {
-                    investmentAmount: newStrategy?.investmentAmount || '0.001',
-                    baseAmount: newStrategy.baseAmount,
-                    leverage: newStrategy.leverage
-                  });
-                  
+
                   const result = await fetchJson(`/api/trading-strategies`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                     nonCancelable: true as any
                   });
-                  
-                  console.log('✅ 전략 생성 성공:', result);
+
                   toast({ title: '전략 생성 완료', description: '새 전략이 성공적으로 생성되었습니다.' });
-                  
+
                   // 전략 목록 새로고침 (비동기, 로딩 스피너 포함)
-                  console.log('🔄 [전략생성] 전략 목록 새로고침 시작...');
-                  
-                  // useTradingMode 훅의 loadRealStrategies 호출 (로딩 상태 포함)
                   await loadRealStrategies();
-                  
+
                   // 추가로 로컬 함수로도 확인 (이중 안전장치)
                   try {
                     const newStrategies = await loadStrategiesFromDB({ force: true });
-                    if (newStrategies && newStrategies.length > 0) {
-                      console.log('🔄 [전략생성] 로컬 함수로 추가 확인:', newStrategies.length, '개');
-                    }
                   } catch (localError) {
                     console.warn('⚠️ [전략생성] 로컬 함수 새로고침 실패:', localError);
                   }

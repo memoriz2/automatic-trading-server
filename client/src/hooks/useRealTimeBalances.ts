@@ -30,6 +30,8 @@ export const useRealTimeBalances = (userId?: number) => {
     setIsLoading(true);
     setError(null);
 
+    const startTime = Date.now();
+
     try {
       const data = await apiFetchJson('/api/realtime-balances', {
         method: 'GET',
@@ -41,18 +43,18 @@ export const useRealTimeBalances = (userId?: number) => {
         binanceBtc: Number(data.binanceBtc || 0),
         timestamp: data.timestamp || new Date().toISOString()
       });
-      
+
       // 성공 시 인증 실패 상태 초기화
       setIsAuthFailed(false);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '실시간 잔고 조회 실패';
-      
+
       // 인증 실패인 경우 추가 요청 중단
       if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
         console.log('🔒 [useRealTimeBalances] 인증 실패로 실시간 잔고 조회 중단');
         setIsAuthFailed(true);
         setError('인증이 필요합니다. 다시 로그인해주세요.');
-        
+
         // 인터벌 정리
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
