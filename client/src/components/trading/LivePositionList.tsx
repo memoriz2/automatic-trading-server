@@ -130,7 +130,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                   })()}
                 </div>
               </div>
-              <div className="flex items-center gap-2 ml-auto md:ml-0">
+              <div className="flex flex-col md:flex-row md:items-center gap-2 ml-auto">
                 <div className="text-right">
                   {/* 차익거래 수익 표시 (김프율 증가 = 수익) */}
                   <p className={`font-bold flex justify-end text-right gap-1 ${
@@ -168,24 +168,24 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                         바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC (숏) × {position.leverage}배
                       </p>
                 </div>
-              </div>
-              <div className="flex gap-1 ml-auto md:ml-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-xs px-2 py-1 h-6"
-                  onClick={() => onLiveExit(position, pnlData.currentPremium, 0.5)}
-                >
-                  50% 청산
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="text-xs px-2 py-1 h-6"
-                  onClick={() => onLiveExit(position, pnlData.currentPremium, 1.0)}
-                >
-                  전체 청산
-                </Button>
+                <div className="flex gap-1 md:flex-col ml-auto md:ml-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs px-2 py-1 h-6"
+                    onClick={() => onLiveExit(position, pnlData.currentPremium, 0.5)}
+                  >
+                    50% 청산
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="text-xs px-2 py-1 h-6"
+                    onClick={() => onLiveExit(position, pnlData.currentPremium, 1.0)}
+                  >
+                    전체 청산
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
