@@ -1930,11 +1930,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     <>
     <Card className="bg-slate-850 border-slate-700">
       <CardHeader>
-        <CardTitle className="text-white flex items-center justify-between">
+        <CardTitle className="text-white flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <span>자동 매매 시스템</span>
             {isLiveMode && (
-              <div className="flex items-center gap-2">
+              <>
                 <div className={`w-2 h-2 rounded-full ${
                   isValidPriceData(currentKimchiData) ? 'bg-green-500' : 'bg-red-500'
                 } animate-pulse`}></div>
@@ -1943,15 +1943,14 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 }`}>
                   {isValidPriceData(currentKimchiData) ? '실시간 데이터 연결됨' : '데이터 연결 대기 중'}
                 </span>
-              </div>
+              </>
             )}
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              size="sm"
               disabled
-              className={`min-w-[200px] ${livePositions.some(p => p.status === 'open') ? 'bg-orange-600 hover:bg-orange-600 text-white border-orange-600' : ''}`}
+              className={`h-8 px-3 text-xs min-w-[140px] ${livePositions.some(p => p.status === 'open') ? 'bg-orange-600 hover:bg-orange-600 text-white border-orange-600' : ''}`}
             >
               {stableButtonText === "loading" ? (
                 <span className="flex items-center gap-2">
@@ -1964,16 +1963,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 stableButtonText
               )}
             </Button>
-            <Button 
-              variant="secondary" 
-              size="sm" 
+            <Button
+              variant="secondary"
               onClick={() => setShowForceEntryModal(true)}
+              className="h-8 px-3 text-xs"
             >
               🧪 강제 진입
             </Button>
             <Button
-              variant="destructive" 
-              size="sm" 
+              variant="destructive"
+              className="h-8 px-3 text-xs" 
               onClick={async () => {
                 // 활성 포지션 전체 청산 (실제 API 호출 포함)
                 const activePositions = livePositions.filter(p => p.status === 'open');
