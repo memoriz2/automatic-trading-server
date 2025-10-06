@@ -52,6 +52,7 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerTradingRoutes } from "./routes/trading.js";
 import { registerApiRoutes } from "./routes/api.js";
 import { registerMonitoringRoutes } from "./routes/monitoring.js";
+import { registerChartRoutes } from "./routes/chart.js";
 import { generateToken, verifyToken, } from "./utils/auth.js";
 /**
  * JWT 토큰에서 사용자 ID 추출
@@ -458,93 +459,49 @@ export async function registerRoutes(app, server) {
         try {
             const userId = req.user.id;
             const minutes = parseInt(req.query.minutes) || 1440; // 기본 24시간
-            // 🔧 한국시간 기준 오늘 자정 계산 (올바른 방법)
-            const now = new Date();
-            // 한국시간으로 올바르게 변환 (UTC + 9시간)
-            const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-            const kstMidnight = new Date(kstNow);
-            kstMidnight.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
-            console.log(`🔍 [daily-stats] 한국시간 기준:`, {
-                현재UTC: now.toISOString(),
-                현재한국시간: kstNow.toISOString(),
-                오늘자정한국시간: kstMidnight.toISOString(),
-                필터링기준: kstMidnight.toISOString()
-            });
-            // 🚀 SQL에서 직접 한국시간 기준 오늘 데이터만 조회 (더 정확하고 효율적)
+            // 🚀 SQL에서 직접 한국시간 오전 9시 기준 오늘 데이터만 조회 (storage 함수에서 처리)
             const todayTrades = await storage.getTodayTradesByUserId(String(userId));
             const todayPositions = await storage.getTodayPositionsByUserId(userId);
-            // 전체 데이터도 조회 (비교용)
-            const allTrades = await storage.getTradesByUserId(String(userId), 100);
-            const allPositions = await storage.getPositions({ user_id: userId });
-            console.log(`🔍 [daily-stats] SQL 직접 조회 결과:`, {
-                userId: userId,
-                전체거래: allTrades.length,
-                오늘거래: todayTrades.length,
-                전체포지션: allPositions.length,
+            // 🔧 실제 체결된 거래만 필터링 (order_type = 'LIVE')
+            const liveTrades = todayTrades.filter(t => t.order_type === 'LIVE');
+            console.log(`📊 [daily-stats] 오늘 통계:`, {
+                전체거래기록: todayTrades.length,
+                실제거래: liveTrades.length,
                 오늘포지션: todayPositions.length,
-                오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
-                오늘거래상세: todayTrades.map(t => ({ side: t.side, exchange: t.exchange }))
+                오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
             });
-            // 포지션 시간 상세 확인
-            if (allPositions.length > 0) {
-                console.log(`🔍 [daily-stats] 포지션 시간 상세:`, allPositions.map(p => {
-                    const positionTime = new Date(p.created_at || p.entry_time);
-                    // 🔧 올바른 한국시간 변환
-                    const positionKst = new Date(positionTime.getTime() + 9 * 60 * 60 * 1000);
-                    const positionDateStr = positionKst.toISOString().split('T')[0]; // YYYY-MM-DD 형식
-                    const todayDateStr = kstMidnight.toISOString().split('T')[0];
-                    return {
-                        id: p.id,
-                        status: p.status,
-                        entry_time: p.entry_time,
-                        created_at: p.created_at,
-                        한국시간: positionKst.toISOString(),
-                        오늘포함여부: positionDateStr === todayDateStr
-                    };
-                }));
-            }
-            // 🔧 진입/청산 거래 정확한 분류
-            const entryTrades = todayTrades.filter(t => t.side === 'buy' || // 업비트 매수 (롱 진입)
+            // 🔧 진입/청산 거래 정확한 분류 (실제 체결된 거래만)
+            const entryTrades = liveTrades.filter(t => t.side === 'buy' || // 업비트 매수 (롱 진입)
                 t.side === 'short' // 바이낸스 숏 (숏 진입)
             );
-            const exitTrades = todayTrades.filter(t => t.side === 'sell' || // 업비트 매도 (롱 청산)
+            const exitTrades = liveTrades.filter(t => t.side === 'sell' || // 업비트 매도 (롱 청산)
                 t.side === 'cover' // 바이낸스 커버 (숏 청산) - 아직 없음
             );
-            console.log(`🔍 [daily-stats] 거래 분류 결과:`, {
-                entryTrades: entryTrades.length,
-                exitTrades: exitTrades.length,
-                meaningfulTrades: entryTrades.length + exitTrades.length
-            });
             // 실제 포지션 생성/청산 횟수
-            const todayEntries = todayPositions.filter(p => p.status === 'open').length;
-            const todayExits = todayPositions.filter(p => p.status === 'closed').length;
+            const todayEntries = todayPositions.length; // 오늘 생성된 포지션 수
+            // 청산 횟수는 exit_time 기준으로 계산
+            const todayExits = await storage.getTodayExitedPositionsCount(userId);
             // 통계 계산 (의미있는 거래만)
             const meaningfulTrades = entryTrades.length + exitTrades.length;
             const stats = {
                 total_orders: meaningfulTrades, // 진입+청산 거래만
                 entries: entryTrades.length, // 거래 기반 진입 수 (더 직관적)
-                exits: exitTrades.length, // 거래 기반 청산 수 (더 직관적)
+                exits: todayExits, // 포지션 기반 청산 수 (exit_time 기준)
                 upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
                 binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
                 total_fees: (() => {
-                    // 완료된 거래 수수료
-                    const completedFees = todayTrades.reduce((sum, trade) => {
+                    // 완료된 거래 수수료 (실제 체결된 거래만)
+                    const completedFees = liveTrades.reduce((sum, trade) => {
                         const fee = Number(trade.fee || 0);
                         return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
                     }, 0);
                     // 🔄 오늘 활성 포지션의 실시간 예상 매도 수수료 추가 (수정)
                     let activePositionFees = 0;
                     const todayActivePositions = todayPositions.filter(p => p.status === 'open');
-                    console.log(`🔍 [daily-stats] 오늘 활성 포지션: ${todayActivePositions.length}개`);
                     if (todayActivePositions.length > 0) {
                         // 실시간 김치 데이터 한 번만 조회
                         const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
                         const btcData = realtimeData.find(d => d.symbol === 'BTC');
-                        console.log(`🔍 [daily-stats] BTC 데이터:`, {
-                            upbitPrice: btcData?.upbitPrice,
-                            binancePrice: btcData?.binanceFuturesPrice,
-                            usdKrw: btcData?.usdKrwRate
-                        });
                         const currentUpbitPrice = btcData?.upbitPrice || 160000000; // 기본값
                         const currentBinancePrice = btcData?.binanceFuturesPrice || 115000; // 기본값
                         const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
@@ -558,22 +515,14 @@ export async function registerRoutes(app, server) {
                             const binanceQuantity = position.binance_quantity || position.binanceQuantity || 0;
                             const binanceSellAmount = binanceQuantity * currentBinancePrice;
                             const binanceExitFee = (binanceSellAmount * 0.0004) * currentUsdKrw;
-                            console.log(`🔍 [daily-stats] 포지션 ${index + 1}:`, {
-                                upbitQuantity,
-                                binanceQuantity,
-                                upbitExitFee: upbitExitFee.toFixed(2),
-                                binanceExitFee: binanceExitFee.toFixed(2),
-                                totalFee: (upbitExitFee + binanceExitFee).toFixed(2)
-                            });
                             return sum + upbitExitFee + binanceExitFee;
                         }, 0);
-                        console.log(`🔍 [daily-stats] 총 예상 매도 수수료: ₩${activePositionFees.toFixed(2)}`);
                     }
                     return completedFees + activePositionFees;
                 })(),
                 total_profit_rate: (() => {
-                    // 간단한 수익률 계산: 총 수수료 대비 손익
-                    const totalFeesKrw = todayTrades.reduce((sum, trade) => {
+                    // 간단한 수익률 계산: 총 수수료 대비 손익 (실제 체결된 거래만)
+                    const totalFeesKrw = liveTrades.reduce((sum, trade) => {
                         return sum + Number(trade.fee || 0);
                     }, 0);
                     // 거래량 기반 대략적 수익률 (실제 가격 정보가 부족한 경우)
@@ -599,7 +548,6 @@ export async function registerRoutes(app, server) {
                         환율: currentUsdKrw,
                         오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
                         오늘완료포지션: todayPositions.filter(p => p.status === 'closed').length,
-                        전체포지션: allPositions.length,
                         오늘포지션: todayPositions.length
                     });
                     // 🔧 오늘 포지션에 대해서만 김치프리미엄 변화 수익 계산
@@ -669,10 +617,6 @@ export async function registerRoutes(app, server) {
                 loops: (() => {
                     // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
                     const completedPositions = todayPositions.filter(p => p.status === 'closed');
-                    console.log(`🔄 [daily-stats] 루프 계산:`, {
-                        오늘완료포지션: completedPositions.length,
-                        전체오늘포지션: todayPositions.length
-                    });
                     return completedPositions.length;
                 })(),
                 errors: 0
@@ -1148,11 +1092,32 @@ export async function registerRoutes(app, server) {
         }
     });
     // 활성 포지션 조회 (세션 인증) - 중복 제거됨
+    // 활성 포지션 중복 체크 API (진입 전 확인용) - 반드시 :userId 라우트보다 앞에 위치
+    app.get("/api/positions/check-active", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const { strategyId, symbol } = req.query;
+            const activePosition = await storage.getActivePositionByStrategy(parseInt(strategyId), symbol);
+            res.json({
+                hasActivePosition: !!activePosition,
+                position: activePosition || null
+            });
+        }
+        catch (error) {
+            console.error("활성 포지션 체크 오류:", error);
+            res.status(500).json({ error: "활성 포지션 확인 중 오류가 발생했습니다" });
+        }
+    });
     // 활성 포지션 조회
     app.get("/api/positions/:userId", async (req, res) => {
         try {
-            const userId = req.params.userId; // string으로 처리
-            const positions = await storage.getActivePositions(parseInt(userId));
+            const userId = req.params.userId;
+            const userIdNum = parseInt(userId);
+            if (isNaN(userIdNum)) {
+                console.error(`❌ [getActivePositions] 잘못된 userId: "${userId}"`);
+                return res.status(400).json({ error: "Invalid userId" });
+            }
+            const positions = await storage.getActivePositions(userIdNum);
             res.json(positions);
         }
         catch (error) {
@@ -3144,599 +3109,6 @@ export async function registerRoutes(app, server) {
             });
         }
     });
-    // 포지션 불균형 감지 및 자동 롤백 API
-    app.post("/api/rollback/positions", authenticateSession, async (req, res) => {
-        try {
-            const userId = req.user.id;
-            const { symbol = 'BTC', tolerance = 0.001, autoExecute = false } = req.body;
-            console.log(`🚨 [롤백] 포지션 불균형 감지 시작: 사용자 ${userId}, 심볼 ${symbol}`);
-            // 1. 바이낸스 포지션 조회
-            const binanceExchange = await storage.getDecryptedExchange(userId, 'binance');
-            if (!binanceExchange) {
-                return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
-            }
-            const binanceService = new BinanceService(binanceExchange.apiKey, binanceExchange.apiSecret);
-            const accountInfo = await binanceService.getFuturesAccountInfo();
-            // 활성 포지션 찾기
-            const activePosition = accountInfo.positions?.find((pos) => pos.symbol === `${symbol}USDT` && parseFloat(pos.positionAmt || '0') !== 0);
-            const positionQty = activePosition ? parseFloat(activePosition.positionAmt || '0') : 0;
-            const positionSide = positionQty > 0 ? 'LONG' : positionQty < 0 ? 'SHORT' : 'NONE';
-            const absPositionQty = Math.abs(positionQty);
-            console.log(`📊 [롤백] 바이낸스 ${symbol} 포지션: ${positionQty} (${positionSide})`);
-            // 2. 업비트 현물 잔고 조회
-            const upbitExchange = await storage.getDecryptedExchange(userId, 'upbit');
-            if (!upbitExchange) {
-                return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
-            }
-            const { UpbitService } = await import('./services/upbit.js');
-            const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
-            const accounts = await upbitService.getAccounts();
-            const btcAccount = accounts.find((account) => account.currency === symbol);
-            const upbitHolding = btcAccount ? parseFloat(btcAccount.balance || '0') : 0;
-            console.log(`📊 [롤백] 업비트 ${symbol} 보유: ${upbitHolding}`);
-            // 3. 불균형 분석
-            const imbalance = absPositionQty - upbitHolding;
-            const imbalanceRatio = absPositionQty > 0 ? (imbalance / absPositionQty) * 100 : 0;
-            const isUnbalanced = Math.abs(imbalance) > tolerance;
-            console.log(`⚠️ [롤백] 불균형 분석: 차이 ${imbalance}, 비율 ${imbalanceRatio.toFixed(2)}%`);
-            const result = {
-                success: true,
-                analysis: {
-                    binancePosition: {
-                        quantity: positionQty,
-                        absQuantity: absPositionQty,
-                        side: positionSide,
-                        symbol: activePosition?.symbol || `${symbol}USDT`,
-                        unrealizedPnl: activePosition ? parseFloat(activePosition.unrealizedProfit || '0') : 0
-                    },
-                    upbitHolding: {
-                        quantity: upbitHolding,
-                        symbol: `KRW-${symbol}`
-                    },
-                    imbalance: {
-                        difference: imbalance,
-                        ratio: imbalanceRatio,
-                        tolerance: tolerance,
-                        isUnbalanced: isUnbalanced,
-                        riskLevel: imbalanceRatio > 80 ? 'HIGH' : imbalanceRatio > 50 ? 'MEDIUM' : 'LOW'
-                    }
-                }
-            };
-            // 4. 롤백 권장사항
-            if (isUnbalanced) {
-                const currentPrice = await upbitService.getTicker([`KRW-${symbol}`]).then(t => t[0]?.trade_price || 0);
-                const positionValue = absPositionQty * currentPrice;
-                result.recommendation = {
-                    action: 'rollback_all',
-                    reason: `포지션 불균형 감지 (${imbalanceRatio.toFixed(1)}% 불일치)`,
-                    description: `즉시 전체 청산 권장 - 헤지 실패로 인한 리스크 노출`,
-                    steps: [
-                        `1. 바이낸스 ${symbol} ${positionSide} 포지션 전량 청산 (${absPositionQty} ${symbol})`,
-                        upbitHolding > 0 ? `2. 업비트 ${symbol} 현물 전량 매도 (${upbitHolding} ${symbol})` : '2. 업비트 추가 액션 불필요',
-                        '3. 포지션 정리 완료 후 새로운 기회 대기'
-                    ],
-                    estimatedLoss: activePosition ? parseFloat(activePosition.unrealizedProfit || '0') : 0,
-                    positionValue: positionValue
-                };
-            }
-            else {
-                result.recommendation = {
-                    action: 'maintain',
-                    description: '포지션 균형 양호 - 유지 권장',
-                    riskLevel: 'LOW'
-                };
-            }
-            // 5. 자동 롤백 실행 (autoExecute=true인 경우)
-            if (autoExecute && isUnbalanced && absPositionQty > 0) {
-                try {
-                    console.log(`🚨 [롤백] 자동 청산 시작...`);
-                    // 바이낸스 포지션 청산
-                    let closeResult;
-                    if (positionSide === 'SHORT') {
-                        closeResult = await binanceService.closeShortPosition(`${symbol}USDT`, absPositionQty);
-                    }
-                    else {
-                        // LONG 청산 로직 (향후 구현)
-                        throw new Error('LONG 포지션 자동 청산은 아직 구현되지 않았습니다');
-                    }
-                    result.execution = {
-                        binanceClose: {
-                            success: true,
-                            order: closeResult,
-                            message: `바이낸스 ${symbol} ${positionSide} 포지션 청산 완료`
-                        }
-                    };
-                    // 업비트 현물 매도 (보유량이 있으면)
-                    if (upbitHolding > 0.0001) {
-                        try {
-                            const sellOrder = await upbitService.placeSellOrder(`KRW-${symbol}`, upbitHolding);
-                            result.execution.upbitSell = {
-                                success: true,
-                                order: sellOrder,
-                                message: `업비트 ${symbol} 현물 매도 완료`
-                            };
-                        }
-                        catch (sellError) {
-                            result.execution.upbitSell = {
-                                success: false,
-                                error: sellError.message,
-                                message: '업비트 현물 매도 실패'
-                            };
-                        }
-                    }
-                    console.log(`✅ [롤백] 자동 청산 완료`);
-                }
-                catch (executionError) {
-                    console.error(`❌ [롤백] 자동 청산 실패:`, executionError);
-                    result.execution = {
-                        success: false,
-                        error: executionError.message,
-                        message: '자동 롤백 실행 중 오류 발생'
-                    };
-                }
-            }
-            res.json(result);
-        }
-        catch (error) {
-            console.error('❌ [롤백] 실패:', error);
-            res.status(500).json({
-                success: false,
-                error: '포지션 롤백 분석 중 오류 발생',
-                details: error.message
-            });
-        }
-    });
-    // 포지션 롤백 테스트 페이지
-    app.get("/test/rollback", authenticateSession, async (req, res) => {
-        const html = `<!doctype html>
-<meta charset="utf-8" />
-<title>🚨 포지션 롤백 (안전 청산)</title>
-<style>
-  body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #fff; }
-  .container { max-width: 900px; margin: 0 auto; }
-  .status { padding: 15px; margin: 15px 0; border-radius: 8px; }
-  .info { background: #0d47a1; }
-  .success { background: #2e7d32; }
-  .error { background: #d32f2f; }
-  .warning { background: #f57c00; }
-  .danger { background: #c62828; }
-  button { padding: 12px 24px; margin: 8px; font-size: 16px; cursor: pointer; border-radius: 6px; }
-  .btn-primary { background: #1976d2; color: white; border: none; }
-  .btn-warning { background: #f57c00; color: white; border: none; }
-  .btn-danger { background: #d32f2f; color: white; border: none; }
-  .btn-success { background: #2e7d32; color: white; border: none; }
-  pre { background: #2d2d2d; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
-  .card { background: #2d2d2d; padding: 20px; border-radius: 8px; }
-  .metric { font-size: 28px; font-weight: bold; color: #4caf50; }
-  .risk-high { color: #f44336; }
-  .risk-medium { color: #ff9800; }
-  .risk-low { color: #4caf50; }
-  h1 { color: #f44336; text-align: center; }
-</style>
-
-<div class="container">
-  <h1>🚨 포지션 롤백 (안전 청산)</h1>
-  
-  <div class="status danger">
-    <strong>⚠️ 경고: 불균형 포지션 감지 시 즉시 청산으로 리스크를 제거합니다</strong>
-    <div id="status">분석 중...</div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3>🟡 바이낸스 선물</h3>
-      <div>포지션: <span id="binancePosition" class="metric">-</span></div>
-      <div>사이드: <span id="binanceSide">-</span></div>
-      <div>미실현PnL: <span id="binancePnl">-</span></div>
-    </div>
-    <div class="card">
-      <h3>🔵 업비트 현물</h3>
-      <div>보유량: <span id="upbitHolding" class="metric">-</span></div>
-      <div>평가금액: <span id="upbitValue">-</span></div>
-    </div>
-  </div>
-
-  <div class="status warning">
-    <strong>⚖️ 불균형 분석</strong>
-    <div>수량 차이: <span id="difference" class="metric">-</span></div>
-    <div>불균형 비율: <span id="imbalanceRatio" class="metric">-</span></div>
-    <div>리스크 레벨: <span id="riskLevel" class="metric">-</span></div>
-    <div>권장 액션: <span id="recommendation">-</span></div>
-  </div>
-
-  <div style="text-align: center; margin: 30px 0;">
-    <button class="btn-primary" onclick="analyze()">📊 불균형 분석</button>
-    <button class="btn-danger" onclick="rollback()">🚨 즉시 전체 청산</button>
-    <button class="btn-success" onclick="location.reload()">🔄 새로고침</button>
-  </div>
-
-  <div class="status info">
-    <strong>📝 실행 로그</strong>
-    <pre id="log">포지션 불균형 감지 시 안전을 위해 즉시 청산을 권장합니다...\\n</pre>
-  </div>
-</div>
-
-<script>
-const log = (msg) => {
-  const logEl = document.getElementById('log');
-  const timestamp = new Date().toLocaleTimeString();
-  logEl.textContent += \`[\${timestamp}] \${typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2)}\\n\`;
-  logEl.scrollTop = logEl.scrollHeight;
-};
-
-const updateUI = (data) => {
-  if (data.analysis) {
-    const pos = data.analysis.binancePosition;
-    const upbit = data.analysis.upbitHolding;
-    const imb = data.analysis.imbalance;
-    
-    document.getElementById('binancePosition').textContent = pos.absQuantity + ' BTC';
-    document.getElementById('binanceSide').textContent = pos.side;
-    document.getElementById('binancePnl').textContent = pos.unrealizedPnl.toFixed(4) + ' USDT';
-    document.getElementById('upbitHolding').textContent = upbit.quantity + ' BTC';
-    document.getElementById('difference').textContent = imb.difference.toFixed(8) + ' BTC';
-    document.getElementById('imbalanceRatio').textContent = imb.ratio.toFixed(1) + '%';
-    
-    const riskEl = document.getElementById('riskLevel');
-    riskEl.textContent = imb.riskLevel;
-    riskEl.className = 'metric risk-' + imb.riskLevel.toLowerCase();
-  }
-  if (data.recommendation) {
-    document.getElementById('recommendation').textContent = data.recommendation.description;
-  }
-};
-
-const analyze = async () => {
-  log('📊 포지션 불균형 분석 시작...');
-  document.getElementById('status').textContent = '분석 중...';
-  
-  try {
-    const response = await fetch('/api/rollback/positions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ symbol: 'BTC', tolerance: 0.001, autoExecute: false })
-    });
-    
-    const result = await response.json();
-    log('분석 완료:');
-    log(result);
-    
-    if (result.success) {
-      updateUI(result);
-      document.getElementById('status').textContent = result.recommendation.description;
-    } else {
-      document.getElementById('status').textContent = '분석 실패: ' + result.error;
-    }
-  } catch (error) {
-    log('❌ 분석 실패: ' + error.message);
-    document.getElementById('status').textContent = '분석 실패';
-  }
-};
-
-const rollback = async () => {
-  if (!confirm('🚨 경고: 모든 포지션을 즉시 청산합니다. 계속하시겠습니까?\\n\\n이 작업은 되돌릴 수 없습니다.')) {
-    return;
-  }
-  
-  log('🚨 포지션 롤백 실행 시작...');
-  document.getElementById('status').textContent = '🚨 전체 청산 실행 중...';
-  
-  try {
-    const response = await fetch('/api/rollback/positions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ symbol: 'BTC', tolerance: 0.001, autoExecute: true })
-    });
-    
-    const result = await response.json();
-    log('롤백 완료:');
-    log(result);
-    
-    if (result.success) {
-      updateUI(result);
-      if (result.execution) {
-        let status = '✅ 롤백 완료: ';
-        if (result.execution.binanceClose?.success) status += '바이낸스 청산 성공 ';
-        if (result.execution.upbitSell?.success) status += '업비트 매도 성공';
-        document.getElementById('status').textContent = status;
-      } else {
-        document.getElementById('status').textContent = result.recommendation.description;
-      }
-    } else {
-      document.getElementById('status').textContent = '롤백 실패: ' + result.error;
-    }
-  } catch (error) {
-    log('❌ 롤백 실패: ' + error.message);
-    document.getElementById('status').textContent = '롤백 실패';
-  }
-};
-
-// 페이지 로드 시 자동 분석
-window.onload = () => {
-  setTimeout(analyze, 1000);
-};
-</script>`;
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(html);
-    });
-    // 롤백 설정 페이지
-    app.get("/test/rollback-settings", authenticateSession, async (req, res) => {
-        const html = `<!doctype html>
-<meta charset="utf-8" />
-<title>🛡️ 롤백 설정</title>
-<style>
-  body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #fff; }
-  .container { max-width: 800px; margin: 0 auto; }
-  .card { background: #2d2d2d; padding: 20px; border-radius: 8px; margin: 15px 0; }
-  .form-group { margin: 15px 0; }
-  .form-group label { display: block; margin-bottom: 5px; color: #ccc; font-weight: bold; }
-  .form-group input, .form-group select { 
-    width: 100%; padding: 8px; background: #1a1a1a; color: #fff; 
-    border: 1px solid #555; border-radius: 4px; 
-  }
-  .form-group .help { font-size: 12px; color: #888; margin-top: 3px; }
-  button { padding: 10px 20px; margin: 5px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; }
-  .btn-primary { background: #1976d2; color: white; }
-  .btn-success { background: #2e7d32; color: white; }
-  .btn-warning { background: #f57c00; color: white; }
-  .btn-danger { background: #d32f2f; color: white; }
-  .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
-  .info { background: #0d47a1; }
-  .success { background: #2e7d32; }
-  .warning { background: #f57c00; }
-  .error { background: #d32f2f; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-  .risk-indicator { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-  .risk-high { background: #d32f2f; color: white; }
-  .risk-medium { background: #f57c00; color: white; }
-  .risk-low { background: #2e7d32; color: white; }
-  pre { background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 12px; }
-</style>
-
-<div class="container">
-  <h1>🛡️ 자동 롤백 설정</h1>
-  
-  <div class="status info">
-    <strong>📋 현재 기준 (기본값)</strong>
-    <ul style="margin: 10px 0; padding-left: 20px;">
-      <li><span class="risk-indicator risk-high">80% 이상</span> HIGH 리스크 → 🚨 자동 롤백 실행</li>
-      <li><span class="risk-indicator risk-medium">50% ~ 80%</span> MEDIUM 리스크 → ⚠️ 경고만 표시</li>
-      <li><span class="risk-indicator risk-low">50% 미만</span> LOW 리스크 → ✅ 정상 유지</li>
-      <li>허용 오차: 0.001 BTC (0.1% 차이 이하는 무시)</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>⚙️ 롤백 설정 조정</h2>
-    
-    <div class="form-group">
-      <label>
-        <input type="checkbox" id="autoRollbackEnabled" checked> 자동 롤백 활성화
-      </label>
-      <div class="help">체크 해제 시 수동으로만 롤백 가능</div>
-    </div>
-
-    <div class="grid">
-      <div class="form-group">
-        <label for="highRiskThreshold">HIGH 리스크 임계값 (%)</label>
-        <input type="number" id="highRiskThreshold" value="80" min="10" max="100" step="5">
-        <div class="help">이 값 이상 시 자동 롤백 실행</div>
-      </div>
-      
-      <div class="form-group">
-        <label for="mediumRiskThreshold">MEDIUM 리스크 임계값 (%)</label>
-        <input type="number" id="mediumRiskThreshold" value="50" min="5" max="99" step="5">
-        <div class="help">이 값 이상 시 경고 표시</div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="form-group">
-        <label for="tolerance">허용 오차 (BTC)</label>
-        <input type="number" id="tolerance" value="0.001" min="0.0001" max="1" step="0.0001">
-        <div class="help">이 값 이하의 차이는 무시</div>
-      </div>
-      
-      <div class="form-group">
-        <label for="autoExecuteDelay">자동 실행 지연 (초)</label>
-        <input type="number" id="autoExecuteDelay" value="3" min="1" max="30" step="1">
-        <div class="help">주문 후 몇 초 뒤에 체크할지</div>
-      </div>
-    </div>
-
-    <div style="text-align: center; margin: 20px 0;">
-      <button class="btn-primary" onclick="loadSettings()">🔄 현재 설정 로드</button>
-      <button class="btn-success" onclick="saveSettings()">💾 설정 저장</button>
-      <button class="btn-warning" onclick="resetToDefault()">🔧 기본값 복원</button>
-      <button class="btn-danger" onclick="testRollback()">🧪 롤백 테스트</button>
-    </div>
-  </div>
-
-  <div class="status info">
-    <strong>📝 로그</strong>
-    <pre id="log">롤백 설정 페이지가 로드되었습니다...\\n</pre>
-  </div>
-</div>
-
-<script>
-const log = (msg) => {
-  const logEl = document.getElementById('log');
-  const timestamp = new Date().toLocaleTimeString();
-  logEl.textContent += \`[\${timestamp}] \${typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2)}\\n\`;
-  logEl.scrollTop = logEl.scrollHeight;
-};
-
-const loadSettings = async () => {
-  try {
-    log('설정 로드 중...');
-    const response = await fetch('/api/rollback/settings', { credentials: 'include' });
-    const result = await response.json();
-    
-    if (result.success) {
-      const s = result.settings;
-      document.getElementById('autoRollbackEnabled').checked = s.autoRollbackEnabled;
-      document.getElementById('highRiskThreshold').value = s.highRiskThreshold;
-      document.getElementById('mediumRiskThreshold').value = s.mediumRiskThreshold;
-      document.getElementById('tolerance').value = s.tolerance;
-      document.getElementById('autoExecuteDelay').value = s.autoExecuteDelay / 1000;
-      
-      log('설정 로드 완료');
-      log(s);
-    } else {
-      log('설정 로드 실패: ' + result.error);
-    }
-  } catch (error) {
-    log('설정 로드 오류: ' + error.message);
-  }
-};
-
-const saveSettings = async () => {
-  try {
-    const settings = {
-      autoRollbackEnabled: document.getElementById('autoRollbackEnabled').checked,
-      highRiskThreshold: parseFloat(document.getElementById('highRiskThreshold').value),
-      mediumRiskThreshold: parseFloat(document.getElementById('mediumRiskThreshold').value),
-      tolerance: parseFloat(document.getElementById('tolerance').value),
-      autoExecuteDelay: parseInt(document.getElementById('autoExecuteDelay').value) * 1000
-    };
-    
-    log('설정 저장 중...');
-    log(settings);
-    
-    const response = await fetch('/api/rollback/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(settings)
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      log('✅ 설정 저장 완료');
-      alert('롤백 설정이 저장되었습니다!');
-    } else {
-      log('❌ 설정 저장 실패: ' + result.error);
-      alert('설정 저장 실패: ' + result.error);
-    }
-  } catch (error) {
-    log('설정 저장 오류: ' + error.message);
-    alert('설정 저장 오류: ' + error.message);
-  }
-};
-
-const resetToDefault = () => {
-  document.getElementById('autoRollbackEnabled').checked = true;
-  document.getElementById('highRiskThreshold').value = '80';
-  document.getElementById('mediumRiskThreshold').value = '50';
-  document.getElementById('tolerance').value = '0.001';
-  document.getElementById('autoExecuteDelay').value = '3';
-  log('기본값으로 복원됨');
-};
-
-const testRollback = async () => {
-  if (!confirm('현재 포지션에 대해 롤백 테스트를 실행하시겠습니까?')) return;
-  
-  try {
-    log('롤백 테스트 실행 중...');
-    const response = await fetch('/api/rollback/positions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ symbol: 'BTC', autoExecute: false })
-    });
-    
-    const result = await response.json();
-    log('롤백 테스트 결과:');
-    log(result);
-    
-    if (result.analysis?.imbalance) {
-      const imb = result.analysis.imbalance;
-      alert(\`불균형 분석 결과:\\n차이: \${imb.difference.toFixed(8)} BTC\\n비율: \${imb.ratio.toFixed(1)}%\\n리스크: \${imb.riskLevel}\\n롤백 필요: \${imb.isUnbalanced ? '예' : '아니오'}\`);
-    }
-  } catch (error) {
-    log('롤백 테스트 오류: ' + error.message);
-    alert('롤백 테스트 오류: ' + error.message);
-  }
-};
-
-// 페이지 로드 시 설정 로드
-window.onload = () => {
-  loadSettings();
-};
-</script>`;
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(html);
-    });
-    // ===== 롤백 설정 관리 API =====
-    // 사용자 롤백 설정 조회
-    app.get("/api/rollback/settings", authenticateSession, async (req, res) => {
-        try {
-            const userId = req.user.id;
-            // 기본 설정값
-            const defaultSettings = {
-                autoRollbackEnabled: true,
-                highRiskThreshold: 80,
-                mediumRiskThreshold: 50,
-                tolerance: 0.001,
-                autoExecuteDelay: 3000
-            };
-            // 사용자 설정이 있으면 가져오기 (향후 DB 저장 시)
-            // 현재는 기본값 반환
-            res.json({
-                success: true,
-                settings: defaultSettings,
-                description: {
-                    autoRollbackEnabled: "자동 롤백 활성화 여부",
-                    highRiskThreshold: "HIGH 리스크 임계값 (%) - 이상 시 자동 롤백",
-                    mediumRiskThreshold: "MEDIUM 리스크 임계값 (%) - 경고만 표시",
-                    tolerance: "허용 오차 (BTC) - 이하는 무시",
-                    autoExecuteDelay: "자동 실행 지연 시간 (ms)"
-                }
-            });
-        }
-        catch (error) {
-            console.error('❌ 롤백 설정 조회 실패:', error);
-            res.status(500).json({ error: '롤백 설정 조회 실패', details: error.message });
-        }
-    });
-    // 사용자 롤백 설정 업데이트
-    app.put("/api/rollback/settings", authenticateSession, async (req, res) => {
-        try {
-            const userId = req.user.id;
-            const { autoRollbackEnabled, highRiskThreshold, mediumRiskThreshold, tolerance, autoExecuteDelay } = req.body;
-            console.log(`🔧 [롤백설정] 사용자 ${userId} 설정 업데이트:`, req.body);
-            // 유효성 검증
-            const settings = {
-                autoRollbackEnabled: Boolean(autoRollbackEnabled),
-                highRiskThreshold: Math.max(10, Math.min(100, parseFloat(highRiskThreshold) || 80)),
-                mediumRiskThreshold: Math.max(5, Math.min(99, parseFloat(mediumRiskThreshold) || 50)),
-                tolerance: Math.max(0.0001, Math.min(1, parseFloat(tolerance) || 0.001)),
-                autoExecuteDelay: Math.max(1000, Math.min(30000, parseInt(autoExecuteDelay) || 3000))
-            };
-            // 논리적 검증
-            if (settings.highRiskThreshold <= settings.mediumRiskThreshold) {
-                return res.status(400).json({
-                    error: "HIGH 리스크 임계값은 MEDIUM 리스크 임계값보다 커야 합니다"
-                });
-            }
-            // 향후 DB 저장 로직 추가 예정
-            // await storage.updateUserRollbackSettings(userId, settings);
-            console.log(`✅ [롤백설정] 설정 업데이트 완료:`, settings);
-            res.json({
-                success: true,
-                message: "롤백 설정이 업데이트되었습니다",
-                settings: settings
-            });
-        }
-        catch (error) {
-            console.error('❌ 롤백 설정 업데이트 실패:', error);
-            res.status(500).json({ error: '롤백 설정 업데이트 실패', details: error.message });
-        }
-    });
     // ===== 실거래 주문 API =====
     // 업비트 BTC 매수 주문
     app.post("/api/trading/upbit/buy", authenticateSession, async (req, res) => {
@@ -3901,9 +3273,10 @@ window.onload = () => {
                 console.log(`✅ 바이낸스 BTC 포지션 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
                 try {
                     const symbol = req.body.symbol?.replace('USDT', '') || 'BTC';
-                    // 해당 심볼의 활성 포지션들을 모두 닫기
-                    const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
-                    console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+                    const strategyId = req.body.strategyId;
+                    // 해당 심볼의 활성 포지션들을 모두 닫기 (strategyId가 있으면 해당 전략만)
+                    const result = await storage.closeAllPositionsByUser(req.user.id, { symbol, strategyId });
+                    console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료 (strategyId: ${strategyId || 'all'})`);
                 }
                 catch (closeError) {
                     console.error(`❌ 포지션 자동 청산 실패:`, closeError);
@@ -4138,9 +3511,10 @@ window.onload = () => {
                 console.log(`✅ 업비트 BTC 이미 청산됨 - 관련 포지션 자동 닫기 시작`);
                 try {
                     const symbol = req.body.market?.replace('KRW-', '') || 'BTC';
-                    // 해당 심볼의 활성 포지션들을 모두 닫기
-                    const result = await storage.closeAllPositionsByUser(req.user.id, { symbol });
-                    console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료`);
+                    const strategyId = req.body.strategyId;
+                    // 해당 심볼의 활성 포지션들을 모두 닫기 (strategyId가 있으면 해당 전략만)
+                    const result = await storage.closeAllPositionsByUser(req.user.id, { symbol, strategyId });
+                    console.log(`✅ ${symbol} 포지션 ${result.count}개 자동 청산 완료 (strategyId: ${strategyId || 'all'})`);
                 }
                 catch (closeError) {
                     console.error(`❌ 포지션 자동 청산 실패:`, closeError);
@@ -4276,150 +3650,6 @@ window.onload = () => {
                     // 포지션 생성 실패는 주문은 성공했으므로 에러로 처리하지 않음
                 }
             }
-            // 🔄 자동 리밸런싱 → 롤백 시스템 (비동기)
-            if (strategyId) {
-                setTimeout(async () => {
-                    try {
-                        console.log(`🔍 [자동체크] 포지션 불균형 분석 시작: 전략 ${strategyId}`);
-                        // 1단계: 불균형 분석
-                        const rollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Cookie': req.headers.cookie || ''
-                            },
-                            body: JSON.stringify({
-                                symbol: symbol.replace('USDT', ''),
-                                tolerance: 0.001,
-                                autoExecute: false
-                            })
-                        });
-                        if (!rollbackResponse.ok) {
-                            console.error(`❌ [자동체크] 불균형 분석 실패:`, rollbackResponse.status);
-                            return;
-                        }
-                        const rollbackData = await rollbackResponse.json();
-                        const imbalance = rollbackData.analysis?.imbalance;
-                        if (!imbalance?.isUnbalanced) {
-                            console.log(`✅ [자동체크] 포지션 균형 양호: ${imbalance?.ratio?.toFixed(1) || 0}%`);
-                            return;
-                        }
-                        console.log(`⚠️ [자동체크] 불균형 감지: ${imbalance.ratio.toFixed(1)}% (차이: ${imbalance.difference.toFixed(8)} BTC)`);
-                        // 2단계: 리밸런싱 시도 (불균형이 있지만 심각하지 않은 경우)
-                        if (imbalance.ratio <= 80) {
-                            console.log(`🔄 [자동체크] 리밸런싱 시도 (${imbalance.ratio.toFixed(1)}% 불균형)`);
-                            // 업비트에서 부족한 수량 추가 매수
-                            const symbolOnly = symbol.replace('USDT', '');
-                            const shortageQty = imbalance.difference;
-                            if (shortageQty > 0.0001) { // 최소 수량 체크
-                                try {
-                                    // BTC 현재가 조회
-                                    const upbitExchange = await storage.getDecryptedExchange(userId, 'upbit');
-                                    if (upbitExchange) {
-                                        const { UpbitService } = await import('./services/upbit.js');
-                                        const upbitService = new UpbitService(upbitExchange.apiKey, upbitExchange.apiSecret);
-                                        const ticker = await upbitService.getTicker([`KRW-${symbolOnly}`]);
-                                        const currentPrice = ticker[0]?.trade_price || 0;
-                                        if (currentPrice > 0) {
-                                            const buyAmount = Math.round(shortageQty * currentPrice * 0.99); // 1% 여유분
-                                            if (buyAmount >= 5000) { // 최소 주문 금액 체크
-                                                console.log(`💰 [자동체크] 리밸런싱 매수 시도: ${buyAmount}원 (${shortageQty.toFixed(8)} BTC)`);
-                                                const buyOrder = await upbitService.placeBuyOrder(`KRW-${symbolOnly}`, buyAmount, 'price');
-                                                console.log(`✅ [자동체크] 리밸런싱 매수 완료:`, buyOrder);
-                                                // 5초 후 재검사
-                                                setTimeout(async () => {
-                                                    try {
-                                                        console.log(`🔍 [자동체크] 리밸런싱 후 재검사...`);
-                                                        // 재검사 실행
-                                                        const recheckResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                                                            method: 'POST',
-                                                            headers: {
-                                                                'Content-Type': 'application/json',
-                                                                'Cookie': req.headers.cookie || ''
-                                                            },
-                                                            body: JSON.stringify({
-                                                                symbol: symbolOnly,
-                                                                tolerance: 0.001,
-                                                                autoExecute: false
-                                                            })
-                                                        });
-                                                        if (recheckResponse.ok) {
-                                                            const recheckData = await recheckResponse.json();
-                                                            const newImbalance = recheckData.analysis?.imbalance;
-                                                            if (newImbalance?.isUnbalanced && newImbalance.ratio > 50) {
-                                                                console.log(`🚨 [자동체크] 리밸런싱 후에도 불균형: ${newImbalance.ratio.toFixed(1)}% - 최종 롤백 실행`);
-                                                                // 최종 롤백 실행
-                                                                const finalRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                                                                    method: 'POST',
-                                                                    headers: {
-                                                                        'Content-Type': 'application/json',
-                                                                        'Cookie': req.headers.cookie || ''
-                                                                    },
-                                                                    body: JSON.stringify({
-                                                                        symbol: symbolOnly,
-                                                                        tolerance: 0.001,
-                                                                        autoExecute: true
-                                                                    })
-                                                                });
-                                                                if (finalRollbackResponse.ok) {
-                                                                    console.log(`✅ [자동체크] 최종 롤백 완료`);
-                                                                }
-                                                                else {
-                                                                    console.error(`❌ [자동체크] 최종 롤백 실패`);
-                                                                }
-                                                            }
-                                                            else {
-                                                                console.log(`✅ [자동체크] 리밸런싱 성공 - 포지션 균형 달성: ${newImbalance?.ratio?.toFixed(1) || 0}%`);
-                                                            }
-                                                        }
-                                                    }
-                                                    catch (recheckError) {
-                                                        console.error(`❌ [자동체크] 재검사 실패:`, recheckError.message);
-                                                    }
-                                                }, 5000);
-                                                return; // 리밸런싱 시도했으므로 롤백하지 않음
-                                            }
-                                        }
-                                    }
-                                }
-                                catch (rebalanceError) {
-                                    console.error(`❌ [자동체크] 리밸런싱 실패:`, rebalanceError.message);
-                                    // 리밸런싱 실패 시 롤백으로 진행
-                                }
-                            }
-                        }
-                        // 3단계: 심각한 불균형이거나 리밸런싱 실패 시 롤백
-                        if (imbalance.ratio > 80) {
-                            console.log(`🚨 [자동체크] 심각한 불균형 감지: ${imbalance.ratio.toFixed(1)}% - 자동 롤백 실행`);
-                            const autoRollbackResponse = await fetch('http://localhost:5000/api/rollback/positions', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Cookie': req.headers.cookie || ''
-                                },
-                                body: JSON.stringify({
-                                    symbol: symbol.replace('USDT', ''),
-                                    tolerance: 0.001,
-                                    autoExecute: true
-                                })
-                            });
-                            if (autoRollbackResponse.ok) {
-                                const rollbackResult = await autoRollbackResponse.json();
-                                console.log(`✅ [자동체크] 자동 롤백 완료:`, rollbackResult.execution);
-                            }
-                            else {
-                                console.error(`❌ [자동체크] 자동 롤백 실패:`, autoRollbackResponse.status);
-                            }
-                        }
-                        else {
-                            console.log(`⚠️ [자동체크] 중간 불균형 감지했지만 리밸런싱 불가 - 모니터링 계속`);
-                        }
-                    }
-                    catch (autoCheckError) {
-                        console.error(`❌ [자동체크] 자동 처리 실패:`, autoCheckError.message);
-                    }
-                }, 3000); // 3초 후 실행
-            }
             res.json(orderResult);
         }
         catch (error) {
@@ -4451,5 +3681,6 @@ window.onload = () => {
     registerTradingRoutes(app);
     registerApiRoutes(app);
     registerMonitoringRoutes(app);
+    registerChartRoutes(app);
     return;
 }

@@ -74,7 +74,7 @@ export default function Dashboard() {
   });
 
   // Queries
-  const { data: positions = [], refetch: refetchPositions, isLoading: isLoadingPositions, error: positionsError } = useQuery<Position[]>({
+  const { data: allPositions = [], refetch: refetchPositions, isLoading: isLoadingPositions, error: positionsError } = useQuery<Position[]>({
     queryKey: ['/api/positions', userId], // 올바른 queryKey 형식
     queryFn: async () => {
       const response = await fetch(`/api/positions`, { credentials: 'include' });
@@ -86,6 +86,12 @@ export default function Dashboard() {
       return data;
     },
     enabled: !!userId,
+  });
+
+  // 활성 포지션만 필터링 (open/active 상태만)
+  const positions = allPositions.filter(p => {
+    const status = p.status as string;
+    return status === 'open' || status === 'active';
   });
 
   const { data: trades = [] } = useQuery<Trade[]>({

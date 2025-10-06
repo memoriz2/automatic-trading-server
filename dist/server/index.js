@@ -210,6 +210,10 @@ app.get("/healthz", (_req, res) => {
     // ✅ 서버 죽이지 않기 (throw 금지)
     app.use((err, _req, res, _next) => {
         logError(`에러 발생:`, err);
+        // 이미 응답 보냈으면 중단
+        if (res.headersSent) {
+            return _next(err);
+        }
         const status = err.status ?? err.statusCode ?? 500;
         const message = err.message ?? "Internal Server Error";
         res.status(status).json({ message });

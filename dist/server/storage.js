@@ -363,16 +363,8 @@ export class DatabaseStorage {
     }
     async getActivePositionByStrategy(strategyId, symbol) {
         try {
-            // 1. 먼저 정확한 전략+심볼 매칭으로 시도
-            let result = await this.pool.query('SELECT * FROM positions WHERE strategy_id = $1 AND symbol = $2 AND status = $3 ORDER BY entry_time DESC LIMIT 1', [strategyId, symbol, 'open']);
-            // 2. 정확한 매칭이 없으면 해당 전략의 모든 활성 포지션 중 최신 것 사용
-            if (result.rows.length === 0) {
-                result = await this.pool.query('SELECT * FROM positions WHERE strategy_id = $1 AND status = $2 ORDER BY entry_time DESC LIMIT 1', [strategyId, 'open']);
-            }
-            // 3. 전략별 포지션이 없으면 해당 심볼의 가장 최근 활성 포지션 사용
-            if (result.rows.length === 0) {
-                result = await this.pool.query('SELECT * FROM positions WHERE symbol = $1 AND status = $2 ORDER BY entry_time DESC LIMIT 1', [symbol, 'open']);
-            }
+            // 정확한 전략+심볼 매칭만 허용 (fallback 제거)
+            const result = await this.pool.query('SELECT * FROM positions WHERE strategy_id = $1 AND symbol = $2 AND status = $3 ORDER BY entry_time DESC LIMIT 1', [strategyId, symbol, 'open']);
             return result.rows[0] || undefined;
         }
         catch (error) {
@@ -798,6 +790,16 @@ export class DatabaseStorage {
         }
     }
     // === 김치 프리미엄 히스토리 관련 메서드들 ===
+    async getKimchiPremiumByTimeRange(symbol, startTime) {
+        try {
+            const result = await this.pool.query('SELECT * FROM kimchi_premiums WHERE symbol = $1 AND timestamp >= $2 ORDER BY timestamp ASC', [symbol, startTime]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('김치 프리미엄 시간 범위 조회 실패:', error);
+            throw error;
+        }
+    }
     async getKimchiPremiumHistory(symbol, limit = 100) {
         try {
             const result = await this.pool.query('SELECT * FROM kimchi_premiums WHERE symbol = $1 ORDER BY timestamp DESC LIMIT $2', [symbol, limit]);
@@ -806,6 +808,16 @@ export class DatabaseStorage {
         catch (error) {
             console.error('Error getting kimchi premium history:', error);
             return [];
+        }
+    }
+    async deleteOldKimchiPremiums(beforeDate) {
+        try {
+            await this.pool.query('DELETE FROM kimchi_premiums WHERE timestamp < $1', [beforeDate]);
+            console.log(`✅ ${beforeDate.toISOString()} 이전 차트 데이터 삭제 완료`);
+        }
+        catch (error) {
+            console.error('오래된 차트 데이터 삭제 실패:', error);
+            throw error;
         }
     }
     // === Routes.ts에서 필요한 추가 메서드들 ===
@@ -1158,31 +1170,24 @@ export class DatabaseStorage {
             return [];
         }
     }
-    // 오늘 거래만 조회 (한국시간 기준)
+    // 오늘 거래만 조회 (한국시간 오전 9시 기준)
     async getTodayTradesByUserId(userId) {
         try {
             const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
-            // 🔧 한국시간 기준 오늘 범위 계산 (올바른 방법)
-            const now = new Date();
-            // 한국시간으로 올바르게 변환 (UTC + 9시간)
-            const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-            const kstToday = new Date(kstNow);
-            kstToday.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
-            const kstTomorrow = new Date(kstToday);
-            kstTomorrow.setUTCDate(kstTomorrow.getUTCDate() + 1); // UTC 메서드 사용
-            console.log(`🔍 [getTodayTradesByUserId] 한국시간 기준:`, {
-                현재: kstNow.toISOString(),
-                오늘시작: kstToday.toISOString(),
-                내일시작: kstTomorrow.toISOString()
-            });
+            // 🔧 한국시간 기준 오늘 09:00 계산
+            // DB timezone이 Asia/Seoul이므로 NOW()는 한국시간
+            // 현재 시간이 9시 이전이면 어제 9시부터, 9시 이후면 오늘 9시부터
             const result = await this.pool.query(`
-        SELECT * FROM trades 
-        WHERE user_id = $1 
-        AND executed_at >= $2
-        AND executed_at < $3
+        SELECT * FROM trades
+        WHERE user_id = $1
+        AND executed_at >= CASE
+          WHEN EXTRACT(HOUR FROM NOW()) < 9
+          THEN DATE_TRUNC('day', NOW()) - INTERVAL '15 hours'
+          ELSE DATE_TRUNC('day', NOW()) + INTERVAL '9 hours'
+        END
         ORDER BY executed_at DESC
-      `, [userIdNum, new Date(kstToday.getTime() - 9 * 60 * 60 * 1000).toISOString(), new Date(kstTomorrow.getTime() - 9 * 60 * 60 * 1000).toISOString()]);
-            console.log(`🔍 [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘 거래: ${result.rows.length}개`);
+      `, [userIdNum]);
+            console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
             return result.rows;
         }
         catch (error) {
@@ -1190,35 +1195,50 @@ export class DatabaseStorage {
             return [];
         }
     }
-    // 오늘 포지션만 조회 (한국시간 기준)
+    // 오늘 포지션만 조회 (한국시간 오전 9시 기준)
     async getTodayPositionsByUserId(userId) {
         try {
-            // 🔧 한국시간 기준 오늘 범위 계산 (올바른 방법, trades와 동일한 로직)
-            const now = new Date();
-            // 한국시간으로 올바르게 변환 (UTC + 9시간)
-            const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-            const kstToday = new Date(kstNow);
-            kstToday.setUTCHours(0, 0, 0, 0); // UTC 메서드 사용
-            const kstTomorrow = new Date(kstToday);
-            kstTomorrow.setUTCDate(kstTomorrow.getUTCDate() + 1); // UTC 메서드 사용
-            console.log(`🔍 [getTodayPositionsByUserId] 한국시간 기준:`, {
-                현재: kstNow.toISOString(),
-                오늘시작: kstToday.toISOString(),
-                내일시작: kstTomorrow.toISOString()
-            });
+            // 🔧 한국시간 기준 오늘 09:00 계산
+            // DB timezone이 Asia/Seoul이므로 NOW()는 한국시간
+            // 현재 시간이 9시 이전이면 어제 9시부터, 9시 이후면 오늘 9시부터
             const result = await this.pool.query(`
         SELECT * FROM positions
         WHERE user_id = $1
-        AND entry_time >= $2
-        AND entry_time < $3
+        AND entry_time >= CASE
+          WHEN EXTRACT(HOUR FROM NOW()) < 9
+          THEN DATE_TRUNC('day', NOW()) - INTERVAL '15 hours'
+          ELSE DATE_TRUNC('day', NOW()) + INTERVAL '9 hours'
+        END
         ORDER BY entry_time DESC
-      `, [userId, new Date(kstToday.getTime() - 9 * 60 * 60 * 1000).toISOString(), new Date(kstTomorrow.getTime() - 9 * 60 * 60 * 1000).toISOString()]);
-            console.log(`🔍 [getTodayPositionsByUserId] 사용자 ${userId} 오늘 포지션: ${result.rows.length}개`);
+      `, [userId]);
+            console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
             return result.rows;
         }
         catch (error) {
             console.error('❌ [getTodayPositionsByUserId] SQL 오류:', error);
             return [];
+        }
+    }
+    // 오늘 청산된 포지션 수 (exit_time 기준, 한국시간 오전 9시 기준)
+    async getTodayExitedPositionsCount(userId) {
+        try {
+            const result = await this.pool.query(`
+        SELECT COUNT(*) as count FROM positions
+        WHERE user_id = $1
+        AND exit_time >= CASE
+          WHEN EXTRACT(HOUR FROM NOW()) < 9
+          THEN DATE_TRUNC('day', NOW()) - INTERVAL '15 hours'
+          ELSE DATE_TRUNC('day', NOW()) + INTERVAL '9 hours'
+        END
+        AND status = 'closed'
+      `, [userId]);
+            const count = parseInt(result.rows[0]?.count || '0');
+            console.log(`✅ [getTodayExitedPositionsCount] 사용자 ${userId} 오늘(9시 기준) 청산: ${count}개`);
+            return count;
+        }
+        catch (error) {
+            console.error('❌ [getTodayExitedPositionsCount] SQL 오류:', error);
+            return 0;
         }
     }
     async getSystemAlerts(limit = 100) {

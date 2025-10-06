@@ -71,12 +71,30 @@ export const KimchiCards = React.memo<KimchiCardsProps>(({ kimchiData, positions
   const stableBtcData = kimchiData.find(data => data.symbol === 'BTC') || previousBtcData;
   const mainPremiumRate = stableBtcData ? stableBtcData.premiumRate : 0;
 
-  // 총 투자금 계산
-  const totalInvestment = (positions || []).reduce((sum, pos) => {
+  // 총 투자금 계산 (김치 차익거래: 업비트 매수금액 + 바이낸스 증거금)
+  const totalInvestment = (positions || []).reduce((sum, pos: any) => {
     if (!pos) return sum;
-    const entryPrice = pos?.entryPrice ? parseFloat(pos.entryPrice.toString()) : 0;
-    const quantity = pos?.quantity ? parseFloat(pos.quantity.toString()) : 0;
-    return sum + (entryPrice * quantity);
+
+    // 현재 시장 가격 가져오기 (kimchiData에서)
+    const currentBtcData = kimchiData.find(d => d.symbol === 'BTC');
+    const currentUpbitPrice = currentBtcData?.upbitPrice || 175000000; // 기본값
+    const currentBinancePrice = currentBtcData?.binancePrice || 120000; // 기본값
+
+    // 수량
+    const quantity = pos?.quantity || pos?.remaining_quantity || 0;
+
+    // 업비트 매수금액 (현재 가격 기준)
+    const upbitInvestment = currentUpbitPrice * quantity;
+
+    // 바이낸스 증거금 (레버리지 고려, 현재 가격 기준)
+    const leverage = pos?.binance_leverage || 1;
+    const binanceMargin = (currentBinancePrice * quantity) / leverage;
+
+    // 환율 적용 (USDT → KRW)
+    const usdKrw = currentBtcData?.exchangeRate || currentBtcData?.usdKrwRate || 1400;
+    const binanceMarginKRW = binanceMargin * usdKrw;
+
+    return sum + upbitInvestment + binanceMarginKRW;
   }, 0);
 
   // 성공률 계산 (임시)
@@ -181,11 +199,7 @@ export const KimchiCards = React.memo<KimchiCardsProps>(({ kimchiData, positions
           <div className="mt-4 flex items-center text-sm">
             <span className="text-slate-400">총 투자금</span>
             <span className="text-white ml-1">
-              ₩<NumberDisplay 
-                value={totalInvestment / 10000}
-                suffix="만"
-                formatter={(v) => v.toFixed(0)}
-              />
+              ₩{totalInvestment.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
             </span>
           </div>
         </CardContent>

