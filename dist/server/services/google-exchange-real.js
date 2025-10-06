@@ -126,27 +126,32 @@ export class GoogleExchangeRealService {
         }
     }
     /**
-     * 백업용 환율 API (ExchangeRate-API)
+     * 백업용 환율 API (ExchangeRate-API) - 사용하지 않음
      */
-    async getBackupExchangeRate() {
-        try {
-            // 무료 API 사용 (API 키 불필요)
-            const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            const data = await response.json();
-            const krwRate = data.rates?.['KRW'];
-            if (krwRate && typeof krwRate === 'number' && krwRate > 1000 && krwRate < 2000) {
-                return krwRate;
-            }
-            return null;
+    /*
+    private async _getBackupExchangeRate(): Promise<number | null> {
+      try {
+        // 무료 API 사용 (API 키 불필요)
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-        catch (error) {
-            console.error('백업 환율 API 실패:', error);
-            return null;
+  
+        const data = await response.json();
+        const krwRate = data.rates?.['KRW'];
+  
+        if (krwRate && typeof krwRate === 'number' && krwRate > 1000 && krwRate < 2000) {
+          return krwRate;
         }
+  
+        return null;
+      } catch (error) {
+        console.error('백업 환율 API 실패:', error);
+        return null;
+      }
     }
+    */
     /**
      * 환율 상태 정보 반환
      */

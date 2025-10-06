@@ -62,7 +62,7 @@ interface DailyStatsPanelProps {
  */
 export const DailyStatsPanel: React.FC<DailyStatsPanelProps> = ({
   userId,
-  title = "오늘의 실거래 통계",
+  title = "오늘의 거래통계",
   className = ""
 }) => {
   const { stats, isLoading, error } = useRealTimeStats(userId);

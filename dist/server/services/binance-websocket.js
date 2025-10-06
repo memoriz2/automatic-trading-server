@@ -1,7 +1,6 @@
 /// <reference types="ws" />
 import WebSocket from 'ws';
 import { priceCache } from './price-cache.js';
-import { naverExchange } from './naver-exchange.js';
 export class BinanceWebSocketService {
     ws = null;
     isConnected = false;
@@ -34,9 +33,6 @@ export class BinanceWebSocketService {
                             const price = parseFloat(trade.p);
                             // console.log(`📊 바이낸스 웹소켓 수신: ${symbol} = $${price.toLocaleString()}`);
                             priceCache.setBinancePrice(symbol, price, 'websocket');
-                            // 환율을 적용하여 원화 가격 계산
-                            const usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate();
-                            const priceInKrw = price * usdKrwRate;
                             // console.log(`📊 바이낸스선물 ${symbol}: ₩${priceInKrw.toLocaleString('ko-KR', { maximumFractionDigits: 0 })} (웹소켓-aggTrade)`);
                             // 콜백 호출 유지 (타입은 내부적으로만 사용되므로 외부 영향 적음)
                             Object.values(this.callbacks).forEach(cb => cb(trade));
@@ -50,11 +46,11 @@ export class BinanceWebSocketService {
                     // console.error('바이낸스 WebSocket 메시지 처리 오류:', error, '원본 데이터:', data.toString());
                 }
             });
-            this.ws.on('error', (error) => {
+            this.ws.on('_error', (_error) => {
                 // console.error('바이낸스 WebSocket 오류:', error.message);
                 this.scheduleReconnect();
             });
-            this.ws.on('close', (code, reason) => {
+            this.ws.on('close', (_code, _reason) => {
                 // console.log(`🔌 바이낸스 WebSocket 연결 종료: 코드=${code}, 이유=${reason.toString()}`);
                 this.isConnected = false;
                 this.scheduleReconnect();

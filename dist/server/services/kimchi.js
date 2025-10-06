@@ -1,13 +1,9 @@
 import 'dotenv/config';
-import { UpbitService } from './upbit.js';
-import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
 import { UpbitWebSocketService } from './upbit-websocket.js';
 import { BinanceWebSocketService } from './binance-websocket.js';
 import { GoogleFinanceExchangeService } from './google-finance-exchange.js';
 export class KimchiService {
-    upbitService;
-    binanceService;
     googleFinanceExchangeService;
     upbitWebSocketService;
     binanceWebSocketService;
@@ -17,10 +13,7 @@ export class KimchiService {
     symbols = ['BTC', 'ETH', 'XRP', 'ADA', 'DOT'];
     isInitialized = false;
     onUpdateCallback = null;
-    exchangeRateInterval = null;
     constructor() {
-        this.upbitService = new UpbitService();
-        this.binanceService = new BinanceService();
         this.googleFinanceExchangeService = new GoogleFinanceExchangeService();
     }
     initialize() {
@@ -29,7 +22,7 @@ export class KimchiService {
         console.log('🚀 실시간 김프 서비스 초기화 (구글 환율 기준)');
         // 0. 환율 업데이트 시작 (💥 10초마다 -> 3초마다)
         this.updateExchangeRate(); // 즉시 1회 실행
-        this.exchangeRateInterval = setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
+        setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
         // 1. 웹소켓 서비스 초기화
         this.upbitWebSocketService = new UpbitWebSocketService();
         this.binanceWebSocketService = new BinanceWebSocketService();

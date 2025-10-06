@@ -46,7 +46,7 @@ export function registerApiRoutes(app) {
         }
     });
     // CoinAPI 김치 프리미엄
-    app.get("/api/kimchi-premium/coinapi", async (req, res) => {
+    app.get("/api/kimchi-premium/coinapi", async (_req, res) => {
         try {
             // const symbols = (req.query.symbols as string)?.split(',') || ['BTC']; // 현재 사용하지 않음
             // CoinAPI 서비스는 현재 구현되지 않음
@@ -74,7 +74,7 @@ export function registerApiRoutes(app) {
         }
     });
     // 김치 프리미엄 내역 (차트용)
-    app.get("/api/kimchi-premiums", async (req, res) => {
+    app.get("/api/kimchi-premiums", async (_req, res) => {
         try {
             // const minutes = parseInt(req.query.minutes as string) || 1440; // 현재 사용하지 않음
             // 히스토리컬 데이터는 현재 구현되지 않음
@@ -112,7 +112,7 @@ export function registerApiRoutes(app) {
         }
     });
     // 일일 통계
-    app.get("/api/daily-stats/:userId", authenticateSession, async (req, res) => {
+    app.get("/api/daily-stats/:userId", authenticateSession, async (_req, res) => {
         try {
             // const userId = req.user.id; // 현재 사용하지 않음
             const today = new Date();

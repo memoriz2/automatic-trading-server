@@ -1,9 +1,6 @@
 // import { storage } from "../storage.js"; // 사용하지 않음
-import { SimpleKimchiService } from "./simple-kimchi.js";
 export class BacktestService {
-    simpleKimchiService;
     constructor() {
-        this.simpleKimchiService = new SimpleKimchiService();
         // In a real scenario, you'd fetch historical data here or have a way to access it.
     }
     async runBacktest(params) {

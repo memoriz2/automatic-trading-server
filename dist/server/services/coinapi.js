@@ -75,26 +75,29 @@ export class CoinAPIService {
         }
         return null;
     }
-    // 업비트 직접 API 호출 (CoinAPI 실패시 대체)
-    async getUpbitPriceDirect(symbol) {
-        try {
-            const market = `KRW-${symbol}`;
-            const response = await fetch(`https://api.upbit.com/v1/ticker?markets=${market}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    const price = data[0].trade_price;
-                    console.log(`${symbol} 업비트 직접조회: ${price.toLocaleString()}원`);
-                    return price;
-                }
-            }
-            throw new Error(`업비트 직접 API ${symbol} 조회 실패`);
+    // 업비트 직접 API 호출 (CoinAPI 실패시 대체) - 사용하지 않음
+    /*
+    private async _getUpbitPriceDirect(symbol: string): Promise<number> {
+      try {
+        const market = `KRW-${symbol}`;
+        const response = await fetch(`https://api.upbit.com/v1/ticker?markets=${market}`);
+        
+        if (response.ok) {
+          const data = await response.json() as { trade_price: number }[];
+          if (data && data.length > 0) {
+            const price = data[0].trade_price;
+            console.log(`${symbol} 업비트 직접조회: ${price.toLocaleString()}원`);
+            return price;
+          }
         }
-        catch (error) {
-            console.error(`업비트 ${symbol} 조회 완전 실패:`, error);
-            return 0;
-        }
+        
+        throw new Error(`업비트 직접 API ${symbol} 조회 실패`);
+      } catch (error) {
+        console.error(`업비트 ${symbol} 조회 완전 실패:`, error);
+        return 0;
+      }
     }
+    */
     // 김치프리미엄 계산 (CoinAPI 기반)
     async calculateKimchiPremium(symbol) {
         try {

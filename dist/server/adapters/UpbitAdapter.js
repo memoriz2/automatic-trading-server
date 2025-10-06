@@ -65,7 +65,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
      */
     async testConnection() {
         try {
-            const accounts = await this.apiRequest('/v1/accounts');
+            //       const accounts = await this.apiRequest<any[]>('/v1/accounts');
             // 계정 정보가 조회되면 연결 성공
             const permissions = ['spot', 'balance']; // 업비트는 현물 거래만 지원
             return {
@@ -294,7 +294,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
     /**
      * 수수료율 조회
      */
-    async getFeeRate(symbol, orderType) {
+    async getFeeRate(_symbol, _orderType) {
         // 업비트는 maker/taker 구분 없이 동일한 수수료
         return {
             maker: TRADING_FEES.UPBIT.MAKER,
@@ -311,12 +311,6 @@ export class UpbitAdapter extends BaseExchangeAdapter {
             case 'cancel': return 'cancelled';
             default: return 'pending';
         }
-    }
-    /**
-     * 표준 주문 방향을 업비트 형식으로 변환
-     */
-    mapOrderSide(side) {
-        return side === 'buy' ? 'bid' : 'ask';
     }
     /**
      * 계정 정보 조회 (잔고 포함)

@@ -3,11 +3,11 @@ export class TradingService {
     isTrading = false;
     constructor() { }
     // 기본 자동매매 제어
-    async startTrading(userId) {
+    async startTrading(_userId) {
         this.isTrading = true;
         return { success: true, message: '자동매매가 시작되었습니다' };
     }
-    async stopTrading(userId) {
+    async stopTrading(_userId) {
         this.isTrading = false;
         return { success: true, message: '자동매매가 중지되었습니다' };
     }

@@ -15,14 +15,6 @@ export class ErrorTrackingService {
         backoffMultiplier: 2,
         jitterEnabled: true
     };
-    // 기본 알림 설정
-    defaultNotificationConfig = {
-        enabled: true,
-        severityThreshold: ErrorSeverity.HIGH,
-        channels: [],
-        recipients: [],
-        throttleMinutes: 15
-    };
     constructor() {
         this.errorRepository = new ErrorTrackingRepository();
     }
@@ -103,7 +95,7 @@ export class ErrorTrackingService {
     /**
      * 오류 카테고리 분류
      */
-    categorizeError(message, code, context) {
+    categorizeError(message, code, _context) {
         const lowerMessage = message.toLowerCase();
         // API 관련 오류
         if (lowerMessage.includes('api') || lowerMessage.includes('unauthorized') ||
@@ -163,7 +155,7 @@ export class ErrorTrackingService {
     /**
      * 재시도 가능 여부 판단
      */
-    isRetryableError(message, code, category) {
+    isRetryableError(message, _code, category) {
         const lowerMessage = message.toLowerCase();
         // 재시도 불가능한 오류들
         const nonRetryablePatterns = [
@@ -257,7 +249,7 @@ export class ErrorTrackingService {
     /**
      * 추천 조치 사항
      */
-    getSuggestedAction(category, severity, message) {
+    getSuggestedAction(category, _severity, message) {
         const lowerMessage = message.toLowerCase();
         // 특정 오류 패턴별 조치사항
         if (lowerMessage.includes('unauthorized') || lowerMessage.includes('invalid api key')) {
@@ -312,7 +304,7 @@ export class ErrorTrackingService {
             retryCount: retryAttempt
         });
         // 재시도 이력 기록 시작
-        const retryHistory = await this.errorRepository.createRetryHistory({
+        await this.errorRepository.createRetryHistory({
             tradingErrorId: errorId,
             retryAttempt,
             retryStartedAt: startTime,

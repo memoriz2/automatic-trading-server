@@ -25,7 +25,8 @@ export function registerTradingRoutes(app) {
             // 사용자별 거래 설정 확인
             const settings = await storage.getTradingSettingsByUserId(userId);
             if (!settings) {
-                return res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+                res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+                return;
             }
             await multiStrategyTradingService.startMultiStrategyTrading(userId);
             const strategies = await storage.getTradingStrategiesByUserId(userId);
@@ -104,7 +105,8 @@ export function registerTradingRoutes(app) {
             const userId = req.user.id;
             const settings = await storage.getTradingSettingsByUserId(String(userId));
             if (!settings) {
-                return res.status(404).json({ error: "거래 설정을 찾을 수 없습니다" });
+                res.status(404).json({ error: "거래 설정을 찾을 수 없습니다" });
+                return;
             }
             res.json(settings);
         }
@@ -119,10 +121,11 @@ export function registerTradingRoutes(app) {
             const userId = req.user.id;
             const parseResult = insertTradingSettingsSchema.safeParse(req.body);
             if (!parseResult.success) {
-                return res.status(400).json({
+                res.status(400).json({
                     error: "잘못된 요청 데이터",
                     details: parseResult.error.issues
                 });
+                return;
             }
             const updatedSettings = await storage.updateTradingSettings(Number(userId), parseResult.data);
             res.json(updatedSettings);

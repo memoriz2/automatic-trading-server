@@ -75,14 +75,13 @@ export class GoogleFinanceExchangeService {
         if (this.googleRate) {
             // 환율 변경 감지 및 로그
             if (this.lastCalculatedRate === null) {
-                const timestamp = new Date().toLocaleTimeString();
+                //         const timestamp = new Date().toLocaleTimeString();
                 // console.log(`💰 [${timestamp}] 초기 환율: ${this.googleRate.toFixed(2)}원 (구글 파이낸스)`);
                 this.lastCalculatedRate = this.googleRate;
             }
             else if (Math.abs(this.googleRate - this.lastCalculatedRate) > 0.001) {
-                const timestamp = new Date().toLocaleTimeString();
-                const change = this.googleRate - this.lastCalculatedRate;
-                const changeSymbol = change > 0 ? '📈' : '📉';
+                //         const timestamp = new Date().toLocaleTimeString();
+                //         const changeSymbol = change > 0 ? '📈' : '📉';
                 // console.log(`${changeSymbol} [${timestamp}] 환율 변경: ${this.lastCalculatedRate.toFixed(2)}원 → ${this.googleRate.toFixed(2)}원 (${change > 0 ? '+' : ''}${change.toFixed(2)}원)`);
                 this.lastCalculatedRate = this.googleRate;
             }

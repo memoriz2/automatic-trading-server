@@ -12,7 +12,7 @@ import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime } from '@/utils/datetime';
 import { calculatePositionPnL } from '@/utils/pnl-calculator';
 import { TRADING_CONSTANTS } from '@/constants/trading-constants';
-import { saveLiveTradeToDB, updateLivePositionInDB, apiFetch } from '@/utils/trading-api';
+import { saveLiveTradeToDB, apiFetch } from '@/utils/trading-api';
 // import {
 //   isValidPriceData,
 //   checkEntryCondition,
@@ -1138,18 +1138,38 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               });
             } else {
               // 전체 청산: 상태 변경
+              const exitTime = new Date();
+              const realizedPnl = position.unrealizedPnl || 0;
+
               setLivePositions(prev =>
                 prev.map(p =>
                   p.id === position.id
                     ? {
                         ...p,
                         status: 'closed' as const,
-                        exitTime: new Date(),
-                        realizedPnl: p.unrealizedPnl || 0
+                        exitTime: exitTime,
+                        realizedPnl: realizedPnl
                       }
                     : p
                 )
               );
+
+              // DB에 청산 정보 저장
+              try {
+                await fetch(`/api/positions/${position.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    status: 'closed',
+                    exitTime: exitTime.toISOString(),
+                    realizedPnl: realizedPnl
+                  })
+                });
+                console.log(`✅ 포지션 ${position.id} DB 업데이트 완료`);
+              } catch (dbError) {
+                console.error('❌ DB 업데이트 실패:', dbError);
+              }
 
               toast({
                 title: "개별 포지션 청산 완료",
@@ -1300,23 +1320,57 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       );
       
       setLivePositions(updatedPositions);
+
+      // DB에 청산 정보 저장
+      if (exitRatio >= 1.0) {
+        try {
+          await fetch(`/api/positions/${position.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              status: 'closed',
+              exitTime: exitTimestamp.toISOString(),
+              realizedPnl: totalPnl
+            })
+          });
+          console.log(`✅ 포지션 ${position.id} DB 업데이트 완료`);
+        } catch (dbError) {
+          console.error('❌ DB 업데이트 실패:', dbError);
+        }
+      } else {
+        // 부분 청산의 경우 수량과 실현손익 업데이트
+        const updatedPosition = updatedPositions.find(p => p.id === position.id);
+        if (updatedPosition) {
+          try {
+            await fetch(`/api/positions/${position.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                upbitQuantity: updatedPosition.upbitQuantity,
+                binanceQuantity: updatedPosition.binanceQuantity,
+                realizedPnl: updatedPosition.realizedPnl
+              })
+            });
+            console.log(`✅ 포지션 ${position.id} 부분 청산 DB 업데이트 완료`);
+          } catch (dbError) {
+            console.error('❌ 부분 청산 DB 업데이트 실패:', dbError);
+          }
+        }
+      }
+
       // 전략별 집계: 실현손익 반영 및 수익률 갱신 (정확한 계산)
       const curStats = strategyStatsRef.current[position.strategyId] || { executionCount: 0, realizedPnlKRW: 0, investedKRW: 0, profitRate: 0 };
       const updatedRealizedPnl = (curStats.realizedPnlKRW || 0) + totalPnl;
       const updatedProfitRate = curStats.investedKRW > 0 ? (updatedRealizedPnl / curStats.investedKRW) * 100 : 0;
-      
-      strategyStatsRef.current[position.strategyId] = { 
-        ...curStats, 
-        realizedPnlKRW: updatedRealizedPnl, 
-        profitRate: updatedProfitRate 
+
+      strategyStatsRef.current[position.strategyId] = {
+        ...curStats,
+        realizedPnlKRW: updatedRealizedPnl,
+        profitRate: updatedProfitRate
       };
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
-      
-      // 포지션 업데이트 저장
-      const updatedPosition = updatedPositions.find(p => p.id === position.id);
-      if (updatedPosition) {
-        updateLivePositionInDB(updatedPosition, userId);
-      }
       
       addTradingLog(
         `✅ 청산 | 투입액: ${Math.round(totalEntryCostKRW).toLocaleString()}원, 회수액: ${Math.round(totalExitRevenueKRW).toLocaleString()}원, 손익: ${(totalPnl>=0?'+':'')}${Math.round(totalPnl).toLocaleString()}원`
@@ -1754,19 +1808,44 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const dailyStats = useMemo(() => {
     // 현재 김치 데이터에서 가격 정보 추출
     const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
+
+    // 오전 9시 기준 거래일 계산
+    const now = new Date();
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
+    if (now.getHours() < 9) {
+      // 오전 9시 이전이면 전날 거래일
+      today.setDate(today.getDate() - 1);
+    }
+    today.setHours(9, 0, 0, 0);
+
     const todayTrades = liveTrades.filter(trade => {
       const tradeDate = new Date(trade.timestamp);
-      tradeDate.setHours(0, 0, 0, 0);
+      if (tradeDate.getHours() < 9) {
+        tradeDate.setDate(tradeDate.getDate() - 1);
+      }
+      tradeDate.setHours(9, 0, 0, 0);
       return tradeDate.getTime() === today.getTime();
     });
 
-    const todayPositions = livePositions.filter(position => {
+    // 오늘 진입한 포지션 (진입 시간 기준)
+    const todayEntryPositions = livePositions.filter(position => {
       const entryDate = new Date(position.entryTime);
-      entryDate.setHours(0, 0, 0, 0);
+      if (entryDate.getHours() < 9) {
+        entryDate.setDate(entryDate.getDate() - 1);
+      }
+      entryDate.setHours(9, 0, 0, 0);
       return entryDate.getTime() === today.getTime();
+    });
+
+    // 오늘 청산한 포지션 (청산 시간 기준) - 총 수익금 계산용
+    const todayExitPositions = livePositions.filter(position => {
+      if (position.status !== 'closed' || !position.exitTime) return false;
+      const exitDate = new Date(position.exitTime);
+      if (exitDate.getHours() < 9) {
+        exitDate.setDate(exitDate.getDate() - 1);
+      }
+      exitDate.setHours(9, 0, 0, 0);
+      return exitDate.getTime() === today.getTime();
     });
 
     // 거래 통계
@@ -1786,10 +1865,30 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 완료된 거래의 실제 수수료만 표시 (예상 매도 수수료 제외)
     const totalFees = completedFees;
 
-    // 수익 통계 (실제로는 더 복잡한 계산이 필요하지만 간단히)
-    const realizedPnl = livePositions
-      .filter(p => p.status === 'closed')
+    // 오늘 청산한 포지션의 실현 수익 합계
+    const realizedPnl = todayExitPositions
       .reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
+
+    // 디버깅: 총 수익금이 0인 이유 확인
+    if (todayExitPositions.length > 0) {
+      console.log('📊 오늘 청산 포지션:', todayExitPositions.length, '개');
+      console.log('📊 청산 포지션 상세:', todayExitPositions.map(p => ({
+        id: p.id,
+        exitTime: p.exitTime,
+        status: p.status,
+        realizedPnl: p.realizedPnl
+      })));
+      console.log('📊 총 수익금:', realizedPnl);
+    } else {
+      console.log('❌ 오늘 청산한 포지션 없음');
+      console.log('전체 포지션:', livePositions.length, '개');
+      console.log('closed 포지션:', livePositions.filter(p => p.status === 'closed').map(p => ({
+        id: p.id,
+        status: p.status,
+        exitTime: p.exitTime,
+        realizedPnl: p.realizedPnl
+      })));
+    }
 
     // 활성 포지션 수
     const activePositions = livePositions.filter(p => p.status === 'open').length;
@@ -1801,7 +1900,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       totalFees,
       realizedPnl,
       activePositions,
-      newPositions: todayPositions.length
+      newPositions: todayEntryPositions.length
     };
   }, [liveTrades, livePositions, currentUsdKrw, currentKimchiData]);
 

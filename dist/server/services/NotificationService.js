@@ -1,17 +1,14 @@
 import { BaseRepository } from '../repositories/BaseRepository.js';
-import { ErrorTrackingRepository } from '../repositories/ErrorTrackingRepository.js';
 import { NotificationType, ErrorSeverity } from '../types/error-tracking.js';
 /**
  * 거래 오류 알림 서비스
  */
 export class NotificationService extends BaseRepository {
-    errorRepository;
     // 알림 제한 설정 (같은 패턴 오류에 대한 스팸 방지)
     notificationThrottleMs = 15 * 60 * 1000; // 15분
     lastNotifications = new Map();
     constructor() {
         super(); // BaseRepository 초기화
-        this.errorRepository = new ErrorTrackingRepository();
     }
     /**
      * 오류 발생 시 알림 발송

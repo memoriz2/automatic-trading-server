@@ -121,7 +121,7 @@ async function setupSession() {
     return redisStore;
 }
 // 세션 갱신 미들웨어 (개선된 활동 감지)
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
     const user = req.session?.user;
     const path = req.path;
     const method = req.method;
@@ -161,7 +161,7 @@ app.use((req, res, next) => {
     // const start = Date.now(); // 현재 사용하지 않음
     const path = req.path;
     // 개발 환경에서만 상세 요청 로그 출력 (빈번한 API 제외)
-    const isDev = process.env.NODE_ENV === 'development';
+    //   const isDev = process.env.NODE_ENV === 'development';
     const isFrequentApi = path.startsWith('/api'); // 모든 API 로그 제거
     // 중요한 페이지 접근만 로그 (프로덕션 수준)
     const isImportantPage = path.startsWith("/settings") ||

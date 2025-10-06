@@ -41,12 +41,12 @@ export class UpbitWebSocketService {
                     // console.error('업비트 WebSocket 메시지 파싱 오류:', error);
                 }
             });
-            this.ws.on('close', (code, reason) => {
+            this.ws.on('close', (_code, _reason) => {
                 // console.log('🔌 업비트 WebSocket 연결 종료');
                 this.isConnected = false;
                 this.scheduleReconnect();
             });
-            this.ws.on('error', (error) => {
+            this.ws.on('_error', (_error) => {
                 // console.error('❌ 업비트 WebSocket 오류:', error);
                 this.isConnected = false;
                 this.scheduleReconnect();

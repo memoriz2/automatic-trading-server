@@ -67,18 +67,6 @@ export class ApiKeysRepository extends BaseRepository {
         }
     }
     /**
-     * 데이터 존재 여부만 확인 (복호화 무관, is_active 상관없이)
-     */
-    async existsByUserAndExchange(userId, exchange) {
-        const query = `
-      SELECT COUNT(*) as count
-      FROM exchanges 
-      WHERE user_id = $1 AND exchange = $2
-    `;
-        const result = await this.queryOne(query, [userId, exchange]);
-        return parseInt(result?.count || '0') > 0;
-    }
-    /**
      * API 키 생성 또는 업데이트 (트랜잭션 기반 안전한 방식)
      */
     async upsert(apiKeyData) {

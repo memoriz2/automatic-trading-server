@@ -43,10 +43,6 @@ const insertUserSchema = z.object({
     username: z.string(),
     password: z.string(),
 });
-const loginUserSchema = z.object({
-    username: z.string(),
-    password: z.string(),
-});
 import { getCurrentServerIP, isReplit } from "./utils/ip.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerTradingRoutes } from "./routes/trading.js";
@@ -80,40 +76,50 @@ function getUserIdFromRequest(req) {
 }
 /**
  * 실제 API 키가 있는 활성 사용자를 찾기
- */
-async function findActiveUserWithApiKeys() {
-    try {
-        // 알려진 사용자 ID들을 순회하며 API 키가 있는 사용자 찾기
-        const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
-        for (const userId of knownUserIds) {
-            try {
-                const exchanges = await storage.getExchangesByUserId(parseInt(userId));
-                // 바이낸스 API 키가 있는 사용자 우선 선택
-                const binanceExchange = exchanges.find((ex) => ex.exchange === 'binance' && ex.isActive && ex.apiKey && ex.apiSecret);
-                if (binanceExchange) {
-                    logDebug('활성 사용자 발견', { userId: parseInt(userId), exchange: 'binance' });
-                    return userId;
-                }
-                // 업비트 API 키가 있는 사용자도 고려
-                const upbitExchange = exchanges.find((ex) => ex.exchange === 'upbit' && ex.isActive && ex.apiKey && ex.apiSecret);
-                if (upbitExchange) {
-                    logDebug('활성 사용자 발견', { userId: parseInt(userId), exchange: 'upbit' });
-                    return userId;
-                }
-            }
-            catch (error) {
-                // 해당 사용자가 없거나 오류시 다음 사용자로
-                continue;
-            }
+ * (현재 미사용 - 추후 필요시 사용 예정)
+
+async function _findActiveUserWithApiKeys(): Promise<string> {
+  try {
+    // 알려진 사용자 ID들을 순회하며 API 키가 있는 사용자 찾기
+    const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
+    
+    for (const userId of knownUserIds) {
+      try {
+        const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+        
+        // 바이낸스 API 키가 있는 사용자 우선 선택
+        const binanceExchange = exchanges.find((ex: any) =>
+          ex.exchange === 'binance' && ex.isActive && ex.apiKey && ex.apiSecret
+        );
+        
+        if (binanceExchange) {
+          logDebug('활성 사용자 발견', { userId: parseInt(userId), exchange: 'binance' });
+          return userId;
         }
-        logWarn('API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용');
-        return "1";
+        
+        // 업비트 API 키가 있는 사용자도 고려
+        const upbitExchange = exchanges.find((ex: any) =>
+          ex.exchange === 'upbit' && ex.isActive && ex.apiKey && ex.apiSecret
+        );
+        
+        if (upbitExchange) {
+          logDebug('활성 사용자 발견', { userId: parseInt(userId), exchange: 'upbit' });
+          return userId;
+        }
+      } catch (error) {
+        // 해당 사용자가 없거나 오류시 다음 사용자로
+        continue;
+      }
     }
-    catch (error) {
-        logError('활성 사용자 찾기 실패', { error: error instanceof Error ? error.message : error });
-        return "1"; // 실패시 기본값
-    }
+    
+    logWarn('API 키가 있는 활성 사용자를 찾지 못함, 기본 사용자 1 사용');
+    return "1";
+  } catch (error) {
+    logError('활성 사용자 찾기 실패', { error: error instanceof Error ? error.message : error });
+    return "1"; // 실패시 기본값
+  }
 }
+
 /**
  * 실제 거래소에서 포지션 청산 실행
  */
@@ -458,7 +464,6 @@ export async function registerRoutes(app, server) {
     app.get("/api/trading/daily-stats", authenticateSession, async (req, res) => {
         try {
             const userId = req.user.id;
-            const minutes = parseInt(req.query.minutes) || 1440; // 기본 24시간
             // 🚀 SQL에서 직접 한국시간 오전 9시 기준 오늘 데이터만 조회 (storage 함수에서 처리)
             const todayTrades = await storage.getTodayTradesByUserId(String(userId));
             const todayPositions = await storage.getTodayPositionsByUserId(userId);
@@ -478,7 +483,6 @@ export async function registerRoutes(app, server) {
                 t.side === 'cover' // 바이낸스 커버 (숏 청산) - 아직 없음
             );
             // 실제 포지션 생성/청산 횟수
-            const todayEntries = todayPositions.length; // 오늘 생성된 포지션 수
             // 청산 횟수는 exit_time 기준으로 계산
             const todayExits = await storage.getTodayExitedPositionsCount(userId);
             // 통계 계산 (의미있는 거래만)
@@ -506,7 +510,7 @@ export async function registerRoutes(app, server) {
                         const currentBinancePrice = btcData?.binanceFuturesPrice || 115000; // 기본값
                         const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
                         // 모든 활성 포지션에 대해 수수료 계산 (캐시된 가격 사용)
-                        activePositionFees = todayActivePositions.reduce((sum, position, index) => {
+                        activePositionFees = todayActivePositions.reduce((sum, position, _index) => {
                             // 업비트 예상 매도 수수료 (실시간) - 올바른 필드명 사용
                             const upbitQuantity = position.quantity || position.upbitQuantity || 0;
                             const upbitSellAmount = upbitQuantity * currentUpbitPrice;
@@ -554,7 +558,6 @@ export async function registerRoutes(app, server) {
                     for (const position of todayPositions) {
                         const entryKimchiRate = Number(position.entry_premium_rate || 0);
                         let entryPrice = Number(position.entry_price || 0); // KRW 투자금액
-                        const leverage = Number(position.binance_leverage || 1);
                         // entry_price가 비현실적으로 크면 실제 투자금액으로 추정
                         if (entryPrice > 50000000) { // 5천만원 이상이면 비현실적
                             // 실제 BTC 수량 × 현재 BTC 가격으로 추정
@@ -748,19 +751,21 @@ export async function registerRoutes(app, server) {
             const validation = insertUserSchema.safeParse(req.body);
             if (!validation.success) {
                 console.log("검증 실패:", validation.error.errors);
-                return res.status(400).json({
+                res.status(400).json({
                     message: "입력 데이터가 올바르지 않습니다",
                     errors: validation.error.errors,
                 });
+                return;
             }
             const { username, password } = validation.data;
             console.log("검증 완료 - 사용자명:", username);
             // 사용자명 중복 체크
             const existingUser = await storage.getUserByUsername(username);
             if (existingUser) {
-                return res
+                res
                     .status(409)
                     .json({ message: "이미 존재하는 사용자명입니다" });
+                return;
             }
             console.log("새 사용자 생성 중...");
             // 비밀번호 해시화
@@ -828,7 +833,7 @@ export async function registerRoutes(app, server) {
     // ⚠️ 로그아웃도 server/routes/auth.ts로 중앙화됨
     // POST /api/auth/logout 엔드포인트는 registerAuthRoutes(app)을 통해 등록됨
     // Download endpoint
-    app.get("/api/download", (req, res) => {
+    app.get("/api/download", (_req, res) => {
         const fs = require("fs");
         const path = require("path");
         const filePath = path.join(process.cwd(), "download-this-file.tar.gz");
@@ -841,7 +846,7 @@ export async function registerRoutes(app, server) {
     });
     // API Routes
     // 서버 정보 조회 (IP 주소, 거래 모드 등)
-    app.get("/api/server-info", async (req, res) => {
+    app.get("/api/server-info", async (_req, res) => {
         try {
             const serverIP = await getCurrentServerIP();
             const isReplitEnv = isReplit();
@@ -860,7 +865,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // 암호화폐 목록 조회
-    app.get("/api/cryptocurrencies", async (req, res) => {
+    app.get("/api/cryptocurrencies", async (_req, res) => {
         try {
             const cryptocurrencies = await storage.getAllCryptocurrencies();
             res.json(cryptocurrencies);
@@ -870,7 +875,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // 최신 김프율 조회 (대시보드용) - SimpleKimchiService 사용
-    app.get("/api/kimchi-premium", async (req, res) => {
+    app.get("/api/kimchi-premium", async (_req, res) => {
         try {
             const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
             const kimchiData = await simpleKimchiService.calculateSimpleKimchi(symbols);
@@ -882,7 +887,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // CoinAPI 기반 실시간 김프율 조회 (고정밀도)
-    app.get("/api/kimchi-premium/coinapi", async (req, res) => {
+    app.get("/api/kimchi-premium/coinapi", async (_req, res) => {
         try {
             const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
             const results = [];
@@ -926,7 +931,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // 실시간 가격 캐시 상태 디버깅 엔드포인트
-    app.get("/api/debug/price-cache-status", (req, res) => {
+    app.get("/api/debug/price-cache-status", (_req, res) => {
         try {
             const cacheStatus = priceCache.getCacheStatus();
             const realtimeStatus = realtimeKimchiService.getStatus();
@@ -969,7 +974,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // 환율 정보 조회 API
-    app.get("/api/exchange-rate", async (req, res) => {
+    app.get("/api/exchange-rate", async (_req, res) => {
         try {
             // Google Finance에서 실시간 USD/KRW 환율 가져오기
             const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
@@ -985,7 +990,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // 최신 김프율 조회 (저장된 데이터) -> KimchiService의 지연 초기화 트리거
-    app.get("/api/kimchi-premiums", async (req, res) => {
+    app.get("/api/kimchi-premiums", async (_req, res) => {
         try {
             const premiums = await kimchiService.getLatestKimchiPremiums();
             res.json(premiums);
@@ -1095,7 +1100,6 @@ export async function registerRoutes(app, server) {
     // 활성 포지션 중복 체크 API (진입 전 확인용) - 반드시 :userId 라우트보다 앞에 위치
     app.get("/api/positions/check-active", authenticateSession, async (req, res) => {
         try {
-            const userId = req.user.id;
             const { strategyId, symbol } = req.query;
             const activePosition = await storage.getActivePositionByStrategy(parseInt(strategyId), symbol);
             res.json({
@@ -1115,7 +1119,8 @@ export async function registerRoutes(app, server) {
             const userIdNum = parseInt(userId);
             if (isNaN(userIdNum)) {
                 console.error(`❌ [getActivePositions] 잘못된 userId: "${userId}"`);
-                return res.status(400).json({ error: "Invalid userId" });
+                res.status(400).json({ error: "Invalid userId" });
+                return;
             }
             const positions = await storage.getActivePositions(userIdNum);
             res.json(positions);
@@ -1252,11 +1257,13 @@ export async function registerRoutes(app, server) {
             const positionId = req.params.id;
             const { actualQuantity } = req.body;
             if (!actualQuantity || isNaN(actualQuantity) || actualQuantity <= 0) {
-                return res.status(400).json({ error: "유효한 actualQuantity가 필요합니다" });
+                res.status(400).json({ error: "유효한 actualQuantity가 필요합니다" });
+                return;
             }
             const updatedPosition = await storage.updatePositionUpbitQuantity(positionId, actualQuantity);
             if (!updatedPosition) {
-                return res.status(404).json({ error: "포지션을 찾을 수 없습니다" });
+                res.status(404).json({ error: "포지션을 찾을 수 없습니다" });
+                return;
             }
             logInfo('포지션 업비트 수량 업데이트', {
                 positionId,
@@ -1340,7 +1347,8 @@ export async function registerRoutes(app, server) {
             // 사용자별 거래 설정 확인
             const settings = await storage.getTradingSettingsByUserId(userId);
             if (!settings) {
-                return res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+                res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+                return;
             }
             await multiStrategyTradingService.startMultiStrategyTrading(userId);
             const strategies = await storage.getTradingStrategiesByUserId(userId);
@@ -1404,13 +1412,14 @@ export async function registerRoutes(app, server) {
             // 세션에서 사용자 ID 추출
             const sessionUserId = req.session?.user?.id;
             if (!sessionUserId) {
-                return res.json({
+                res.json({
                     isRunning: false,
                     strategies: [],
                     activeStrategies: 0,
                     newKimchiActive: false,
                     totalActive: false
                 });
+                return;
             }
             const strategies = await storage.getTradingStrategiesByUserId(String(sessionUserId));
             res.json({
@@ -1539,9 +1548,10 @@ export async function registerRoutes(app, server) {
             console.log(`🔑 [${new Date().toISOString()}] API 키 시작 부분: ${apiKey ? apiKey.substring(0, 8) + "..." : "없음"}`);
             if (!exchange || !apiKey || !resolvedSecret) {
                 console.log(`❌ [${new Date().toISOString()}] 필수 정보 누락 - exchange: ${!!exchange}, apiKey: ${!!apiKey}, apiSecret: ${!!resolvedSecret}`);
-                return res
+                res
                     .status(400)
                     .json({ error: "거래소명, API 키, Secret 키를 모두 입력해주세요" });
+                return;
             }
             console.log(`⏳ [${new Date().toISOString()}] API 키 저장 중... - 사용자: ${userId}, 거래소: ${exchange}`);
             console.log(`⏳ [${new Date().toISOString()}] storage.createOrUpdateExchange 호출 시작...`);
@@ -1570,10 +1580,11 @@ export async function registerRoutes(app, server) {
             });
             if (!exchangeRecord) {
                 console.error(`❌ [${new Date().toISOString()}] exchangeRecord가 undefined입니다!`);
-                return res.status(500).json({
+                res.status(500).json({
                     error: "거래소 정보 저장에 실패했습니다",
                     details: "저장된 거래소 정보를 가져올 수 없습니다",
                 });
+                return;
             }
             console.log(`✅ [${new Date().toISOString()}] API 키 저장 성공 - 사용자: ${userId}, 거래소: ${exchange}, ID: ${exchangeRecord.id}`);
             // 저장된 데이터 확인을 위한 추가 로그
@@ -1697,10 +1708,11 @@ export async function registerRoutes(app, server) {
                 // 거래소 정보 조회 완료
                 if (exchanges.length === 0) {
                     // API 키 없음, 데모 잔고 반환
-                    return res.json(balances);
+                    res.json(balances);
+                    return;
                 }
-                // 보안을 위해 API 키 정보 로깅
-                const exchangeDebugInfo = exchanges.map((ex) => ({
+                // 보안을 위해 API 키 정보 로깅 (사용하지 않는 변수 제거)
+                exchanges.map((ex) => ({
                     id: ex.id,
                     name: ex.exchange || "Unknown",
                     hasApiKey: !!ex.apiKey,
@@ -1711,19 +1723,10 @@ export async function registerRoutes(app, server) {
             }
             catch (exchangeError) {
                 // 거래소 정보 조회 실패, 데모 잔고 반환
-                return res.json(balances);
+                res.json(balances);
+                return;
             }
             for (const exchange of exchanges) {
-                const exchangeInfo = {
-                    id: exchange.id,
-                    name: exchange.exchange || "Unknown",
-                    hasApiKey: !!exchange.apiKey,
-                    hasApiSecret: !!exchange.apiSecret,
-                    isActive: exchange.isActive,
-                    apiKeyStart: exchange.apiKey
-                        ? exchange.apiKey.substring(0, 8) + "..."
-                        : "none",
-                };
                 // 거래소 처리 중
                 try {
                     if (exchange.exchange === "upbit") {
@@ -1941,13 +1944,15 @@ export async function registerRoutes(app, server) {
             });
             // 업데이트할 필드가 없으면 중단
             if (Object.keys(updates).length <= 1) { // userId만 있는 경우
-                return res.status(400).json({ error: '수정할 데이터가 없습니다.' });
+                res.status(400).json({ error: '수정할 데이터가 없습니다.' });
+                return;
             }
             // 기존 전략이 해당 사용자 소유인지 확인
             const existingStrategies = await storage.getTradingStrategiesByUserId(authenticatedUserId);
             const existingStrategy = existingStrategies.find((s) => s.id === strategyId);
             if (!existingStrategy) {
-                return res.status(404).json({ error: '전략을 찾을 수 없거나 권한이 없습니다.' });
+                res.status(404).json({ error: '전략을 찾을 수 없거나 권한이 없습니다.' });
+                return;
             }
             console.log('📋 기존 전략 정보:', {
                 id: existingStrategy.id,
@@ -2020,18 +2025,21 @@ export async function registerRoutes(app, server) {
             // 관리자 권한 확인
             const currentUser = await storage.getUser(req.user.id);
             if (!currentUser || currentUser.role !== "admin") {
-                return res.status(403).json({ message: "관리자 권한이 필요합니다" });
+                res.status(403).json({ message: "관리자 권한이 필요합니다" });
+                return;
             }
             const userId = req.params.userId; // string으로 처리
             const { role } = req.body;
             if (!role || !["user", "admin"].includes(role)) {
-                return res
+                res
                     .status(400)
                     .json({ message: "올바른 권한을 선택해주세요 (user 또는 admin)" });
+                return;
             }
             const user = await storage.updateUserRole(userId, role);
             if (!user) {
-                return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
+                res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
+                return;
             }
             res.json({
                 message: "사용자 권한이 변경되었습니다",
@@ -2068,7 +2076,7 @@ export async function registerRoutes(app, server) {
             // console.log(`📤 WebSocket 김프율 데이터 전송: ${kimchiData.length}개 심볼`);
         }
     });
-    wss.on("connection", (ws, req) => {
+    wss.on("connection", (ws, _req) => {
         // 첫 클라이언트 연결 시 KimchiService의 지연 초기화를 트리거
         kimchiService.getLatestKimchiPremiums();
         // WebSocket 연결 로그 완전 제거
@@ -2164,10 +2172,11 @@ export async function registerRoutes(app, server) {
             });
             if (!exchange || !userId) {
                 console.log('❌ 연동테스트 실패: 필수 정보 누락');
-                return res.status(400).json({
+                res.status(400).json({
                     error: '필수 정보가 누락되었습니다',
                     details: '거래소와 사용자 ID를 입력해주세요'
                 });
+                return;
             }
             console.log(`🔍 [${new Date().toISOString()}] 거래소 연동 테스트 시작:`, {
                 exchange,
@@ -2181,10 +2190,11 @@ export async function registerRoutes(app, server) {
                     userId,
                     exchange
                 });
-                return res.status(400).json({
+                res.status(400).json({
                     error: 'API 키를 찾을 수 없습니다',
                     details: `${exchange} 거래소의 API 키가 등록되지 않았습니다`
                 });
+                return;
             }
             const { apiKey, apiSecret } = decryptedExchange;
             console.log(`🔑 [${new Date().toISOString()}] API 키 조회 성공:`, {
@@ -2355,8 +2365,6 @@ export async function registerRoutes(app, server) {
     // 활동 추적 API
     app.post("/api/activity", authenticateSession, async (req, res) => {
         try {
-            const userId = req.user.id;
-            const { timestamp, type, source } = req.body;
             // 활동 감지 시 세션 갱신
             if (req.session) {
                 req.session.touch();
@@ -2627,7 +2635,8 @@ export async function registerRoutes(app, server) {
             const userId = req.user.id;
             const user = await storage.getUserById(userId);
             if (!user) {
-                return res.status(404).json({ isAdmin: false, message: "사용자를 찾을 수 없습니다" });
+                res.status(404).json({ isAdmin: false, message: "사용자를 찾을 수 없습니다" });
+                return;
             }
             // 어드민 권한 확인
             let isAdmin = false;
@@ -2665,11 +2674,12 @@ export async function registerRoutes(app, server) {
             const exchanges = await storage.getExchangesByUserId(userId);
             console.log(`📊 등록된 거래소: ${exchanges.length}개`);
             if (exchanges.length === 0) {
-                return res.json({
+                res.json({
                     connected: false,
                     message: "등록된 거래소 API가 없습니다",
                     exchanges: []
                 });
+                return;
             }
             // 각 거래소별 연결 상태 확인
             const exchangeStatus = [];
@@ -2799,7 +2809,7 @@ export async function registerRoutes(app, server) {
             const userId = req.user.id;
             const { exchange } = req.body;
             if (!exchange) {
-                return res.status(400).json({
+                res.status(400).json({
                     success: false,
                     error: {
                         code: 'INVALID_REQUEST',
@@ -2807,6 +2817,7 @@ export async function registerRoutes(app, server) {
                         timestamp: new Date()
                     }
                 });
+                return;
             }
             const { balanceService } = await import('./services/BalanceService.js');
             const result = await balanceService.testExchangeConnection(userId, exchange);
@@ -2834,7 +2845,7 @@ export async function registerRoutes(app, server) {
             const userId = req.user.id;
             const { exchange, apiKey, secretKey, passphrase } = req.body;
             if (!exchange || !apiKey || !secretKey) {
-                return res.status(400).json({
+                res.status(400).json({
                     success: false,
                     error: {
                         code: 'INVALID_REQUEST',
@@ -2842,6 +2853,7 @@ export async function registerRoutes(app, server) {
                         timestamp: new Date()
                     }
                 });
+                return;
             }
             const { balanceService } = await import('./services/BalanceService.js');
             const result = await balanceService.saveApiKey(userId, exchange, apiKey, secretKey, passphrase);
@@ -2911,7 +2923,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // CORS preflight 처리
-    app.options("/api/auth/*", (req, res) => {
+    app.options("/api/auth/*", (_req, res) => {
         res.header("Access-Control-Allow-Origin", "*");
         res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
         res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -2919,7 +2931,7 @@ export async function registerRoutes(app, server) {
     });
     // ===== IP 밴 방지 모니터링 API =====
     // 통합 시스템 상태
-    app.get("/api/v2/system/status", authenticateSession, (req, res) => {
+    app.get("/api/v2/system/status", authenticateSession, (_req, res) => {
         try {
             res.json({
                 success: true,
@@ -2945,7 +2957,7 @@ export async function registerRoutes(app, server) {
         }
     });
     // 긴급 시스템 리셋
-    app.post("/api/v2/system/emergency-reset", authenticateSession, (req, res) => {
+    app.post("/api/v2/system/emergency-reset", authenticateSession, (_req, res) => {
         try {
             globalRateLimiter.emergencyReset();
             proxyManager.resetAllProxies();
@@ -2975,7 +2987,8 @@ export async function registerRoutes(app, server) {
             // 사용자의 업비트 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'upbit');
             if (!exchange) {
-                return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                return;
             }
             console.log(`🔑 [테스트] API 키 확인: ${exchange.apiKey ? '있음' : '없음'}`);
             // 업비트 서비스로 잔고 조회
@@ -3033,7 +3046,8 @@ export async function registerRoutes(app, server) {
             // 사용자의 바이낸스 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'binance');
             if (!exchange) {
-                return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                return;
             }
             console.log(`🔑 [테스트] API 키 확인: ${exchange.apiKey ? '있음' : '없음'}`);
             // 바이낸스 서비스로 선물 계정 정보 조회
@@ -3117,12 +3131,14 @@ export async function registerRoutes(app, server) {
             const { market, volume, price, ord_type, strategyId } = req.body;
             console.log(`🚨 실거래 업비트 매수 주문:`, { userId, market, volume, price, ord_type, strategyId });
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
-                return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                return;
             }
             // 사용자의 업비트 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'upbit');
             if (!exchange) {
-                return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                return;
             }
             // 업비트 서비스로 실제 주문 실행
             const upbitService = new UpbitService(exchange.apiKey, exchange.apiSecret);
@@ -3152,9 +3168,10 @@ export async function registerRoutes(app, server) {
                 orderType = 'price';
                 // 최소 주문 금액 체크
                 if (orderAmount < 5000) {
-                    return res.status(400).json({
+                    res.status(400).json({
                         error: `주문 금액 ${orderAmount}원이 최소 주문 금액 5,000원 미달입니다`
                     });
+                    return;
                 }
             }
             else {
@@ -3223,12 +3240,14 @@ export async function registerRoutes(app, server) {
             const { symbol, quantity, strategyId } = req.body;
             console.log(`🔄 바이낸스 숏 포지션 청산 요청:`, { userId, symbol, quantity, strategyId });
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
-                return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                return;
             }
             // 사용자의 바이낸스 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'binance');
             if (!exchange) {
-                return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                return;
             }
             // 바이낸스 서비스로 포지션 청산
             const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
@@ -3340,7 +3359,8 @@ export async function registerRoutes(app, server) {
             // 사용자의 바이낸스 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'binance');
             if (!exchange) {
-                return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                return;
             }
             const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);
             const info = await binanceService.getFuturesAccountInfo();
@@ -3465,19 +3485,22 @@ export async function registerRoutes(app, server) {
             const { market, volume, ord_type = 'market' } = req.body;
             console.log(`🚨 실거래 업비트 매도 주문:`, { userId, market, volume, ord_type });
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
-                return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                return;
             }
             // 사용자의 업비트 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'upbit');
             if (!exchange) {
-                return res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                return;
             }
             // 업비트 서비스로 실제 매도 주문 실행
             const upbitService = new UpbitService(exchange.apiKey, exchange.apiSecret);
             // 매도는 항상 volume(수량) 사용
             const sellVolume = parseFloat(volume);
             if (sellVolume <= 0) {
-                return res.status(400).json({ error: "매도 수량이 유효하지 않습니다" });
+                res.status(400).json({ error: "매도 수량이 유효하지 않습니다" });
+                return;
             }
             console.log(`📊 매도 주문 실행: ${sellVolume} ${market.replace('KRW-', '')}`);
             const orderResult = await upbitService.placeSellOrder(market, sellVolume);
@@ -3549,7 +3572,8 @@ export async function registerRoutes(app, server) {
             const { symbol, quantity, leverage, strategyId } = req.body;
             // 바이낸스 숏 주문 요청 (로그 제거)
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
-                return res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
+                return;
             }
             // 재진입 방지: strategyId가 있으면 중복 체크
             if (strategyId) {
@@ -3557,7 +3581,7 @@ export async function registerRoutes(app, server) {
                 const existingPosition = await positionsRepo.getOpenPositionByStrategyAndSymbol(strategyId, symbolOnly);
                 if (existingPosition && (existingPosition.remainingQuantity || 0) > 0) {
                     // 재진입 차단 (로그 제거)
-                    return res.status(409).json({
+                    res.status(409).json({
                         error: "이미 해당 전략에 진행 중인 포지션이 있습니다",
                         existingPosition: {
                             id: existingPosition.id,
@@ -3565,12 +3589,14 @@ export async function registerRoutes(app, server) {
                             entryTime: existingPosition.entryTime
                         }
                     });
+                    return;
                 }
             }
             // 사용자의 바이낸스 API 키 조회
             const exchange = await storage.getDecryptedExchange(userId, 'binance');
             if (!exchange) {
-                return res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                return;
             }
             // 바이낸스 서비스로 실제 주문 실행
             const binanceService = new BinanceService(exchange.apiKey, exchange.apiSecret);

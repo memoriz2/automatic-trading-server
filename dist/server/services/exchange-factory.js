@@ -28,7 +28,7 @@ export class ExchangeServiceFactory {
             return services;
         }
         catch (error) {
-            log.error('거래소 서비스 초기화 실패', error, { userId });
+            log.error('거래소 서비스 초기화 실패', error instanceof Error ? error : undefined, { userId });
             return {};
         }
     }

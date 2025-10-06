@@ -176,7 +176,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
         let lastError = null;
         // 선물 계정 우선 테스트 (exchangeTestService와 동일한 방식)
         try {
-            const futuresAccount = await this.apiRequest('/fapi/v2/account', 'GET', {}, true);
+            //       const futuresAccount = await this.apiRequest('/fapi/v2/account', 'GET', {}, true);
             permissions.push('futures');
             hasAnyAccess = true;
             console.log('✅ 바이낸스 선물 API 접근 성공');
@@ -352,28 +352,28 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     /**
      * 주문 조회
      */
-    async getOrder(orderId) {
+    async getOrder(_orderId) {
         // 구현 필요 - 바이낸스 주문 조회 API 호출
         throw new Error('구현 필요: Binance getOrder');
     }
     /**
      * 주문 취소
      */
-    async cancelOrder(orderId) {
+    async cancelOrder(_orderId) {
         // 구현 필요 - 바이낸스 주문 취소 API 호출
         throw new Error('구현 필요: Binance cancelOrder');
     }
     /**
      * 활성 주문 목록 조회
      */
-    async getActiveOrders(symbol) {
+    async getActiveOrders(_symbol) {
         // 구현 필요 - 바이낸스 활성 주문 조회 API 호출
         throw new Error('구현 필요: Binance getActiveOrders');
     }
     /**
      * 거래 내역 조회
      */
-    async getTrades(symbol, limit = 100) {
+    async getTrades(_symbol, _limit = 100) {
         // 구현 필요 - 바이낸스 거래 내역 조회 API 호출
         throw new Error('구현 필요: Binance getTrades');
     }
@@ -440,7 +440,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     /**
      * 수수료율 조회
      */
-    async getFeeRate(symbol, orderType) {
+    async getFeeRate(_symbol, _orderType) {
         // 현물 거래 수수료 (기본값)
         return {
             maker: TRADING_FEES.BINANCE.SPOT.MAKER,
@@ -450,7 +450,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
     /**
      * 선물 수수료율 조회
      */
-    async getFuturesFeeRate(symbol) {
+    async getFuturesFeeRate(_symbol) {
         return {
             maker: TRADING_FEES.BINANCE.FUTURES.MAKER,
             taker: TRADING_FEES.BINANCE.FUTURES.TAKER

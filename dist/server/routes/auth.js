@@ -1,7 +1,7 @@
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { storage } from "../storage.js";
-import { generateToken, verifyToken } from "../utils/auth.js";
+import { verifyToken } from "../utils/auth.js";
 const insertUserSchema = z.object({
     username: z.string(),
     password: z.string(),
@@ -132,16 +132,18 @@ export function registerAuthRoutes(app) {
             res.header("Access-Control-Allow-Headers", "Content-Type");
             const parseResult = insertUserSchema.safeParse(req.body);
             if (!parseResult.success) {
-                return res.status(400).json({
+                res.status(400).json({
                     error: "잘못된 요청 데이터",
                     details: parseResult.error.issues
                 });
+                return;
             }
             const { username, password } = parseResult.data;
             // 사용자 중복 확인
             const existingUser = await storage.getUserByUsername(username);
             if (existingUser) {
-                return res.status(400).json({ error: "이미 존재하는 사용자명입니다" });
+                res.status(400).json({ error: "이미 존재하는 사용자명입니다" });
+                return;
             }
             // 비밀번호 해싱
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -176,15 +178,17 @@ export function registerAuthRoutes(app) {
             res.header("Access-Control-Allow-Headers", "Content-Type");
             const parseResult = loginUserSchema.safeParse(req.body);
             if (!parseResult.success) {
-                return res.status(400).json({
+                res.status(400).json({
                     error: "잘못된 요청 데이터",
                     details: parseResult.error.issues
                 });
+                return;
             }
             const { username, password } = parseResult.data;
             const user = await storage.getUserByUsername(username);
             if (!user) {
-                return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+                res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+                return;
             }
             // 비밀번호 검증
             let isValidPassword = false;
@@ -198,7 +202,8 @@ export function registerAuthRoutes(app) {
                 isValidPassword = await bcrypt.compare(password, user.password);
             }
             if (!isValidPassword) {
-                return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+                res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+                return;
             }
             console.log('🔍 로그인 승인 상태 확인:', {
                 username: user.username,
@@ -212,10 +217,11 @@ export function registerAuthRoutes(app) {
                     'pending': '관리자 승인을 기다리고 있습니다. 승인 후 로그인할 수 있습니다.',
                     'rejected': '계정 승인이 거부되었습니다. 관리자에게 문의하세요.'
                 };
-                return res.status(403).json({
+                res.status(403).json({
                     error: statusMessage[user.approvalStatus] || '계정 상태를 확인할 수 없습니다.',
                     approvalStatus: user.approvalStatus
                 });
+                return;
             }
             // 마지막 로그인 시간 업데이트
             await storage.updateLastLogin(user.id);
@@ -231,7 +237,7 @@ export function registerAuthRoutes(app) {
                 req.session.cookie.maxAge = null; // 무제한 세션
                 req.session.isAdminSession = true; // 관리자 세션 표시
             }
-            const token = generateToken(user.id, user.username);
+            //       const token = generateToken(user.id, user.username);
             res.json({
                 message: "로그인 성공",
                 user: {
@@ -250,7 +256,8 @@ export function registerAuthRoutes(app) {
     app.post("/api/auth/logout", (req, res) => {
         req.session.destroy((err) => {
             if (err) {
-                return res.status(500).json({ error: "로그아웃 실패" });
+                res.status(500).json({ error: "로그아웃 실패" });
+                return;
             }
             res.clearCookie("connect.sid");
             res.json({ message: "로그아웃 성공" });
@@ -266,11 +273,13 @@ export function registerAuthRoutes(app) {
             });
             if (!req.user?.id) {
                 console.error('/api/auth/me: req.user.id가 undefined입니다');
-                return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
+                res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
+                return;
             }
             const user = await storage.getUserById(req.user.id);
             if (!user) {
-                return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                return;
             }
             res.json({
                 id: user.id,
@@ -285,7 +294,7 @@ export function registerAuthRoutes(app) {
     });
     // ===== 관리자용 사용자 관리 API =====
     // 모든 사용자 목록 조회 (관리자 전용)
-    app.get("/api/admin/users", authenticateAdmin, async (req, res) => {
+    app.get("/api/admin/users", authenticateAdmin, async (_req, res) => {
         try {
             const users = await storage.getAllUsers();
             // 비밀번호 정보 제거하고 날짜 필드 안전하게 처리
@@ -321,7 +330,7 @@ export function registerAuthRoutes(app) {
         }
     });
     // 승인 대기 중인 사용자 목록 조회 (관리자 전용)
-    app.get("/api/admin/users/pending", authenticateAdmin, async (req, res) => {
+    app.get("/api/admin/users/pending", authenticateAdmin, async (_req, res) => {
         try {
             const pendingUsers = await storage.getPendingUsers();
             // 비밀번호 정보 제거하고 날짜 필드 안전하게 처리
@@ -346,11 +355,13 @@ export function registerAuthRoutes(app) {
         try {
             const userId = parseInt(req.params.userId);
             if (isNaN(userId)) {
-                return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+                res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+                return;
             }
             const user = await storage.approveUser(userId);
             if (!user) {
-                return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                return;
             }
             res.json({
                 message: `사용자 ${user.username}이 승인되었습니다`,
@@ -371,11 +382,13 @@ export function registerAuthRoutes(app) {
         try {
             const userId = parseInt(req.params.userId);
             if (isNaN(userId)) {
-                return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+                res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+                return;
             }
             const user = await storage.rejectUser(userId);
             if (!user) {
-                return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                return;
             }
             res.json({
                 message: `사용자 ${user.username}이 거부되었습니다`,
@@ -402,16 +415,19 @@ export function registerAuthRoutes(app) {
             const userId = parseInt(req.params.userId);
             if (isNaN(userId)) {
                 console.error('Invalid userId:', req.params.userId);
-                return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+                res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+                return;
             }
             const { approvalStatus } = req.body;
             console.log('Extracted approvalStatus:', approvalStatus);
             if (!approvalStatus) {
-                return res.status(400).json({ error: "approvalStatus가 필요합니다" });
+                res.status(400).json({ error: "approvalStatus가 필요합니다" });
+                return;
             }
             if (!['approved', 'rejected'].includes(approvalStatus)) {
                 console.error('Invalid approvalStatus:', approvalStatus);
-                return res.status(400).json({ error: "유효하지 않은 승인 상태입니다. 'approved' 또는 'rejected'여야 합니다." });
+                res.status(400).json({ error: "유효하지 않은 승인 상태입니다. 'approved' 또는 'rejected'여야 합니다." });
+                return;
             }
             let user;
             let actionTaken = '';
@@ -424,7 +440,8 @@ export function registerAuthRoutes(app) {
                 actionTaken = '거부';
             }
             if (!user) {
-                return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+                return;
             }
             res.json({
                 message: `사용자 ${user.username}이 ${actionTaken}되었습니다`,
@@ -441,7 +458,7 @@ export function registerAuthRoutes(app) {
         }
     });
     // 관리자 통계 조회 (관리자 전용)
-    app.get("/api/admin/stats", authenticateAdmin, async (req, res) => {
+    app.get("/api/admin/stats", authenticateAdmin, async (_req, res) => {
         try {
             const allUsers = await storage.getAllUsers();
             const pendingUsers = await storage.getPendingUsers();
