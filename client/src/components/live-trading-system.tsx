@@ -956,13 +956,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
   // 모의 청산 (원자적 처리)
   const liveExit = useCallback(async (position: LivePosition, premiumRate: number, ratio: number = 1.0) => {
-    // 거래 잠금 확인 - 이미 잠금 중이면 즉시 리턴 (다음 틱에서 재시도)
-    // 전략별 잠금 체크
-    if (tradingLockRef.current[Number(position.strategyId)] || isTrading) {
-      return;
-    }
-
-    // 거래 잠금 설정 (동기적 ref 먼저, 비동기 state 나중에) - 전략별 잠금
+    // 청산은 긴급 작업이므로 기존 잠금 무시하고 강제 실행
+    // 즉시 새로운 잠금 설정 (원자적 작업)
     tradingLockRef.current[Number(position.strategyId)] = true;
     setIsTrading(true);
 
@@ -1457,10 +1452,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       // 진입 조건: 허용오차 범위 내 또는 교차점 통과 (포지션이 없을 때만)
       let entryOk = !currentPosition && (diffEntry <= tolerance || crossedEntry);
 
-      // 청산 후 5초 텀 체크 (진입할 때만)
+      // 청산 후 10초 텀 체크 (진입할 때만)
       if (entryOk) {
         const lastAction = lastActionAtRef.current[strategy.id] || 0;
-        if (now - lastAction < 5000) {
+        const cooldownTime = 10000; // 10초
+        if (now - lastAction < cooldownTime) {
           entryOk = false;
         }
       }
@@ -1488,7 +1484,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
         await liveExit(currentPosition, currentPremium);
 
-        lastActionAtRef.current[strategy.id] = now; // 현재 시각 저장 (진입 시 5초 체크)
+        lastActionAtRef.current[strategy.id] = now; // 현재 시각 저장 (진입 시 10초 체크)
       }
       prevPremiumRef.current = currentPremium; // 마지막에 갱신
       

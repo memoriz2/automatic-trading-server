@@ -54,6 +54,14 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
 }) => {
   const activePositions = livePositions.filter(p => p.status === 'open');
 
+  const handleButtonClick = (callback: () => void) => {
+    // 햅틱 피드백 (모바일)
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    callback();
+  };
+
   const getStrategyName = (position: LivePosition): string => {
     // 우선 position.strategyName이 있으면 사용
     if (position.strategyName) {
@@ -168,20 +176,20 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                         바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC (숏) × {position.leverage}배
                       </p>
                 </div>
-                <div className="flex gap-1 md:flex-col ml-auto md:ml-0">
+                <div className="flex gap-1 md:flex-col ml-auto md:ml-0 p-2 -m-2 md:p-0 md:m-0">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-xs px-2 py-1 h-6"
-                    onClick={() => onLiveExit(position, pnlData.currentPremium, 0.5)}
+                    className="text-xs px-2 py-1 h-6 touch-manipulation active:scale-95 active:bg-slate-600 transition-transform duration-100"
+                    onClick={() => handleButtonClick(() => onLiveExit(position, pnlData.currentPremium, 0.5))}
                   >
                     50% 청산
                   </Button>
                   <Button
                     size="sm"
                     variant="destructive"
-                    className="text-xs px-2 py-1 h-6"
-                    onClick={() => onLiveExit(position, pnlData.currentPremium, 1.0)}
+                    className="text-xs px-2 py-1 h-6 touch-manipulation active:scale-95 active:brightness-125 transition-transform duration-100"
+                    onClick={() => handleButtonClick(() => onLiveExit(position, pnlData.currentPremium, 1.0))}
                   >
                     전체 청산
                   </Button>
