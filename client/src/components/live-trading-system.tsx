@@ -955,8 +955,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     }
   }, [currentKimchiData, liveEntry, toast]);
 
-  // 모의 청산 (원자적 처리)
-  const liveExit = useCallback(async (position: LivePosition, premiumRate: number, ratio: number = 1.0) => {
+  // 청산 (원자적 처리)
+  const liveExit = useCallback(async (position: LivePosition, _premiumRate: number, ratio: number = 1.0) => {
     // 청산은 긴급 작업이므로 기존 잠금 무시하고 강제 실행
     // 즉시 새로운 잠금 설정 (원자적 작업)
     tradingLockRef.current[Number(position.strategyId)] = true;
@@ -1333,217 +1333,35 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               });
             }
 
-            return; // 실거래 처리 완료, Mock 로직 실행하지 않음
           } else {
             toast({
-              title: "개별 청산 실패",
+              title: "청산 실패",
               description: "포지션 청산에 실패했습니다.",
               variant: "destructive"
             });
-            return;
           }
-          
+
         } catch (realTradeError: any) {
-          console.error('❌ 실거래 개별 청산 실패:', realTradeError);
+          console.error('❌ 실거래 청산 실패:', realTradeError);
           toast({
             title: "실거래 청산 오류",
             description: `청산 중 오류가 발생했습니다: ${realTradeError.message}`,
             variant: "destructive"
           });
-          return; // finally에서 lock 해제
-        }
-
-        return; // 실거래 처리 완료 후 mock 로직 실행하지 않음
-      }
-
-      // Mock 모드: 기존 로직 계속 실행
-
-      const currentUpbitPrice = currentKimchiData?.upbit_price || 156000000;
-      const currentBinancePrice = currentKimchiData?.binance_price || 112000;
-
-      // 청산: 진입의 반대 거래 (비율 적용)
-      const exitRatio = ratio; // 0.5 = 반절, 1.0 = 전체
-      
-      // 1. 업비트 매도 (보유 BTC → KRW)
-      const upbitSellQuantity = position.upbitQuantity * exitRatio;
-      const upbitRevenue = upbitSellQuantity * currentUpbitPrice;
-      const upbitFee = upbitRevenue * 0.0005;
-
-      // 2. 바이낸스 숏 청산 (롱 매수로 커버)
-      const binanceCloseQuantity = position.binanceQuantity * exitRatio;
-
-      const binanceCoverCost = binanceCloseQuantity * currentBinancePrice;
-      const binanceFee = binanceCoverCost * 0.0004;
-      const binanceMarginReturn = (binanceCloseQuantity * position.binancePrice) / position.leverage;
-
-      // 실제 잔고 변화 기준 PnL 계산 (정확한 계산)
-      const usdKrwRate = (currentKimchiData?.usdkrw ?? 1390);
-      const entryUsdKrw = position.entryUsdKrw || usdKrwRate;
-      
-      // 진입 시 총 비용 (KRW 기준)
-      const entryUpbitCost = position.upbitQuantity * position.upbitPrice; // 업비트 매수 원금
-      const entryUpbitFee = entryUpbitCost * 0.0005; // 진입 매수 수수료
-      const entryBinanceMargin = (position.binanceQuantity * position.binancePrice) / position.leverage; // 바이낸스 증거금
-      const entryBinanceFee = position.binanceQuantity * position.binancePrice * 0.0004; // 바이낸스 진입 수수료
-      const totalEntryCostKRW = (entryUpbitCost + entryUpbitFee) + ((entryBinanceMargin + entryBinanceFee) * entryUsdKrw);
-      
-      // 바이낸스 순 회수액 계산 (레버리지 적용)
-      const binancePriceChange = position.binancePrice - currentBinancePrice; // 가격 변화 (숏이므로 가격 하락 시 수익)
-      const binancePnlPerBtc = binancePriceChange * position.leverage; // 레버리지 적용된 BTC당 수익
-      const binanceTotalPnl = binanceCloseQuantity * binancePnlPerBtc; // 총 수익
-      const binanceNetReturn = binanceMarginReturn + binanceTotalPnl - binanceFee; // 증거금 + 수익 - 수수료
-      
-      // 청산 시 총 회수액 (KRW 기준)
-      const exitUpbitRevenue = upbitSellQuantity * currentUpbitPrice; // 업비트 매도 총액
-      const exitUpbitNet = exitUpbitRevenue - upbitFee; // 업비트 순수익
-      const exitBinanceNet = binanceNetReturn * usdKrwRate; // 바이낸스 순회수액 (KRW 환산)
-      const totalExitRevenueKRW = exitUpbitNet + exitBinanceNet;
-      
-      // 실제 손익 = 회수액 - 투입액
-      const totalPnl = totalExitRevenueKRW - totalEntryCostKRW;
-
-      // 청산 시 정확한 잔고 업데이트
-      const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice; // 업비트 매도 총액
-      const upbitNetRevenue = upbitSellRevenue - upbitFee; // 업비트 매도 수수료 차감
-      
-      setLiveBalance(prev => {
-        const newBalance = {
-          ...prev,
-          krw: Math.max(0, prev.krw + upbitNetRevenue), // 음수 방지
-          btc: Math.max(0, (prev.btc || 0) - upbitSellQuantity), // 음수 방지
-          usdt: prev.usdt, // 변경 없음 (바이낸스는 별도 관리)
-          binanceUsdt: Math.max(0, (prev.binanceUsdt || 0) + (binanceNetReturn)), // 바이낸스는 USD로 추가
-          // 선물 커버(청산) 시 숏 포지션 수량 감소
-          binanceBtc: Math.max(0, (prev.binanceBtc || 0) - binanceCloseQuantity) // 음수 방지
-        };
-
-        return newBalance;
-      });
-
-      // 거래 기록 추가
-      const currentCounter = tradeCounter + 1;
-      setTradeCounter(currentCounter);
-      const randomId = Math.random().toString(36).substring(2, 8);
-      const tradeId = `exit-${Date.now()}-${currentCounter}-${randomId}`;
-      const exitTimestamp = new Date(); // 청산 시점 고정
-      const exitTrades: LiveTrade[] = [
-        {
-          id: `${tradeId}-upbit`,
-          timestamp: exitTimestamp,
-          type: 'sell',
-          symbol: 'BTC',
-          quantity: upbitSellQuantity,
-          price: currentUpbitPrice,
-          fee: upbitFee,
-          exchange: 'upbit',
-          strategyId: position.strategyId,
-          strategyName: strategies.find(s => s.id === position.strategyId)?.name,
-          premiumRate
-        },
-        {
-          id: `${tradeId}-binance`,
-          timestamp: exitTimestamp, // 동일한 청산 시점 사용
-          type: 'cover', // SHORT 커버 (청산)
-          symbol: 'BTC',
-          quantity: binanceCloseQuantity,
-          price: currentBinancePrice,
-          fee: binanceFee,
-          exchange: 'binance',
-          strategyId: position.strategyId,
-          strategyName: strategies.find(s => s.id === position.strategyId)?.name,
-          premiumRate
-        }
-      ];
-
-      setLiveTrades(prev => [...prev, ...exitTrades]);
-      
-      // 청산 거래 기록 저장
-      exitTrades.forEach(trade => {
-        saveLiveTradeToDB(trade, userId);
-      });
-
-      // 포지션 업데이트 (비율에 따라 부분/전체 청산)
-      const updatedPositions = livePositions.map(p => 
-        p.id === position.id 
-          ? exitRatio >= 1.0 
-            ? {...p, status: 'closed' as const, realizedPnl: totalPnl} // 전체 청산
-            : {...p, // 부분 청산 - 수량 감소
-                upbitQuantity: p.upbitQuantity * (1 - exitRatio),
-                binanceQuantity: p.binanceQuantity * (1 - exitRatio),
-                realizedPnl: (p.realizedPnl || 0) + totalPnl
-              }
-          : p
-      );
-      
-      setLivePositions(updatedPositions);
-
-      // DB에 청산 정보 저장
-      if (exitRatio >= 1.0) {
-        try {
-          await fetch(`/api/positions/${position.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              status: 'closed',
-              exitTime: exitTimestamp.toISOString(),
-              realizedPnl: totalPnl
-            })
-          });
-          console.log(`✅ 포지션 ${position.id} DB 업데이트 완료`);
-        } catch (dbError) {
-          console.error('❌ DB 업데이트 실패:', dbError);
         }
       } else {
-        // 부분 청산의 경우 수량과 실현손익 업데이트
-        const updatedPosition = updatedPositions.find(p => p.id === position.id);
-        if (updatedPosition) {
-          try {
-            await fetch(`/api/positions/${position.id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                upbitQuantity: updatedPosition.upbitQuantity,
-                binanceQuantity: updatedPosition.binanceQuantity,
-                realizedPnl: updatedPosition.realizedPnl
-              })
-            });
-            console.log(`✅ 포지션 ${position.id} 부분 청산 DB 업데이트 완료`);
-          } catch (dbError) {
-            console.error('❌ 부분 청산 DB 업데이트 실패:', dbError);
-          }
-        }
+        toast({
+          title: "청산 불가",
+          description: "실거래 모드가 아닙니다.",
+          variant: "destructive"
+        });
       }
 
-      // 전략별 집계: 실현손익 반영 및 수익률 갱신 (정확한 계산)
-      const curStats = strategyStatsRef.current[position.strategyId] || { executionCount: 0, realizedPnlKRW: 0, investedKRW: 0, profitRate: 0 };
-      const updatedRealizedPnl = (curStats.realizedPnlKRW || 0) + totalPnl;
-      const updatedProfitRate = curStats.investedKRW > 0 ? (updatedRealizedPnl / curStats.investedKRW) * 100 : 0;
-
-      strategyStatsRef.current[position.strategyId] = {
-        ...curStats,
-        realizedPnlKRW: updatedRealizedPnl,
-        profitRate: updatedProfitRate
-      };
-      onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
-      
-      addTradingLog(
-        `✅ 청산 | 투입액: ${Math.round(totalEntryCostKRW).toLocaleString()}원, 회수액: ${Math.round(totalExitRevenueKRW).toLocaleString()}원, 손익: ${(totalPnl>=0?'+':'')}${Math.round(totalPnl).toLocaleString()}원`
-      );
-      
-      const profitColor = totalPnl >= 0 ? "" : "destructive";
-      toast({
-        title: totalPnl >= 0 ? `💰 수익 실현! +₩${Math.round(totalPnl).toLocaleString()}` : `📉 손실 확정 -₩${Math.abs(Math.round(totalPnl)).toLocaleString()}`,
-        description: totalPnl >= 0 ? "🎉 성공적인 거래였습니다! 축하드려요!" : "📊 다음 기회를 노려보세요!",
-        variant: profitColor as any
-      });
-
     } catch (error) {
-      console.error('❌ 모의 청산 실패:', error);
+      console.error('❌ 청산 실패:', error);
       toast({
-        title: "모의 청산 실패",
-        description: "모의 거래 청산 중 오류가 발생했습니다.",
+        title: "청산 실패",
+        description: "거래 청산 중 오류가 발생했습니다.",
         variant: "destructive"
       });
     } finally {
