@@ -27,6 +27,7 @@ interface LivePosition {
 interface Strategy {
   id: string;
   name: string;
+  takeProfitCondition?: string;
 }
 
 interface KimchiData {
@@ -62,7 +63,6 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
     // strategies 배열에서 해당 전략의 이름 찾기
     const strategy = strategies.find(s => s.id === position.strategyId);
     if (strategy) {
-      console.log('✅ strategies 배열에서 찾음:', strategy.name);
       return strategy.name;
     }
 
@@ -73,7 +73,6 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
       ? `🧪 강제진입 #${idPart}`
       : `전략 #${idPart}`;
 
-    console.log('⚠️ 기본값 사용:', fallbackName);
     return fallbackName;
   };
 
@@ -109,21 +108,29 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
         
         return (
           <div key={position.id} className="bg-slate-800 p-3 rounded-lg mb-2">
-            <div className="flex items-center gap-3 justify-between">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
               <div className="text-left">
-                <span className="text-white font-medium">
-                  {getStrategyName(position)}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={`ml-2 ${
-                    pnlData.unrealizedPnl >= 0 ? 'text-green-400 border-green-400' : 'text-red-400 border-red-400'
-                  }`}
-                >
-                  {pnlData.isRising ? '📈' : pnlData.isFalling ? '📉' : '➡️'} {position.entryPremiumRate.toFixed(3)}% → {pnlData.currentPremium.toFixed(3)}%
-                </Badge>
+                <div className="flex items-center">
+                  <span className="text-white font-medium">
+                    {getStrategyName(position)}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`ml-2 ${
+                      pnlData.unrealizedPnl >= 0 ? 'text-green-400 border-green-400' : 'text-red-400 border-red-400'
+                    }`}
+                  >
+                    {pnlData.isRising ? '📈' : pnlData.isFalling ? '📉' : '➡️'} {position.entryPremiumRate.toFixed(3)}% → {pnlData.currentPremium.toFixed(3)}%
+                  </Badge>
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1" style={{ float: 'left' }}>
+                  {(() => {
+                    const strategy = strategies.find(s => String(s.id) === String(position.strategyId));
+                    return strategy?.takeProfitCondition ? `수익구간 ${parseFloat(parseFloat(strategy.takeProfitCondition).toFixed(3))}% ≤ 김프율` : '-';
+                  })()}
+                </div>
               </div>
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-2 ml-auto md:ml-0">
                 <div className="text-right">
                   {/* 차익거래 수익 표시 (김프율 증가 = 수익) */}
                   <p className={`font-bold flex justify-end text-right gap-1 ${
@@ -161,24 +168,24 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                         바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC (숏) × {position.leverage}배
                       </p>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="text-xs px-2 py-1 h-6"
-                    onClick={() => onLiveExit(position, pnlData.currentPremium, 0.5)}
-                  >
-                    50% 청산
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="destructive"
-                    className="text-xs px-2 py-1 h-6"
-                    onClick={() => onLiveExit(position, pnlData.currentPremium, 1.0)}
-                  >
-                    전체 청산
-                  </Button>
-                </div>
+              </div>
+              <div className="flex flex-col gap-1 ml-auto md:ml-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs px-2 py-1 h-6"
+                  onClick={() => onLiveExit(position, pnlData.currentPremium, 0.5)}
+                >
+                  50% 청산
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="text-xs px-2 py-1 h-6"
+                  onClick={() => onLiveExit(position, pnlData.currentPremium, 1.0)}
+                >
+                  전체 청산
+                </Button>
               </div>
             </div>
           </div>

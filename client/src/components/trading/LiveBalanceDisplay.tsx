@@ -37,14 +37,14 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 KRW</h4>
-          <p className="text-xl md:text-lg font-bold text-blue-400">
+          <p className="text-base md:text-xl font-bold text-blue-400">
             ₩{Math.floor(liveBalance.krw || 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">업비트 BTC</h4>
           <div className="flex items-center gap-2">
-            <p className="text-xl md:text-lg font-bold text-yellow-400">
+            <p className="text-base md:text-xl font-bold text-yellow-400">
               {formatBTCUpbit(realtimeBalances?.upbitBtc || 0)} BTC
             </p>
             {balanceLoading && (
@@ -56,7 +56,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>
           <div className="flex items-center gap-2">
-            <p className="text-xl md:text-lg font-bold text-orange-400">
+            <p className="text-base md:text-xl font-bold text-orange-400">
               {formatBTC(Math.abs(realtimeBalances?.binanceBtc || 0))} BTC
               {(realtimeBalances?.binanceBtc || 0) < 0 && <span className="text-red-400 ml-1">(숏)</span>}
             </p>
@@ -68,7 +68,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 USDT</h4>
-          <p className="text-xl md:text-lg font-bold text-green-400">
+          <p className="text-base md:text-xl font-bold text-green-400">
             ${Math.floor(liveBalance.binanceUsdt || 0).toLocaleString()}
           </p>
         </div>
