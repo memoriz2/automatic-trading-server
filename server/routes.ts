@@ -614,98 +614,26 @@ export async function registerRoutes(
           return 0;
         })(),
         total_profit_krw: (() => {
-          // 김치 차익거래 수익 계산 (김치프리미엄 변화량 기반)
-          let totalKimchiProfit = 0;
-          
-          // 실시간 김치 데이터 가져오기
-          const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
-          const btcData = realtimeData.find(d => d.symbol === 'BTC');
-          const currentKimchiRate = btcData?.premiumRate || 0;
-          const currentUsdKrw = btcData?.usdKrwRate || 1390;
-          
-          logDebug('김치 차익거래 수익 계산 시작 (오늘 포지션만)', {
-            현재김프: currentKimchiRate,
-            환율: currentUsdKrw,
-            오늘활성포지션: todayPositions.filter(p => p.status === 'open').length,
-            오늘완료포지션: todayPositions.filter(p => p.status === 'closed').length,
-            오늘포지션: todayPositions.length
+          // 오늘 청산한 포지션의 realized_pnl 합계 (DB에 저장된 정확한 값)
+          const todayExitedPositions = todayPositions.filter(p =>
+            p.status === 'closed' && p.exit_time
+          );
+
+          const totalRealizedPnl = todayExitedPositions.reduce((sum, p) => {
+            return sum + Number(p.realized_pnl || 0);
+          }, 0);
+
+          logDebug('오늘 실현 수익 계산', {
+            청산포지션수: todayExitedPositions.length,
+            총실현수익: totalRealizedPnl,
+            포지션상세: todayExitedPositions.slice(0, 3).map(p => ({
+              id: p.id,
+              realized_pnl: p.realized_pnl,
+              exit_time: p.exit_time
+            }))
           });
 
-          // 🔧 오늘 포지션에 대해서만 김치프리미엄 변화 수익 계산
-          for (const position of todayPositions) {
-            const entryKimchiRate = Number(position.entry_premium_rate || 0);
-            let entryPrice = Number(position.entry_price || 0); // KRW 투자금액
-            
-            // entry_price가 비현실적으로 크면 실제 투자금액으로 추정
-            if (entryPrice > 50000000) { // 5천만원 이상이면 비현실적
-              // 실제 BTC 수량 × 현재 BTC 가격으로 추정
-              const btcQuantity = Number(position.quantity || position.binance_quantity || 0.001);
-              const currentBtcPrice = btcData?.upbitPrice || 115000000;
-              entryPrice = btcQuantity * currentBtcPrice; // 실제 투자금액 추정
-              
-              logDebug('비현실적 entry_price 보정', {
-                positionId: position.id,
-                원본entryPrice: Number(position.entry_price || 0),
-                보정후entryPrice: entryPrice,
-                btcQuantity: btcQuantity
-              });
-            }
-            
-            if (entryPrice > 0 && entryPrice < 10000000) { // 1천만원 이하만 처리
-              let kimchiProfitForPosition = 0;
-              
-              if (position.status === 'closed') {
-                // 완료된 포지션: 청산 시점의 김프와 진입 김프 차이
-                const exitKimchiRate = Number(position.exit_premium_rate || currentKimchiRate);
-                const kimchiChange = entryKimchiRate - exitKimchiRate; // 김프 감소가 수익
-                
-                // 김프 변화에 따른 수익 = 투자금액 × (김프변화% ÷ 100) × 0.01 (현실적 소액 계수)
-                kimchiProfitForPosition = entryPrice * (kimchiChange / 100) * 0.01;
-                
-                logDebug('완료 포지션 김치 수익', {
-                  positionId: position.id,
-                  진입김프: entryKimchiRate,
-                  청산김프: exitKimchiRate,
-                  김프변화: kimchiChange,
-                  투자금액: entryPrice,
-                  김치수익: Math.floor(kimchiProfitForPosition)
-                });
-                
-              } else if (position.status === 'open') {
-                // 활성 포지션: 현재 김프와 진입 김프 차이 (미실현)
-                const kimchiChange = entryKimchiRate - currentKimchiRate; // 김프 감소가 수익
-                
-                // 김프 변화에 따른 미실현 수익 = 투자금액 × (김프변화% ÷ 100) × 0.01 (현실적 소액 계수)
-                kimchiProfitForPosition = entryPrice * (kimchiChange / 100) * 0.01;
-                
-                logDebug('활성 포지션 김치 수익', {
-                  positionId: position.id,
-                  진입김프: entryKimchiRate,
-                  현재김프: currentKimchiRate,
-                  김프변화: kimchiChange,
-                  투자금액: entryPrice,
-                  미실현김치수익: Math.floor(kimchiProfitForPosition)
-                });
-              }
-              
-              totalKimchiProfit += kimchiProfitForPosition;
-            }
-          }
-          
-          // 거래 수수료 차감
-          const totalFees = todayTrades.reduce((sum, trade) => {
-            return sum + Number(trade.fee || 0);
-          }, 0);
-          
-          const finalProfit = totalKimchiProfit - totalFees;
-          
-          logInfo('김치 차익거래 총 수익 계산 완료', {
-            총김치수익: Math.floor(totalKimchiProfit),
-            총수수료: Math.floor(totalFees),
-            순수익: Math.floor(finalProfit)
-          });
-          
-          return Math.floor(finalProfit);
+          return totalRealizedPnl;
         })(),
         loops: (() => {
           // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
