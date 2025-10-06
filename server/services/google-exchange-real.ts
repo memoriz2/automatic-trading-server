@@ -142,8 +142,9 @@ export class GoogleExchangeRealService {
   }
 
   /**
-   * 백업용 환율 API (ExchangeRate-API)
+   * 백업용 환율 API (ExchangeRate-API) - 사용하지 않음
    */
+  /*
   private async _getBackupExchangeRate(): Promise<number | null> {
     try {
       // 무료 API 사용 (API 키 불필요)
@@ -166,6 +167,7 @@ export class GoogleExchangeRealService {
       return null;
     }
   }
+  */
 
   /**
    * 환율 상태 정보 반환

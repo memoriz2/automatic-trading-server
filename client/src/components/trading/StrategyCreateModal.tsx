@@ -26,7 +26,6 @@ export const StrategyCreateModal: React.FC<StrategyCreateModalProps> = ({
   strategies,
   setStrategies,
   saveStrategiesToLocal,
-  effectiveUserId,
   toast
 }) => {
   if (!showCreateModal) return null;

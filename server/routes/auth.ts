@@ -143,7 +143,7 @@ export const authenticateAdmin = async (req: any, res: any, next: any) => {
 
 export function registerAuthRoutes(app: Express): void {
   // 회원가입
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", async (req, res): Promise<void> => {
     try {
       res.header("Access-Control-Allow-Origin", "*");
       res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -151,10 +151,11 @@ export function registerAuthRoutes(app: Express): void {
 
       const parseResult = insertUserSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ 
-          error: "잘못된 요청 데이터", 
-          details: parseResult.error.issues 
+        res.status(400).json({
+          error: "잘못된 요청 데이터",
+          details: parseResult.error.issues
         });
+        return;
       }
 
       const { username, password } = parseResult.data;
@@ -162,7 +163,8 @@ export function registerAuthRoutes(app: Express): void {
       // 사용자 중복 확인
       const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
-        return res.status(400).json({ error: "이미 존재하는 사용자명입니다" });
+        res.status(400).json({ error: "이미 존재하는 사용자명입니다" });
+        return;
       }
 
       // 비밀번호 해싱
@@ -194,7 +196,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 로그인
-  app.post("/api/auth/login", async (req: any, res) => {
+  app.post("/api/auth/login", async (req: any, res): Promise<void> => {
     try {
       res.header("Access-Control-Allow-Origin", "*");
       res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -202,17 +204,19 @@ export function registerAuthRoutes(app: Express): void {
 
       const parseResult = loginUserSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ 
-          error: "잘못된 요청 데이터", 
-          details: parseResult.error.issues 
+        res.status(400).json({
+          error: "잘못된 요청 데이터",
+          details: parseResult.error.issues
         });
+        return;
       }
 
       const { username, password } = parseResult.data;
 
       const user = await storage.getUserByUsername(username);
       if (!user) {
-        return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+        res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+        return;
       }
 
       // 비밀번호 검증
@@ -228,7 +232,8 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       if (!isValidPassword) {
-        return res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+        res.status(401).json({ error: "잘못된 사용자명 또는 비밀번호입니다" });
+        return;
       }
 
       console.log('🔍 로그인 승인 상태 확인:', {
@@ -245,10 +250,11 @@ export function registerAuthRoutes(app: Express): void {
           'rejected': '계정 승인이 거부되었습니다. 관리자에게 문의하세요.'
         };
 
-        return res.status(403).json({
+        res.status(403).json({
           error: statusMessage[user.approvalStatus] || '계정 상태를 확인할 수 없습니다.',
           approvalStatus: user.approvalStatus
         });
+        return;
       }
 
       // 마지막 로그인 시간 업데이트
@@ -285,10 +291,11 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 로그아웃
-  app.post("/api/auth/logout", (req: any, res) => {
+  app.post("/api/auth/logout", (req: any, res): void => {
     req.session.destroy((err: any) => {
       if (err) {
-        return res.status(500).json({ error: "로그아웃 실패" });
+        res.status(500).json({ error: "로그아웃 실패" });
+        return;
       }
       res.clearCookie("connect.sid");
       res.json({ message: "로그아웃 성공" });
@@ -296,7 +303,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 현재 사용자 정보 조회
-  app.get("/api/auth/me", authenticateSession, async (req: any, res) => {
+  app.get("/api/auth/me", authenticateSession, async (req: any, res): Promise<void> => {
     try {
       console.log('/api/auth/me: 요청된 사용자 정보:', {
         reqUser: req.user,
@@ -306,12 +313,14 @@ export function registerAuthRoutes(app: Express): void {
 
       if (!req.user?.id) {
         console.error('/api/auth/me: req.user.id가 undefined입니다');
-        return res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
+        res.status(401).json({ error: "사용자 인증 정보가 없습니다" });
+        return;
       }
 
       const user = await storage.getUserById(req.user.id);
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return;
       }
 
       res.json({
@@ -390,16 +399,18 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 사용자 승인 (관리자 전용)
-  app.post("/api/admin/users/:userId/approve", authenticateAdmin, async (req: any, res) => {
+  app.post("/api/admin/users/:userId/approve", authenticateAdmin, async (req: any, res): Promise<void> => {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
-        return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+        res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+        return;
       }
 
       const user = await storage.approveUser(userId);
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return;
       }
 
       res.json({
@@ -417,16 +428,18 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 사용자 거부 (관리자 전용)
-  app.post("/api/admin/users/:userId/reject", authenticateAdmin, async (req: any, res) => {
+  app.post("/api/admin/users/:userId/reject", authenticateAdmin, async (req: any, res): Promise<void> => {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
-        return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+        res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+        return;
       }
 
       const user = await storage.rejectUser(userId);
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return;
       }
 
       res.json({
@@ -444,7 +457,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 사용자 상태 변경 (관리자 전용) - PATCH 방식
-  app.patch("/api/admin/users/:userId", authenticateAdmin, async (req: any, res) => {
+  app.patch("/api/admin/users/:userId", authenticateAdmin, async (req: any, res): Promise<void> => {
     try {
       console.log('PATCH /api/admin/users/:userId - 요청 데이터:', {
         params: req.params,
@@ -455,19 +468,22 @@ export function registerAuthRoutes(app: Express): void {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
         console.error('Invalid userId:', req.params.userId);
-        return res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+        res.status(400).json({ error: "유효하지 않은 사용자 ID입니다" });
+        return;
       }
 
       const { approvalStatus } = req.body;
       console.log('Extracted approvalStatus:', approvalStatus);
 
       if (!approvalStatus) {
-        return res.status(400).json({ error: "approvalStatus가 필요합니다" });
+        res.status(400).json({ error: "approvalStatus가 필요합니다" });
+        return;
       }
 
       if (!['approved', 'rejected'].includes(approvalStatus)) {
         console.error('Invalid approvalStatus:', approvalStatus);
-        return res.status(400).json({ error: "유효하지 않은 승인 상태입니다. 'approved' 또는 'rejected'여야 합니다." });
+        res.status(400).json({ error: "유효하지 않은 승인 상태입니다. 'approved' 또는 'rejected'여야 합니다." });
+        return;
       }
 
       let user;
@@ -482,7 +498,8 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       if (!user) {
-        return res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        res.status(404).json({ error: "사용자를 찾을 수 없습니다" });
+        return;
       }
 
       res.json({

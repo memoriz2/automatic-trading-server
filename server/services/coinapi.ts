@@ -87,7 +87,8 @@ export class CoinAPIService {
     return null;
   }
 
-  // 업비트 직접 API 호출 (CoinAPI 실패시 대체)
+  // 업비트 직접 API 호출 (CoinAPI 실패시 대체) - 사용하지 않음
+  /*
   private async _getUpbitPriceDirect(symbol: string): Promise<number> {
     try {
       const market = `KRW-${symbol}`;
@@ -108,6 +109,7 @@ export class CoinAPIService {
       return 0;
     }
   }
+  */
 
   // 김치프리미엄 계산 (CoinAPI 기반)
   async calculateKimchiPremium(symbol: string): Promise<{

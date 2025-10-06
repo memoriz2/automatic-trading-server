@@ -1,6 +1,5 @@
 
 // import { storage } from "../storage.js"; // 사용하지 않음
-import { SimpleKimchiService } from "./simple-kimchi.js";
 
 // Define the structure for backtest parameters
 export interface BacktestParams {
@@ -34,10 +33,8 @@ export interface BacktestResult {
 }
 
 export class BacktestService {
-  private _simpleKimchiService: SimpleKimchiService;
 
   constructor() {
-    this._simpleKimchiService = new SimpleKimchiService();
     // In a real scenario, you'd fetch historical data here or have a way to access it.
   }
 

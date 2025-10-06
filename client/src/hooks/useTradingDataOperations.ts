@@ -1,8 +1,6 @@
 import { useCallback } from 'react';
 
 export const useTradingDataOperations = (
-  setStrategies: any,
-  strategies: any[],
   effectiveUserId: string,
   currentPositions: any[]
 ) => {

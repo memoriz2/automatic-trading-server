@@ -35,9 +35,6 @@ interface LiveTradingBandSectionProps {
 
 export const LiveTradingBandSection: React.FC<LiveTradingBandSectionProps> = ({
   bands,
-  serverBands,
-  serverStatusBands,
-  kimp,
   registeringIndex,
   unregisteringIndex,
   bandTbodyRef,

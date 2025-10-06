@@ -1,11 +1,9 @@
 import { ErrorTrackingRepository } from '../repositories/ErrorTrackingRepository.js';
-import { 
-  TradingErrorDto, 
-  ErrorPatternDto,
+import {
+  TradingErrorDto,
   ErrorAnalysisDto,
   CreateErrorRequest,
   RetryConfig,
-  NotificationConfig,
   ErrorSeverity,
   ErrorCategory,
   RetryStatus,
@@ -28,15 +26,6 @@ export class ErrorTrackingService {
     maxDelayMs: 60000,
     backoffMultiplier: 2,
     jitterEnabled: true
-  };
-
-  // 기본 알림 설정
-  private _defaultNotificationConfig: NotificationConfig = {
-    enabled: true,
-    severityThreshold: ErrorSeverity.HIGH,
-    channels: [],
-    recipients: [],
-    throttleMinutes: 15
   };
 
   constructor() {
@@ -381,9 +370,9 @@ export class ErrorTrackingService {
       retryStatus: RetryStatus.RETRYING,
       retryCount: retryAttempt
     });
-    
+
     // 재시도 이력 기록 시작
-    const _retryHistory = await this.errorRepository.createRetryHistory({
+    await this.errorRepository.createRetryHistory({
       tradingErrorId: errorId,
       retryAttempt,
       retryStartedAt: startTime,

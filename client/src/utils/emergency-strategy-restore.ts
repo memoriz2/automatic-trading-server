@@ -4,6 +4,8 @@
  * 정상 삭제된 전략은 복원하지 않음
  */
 
+import { Strategy } from '../types/trading';
+
 /**
  * 삭제된 전략 추적 시스템
  */
@@ -47,8 +49,8 @@ export const markStrategyAsDeleted = (userId: string, strategyId: string) => {
       .filter(key => key.startsWith('mock-strategies-'));
     
     allStrategyKeys.forEach(strategyKey => {
-      const strategies = JSON.parse(localStorage.getItem(strategyKey) || '[]');
-      const filtered = strategies.filter((s: any) => s.id !== strategyId);
+      const strategies = JSON.parse(localStorage.getItem(strategyKey) || '[]') as Strategy[];
+      const filtered = strategies.filter((s) => s.id !== strategyId);
       if (filtered.length !== strategies.length) {
         localStorage.setItem(strategyKey, JSON.stringify(filtered));
         console.log(`🗑️ ${strategyKey}에서 전략 제거: ${strategyId}`);
@@ -62,10 +64,10 @@ export const markStrategyAsDeleted = (userId: string, strategyId: string) => {
     backupKeys.forEach(backupKey => {
       const backupData = localStorage.getItem(backupKey);
       if (backupData) {
-        const backup = JSON.parse(backupData);
+        const backup = JSON.parse(backupData) as { strategies?: Strategy[] };
         if (backup.strategies) {
           const originalCount = backup.strategies.length;
-          backup.strategies = backup.strategies.filter((s: any) => s.id !== strategyId);
+          backup.strategies = backup.strategies.filter((s) => s.id !== strategyId);
           if (backup.strategies.length !== originalCount) {
             localStorage.setItem(backupKey, JSON.stringify(backup));
             console.log(`🗑️ ${backupKey}에서 전략 제거: ${strategyId}`);
@@ -80,13 +82,13 @@ export const markStrategyAsDeleted = (userId: string, strategyId: string) => {
   }
 };
 
-export const emergencyRestoreStrategies = (userId: string): any[] => {
+export const emergencyRestoreStrategies = (userId: string): Strategy[] => {
   try {
     console.log('🔍 긴급 복원 시작 - 사용자 ID:', userId);
     
     // 1. 현재 전략 상태 확인
     const currentStrategies = localStorage.getItem(`mock-strategies-${userId}`);
-    const strategies = currentStrategies ? JSON.parse(currentStrategies) : [];
+    const strategies = currentStrategies ? JSON.parse(currentStrategies) as Strategy[] : [];
     
     console.log('현재 전략 상태:', {
       raw: currentStrategies,
@@ -122,19 +124,19 @@ export const emergencyRestoreStrategies = (userId: string): any[] => {
     }
 
     // 3. 모든 백업에서 전략이 있는 것 찾기
-    let restoredStrategies: any[] = [];
+    let restoredStrategies: Strategy[] = [];
     let usedBackupKey = '';
-    
+
     for (const backupKey of backupKeys) {
       const backupData = localStorage.getItem(backupKey);
       if (!backupData) continue;
-      
+
       try {
-        const backup = JSON.parse(backupData);
+        const backup = JSON.parse(backupData) as { strategies?: Strategy[] };
         const strategies = backup.strategies || [];
-        
+
         // 삭제된 전략 제외
-        const validStrategies = strategies.filter((strategy: any) => 
+        const validStrategies = strategies.filter((strategy) =>
           !isStrategyDeleted(userId, strategy.id)
         );
         
@@ -160,7 +162,7 @@ export const emergencyRestoreStrategies = (userId: string): any[] => {
     console.log('🔄 전략 복원 완료:', {
       backupKey: usedBackupKey,
       strategiesCount: restoredStrategies.length,
-      strategies: restoredStrategies.map((s: any) => ({ id: s.id, name: s.name }))
+      strategies: restoredStrategies.map((s) => ({ id: s.id, name: s.name }))
     });
 
     return restoredStrategies;
@@ -177,18 +179,25 @@ export const emergencyRestoreStrategies = (userId: string): any[] => {
 /**
  * 포지션과 거래 기록에서 누락된 전략 복원
  */
-export const restoreStrategiesFromPositionsAndTrades = (userId: string, currentStrategies: any[]): any[] => {
+export const restoreStrategiesFromPositionsAndTrades = (userId: string, currentStrategies: Strategy[]): Strategy[] => {
   try {
     console.log('🔍 포지션과 거래 기록에서 누락된 전략 복원 시도...');
-    
-    const missingStrategies: any[] = [];
+
+    const missingStrategies: Strategy[] = [];
     
     // 1. 포지션에서 누락된 전략 찾기
     const positionsData = localStorage.getItem(`mock-positions-${userId}`);
     if (positionsData) {
-      const positions = JSON.parse(positionsData);
-      
-      positions.forEach((pos: any) => {
+      const positions = JSON.parse(positionsData) as Array<{
+        strategyId: string;
+        strategyName?: string;
+        entryPremiumRate: number;
+        upbitQuantity?: number;
+        leverage?: number;
+        entryTime?: string;
+      }>;
+
+      positions.forEach((pos) => {
         const strategyId = pos.strategyId;
         const strategyName = pos.strategyName;
         
@@ -229,9 +238,14 @@ export const restoreStrategiesFromPositionsAndTrades = (userId: string, currentS
     // 2. 거래 기록에서 누락된 전략 찾기
     const tradesData = localStorage.getItem(`mock-trades-${userId}`);
     if (tradesData) {
-      const trades = JSON.parse(tradesData);
-      
-      trades.forEach((trade: any) => {
+      const trades = JSON.parse(tradesData) as Array<{
+        strategyId: string;
+        strategyName?: string;
+        quantity?: number;
+        timestamp?: string;
+      }>;
+
+      trades.forEach((trade) => {
         const strategyId = trade.strategyId;
         const strategyName = trade.strategyName;
         
@@ -274,9 +288,9 @@ export const restoreStrategiesFromPositionsAndTrades = (userId: string, currentS
 };
 
 export const monitorAndRestoreStrategies = (
-  userId: string, 
-  strategies: any[], 
-  setStrategies: (strategies: any[]) => void
+  userId: string,
+  strategies: Strategy[],
+  setStrategies: (strategies: Strategy[]) => void
 ) => {
   // 전략이 비어있으면 자동 복원 시도
   if (strategies.length === 0) {

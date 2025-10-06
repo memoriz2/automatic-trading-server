@@ -190,7 +190,7 @@ export interface ApiError {
   message: string;
   exchange?: 'upbit' | 'binance';
   orderId?: string;
-  details?: any;
+  details?: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -223,7 +223,7 @@ export interface MarketData {
 export interface WebSocketEvent {
   type: 'balance_update' | 'order_update' | 'trade_execution' | 'position_update' | 'market_data' | 'error';
   userId: number;
-  data: any;
+  data: BalanceInfo | OrderInfo | TradeInfo | PositionInfo | MarketData | ApiError;
   timestamp: string;
 }
 

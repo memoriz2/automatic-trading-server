@@ -5,7 +5,6 @@ import {
   ArrowLeftRight,
   History,
   TrendingUp,
-  Shield,
   Settings,
   User,
   Activity,

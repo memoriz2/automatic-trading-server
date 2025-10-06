@@ -14,9 +14,7 @@ export const LegacyDataDisplay = React.memo(({
   kimp,
   balances,
   metrics,
-  serverState,
-  logs,
-  sparkData
+  logs
 }: LegacyDataDisplayProps) => {
 
   const kimchiInfo = useMemo(() => {

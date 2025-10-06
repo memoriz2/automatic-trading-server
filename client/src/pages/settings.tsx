@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";import { logger } from "@/utils/logger";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,11 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   Key,
-  AlertTriangle,
-  CheckCircle,
   Settings as SettingsIcon,
-  Copy,
-  Info,
 } from "lucide-react";
 import { z } from "zod";
 import { useAuth, authenticatedApiRequest } from "@/hooks/useAuth";
@@ -98,14 +95,6 @@ export default function Settings() {
     enabled: !!userId,
   });
 
-  // 서버 정보 조회
-  const { data: serverInfo } = useQuery<{
-    ip: string;
-    isReplit: boolean;
-    environment: string;
-  }>({
-    queryKey: ["/api/server-info"],
-  });
 
   // Live status: 서버의 실연동 상태 조회 (연결 뱃지 전용)
   const fetchLiveStatus = async () => {
@@ -255,8 +244,8 @@ export default function Settings() {
           });
         }
       }
-    } catch (error: any) {
-      const errorMessage = error.message || '연동 테스트 중 오류가 발생했습니다';
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error) || '연동 테스트 중 오류가 발생했습니다';
       setConnectionTestResult({
         success: false,
         message: '연동 테스트 실패',
@@ -266,8 +255,9 @@ export default function Settings() {
       // 서버에서 가이드가 포함된 오류 응답이 있는지 확인
       let responseData = null;
       try {
-        if (error.response) {
-          responseData = await error.response.json();
+        const err = error as any;
+        if (err.response) {
+          responseData = await err.response.json();
         }
       } catch (parseError) {
         // JSON 파싱 실패 시 무시
@@ -386,11 +376,11 @@ export default function Settings() {
         refetchBalances();
         refetchLiveStatus();
       }, 1000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('API 키 저장/수정 오류:', error);
       toast({
         title: "오류",
-        description: error?.message || "API 키 저장 중 오류가 발생했습니다.",
+        description: getErrorMessage(error) || "API 키 저장 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     }

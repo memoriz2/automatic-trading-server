@@ -52,12 +52,9 @@ export default function History() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [tradingNote, setTradingNote] = useState("");
   const { user } = useAuth();
-  
-  // 사용자 ID 결정
-  const __userId = user?.id ? String(user.id) : "1";
-  
+
   // 거래 내역 조회
-  const { data: trades = [], refetch: refetchTrades, isLoading: tradesLoading } = useQuery<Trade[]>({
+  const { data: trades = [], isLoading: tradesLoading } = useQuery<Trade[]>({
     queryKey: [`/api/trades`],
     queryFn: async () => {
       console.log(`🔍 거래 내역 조회: 세션 기반`);

@@ -49,7 +49,6 @@ type KimpgaMetrics = {
 
 export default function AutoTrading() {
   const [newKimchiActive, setNewKimchiActive] = useState(false);
-  const [isTouched, setIsTouched] = useState(false); // 사용자 입력 추적 상태
   const { isConnected } = useWebSocket();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -275,8 +274,8 @@ export default function AutoTrading() {
   });
 
   useEffect(() => {
-    // 사용자가 아직 값을 변경하지 않았고, 서버 설정값이 있을 때만 초기화
-    if (serverSettings && !isTouched) {
+    // 서버 설정값이 있을 때 초기화
+    if (serverSettings) {
       setConfig({
         entryRate: Number(serverSettings.kimchiEntryRate) || 0,
         exitRate: Number(serverSettings.kimchiExitRate) || 0,
@@ -285,7 +284,7 @@ export default function AutoTrading() {
         amount: Number(serverSettings.upbitEntryAmount) || 100000,
       });
     }
-  }, [serverSettings, isTouched]);
+  }, [serverSettings]);
 
   // Update trading status
   useEffect(() => {
@@ -437,7 +436,7 @@ export default function AutoTrading() {
         title: "세션 조회 성공",
         description: `현재 로그인된 사용자: ${data.username}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setSessionInfo(null);
       setShowSessionInfo(true);
       toast({
@@ -996,7 +995,6 @@ function TradingStatusCard({
   newKimchiActive,
   config,
 }: TradingStatusCardProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   // 실시간 김프 데이터 가져오기 (대체 엔드포인트 사용)
   const { data: kimchiData, isLoading } = useQuery<any[]>({
@@ -1005,11 +1003,6 @@ function TradingStatusCard({
     enabled: newKimchiActive,
   });
 
-  // 시간 업데이트
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   if (!newKimchiActive) return null;
 

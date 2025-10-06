@@ -22,8 +22,6 @@ interface LiveBalanceDisplayProps {
 
 export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   liveBalance,
-  openUpbitQty,
-  openBinanceQty,
   profitRate,
   totalPnl,
   realtimeBalances,

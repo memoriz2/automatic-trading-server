@@ -15,7 +15,6 @@ export function NewKimchiControl({ userId }: NewKimchiControlProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
 
   // 자동매매 상태 조회
@@ -33,51 +32,6 @@ export function NewKimchiControl({ userId }: NewKimchiControlProps) {
 
   const isNewKimchiActive = tradingStatus?.newKimchiActive || false;
 
-  // 새로운 김프 자동매매 시작
-  const startTradingMutation = useMutation({
-    mutationFn: async () => {
-      console.log('🚀 자동매매 시작 시도:', userId);
-      const response = await fetch(`/api/new-kimchi-trading/start/${userId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ API 호출 실패:', response.status, errorText);
-        throw new Error(`${response.status}: ${errorText}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ API 호출 성공:', result);
-      return result;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "새로운 김프 자동매매 시작",
-        description: "업비트 롱 + 바이낸스 숏 전략이 시작되었습니다.",
-      });
-      // 모든 관련 캐시 무효화하여 실시간 업데이트 보장
-      queryClient.invalidateQueries({ queryKey: ['/api/trading/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
-      
-      console.log('🎯 자동매매 시작 응답:', data);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "자동매매 시작 실패",
-        description: error.message || "자동매매 시작 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    },
-    onSettled: () => {
-      setIsStarting(false);
-      console.log('🔄 자동매매 시작 뮤테이션 완료');
-    }
-  });
 
   // 새로운 김프 자동매매 중지
   const stopTradingMutation = useMutation({

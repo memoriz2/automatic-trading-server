@@ -1,5 +1,4 @@
 import { BaseRepository } from '../repositories/BaseRepository.js';
-import { ErrorTrackingRepository } from '../repositories/ErrorTrackingRepository.js';
 import {
   TradingErrorDto,
   NotificationType,
@@ -10,15 +9,13 @@ import {
  * 거래 오류 알림 서비스
  */
 export class NotificationService extends BaseRepository {
-  private _errorRepository: ErrorTrackingRepository;
-  
+
   // 알림 제한 설정 (같은 패턴 오류에 대한 스팸 방지)
   private notificationThrottleMs = 15 * 60 * 1000; // 15분
   private lastNotifications = new Map<string, number>();
 
   constructor() {
     super(); // BaseRepository 초기화
-    this._errorRepository = new ErrorTrackingRepository();
   }
 
   /**

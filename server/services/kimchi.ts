@@ -1,6 +1,4 @@
 import 'dotenv/config';
-import { UpbitService } from './upbit.js';
-import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
 import { UpbitWebSocketService, UpbitTickerData } from './upbit-websocket.js';
 import { BinanceWebSocketService, BinanceAggTrade } from './binance-websocket.js';
@@ -20,8 +18,6 @@ interface RealtimePrices {
 }
 
 export class KimchiService {
-  private _upbitService: UpbitService;
-  private _binanceService: BinanceService;
   private googleFinanceExchangeService: GoogleFinanceExchangeService;
   private upbitWebSocketService!: UpbitWebSocketService;
   private binanceWebSocketService!: BinanceWebSocketService;
@@ -33,11 +29,8 @@ export class KimchiService {
 
   private isInitialized = false;
   private onUpdateCallback: ((data: KimchiData[]) => void) | null = null;
-  private _exchangeRateInterval: NodeJS.Timeout | null = null;
 
   constructor() {
-    this._upbitService = new UpbitService();
-    this._binanceService = new BinanceService();
     this.googleFinanceExchangeService = new GoogleFinanceExchangeService();
   }
 
@@ -47,7 +40,7 @@ export class KimchiService {
 
     // 0. 환율 업데이트 시작 (💥 10초마다 -> 3초마다)
     this.updateExchangeRate(); // 즉시 1회 실행
-    this._exchangeRateInterval = setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
+    setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
 
     // 1. 웹소켓 서비스 초기화
     this.upbitWebSocketService = new UpbitWebSocketService();

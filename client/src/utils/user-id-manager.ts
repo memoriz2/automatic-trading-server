@@ -14,7 +14,6 @@ interface UserIdManager {
 class UserIdManagerImpl implements UserIdManager {
   private readonly STABLE_USER_ID_KEY = 'stable-user-id';
   private readonly USER_ID_KEY = 'x-user-id';
-  private readonly DEVICE_ID_KEY = 'device-id';
 
   /**
    * 디바이스별 고유 ID 생성 (브라우저 핑거프린팅 기반)

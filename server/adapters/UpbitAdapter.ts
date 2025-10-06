@@ -448,12 +448,6 @@ export class UpbitAdapter extends BaseExchangeAdapter {
     }
   }
 
-  /**
-   * 표준 주문 방향을 업비트 형식으로 변환
-   */
-  private _mapOrderSide(side: string): 'bid' | 'ask' {
-    return side === 'buy' ? 'bid' : 'ask';
-  }
 
   /**
    * 계정 정보 조회 (잔고 포함)

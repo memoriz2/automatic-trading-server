@@ -129,10 +129,10 @@ export const useTradeHistory = (
   }, [liveTrades, isLiveMode, saveTradesLocally]);
 
   // 실거래 모드에서 주기적 동기화
-  useEffect(() => {
+  useEffect((): (() => void) | void => {
     if (isLiveMode) {
       syncTradesFromServer();
-      
+
       // 1분마다 동기화
       const interval = setInterval(syncTradesFromServer, 60000);
       return () => clearInterval(interval);

@@ -1,7 +1,6 @@
 /// <reference types="ws" />
 import WebSocket, { type RawData } from 'ws';
 import { priceCache } from './price-cache.js';
-import { naverExchange } from './naver-exchange.js';
 
 // ✅ 바이낸스 선물 aggTrade (최종 체결가)
 export interface BinanceAggTrade {
@@ -48,10 +47,6 @@ export class BinanceWebSocketService {
               const price = parseFloat(trade.p);
               // console.log(`📊 바이낸스 웹소켓 수신: ${symbol} = $${price.toLocaleString()}`);
               priceCache.setBinancePrice(symbol, price, 'websocket');
-
-              // 환율을 적용하여 원화 가격 계산
-              const _usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate();
-//               const priceInKrw = price * usdKrwRate;
 
               // console.log(`📊 바이낸스선물 ${symbol}: ₩${priceInKrw.toLocaleString('ko-KR', { maximumFractionDigits: 0 })} (웹소켓-aggTrade)`);
 

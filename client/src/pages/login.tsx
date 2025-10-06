@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -85,11 +86,11 @@ export default function LoginPage() {
       } else {
         console.error('❌ 로그인 응답에 사용자 데이터 없음:', data);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('로그인 오류:', error);
       toast({
         title: "로그인 실패",
-        description: error.message || "로그인 중 오류가 발생했습니다",
+        description: getErrorMessage(error) || "로그인 중 오류가 발생했습니다",
         variant: "destructive",
       });
     } finally {
@@ -123,11 +124,11 @@ export default function LoginPage() {
         });
         setLocation('/');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('회원가입 오류:', error);
       toast({
         title: "회원가입 실패",
-        description: error.message || "회원가입 중 오류가 발생했습니다",
+        description: getErrorMessage(error) || "회원가입 중 오류가 발생했습니다",
         variant: "destructive",
       });
     } finally {

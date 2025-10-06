@@ -15,12 +15,10 @@ interface BandConfigurationSectionProps {
 export function BandConfigurationSection({
   bands,
   registeringIndex,
-  unregisteringIndex,
   onAddBand,
   onUpdateBand,
   onRemoveBand,
-  onRegisterBand,
-  onUnregisterBand
+  onRegisterBand
 }: BandConfigurationSectionProps) {
   return (
     <div className="bg-slate-800 p-4 rounded-lg mb-4">

@@ -54,8 +54,7 @@ export const checkCooldown = (
 export const calculateTradingAmounts = (
   strategy: Strategy,
   upbitPrice: number,
-  binancePrice: number,
-  usdKrw: number
+  binancePrice: number
 ) => {
   const baseAmount = parseFloat(strategy.investmentAmount);
   const leverage = parseInt(strategy.leverage);
@@ -87,20 +86,13 @@ export const calculateTradingAmounts = (
 // 로그 디버깅 함수
 export const logEntryConditions = (
   strategy: Strategy,
-  currentPremium: number,
-  entryRate: number,
   diffEntry: number,
   tolerance: number,
   crossedEntry: boolean,
   currentPosition: LivePosition | undefined,
-  entryOk: boolean,
-  livePositions: LivePosition[],
-  lastActionAt: { [key: string]: number }
+  entryOk: boolean
 ) => {
   if (strategy.name && diffEntry <= tolerance + 1.0) {
-//     const now = Date.now();
-//     const lastAction = lastActionAt[strategy.id] || 0;
-
     // 진입 조건 체크 완료
 
     if (!entryOk) {

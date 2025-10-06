@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -242,8 +243,8 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
           variant: "destructive"
         });
       }
-    } catch (error: any) {
-      const errorMessage = error.message || '연동 테스트 중 오류가 발생했습니다';
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error) || '연동 테스트 중 오류가 발생했습니다';
       setConnectionTestResult({
         success: false,
         message: '연동 테스트 실패',

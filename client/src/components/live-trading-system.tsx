@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,9 +47,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   onDailyStatsUpdate,
   isLiveMode = true, // 기본값은 실거래 모드
   liveBalances, // 실제 잔고 데이터
-  onStrategyStatsUpdate,
-  isLoadingStrategies = false,
-  strategiesError = null
+  onStrategyStatsUpdate
 }) => {
   const { toast } = useToast();
 
@@ -102,9 +101,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const [tradeRefreshTrigger, setTradeRefreshTrigger] = useState(0); // DB 거래 기록 새로고침 트리거
   
   // 토글 방지용: 최소 보유시간
-  const __MIN_HOLD_MS = 10_000; // 진입 후 최소 보유 10초 (청산 속도 개선)
   // const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격 (사용하지 않음)
-  const __COOLDOWN_MS = TRADING_CONSTANTS.COOLDOWN_MS;
   const lastActionAtRef = useRef<Record<string, number>>({});
   const prevPremiumRef = useRef<number | null>(null); // 임계값 교차 감지용 이전 김프
   // 원자적 거래 처리: 거래 잠금 시스템
@@ -836,11 +833,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         description: `🎯 ${strategy.name} 전략 → 김프율 ${premiumRate.toFixed(3)}%에서 완벽 진입! 💎`,
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`❌ ${isLiveMode ? '실거래' : '모의'} 진입 실패:`, error);
       
       // 재진입 차단 에러인 경우 활성 포지션 정보 표시
-      if (error?.message?.includes('재진입 차단') || error?.message?.includes('이미') || error?.message?.includes('OPEN 포지션')) {
+      const errorMsg = getErrorMessage(error);
+      if (errorMsg?.includes('재진입 차단') || errorMsg?.includes('이미') || errorMsg?.includes('OPEN 포지션')) {
         // 중복 토스트 방지: 최근 N초 내에 동일 유형 토스트가 있었다면 표시 생략
         const now = Date.now();
         if (now - lastReentryToastAtRef.current < TRADING_CONSTANTS.REENTRY_TOAST_INTERVAL_MS || lastToastMessage === 'reentry-block') {
@@ -876,7 +874,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         // 일반 에러
         toast({
           title: `${isLiveMode ? '실거래' : '모의'} 진입 실패`,
-          description: error?.message || `${isLiveMode ? '실거래' : '모의'} 거래 실행 중 오류가 발생했습니다.`,
+          description: getErrorMessage(error),
           variant: "destructive"
         });
       }
@@ -1037,7 +1035,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 const upbitResult = await upbitSellResponse.json();
 
                 // 실제 매도된 수량 확인
-                const __executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || '0');
+                parseFloat(upbitResult.executed_volume || upbitResult.volume || '0');
 
                 // 매도 후 잔고 재확인 (남은 수량 추적)
                 setTimeout(async () => {
@@ -1049,7 +1047,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     if (afterSellBalance.ok) {
                       const afterBalanceData = await afterSellBalance.json();
                       const afterBtcBalance = afterBalanceData.find((b: any) => b.currency === position.symbol);
-                      const __remainingBalance = parseFloat(afterBtcBalance?.balance || '0');
+                      parseFloat(afterBtcBalance?.balance || '0');
                     }
                   } catch (error) {
                     console.warn('⚠️ 매도 후 잔고 재확인 실패:', error);
@@ -1199,7 +1197,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const upbitSellQuantity = position.upbitQuantity * exitRatio;
       const upbitRevenue = upbitSellQuantity * currentUpbitPrice;
       const upbitFee = upbitRevenue * 0.0005;
-      const __netUpbitRevenue = upbitRevenue - upbitFee;
 
       // 2. 바이낸스 숏 청산 (롱 매수로 커버)
       const binanceCloseQuantity = position.binanceQuantity * exitRatio;
@@ -1237,7 +1234,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       // 청산 시 정확한 잔고 업데이트
       const upbitSellRevenue = upbitSellQuantity * currentUpbitPrice; // 업비트 매도 총액
       const upbitNetRevenue = upbitSellRevenue - upbitFee; // 업비트 매도 수수료 차감
-      const __binanceNetReturnForBalance = binanceNetReturn; // 바이낸스 순 회수액 (이미 계산됨)
       
       setLiveBalance(prev => {
         const newBalance = {
@@ -1326,8 +1322,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       if (updatedPosition) {
         updateLivePositionInDB(updatedPosition, userId);
       }
-
-      const __totalFeesKRW = (entryUpbitFee + upbitFee) + ((entryBinanceFee + binanceFee) * usdKrwRate);
       
       addTradingLog(
         `✅ 청산 | 투입액: ${Math.round(totalEntryCostKRW).toLocaleString()}원, 회수액: ${Math.round(totalExitRevenueKRW).toLocaleString()}원, 손익: ${(totalPnl>=0?'+':'')}${Math.round(totalPnl).toLocaleString()}원`
@@ -1455,10 +1449,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       // 허용오차 설정
       const tolerance = parseFloat(strategy.tolerance || String(TRADING_CONSTANTS.TOLERANCE.DEFAULT));
-      
-      // 스크롤2 전략 특별 조건 (더 높은 진입조건)
-      const __isScroll2 = strategy.name === '스크롤2';
-      const __minKimchiRate = TRADING_CONSTANTS.TOLERANCE.MIN_KIMCHI_RATE;
       
       const now = Date.now();
       const diffEntry = Math.abs(currentPremium - entryRate);
@@ -1607,25 +1597,25 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   }, [livePositions, currentKimchiData]);
 
   // 전략 상태 변경 시 즉시 체크 + 2초마다 주기적 체크
-  useEffect(() => {
+  useEffect((): (() => void) | void => {
     const activeStrategies = strategies.filter(s => s.isActive);
-    
+
     // 전략 상태 변경 감지
-    
+
     // 즉시 한번 체크 (전략 활성화 직후)
     if (activeStrategies.length > 0 && currentKimchiData) {
       // 즉시 자동매매 체크 로그 제거
-      
+
       // 비동기로 즉시 병렬 실행
       Promise.all(activeStrategies.map(strategy => executeRealTrade(strategy)));
     }
-    
+
     // 주기적 체크 설정
     if (activeStrategies.length > 0) {
       const interval = setInterval(() => {
         if (currentKimchiData) {
           // 주기적 자동매매 체크 로그 제거
-          
+
           // 비동기로 병렬 실행
           Promise.all(activeStrategies.map(strategy => executeRealTrade(strategy)));
         }
@@ -1699,13 +1689,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   };
 
   // 수익률 계산 - 초기 잔고 대비 변화율 (수정됨)
-  const INITIAL_KRW = 100000000; // 1억원
-  const INITIAL_USDT = 100000;   // 10만 USDT
   const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
-  const __initialTotalValue = INITIAL_KRW + (INITIAL_USDT * currentUsdKrw); // 초기 총 자산
-  
   // 현재 잔고의 총 가치 계산 (원화 기준)
-  const __currentBtcPrice = currentKimchiData?.upbit_price || 156000000;
   
   // === 🎯 개별 포지션 PnL 계산 (수수료 제외 방식) ===
   const openPositions = livePositions.filter(p => p.status === 'open');
@@ -1717,18 +1702,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       return sum + pnlResult.netPnl;
     }, 0);
   
-  // 청산된 포지션의 실현 손익
-  const __realizedPnl = livePositions
-    .filter(p => p.status === 'closed')
-    .reduce((sum, p) => sum + (p.realizedPnl || 0), 0);
-  
   // === ⚠️ 총 수익률은 현재 활성 포지션만 계산 (실현손익 제외) ===
   const totalPnl = totalPositionPnl; // 실현손익 제외, 활성 포지션 PnL만 사용
 
 
   // === 총 순투자금 계산 (활성 포지션만) ===
   const activePositions = livePositions.filter(p => p.status === 'open');
-  const __closedPositions = livePositions.filter(p => p.status === 'closed');
 
 
   // === 💰 총 순투자금 계산 (수수료 제외 방식으로 일관성 유지) ===
@@ -1744,11 +1723,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const upbitGrossAmount = position.upbitQuantity * effectiveUpbitPrice;  // 업비트 총 매수금액 (KRW)
       const upbitEntryFee = upbitGrossAmount * 0.0005;                        // 업비트 진입 수수료 (매수 0.05%) - 고정
 
-      // 🔄 업비트 매도 수수료: 현재 가격 기준으로 실시간 계산
-      const currentUpbitPrice = currentKimchiData?.upbit_price || effectiveUpbitPrice;
-      const currentUpbitSellAmount = position.upbitQuantity * currentUpbitPrice; // 현재 가격 기준 매도 금액
-      const upbitExitFee = currentUpbitSellAmount * 0.0005;                   // 실시간 매도 수수료 (0.05%)
-      const __upbitTotalFee = upbitEntryFee + upbitExitFee;                     // 업비트 총 수수료
       const upbitNetInvestment = upbitGrossAmount - upbitEntryFee;            // 업비트 순투자금 = 매수금액 - 진입수수료만
 
       // 바이낸스 순투자금 계산 (실시간 매도 수수료 적용)
@@ -1759,14 +1733,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       const binanceGrossMargin = (position.binanceQuantity * entryBinancePriceUsd) / position.leverage; // 바이낸스 증거금 (USD)
       const binanceEntryFee = (position.binanceQuantity * entryBinancePriceUsd * 0.0004); // 바이낸스 진입 수수료 (USD)
 
-      // 🔄 바이낸스 매도 수수료: 현재 가격 기준으로 실시간 계산
-      const currentBinancePrice = currentKimchiData?.binance_price || effectiveBinancePrice;
-      const currentBinancePriceUsd = currentBinancePrice > 1000000
-        ? currentBinancePrice / currentUsdKrw
-        : currentBinancePrice;
-      const currentBinanceSellAmount = position.binanceQuantity * currentBinancePriceUsd; // 현재 가격 기준 매도 금액 (USD)
-      const binanceExitFee = currentBinanceSellAmount * 0.0004;               // 실시간 매도 수수료 (USD)
-      const __binanceTotalFee = binanceEntryFee + binanceExitFee;               // 바이낸스 총 수수료
       const binanceNetMargin = binanceGrossMargin - binanceEntryFee;          // 바이낸스 순증거금 = 증거금 - 진입수수료만
       const binanceNetMarginKRW = binanceNetMargin * currentUsdKrw;           // 바이낸스 순증거금 (KRW)
 
@@ -1787,25 +1753,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 수익률 계산 완료 (상세 로그 제거)
 
   // 실제 투자 기준 수익률도 계산 (청산된 포지션들의 투자액 대비)
-  const realizedTrades = liveTrades.filter(t => t.type === 'sell' || t.type === 'cover');
-  const totalInvestedAmount = realizedTrades.reduce((sum, trade) => {
-    // 각 거래의 원금 계산 (수수료 제외)
-    if (trade.exchange === 'upbit') {
-      return sum + (trade.quantity * trade.price); // 업비트 매도 원금
-    } else {
-      return sum + ((trade.quantity * trade.price) * currentUsdKrw); // 바이낸스 원금 (KRW 환산)
-    }
-  }, 0);
-  
-  const __investmentBasedProfitRate = totalInvestedAmount > 0 
-    ? ((totalPnl / totalInvestedAmount) * 100) 
-    : 0;
 
   // 일일 통계 계산 (useMemo로 최적화)
   const dailyStats = useMemo(() => {
     // 현재 김치 데이터에서 가격 정보 추출
-    const __currentUpbitPrice = currentKimchiData?.upbit_price;
-    const __currentBinancePrice = currentKimchiData?.binance_price;
     const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1877,16 +1828,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       })
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10);
-    
-    const __recentTradesDebug = {
-      totalMockTrades: liveTrades.length,
-      filteredTrades: filteredTrades.length,
-      recentTradesData: filteredTrades,
-      timestamp: new Date().toISOString()
-    };
-    
+
     // 최근 거래 계산 완료
-    
+
     return filteredTrades;
   }, [liveTrades]);
 
@@ -1987,8 +1931,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                   });
                   return;
                 }
-
-                const __currentKimp = currentKimchiData?.kimp || 0;
 
                 // 실거래 모드에서는 실제 API 호출
                 if (actualTradingMode === 'real') {
@@ -2150,11 +2092,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                       });
                     }
                     
-                  } catch (error: any) {
+                  } catch (error: unknown) {
                     console.error('❌ 실거래 전체 청산 실패:', error);
                     toast({
                       title: "청산 오류",
-                      description: `청산 중 오류가 발생했습니다: ${error.message}`,
+                      description: `청산 중 오류가 발생했습니다: ${getErrorMessage(error)}`,
                       variant: "destructive"
                     });
                   }

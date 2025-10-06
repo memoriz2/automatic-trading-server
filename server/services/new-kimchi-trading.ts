@@ -46,13 +46,6 @@ export class MultiStrategyTradingService {
     };
   }
 
-  // 에러 처리 헬퍼 함수
-  private _handleError(operation: string, error: any): string {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`❌ ${operation} 실패:`, errorMessage);
-    return errorMessage;
-  }
-
   // 업비트 현재가 조회 (중복 코드 제거)
   private async getUpbitCurrentPrice(symbol: string, userId: string): Promise<number> {
     let upbitCurrentPrice: number = TRADING_CONSTANTS.DEFAULT_UPBIT_BTC_PRICE;

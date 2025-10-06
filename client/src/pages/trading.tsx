@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,12 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Zap, 
-  Activity, 
-  DollarSign, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  Activity,
   AlertTriangle,
   Target,
   Timer
@@ -107,10 +107,10 @@ export default function Trading() {
         title: "주문 실행 완료",
         description: `${selectedSymbol} ${type === 'buy' ? '매수' : '매도'} 주문이 실행되었습니다.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "주문 실행 실패",
-        description: error?.message || "주문 실행 중 오류가 발생했습니다.",
+        description: getErrorMessage(error) || "주문 실행 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     } finally {

@@ -9,15 +9,13 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Wifi, WifiOff } from "lucide-react";
-import type { KimchiPremium, Position, Trade, TradingSettings, SystemAlert } from "@/types/trading";
+import type { KimchiPremium, Position, TradingSettings, SystemAlert } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
 
 export default function Dashboard() {
   const [kimchiData, setKimchiData] = useState<KimchiPremium[]>([]);
-  const [isAutoTrading, setIsAutoTrading] = useState(false);
   const [currentExchangeRate, setCurrentExchangeRate] = useState<number | null>(null);
-  const [previousExchangeRate, setPreviousExchangeRate] = useState<number | null>(null);
   const { isConnected, subscribe } = useWebSocket();
   const { toast } = useToast();
   const { user } = useAuth(); // useAuth에서 user만 가져오기
@@ -92,22 +90,13 @@ export default function Dashboard() {
     return status === 'open' || status === 'active';
   });
 
-  const { data: trades = [] } = useQuery<Trade[]>({
-    queryKey: [`/api/trades/${userId}`],
-    enabled: !!userId,
-  });
-
-  const { data: settings, refetch: refetchSettings } = useQuery<TradingSettings>({
+  const { refetch: refetchSettings } = useQuery<TradingSettings>({
     queryKey: [`/api/trading-settings/${userId}`],
     enabled: !!userId,
   });
 
   const { data: alerts = [] } = useQuery<SystemAlert[]>({
     queryKey: ['/api/alerts'],
-  });
-
-  const { data: tradingStatus } = useQuery({
-    queryKey: ['/api/trading/status'],
   });
 
   // 오늘(한국시간) 경과 분 계산
@@ -122,7 +111,7 @@ export default function Dashboard() {
   };
 
   // KST 오늘 범위 기준 지표(주문/진입/청산) 조회
-  const { data: todayMetrics } = useQuery<any>({
+  const { data: _todayMetrics } = useQuery<any>({
     queryKey: ['/api/kimpga/metrics', 'today'],
     enabled: !!userId,
     refetchInterval: 5000,
@@ -155,8 +144,8 @@ export default function Dashboard() {
       }
     });
 
-    const unsubscribeStatus = subscribe('trading-status', (data: { isActive: boolean }) => {
-      setIsAutoTrading(data.isActive);
+    const unsubscribeStatus = subscribe('trading-status', () => {
+      // Status update handled by query
     });
 
     return () => {
@@ -165,27 +154,16 @@ export default function Dashboard() {
     };
   }, [subscribe]);
 
-  // Update trading status from query
-  useEffect(() => {
-    if (tradingStatus && typeof tradingStatus === 'object' && 'isActive' in tradingStatus) {
-      setIsAutoTrading(tradingStatus.isActive as boolean);
-    }
-  }, [tradingStatus]);
 
   // 환율 데이터 업데이트
   useEffect(() => {
     if (typeof exchangeRateData?.rate === 'number') {
       const newRate = exchangeRateData.rate;
       if (newRate !== currentExchangeRate) {
-        setPreviousExchangeRate(currentExchangeRate);
         setCurrentExchangeRate(newRate);
-      } else {
-        
       }
-    } else {
-      
     }
-  }, [exchangeRateData]);
+  }, [exchangeRateData, currentExchangeRate]);
 
   // 환율 에러 처리
   useEffect(() => {
@@ -240,7 +218,7 @@ export default function Dashboard() {
         throw new Error(errorMessage);
       }
 
-      const __result = await res.json();
+      await res.json();
 
       toast({
         title: "성공",
@@ -291,12 +269,6 @@ export default function Dashboard() {
   })();
 
   // Count today's trades (KST, by logged-in user)
-  const toKstDateString = (d: string | Date) =>
-    new Date(
-      new Date(typeof d === 'string' ? d : d.toISOString()).toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
-    ).toDateString();
-
-  const __todayKst = toKstDateString(new Date());
 
   // legacy-auto-trading과 동일한 총 거래 값 사용
   const todayTradeCount = realTimeStats?.totalTrades || 0;

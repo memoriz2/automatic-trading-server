@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { Strategy } from '@/types/trading';
 // import { isNum, fx, formatBTC, formatKRW, formatUSD } from '@/utils/trading/formatters';
   // import { normalizeAmountBtc } from '@/utils/trading/calculations';
 // import { getInitialStrategy, getSafeLeverage } from '@/config/strategy-defaults';
@@ -7,18 +8,16 @@ import { useCallback, useRef } from 'react';
   // import { apiFetchJson } from '@/lib/queryClient';
   // import { logger } from '@/utils/logger';
 
+type ToastFunction = (props: { title: string; description?: string; variant?: 'default' | 'destructive' }) => void;
+
 export const useTradingEventHandlers = (
   effectiveUserId: string,
-  toast: any,
-  setBands: any,
-  setServerBands: any,
-  setServerStatusBands: any,
-  setRegisteringIndex: any,
-  setUnregisteringIndex: any,
-  setStarting: any,
-  setStrategies: any,
-  refreshTrigger: number,
-  setRefreshTrigger: any
+  toast: ToastFunction,
+  setRegisteringIndex: (index: number | null) => void,
+  setUnregisteringIndex: (index: number | null) => void,
+  setStarting: (starting: boolean) => void,
+  setStrategies: (strategies: Strategy[]) => void,
+  setRefreshTrigger: (fn: (prev: number) => number) => void
 ) => {
   const cooldownRef = useRef(false);
 
@@ -132,19 +131,19 @@ export const useTradingEventHandlers = (
     }
   }, [setStarting, toast]);
 
-  const handleAddStrategy = useCallback((newStrategy: any) => {
+  const handleAddStrategy = useCallback((newStrategy: Strategy) => {
     const strategyKey = `mock-strategies-${effectiveUserId}`;
-    const existingStrategies = JSON.parse(localStorage.getItem(strategyKey) || '[]');
+    const existingStrategies = JSON.parse(localStorage.getItem(strategyKey) || '[]') as Strategy[];
     const updatedStrategies = [...existingStrategies, newStrategy];
     localStorage.setItem(strategyKey, JSON.stringify(updatedStrategies));
     setStrategies(updatedStrategies);
     setRefreshTrigger((prev: number) => prev + 1);
   }, [effectiveUserId, setStrategies, setRefreshTrigger]);
 
-  const handleEditStrategy = useCallback((strategyId: string, updatedData: any) => {
+  const handleEditStrategy = useCallback((strategyId: string, updatedData: Partial<Strategy>) => {
     const strategyKey = `mock-strategies-${effectiveUserId}`;
-    const existingStrategies = JSON.parse(localStorage.getItem(strategyKey) || '[]');
-    const updatedStrategies = existingStrategies.map((s: any) =>
+    const existingStrategies = JSON.parse(localStorage.getItem(strategyKey) || '[]') as Strategy[];
+    const updatedStrategies = existingStrategies.map((s) =>
       s.id === strategyId ? { ...s, ...updatedData } : s
     );
     localStorage.setItem(strategyKey, JSON.stringify(updatedStrategies));
@@ -154,8 +153,8 @@ export const useTradingEventHandlers = (
 
   const handleDeleteStrategy = useCallback((strategyId: string) => {
     const strategyKey = `mock-strategies-${effectiveUserId}`;
-    const existingStrategies = JSON.parse(localStorage.getItem(strategyKey) || '[]');
-    const updatedStrategies = existingStrategies.filter((s: any) => s.id !== strategyId);
+    const existingStrategies = JSON.parse(localStorage.getItem(strategyKey) || '[]') as Strategy[];
+    const updatedStrategies = existingStrategies.filter((s) => s.id !== strategyId);
     localStorage.setItem(strategyKey, JSON.stringify(updatedStrategies));
     setStrategies(updatedStrategies);
     setRefreshTrigger((prev: number) => prev + 1);

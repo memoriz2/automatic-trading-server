@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
@@ -162,9 +163,9 @@ export const useLegacyTradingState = () => {
         // 모든 시도 실패
         throw lastError || new Error('전략 조회 실패');
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('❌ 전략 조회 최종 실패:', error);
-        setStrategiesError(error.message || '전략 조회 중 오류가 발생했습니다');
+        setStrategiesError(getErrorMessage(error) || '전략 조회 중 오류가 발생했습니다');
 
         // 기존 데이터 유지 - 에러 시 전략을 초기화하지 않음
         console.log('⚠️ 전략 조회 실패했지만 기존 전략 유지:', realStrategies.length, '개');

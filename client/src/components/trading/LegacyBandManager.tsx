@@ -31,7 +31,6 @@ export const LegacyBandManager = React.memo(({
   serverBands,
   serverStatusBands,
   registeringIndex,
-  unregisteringIndex,
   onAddBand,
   onUpdateBand,
   onRemoveBand,
@@ -103,7 +102,6 @@ export const LegacyBandManager = React.memo(({
             band={band}
             index={index}
             isRegistering={registeringIndex === index}
-            isUnregistering={unregisteringIndex === index}
             onUpdate={onUpdateBand}
             onRemove={onRemoveBand}
             onRegister={onRegisterBand}
@@ -125,16 +123,13 @@ const BandConfigItem = React.memo(({
   band,
   index,
   isRegistering,
-  isUnregistering,
   onUpdate,
   onRemove,
-  onRegister,
-  onUnregister
+  onRegister
 }: {
   band: Band;
   index: number;
   isRegistering: boolean;
-  isUnregistering: boolean;
   onUpdate: (index: number, field: keyof Band, value: string | number) => void;
   onRemove: (index: number) => void;
   onRegister: (index: number) => void;

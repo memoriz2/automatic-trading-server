@@ -10,8 +10,7 @@ export const useLegacyTradingHandlers = (
   fetchJson: any,
   setRegisteringIndex: any,
   setUnregisteringIndex: any,
-  setStarting: any,
-  serverState: any
+  setStarting: any
 ) => {
   const handleAddBand = useCallback(() => {
     setBands((prevBands: Band[]) => {

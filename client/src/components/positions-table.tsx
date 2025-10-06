@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,8 +101,8 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                   } catch (balanceError) {
                     console.warn('⚠️ 잔고 재조회 실패:', balanceError);
                   }
-                } catch (e: any) {
-                  toast({ title: "전체 청산 실패", description: e?.message ?? String(e), variant: "destructive" });
+                } catch (e: unknown) {
+                  toast({ title: "전체 청산 실패", description: getErrorMessage(e), variant: "destructive" });
                 } finally {
                   setClosingAll(false);
                 }

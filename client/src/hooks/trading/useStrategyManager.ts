@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import { useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
@@ -83,8 +84,9 @@ export const useStrategyManager = (effectiveUserId: string) => {
         return;
       }
       setServerBands(serverData || []);
-    } catch (e: any) {
-      if (e?.name === 'AbortError' || /aborted/i.test(String(e?.message))) {
+    } catch (e: unknown) {
+      const errorMsg = getErrorMessage(e);
+      if (errorMsg.includes('Abort') || /aborted/i.test(errorMsg)) {
         // 서버 밴드 조회가 취소됨
       } else {
         console.error('❌ 서버 밴드 조회 실패:', e);

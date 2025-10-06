@@ -1,24 +1,14 @@
 import { useState, useEffect, useRef} from 'react';
-import { LiveTrade, LivePosition, LiveBalance, KimchiData, Strategy } from '@/types/trading';
+import { LiveTrade, LivePosition, LiveBalance } from '@/types/trading';
 
 interface UseLiveTradingProps {
-  strategies: Strategy[];
-  currentKimchiData: KimchiData | null;
   userId: string;
   liveBalances: any[];
-  isTrading: boolean;
-  setIsTrading: (trading: boolean) => void;
-  addTradingLog: (message: string) => void;
 }
 
 export const useLiveTrading = ({
-  strategies,
-  currentKimchiData,
   userId,
-  liveBalances,
-  isTrading,
-  setIsTrading,
-  addTradingLog
+  liveBalances
 }: UseLiveTradingProps) => {
 //   const { toast } = useToast();
 

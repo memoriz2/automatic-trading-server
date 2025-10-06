@@ -77,7 +77,7 @@ export interface SystemAlert {
 
 export interface WebSocketMessage {
   type: 'kimchi-premium' | 'trading-status' | 'alerts' | 'ping' | 'pong';
-  data?: any;
+  data?: KimchiPremium | TradingSettings | SystemAlert[] | number | null;
 }
 
 // ===== Mock Trading 관련 타입 (기존 Mock 시스템용) =====

@@ -4,6 +4,7 @@
  */
 
 import { userIdManager } from './user-id-manager';
+import { Strategy, MockPosition, MockTrade, MockBalance } from '../types/trading';
 
 interface BackupMetadata {
   timestamp: number;
@@ -15,10 +16,10 @@ interface BackupMetadata {
 
 interface StrategyBackup {
   metadata: BackupMetadata;
-  strategies: any[];
-  positions: any[];
-  trades: any[];
-  balances: any;
+  strategies: Strategy[];
+  positions: MockPosition[];
+  trades: MockTrade[];
+  balances: MockBalance;
 }
 
 class StrategyBackupManager {
@@ -32,7 +33,7 @@ class StrategyBackupManager {
   /**
    * 체크섬 계산 (간단한 해시)
    */
-  private calculateChecksum(data: any): string {
+  private calculateChecksum(data: unknown): string {
     const str = JSON.stringify(data);
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -47,33 +48,33 @@ class StrategyBackupManager {
    * 현재 전략 데이터 수집 (삭제된 전략 제외)
    */
   private collectCurrentData(userId: string): Omit<StrategyBackup, 'metadata'> {
-    const strategies = this.getLocalStorageData(`mock-strategies-${userId}`);
-    const positions = this.getLocalStorageData(`mock-positions-${userId}`);
-    const trades = this.getLocalStorageData(`mock-trades-${userId}`);
-    const balances = this.getLocalStorageData(`mock-balance-${userId}`);
-    
+    const strategies = this.getLocalStorageData(`mock-strategies-${userId}`) as Strategy[] | null;
+    const positions = this.getLocalStorageData(`mock-positions-${userId}`) as MockPosition[] | null;
+    const trades = this.getLocalStorageData(`mock-trades-${userId}`) as MockTrade[] | null;
+    const balances = this.getLocalStorageData(`mock-balance-${userId}`) as MockBalance | null;
+
     // 삭제된 전략 목록 가져오기
-    const deletedStrategies = this.getLocalStorageData(`deleted-strategies-${userId}`) || [];
-    
+    const deletedStrategies = this.getLocalStorageData(`deleted-strategies-${userId}`) as string[] | null || [];
+
     // 삭제된 전략 제외
-    const filteredStrategies = (strategies || []).filter((strategy: any) => 
+    const filteredStrategies = (strategies || []).filter((strategy) =>
       !deletedStrategies.includes(strategy.id)
     );
-    
+
     // 백업 데이터 수집 완료
-    
+
     return {
       strategies: filteredStrategies,
       positions: positions || [],
       trades: trades || [],
-      balances: balances || {}
+      balances: balances || { krw: 0, btc: 0, usdt: 0, binanceBtc: 0, binanceSpotBtc: 0, binanceUsdt: 0 }
     };
   }
 
   /**
    * 로컬스토리지에서 데이터 안전하게 가져오기
    */
-  private getLocalStorageData(key: string): any {
+  private getLocalStorageData(key: string): Strategy[] | MockPosition[] | MockTrade[] | MockBalance | string[] | null {
     try {
       const data = localStorage.getItem(key);
       return data ? JSON.parse(data) : null;

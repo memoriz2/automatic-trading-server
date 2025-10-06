@@ -21,7 +21,7 @@ const insertTradingSettingsSchema = z.object({
 
 export function registerTradingRoutes(app: Express): void {
   // 자동매매 시작
-  app.post("/api/trading/start/:userId", async (req, res) => {
+  app.post("/api/trading/start/:userId", async (req, res): Promise<void> => {
     try {
       const userId = req.params.userId;
       const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
@@ -29,7 +29,8 @@ export function registerTradingRoutes(app: Express): void {
       // 사용자별 거래 설정 확인
       const settings = await storage.getTradingSettingsByUserId(userId);
       if (!settings) {
-        return res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+        res.status(400).json({ error: "거래 설정을 먼저 구성해주세요", traceId });
+        return;
       }
 
       await multiStrategyTradingService.startMultiStrategyTrading(userId);
@@ -108,15 +109,16 @@ export function registerTradingRoutes(app: Express): void {
   });
 
   // 거래 설정 조회
-  app.get("/api/trading-settings/:userId", authenticateSession, async (req: any, res) => {
+  app.get("/api/trading-settings/:userId", authenticateSession, async (req: any, res): Promise<void> => {
     try {
       const userId = req.user.id;
       const settings = await storage.getTradingSettingsByUserId(String(userId));
-      
+
       if (!settings) {
-        return res.status(404).json({ error: "거래 설정을 찾을 수 없습니다" });
+        res.status(404).json({ error: "거래 설정을 찾을 수 없습니다" });
+        return;
       }
-      
+
       res.json(settings);
     } catch (error) {
       console.error("거래 설정 조회 오류:", error);
@@ -125,16 +127,17 @@ export function registerTradingRoutes(app: Express): void {
   });
 
   // 거래 설정 업데이트
-  app.put("/api/trading-settings/:userId", authenticateSession, async (req: any, res) => {
+  app.put("/api/trading-settings/:userId", authenticateSession, async (req: any, res): Promise<void> => {
     try {
       const userId = req.user.id;
       const parseResult = insertTradingSettingsSchema.safeParse(req.body);
-      
+
       if (!parseResult.success) {
-        return res.status(400).json({ 
-          error: "잘못된 요청 데이터", 
-          details: parseResult.error.issues 
+        res.status(400).json({
+          error: "잘못된 요청 데이터",
+          details: parseResult.error.issues
         });
+        return;
       }
 
       const updatedSettings = await storage.updateTradingSettings(Number(userId), parseResult.data);

@@ -73,14 +73,14 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
   // DB 거래가 있으면 DB 데이터 우선 사용 (고정된 시간)
   const displayTrades = dbTrades.length > 0 ? dbTrades : recentTrades;
   // 개발 환경에서만 의미 있는 경고 출력 (컴포넌트 로드 후 5초 뒤에도 거래 기록이 없을 때만)
-  React.useEffect(() => {
+  React.useEffect((): (() => void) | void => {
     if (process.env.NODE_ENV === 'development') {
       const timer = setTimeout(() => {
         if (recentTrades.length === 0) {
           console.warn('⚠️ LiveTradeHistory: 5초 후에도 거래 기록이 없습니다. 거래 시스템 상태를 확인하세요.');
         }
       }, 5000);
-      
+
       return () => clearTimeout(timer);
     }
   }, []); // 의존성 배열을 빈 배열로 변경하여 마운트 시 한 번만 실행

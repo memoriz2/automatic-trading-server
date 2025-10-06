@@ -2,9 +2,7 @@ import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
   // import { UpbitWebSocketService } from './upbit-websocket.js';
 import { priceCache } from './price-cache.js';
-import fetch from 'node-fetch';
 import { naverExchange } from './naver-exchange.js';
-import { createHmac } from 'crypto';
 import { storage } from '../storage.js';
 import { googleFinanceExchange } from './google-finance-exchange.js';
 
@@ -21,11 +19,9 @@ export interface SimpleKimchiData {
 
 export class SimpleKimchiService {
   private upbitService: UpbitService;
-  private _binanceService: BinanceService;
 
   constructor() {
     this.upbitService = new UpbitService();
-    this._binanceService = new BinanceService();
   }
 
 
@@ -56,8 +52,9 @@ export class SimpleKimchiService {
   }
 
   /**
-   * 실시간 USD→KRW 환율 조회 (네이버 금융 사용)
+   * 실시간 USD→KRW 환율 조회 (네이버 금융 사용) - 사용하지 않음
    */
+  /*
   private async _getRealTimeExchangeRate(): Promise<number> {
     try {
       const rate = await naverExchange.getRate();
@@ -72,6 +69,7 @@ export class SimpleKimchiService {
       return fallbackRate;
     }
   }
+  */
 
   /**
    * 단순 김프율 계산 - 웹소켓 캐시 우선 사용으로 실시간 계산
@@ -160,8 +158,9 @@ export class SimpleKimchiService {
   // 기존 환율 조회 함수 제거됨 - googleExchangeReal 서비스 사용
 
   /**
-   * 바이낸스 선물 가격 조회 (세션 ID로 DB 조회하여 복호화된 API 키 사용)
+   * 바이낸스 선물 가격 조회 (세션 ID로 DB 조회하여 복호화된 API 키 사용) - 사용하지 않음
    */
+  /*
   private async _getBinanceFuturesPrice(symbol: string, sessionId?: string): Promise<number> {
     try {
       let apiKey: string | undefined;
@@ -291,6 +290,7 @@ export class SimpleKimchiService {
       return fallbackPrices[symbol] || 0;
     }
   }
+  */
 
   /**
    * 바이낸스 현물 가격 조회

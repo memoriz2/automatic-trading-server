@@ -1,3 +1,4 @@
+import { getErrorMessage } from '@/utils/error-utils';
 import React, { useState as _useState, useEffect, useRef, useCallback, useMemo as _useMemo } from 'react';
 import { useAuth as _useAuth } from '@/hooks/useAuth';
 import { useWebSocket as _useWebSocket } from '@/hooks/use-websocket';
@@ -475,8 +476,11 @@ const LegacyAutoTradingPage = () => {
       })();
       INFLIGHT_API.set(cacheKey, p);
       return await p;
-    } catch (e: any) {
-      if (e?.name === 'AbortError' || /aborted/i.test(String(e?.message))) {
+    } catch (e: unknown) {
+      const hasName = (err: unknown): err is { name: string } => typeof err === 'object' && err !== null && 'name' in err;
+      const hasMessage = (err: unknown): err is { message: string } => typeof err === 'object' && err !== null && 'message' in err;
+
+      if ((hasName(e) && e.name === 'AbortError') || (hasMessage(e) && /aborted/i.test(String((e as { message?: string })?.message || e)))) {
         return;
       }
       throw e;
@@ -507,8 +511,7 @@ const LegacyAutoTradingPage = () => {
     fetchJson,
     setRegisteringIndex,
     setUnregisteringIndex,
-    setStarting,
-    serverState
+    setStarting
   );
 
   // Data operations hook
@@ -517,8 +520,6 @@ const LegacyAutoTradingPage = () => {
     saveStrategiesToLocal,
     loadStrategiesFromLocal
   } = useTradingDataOperations(
-    setStrategies,
-    strategies,
     effectiveUserId,
     currentPositions
   );
@@ -555,9 +556,9 @@ const LegacyAutoTradingPage = () => {
       }
       setServerBands(serverData || []);
       // NOTE: 게이트는 실제 전략 목록 로드에서만 설정합니다
-    } catch (e: any) {
+    } catch (e: unknown) {
       // AbortError는 정상적인 취소이므로 오류 로그 생략
-      if (e?.name === 'AbortError' || /aborted/i.test(String(e?.message))) {
+      if (getErrorMessage(e).includes('Abort') || /aborted/i.test(String(getErrorMessage(e)))) {
         // 서버 밴드 조회가 취소됨
       } else {
         console.error('❌ 서버 밴드 조회 실패:', e);
@@ -593,10 +594,11 @@ const LegacyAutoTradingPage = () => {
           }
         });
       }, 0);
-    } catch (e: any) { 
+    } catch (e: unknown) {
       // AbortError는 정상적인 취소이므로 오류 로그 생략
-      if (e?.name !== 'AbortError' && !/aborted/i.test(String(e?.message))) {
-        console.error('❌ tickLight 오류:', e); 
+      const errMsg = getErrorMessage(e);
+      if (!errMsg.includes('Abort') && !/aborted/i.test(errMsg)) {
+        console.error('❌ tickLight 오류:', e);
       }
     }
   }, [fetchJson, updatePreviewForRow]);
@@ -680,10 +682,11 @@ const LegacyAutoTradingPage = () => {
 
       // 진입 증거금 업데이트(런타임 상태 사용)
       if (kgaStat) updateUsedMarginFromStatus(kgaStat);
-    } catch (e: any) { 
+    } catch (e: unknown) {
       // AbortError는 정상적인 취소이므로 오류 로그 생략
-      if (e?.name !== 'AbortError' && !/aborted/i.test(String(e?.message))) {
-        console.error('❌ tickHeavy 오류:', e); 
+      const errMsg = getErrorMessage(e);
+      if (!errMsg.includes('Abort') && !/aborted/i.test(errMsg)) {
+        console.error('❌ tickHeavy 오류:', e);
       }
     }
   }, [fetchJson, updateUsedMarginFromStatus, effectiveUserId]);
@@ -1456,9 +1459,9 @@ const LegacyAutoTradingPage = () => {
                   } catch (localError) {
                     console.warn('⚠️ [전략생성] 로컬 함수 새로고침 실패:', localError);
                   }
-                } catch (error: any) {
+                } catch (error: unknown) {
                   console.error('❌ 전략 생성 실패:', error);
-                  toast({ title: '전략 생성 실패', description: `서버 저장 실패: ${error.message}`, variant: 'destructive' });
+                  toast({ title: '전략 생성 실패', description: `서버 저장 실패: ${getErrorMessage(error)}`, variant: 'destructive' });
                 }
               }
               

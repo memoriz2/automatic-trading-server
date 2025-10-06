@@ -17,7 +17,6 @@ export class RealtimeKimchiService {
   private symbols = ['BTC', 'ETH', 'XRP', 'ADA', 'DOT'];
   private lastCalculationTime = 0;
   private readonly MIN_CALCULATION_INTERVAL = 100; // 최소 100ms 간격 (더 빠른 업데이트)
-  private readonly _SYNC_THRESHOLD_MS = 100; // 가격 시점 동기화 임계값 강화
 
   constructor() {
     // console.log('🚀 실시간 김치 프리미엄 계산 서비스 시작');
