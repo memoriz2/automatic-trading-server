@@ -1143,6 +1143,65 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 )
               );
 
+              // 거래 기록 생성 및 저장 (부분 청산)
+              const exitTime = new Date();
+              const currentCounter = tradeCounter + 1;
+              setTradeCounter(currentCounter);
+              const randomId = Math.random().toString(36).substring(2, 8);
+              const tradeId = `exit-partial-${Date.now()}-${currentCounter}-${randomId}`;
+
+              const exitTrades: LiveTrade[] = [];
+
+              // 업비트 거래 기록
+              if (liquidationResults.some(r => r.type === 'upbit_sell')) {
+                const upbitPrice = currentKimchiData?.upbit_price || 0;
+                const upbitQuantity = actualUpbitBalance * ratio;
+                const upbitFee = upbitQuantity * upbitPrice * 0.0005;
+
+                exitTrades.push({
+                  id: `${tradeId}-upbit`,
+                  timestamp: exitTime,
+                  type: 'sell',
+                  symbol: position.symbol,
+                  quantity: upbitQuantity,
+                  price: upbitPrice,
+                  fee: upbitFee,
+                  exchange: 'upbit',
+                  strategyId: position.strategyId,
+                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
+                  premiumRate: currentKimchiData?.kimp || 0
+                });
+              }
+
+              // 바이낸스 거래 기록
+              if (liquidationResults.some(r => r.type === 'binance_close')) {
+                const binancePrice = currentKimchiData?.binance_price || 0;
+                const binanceQuantity = actualBinanceBalance * ratio;
+                const binanceFee = binanceQuantity * binancePrice * 0.0004;
+
+                exitTrades.push({
+                  id: `${tradeId}-binance`,
+                  timestamp: exitTime,
+                  type: 'cover',
+                  symbol: position.symbol,
+                  quantity: binanceQuantity,
+                  price: binancePrice,
+                  fee: binanceFee,
+                  exchange: 'binance',
+                  strategyId: position.strategyId,
+                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
+                  premiumRate: currentKimchiData?.kimp || 0
+                });
+              }
+
+              // 메모리 및 DB에 거래 기록 저장
+              if (exitTrades.length > 0) {
+                setLiveTrades(prev => [...prev, ...exitTrades]);
+                exitTrades.forEach(trade => {
+                  saveLiveTradeToDB(trade, userId);
+                });
+              }
+
               // DB 업데이트
               try {
                 await fetch(`/api/positions/${position.id}`, {
@@ -1191,6 +1250,64 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     : p
                 )
               );
+
+              // 거래 기록 생성 및 저장
+              const currentCounter = tradeCounter + 1;
+              setTradeCounter(currentCounter);
+              const randomId = Math.random().toString(36).substring(2, 8);
+              const tradeId = `exit-real-${Date.now()}-${currentCounter}-${randomId}`;
+
+              const exitTrades: LiveTrade[] = [];
+
+              // 업비트 거래 기록
+              if (liquidationResults.some(r => r.type === 'upbit_sell')) {
+                const upbitPrice = currentKimchiData?.upbit_price || 0;
+                const upbitQuantity = actualUpbitBalance * ratio;
+                const upbitFee = upbitQuantity * upbitPrice * 0.0005;
+
+                exitTrades.push({
+                  id: `${tradeId}-upbit`,
+                  timestamp: exitTime,
+                  type: 'sell',
+                  symbol: position.symbol,
+                  quantity: upbitQuantity,
+                  price: upbitPrice,
+                  fee: upbitFee,
+                  exchange: 'upbit',
+                  strategyId: position.strategyId,
+                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
+                  premiumRate: currentKimchiData?.kimp || 0
+                });
+              }
+
+              // 바이낸스 거래 기록
+              if (liquidationResults.some(r => r.type === 'binance_close')) {
+                const binancePrice = currentKimchiData?.binance_price || 0;
+                const binanceQuantity = actualBinanceBalance * ratio;
+                const binanceFee = binanceQuantity * binancePrice * 0.0004;
+
+                exitTrades.push({
+                  id: `${tradeId}-binance`,
+                  timestamp: exitTime,
+                  type: 'cover',
+                  symbol: position.symbol,
+                  quantity: binanceQuantity,
+                  price: binancePrice,
+                  fee: binanceFee,
+                  exchange: 'binance',
+                  strategyId: position.strategyId,
+                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
+                  premiumRate: currentKimchiData?.kimp || 0
+                });
+              }
+
+              // 메모리 및 DB에 거래 기록 저장
+              if (exitTrades.length > 0) {
+                setLiveTrades(prev => [...prev, ...exitTrades]);
+                exitTrades.forEach(trade => {
+                  saveLiveTradeToDB(trade, userId);
+                });
+              }
 
               // DB에 청산 정보 저장
               try {
