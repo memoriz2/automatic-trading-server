@@ -1120,6 +1120,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               const remainingUpbit = actualUpbitBalance * (1 - ratio);
               const remainingBinance = actualBinanceBalance * (1 - ratio);
 
+              // 부분 청산 손익 계산
+              const pnlResult = calculatePositionPnL(position, currentKimchiData);
+              const partialPnl = pnlResult.netPnl * ratio;
+
+              console.log(`💰 부분 청산 손익 계산 (${Math.round(ratio * 100)}%):`, {
+                positionId: position.id,
+                partialPnl: partialPnl,
+                totalPnl: pnlResult.netPnl
+              });
+
               setLivePositions(prev =>
                 prev.map(p =>
                   p.id === position.id
@@ -1127,20 +1137,47 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                         ...p,
                         upbitQuantity: remainingUpbit,
                         binanceQuantity: remainingBinance,
-                        unrealizedPnl: p.unrealizedPnl * (1 - ratio)
+                        realizedPnl: (p.realizedPnl || 0) + partialPnl
                       }
                     : p
                 )
               );
 
+              // DB 업데이트
+              try {
+                await fetch(`/api/positions/${position.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    upbitQuantity: remainingUpbit,
+                    binanceQuantity: remainingBinance,
+                    realizedPnl: (position.realizedPnl || 0) + partialPnl
+                  })
+                });
+                console.log(`✅ 포지션 ${position.id} 부분 청산 DB 업데이트 완료 (손익: ${partialPnl.toFixed(2)}원)`);
+              } catch (dbError) {
+                console.error('❌ 부분 청산 DB 업데이트 실패:', dbError);
+              }
+
               toast({
                 title: `${Math.round(ratio * 100)}% 청산 완료`,
-                description: `전략 #${position.strategyId}의 일부가 실제로 청산되었습니다.`,
+                description: `전략 #${position.strategyId}의 일부가 실제로 청산되었습니다. 손익: ${partialPnl >= 0 ? '+' : ''}${Math.round(partialPnl).toLocaleString()}원`,
               });
             } else {
-              // 전체 청산: 상태 변경
+              // 전체 청산: 상태 변경 및 정확한 손익 계산
               const exitTime = new Date();
-              const realizedPnl = position.unrealizedPnl || 0;
+
+              // PnL 계산기를 사용하여 정확한 손익 계산
+              const pnlResult = calculatePositionPnL(position, currentKimchiData);
+              const realizedPnl = pnlResult.netPnl;
+
+              console.log(`💰 청산 손익 계산:`, {
+                positionId: position.id,
+                netPnl: realizedPnl,
+                premiumPnl: pnlResult.premiumPnl,
+                estimatedExitFees: pnlResult.estimatedExitFees
+              });
 
               setLivePositions(prev =>
                 prev.map(p =>
@@ -1167,14 +1204,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     realizedPnl: realizedPnl
                   })
                 });
-                console.log(`✅ 포지션 ${position.id} DB 업데이트 완료`);
+                console.log(`✅ 포지션 ${position.id} DB 업데이트 완료 (손익: ${realizedPnl.toFixed(2)}원)`);
               } catch (dbError) {
                 console.error('❌ DB 업데이트 실패:', dbError);
               }
 
               toast({
-                title: "개별 포지션 청산 완료",
-                description: `전략 #${position.strategyId}가 실제로 청산되었습니다.`,
+                title: realizedPnl >= 0 ? "💰 수익 실현!" : "📉 손실 확정",
+                description: `전략 #${position.strategyId} 청산 완료. 손익: ${realizedPnl >= 0 ? '+' : ''}${Math.round(realizedPnl).toLocaleString()}원`,
+                variant: realizedPnl >= 0 ? "default" : "destructive"
               });
             }
 
