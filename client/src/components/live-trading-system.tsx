@@ -172,6 +172,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 strategyName: pos.strategy_name || `전략 #${pos.strategy_id}`,
                 symbol: pos.symbol,
               entryTime: new Date(pos.entry_time),
+              exitTime: pos.exit_time ? new Date(pos.exit_time) : undefined,
               entryPremiumRate: pos.entry_premium_rate || 0,
               upbitQuantity: pos.quantity || 0,
               upbitPrice: pos.entry_price || 0,
@@ -1839,13 +1840,47 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     // 오늘 청산한 포지션 (청산 시간 기준) - 총 수익금 계산용
     const todayExitPositions = livePositions.filter(position => {
+      // 디버깅: 최근 5개의 closed 포지션 체크
+      if (position.status === 'closed' && Number(position.id) >= 940) {
+        console.log(`🔍 포지션 ${position.id} 초기 체크:`, {
+          status: position.status,
+          exitTime: position.exitTime,
+          hasExitTime: !!position.exitTime,
+          exitTimeType: typeof position.exitTime
+        });
+      }
+
       if (position.status !== 'closed' || !position.exitTime) return false;
+
       const exitDate = new Date(position.exitTime);
+
+      // 유효하지 않은 날짜 체크
+      if (isNaN(exitDate.getTime())) {
+        console.warn('⚠️ 잘못된 exitTime:', position.id, position.exitTime);
+        return false;
+      }
+
+      const originalExitDate = new Date(exitDate);
+
       if (exitDate.getHours() < 9) {
         exitDate.setDate(exitDate.getDate() - 1);
       }
       exitDate.setHours(9, 0, 0, 0);
-      return exitDate.getTime() === today.getTime();
+
+      const isToday = exitDate.getTime() === today.getTime();
+
+      // 디버깅: 최근 5개만 로그
+      if (Number(position.id) >= 940) {
+        console.log(`🔍 포지션 ${position.id} 체크:`, {
+          exitTime: position.exitTime,
+          originalDate: originalExitDate.toISOString(),
+          adjustedDate: exitDate.toISOString(),
+          todayDate: today.toISOString(),
+          isToday
+        });
+      }
+
+      return isToday;
     });
 
     // 거래 통계
@@ -1872,7 +1907,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 디버깅: 총 수익금이 0인 이유 확인
     if (todayExitPositions.length > 0) {
       console.log('📊 오늘 청산 포지션:', todayExitPositions.length, '개');
-      console.log('📊 청산 포지션 상세:', todayExitPositions.map(p => ({
+      console.log('📊 청산 포지션 상세:', todayExitPositions.slice(0, 5).map(p => ({
         id: p.id,
         exitTime: p.exitTime,
         status: p.status,
@@ -1882,12 +1917,18 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     } else {
       console.log('❌ 오늘 청산한 포지션 없음');
       console.log('전체 포지션:', livePositions.length, '개');
-      console.log('closed 포지션:', livePositions.filter(p => p.status === 'closed').map(p => ({
+      const closedPositions = livePositions.filter(p => p.status === 'closed');
+      console.log('closed 포지션 총 개수:', closedPositions.length);
+      console.log('closed 포지션 샘플 (최근 5개):', closedPositions.slice(0, 5).map(p => ({
         id: p.id,
         status: p.status,
         exitTime: p.exitTime,
+        exitTimeType: typeof p.exitTime,
+        entryTime: p.entryTime,
         realizedPnl: p.realizedPnl
       })));
+      console.log('오늘 기준 시간:', today);
+      console.log('현재 시간:', now);
     }
 
     // 활성 포지션 수

@@ -1252,6 +1252,44 @@ export async function registerRoutes(app, server) {
         }
     });
     // 포지션 업비트 수량 업데이트 API
+    // 포지션 업데이트 (청산, 수량 변경 등)
+    app.put("/api/positions/:id", authenticateSession, async (req, res) => {
+        try {
+            const positionId = parseInt(req.params.id.replace('db-', ''), 10);
+            const updates = req.body;
+            if (!updates || Object.keys(updates).length === 0) {
+                res.status(400).json({ error: "업데이트할 데이터가 필요합니다" });
+                return;
+            }
+            // snake_case로 변환
+            const snakeCaseUpdates = {};
+            Object.entries(updates).forEach(([key, value]) => {
+                const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+                snakeCaseUpdates[snakeKey] = value;
+            });
+            const updatedPosition = await storage.updatePosition(positionId, snakeCaseUpdates);
+            if (!updatedPosition) {
+                res.status(404).json({ error: "포지션을 찾을 수 없습니다" });
+                return;
+            }
+            logInfo('포지션 업데이트', {
+                positionId,
+                updates: Object.keys(snakeCaseUpdates),
+                userId: req.user?.id
+            });
+            res.json({
+                success: true,
+                position: updatedPosition
+            });
+        }
+        catch (error) {
+            logError("포지션 업데이트 실패", {
+                positionId: req.params.id,
+                error: error instanceof Error ? error.message : error
+            });
+            res.status(500).json({ error: "포지션 업데이트 실패" });
+        }
+    });
     app.put("/api/positions/:id/upbit-quantity", authenticateSession, async (req, res) => {
         try {
             const positionId = req.params.id;
