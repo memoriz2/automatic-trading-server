@@ -169,7 +169,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       </p>
                 </div>
               </div>
-              <div className="flex flex-col gap-1 ml-auto md:ml-0">
+              <div className="flex gap-1 ml-auto md:ml-0">
                 <Button
                   size="sm"
                   variant="outline"
