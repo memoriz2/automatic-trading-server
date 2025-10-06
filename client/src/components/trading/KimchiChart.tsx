@@ -203,7 +203,7 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
       ctx.textBaseline = 'top';
 
       const labelCount = 8; // 24시간 / 3시간 = 8개
-      const timeLabels = ['09:00', '12:00', '15:00', '18:00', '21:00', '00:00', '03:00', '06:00', '09:00'];
+      const timeLabels = ['9', '12', '15', '18', '21', '0', '3', '6', '9'];
 
       for (let i = 0; i <= labelCount; i++) {
         const ratio = i / labelCount;
