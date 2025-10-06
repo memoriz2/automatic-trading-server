@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth"; // useAuth 훅 가져오기
-import { Play, Square, Settings, TrendingUp, AlertTriangle, Zap, DollarSign, Activity, Rocket } from "lucide-react";
-import type { TradingSettings } from "@/types/trading";
+import { Square, Settings, AlertTriangle, Activity, Rocket } from "lucide-react";
+  // import type { TradingSettings } from "@/types/trading";
 
 export default function UltraTrading() {
   const { toast } = useToast();
@@ -121,7 +121,7 @@ export default function UltraTrading() {
   });
 
   // 예상 수익 계산
-  const expectedProfit = (config.exitRate - config.entryRate) * config.amount * 0.01;
+//   const expectedProfit = (config.exitRate - config.entryRate) * config.amount * 0.01;
 
   return (
     <div className="flex-1 overflow-auto p-6 space-y-6 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950">

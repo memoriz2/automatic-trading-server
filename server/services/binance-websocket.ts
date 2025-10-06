@@ -50,8 +50,8 @@ export class BinanceWebSocketService {
               priceCache.setBinancePrice(symbol, price, 'websocket');
 
               // 환율을 적용하여 원화 가격 계산
-              const usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate();
-              const priceInKrw = price * usdKrwRate;
+              const _usdKrwRate = priceCache.getUsdtKrwEma() || naverExchange.getCurrentRate();
+//               const priceInKrw = price * usdKrwRate;
 
               // console.log(`📊 바이낸스선물 ${symbol}: ₩${priceInKrw.toLocaleString('ko-KR', { maximumFractionDigits: 0 })} (웹소켓-aggTrade)`);
 
@@ -66,12 +66,12 @@ export class BinanceWebSocketService {
         }
       });
 
-      this.ws.on('error', (error: Error) => {
+      this.ws.on('_error', (_error: Error) => {
         // console.error('바이낸스 WebSocket 오류:', error.message);
         this.scheduleReconnect();
       });
 
-      this.ws.on('close', (code: number, reason: Buffer) => {
+      this.ws.on('close', (_code: number, _reason: Buffer) => {
         // console.log(`🔌 바이낸스 WebSocket 연결 종료: 코드=${code}, 이유=${reason.toString()}`);
         this.isConnected = false;
         this.scheduleReconnect();

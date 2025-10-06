@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { WebSocketMessage } from '@/types/trading';
-import { formatKoreanTime } from '@/utils/datetime';
+  // import { formatKoreanTime } from '@/utils/datetime';
 import { logger } from '@/utils/logger';
 
 export function useWebSocket() {
@@ -224,7 +224,7 @@ export function useWebSocket() {
     }, 15000); // 15초마다 heartbeat
 
     // Heartbeat 응답 감지
-    const originalOnMessage = ws.current?.onmessage;
+//     const originalOnMessage = ws.current?.onmessage;
 
     return () => {
       clearInterval(heartbeatInterval);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { getInitialStrategy, STRATEGY_DEFAULTS } from '@/config/strategy-defaults';
-import { LEVERAGE_CONFIG, parseLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
+import { LEVERAGE_CONFIG} from '@/utils/trading/leverage';
 
 interface StrategyCreateModalProps {
   showCreateModal: boolean;

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useWebSocket } from '@/hooks/use-websocket';
+import React, { useState as _useState, useEffect, useRef, useCallback, useMemo as _useMemo } from 'react';
+import { useAuth as _useAuth } from '@/hooks/useAuth';
+import { useWebSocket as _useWebSocket } from '@/hooks/use-websocket';
 import { useLegacyTradingState } from '@/hooks/useLegacyTradingState';
 import { useLegacyTradingHandlers } from '@/hooks/useLegacyTradingHandlers';
 import { useTradingDataOperations } from '@/hooks/useTradingDataOperations';
@@ -14,39 +14,39 @@ import { TradingHeader } from '@/components/trading/TradingHeader';
 import { SessionInfoPanel } from '@/components/trading/SessionInfoPanel';
 import { MarketSnapshot } from '@/components/trading/MarketSnapshot';
 import { useApiConnection } from '@/hooks/useApiConnection';
-import { isNum, fx, loc, formatBTCUpbit, formatPercent, floorQty, formatKRW, formatUSD, formatCompact } from '@/utils/trading/formatters';
+import { isNum, fx as _fx, loc, formatBTCUpbit, formatPercent as _formatPercent, floorQty as _floorQty, formatKRW as _formatKRW, formatUSD as _formatUSD, formatCompact as _formatCompact } from '@/utils/trading/formatters';
 import { normalizeAmountBtc } from '@/utils/trading/calculations';
 import { getInitialStrategy, STRATEGY_DEFAULTS, getSafeLeverage } from '@/config/strategy-defaults';
 import { LEVERAGE_CONFIG, parseLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
 import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
 import './legacy-auto-trading.css';
-import { useToast } from '@/hooks/use-toast';
+import { useToast as _useToast } from '@/hooks/use-toast';
 import { apiFetchJson } from '@/lib/queryClient';
-import { markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
+import { markStrategyAsDeleted as _markStrategyAsDeleted } from '@/utils/emergency-strategy-restore';
 import { logger } from '@/utils/logger';
 import { userIdManager } from '@/utils/user-id-manager';
 import { strategyBackupManager, useStrategyBackup } from '@/utils/strategy-backup';
-import { Badge } from '@/components/ui/badge';
+import { Badge as _Badge } from '@/components/ui/badge';
 import { DailyStatsPanel } from '@/components/trading/DailyStatsPanel';
 
-interface Band {
-  name?: string;
-  target_kimp?: number | string;
-  exit_kimp?: number | string;
-  tolerance?: number | string;
-  leverage?: number | string;
-  amount_btc?: number | string;
-  serverId?: string | number;
-}
+// interface _Band {
+//   name?: string;
+//   target_kimp?: number | string;
+//   exit_kimp?: number | string;
+//   tolerance?: number | string;
+//   leverage?: number | string;
+//   amount_btc?: number | string;
+//   serverId?: string | number;
+// }
 
 // 유틸리티 함수들은 별도 파일로 분리됨
 
 const LegacyAutoTradingPage = () => {
   // 유틸리티 함수들
-  const mapStrategyToBand = (strategy: any) => ({
-    ...strategy,
-    band: strategy.band || 'default'
-  });
+  // const _mapStrategyToBand = (strategy: any) => ({
+  //   ...strategy,
+  //   band: strategy.band || 'default'
+  // });
 
   // 상수들
   const TRADING_CONSTANTS = {
@@ -60,25 +60,25 @@ const LegacyAutoTradingPage = () => {
     // WebSocket 관련
     isConnected, wsConnecting, connectionAttempts, lastHeartbeat, subscribe,
     // 상태들
-    sessionInfo, setSessionInfo, showSessionInfo, setShowSessionInfo,
-    currentPositions, setCurrentPositions, kimp, setKimp,
-    logs, setLogs, balances, setBalances, metrics, setMetrics, bands, setBands,
+    sessionInfo, setSessionInfo: _setSessionInfo, showSessionInfo, setShowSessionInfo: _setShowSessionInfo,
+    currentPositions, setCurrentPositions: _setCurrentPositions, kimp, setKimp,
+    logs: _logs, setLogs, balances, setBalances, metrics: _metrics, setMetrics, bands, setBands,
     serverBands, setServerBands, serverStatusBands, setServerStatusBands,
-    registeringIndex, setRegisteringIndex, unregisteringIndex, setUnregisteringIndex,
-    starting, setStarting, boardActingId, setBoardActingId, strategies, setStrategies,
+    registeringIndex: _registeringIndex, setRegisteringIndex, unregisteringIndex: _unregisteringIndex, setUnregisteringIndex,
+    starting: _starting, setStarting, boardActingId: _boardActingId, setBoardActingId: _setBoardActingId, strategies, setStrategies,
     realStrategies, setRealStrategies, dailyStats, setDailyStats, serverState, setServerState,
-    netMs, setNetMs, netOk, setNetOk, errCount, setErrCount, tradingMode, setTradingMode,
-    apiConnections, setApiConnections, ws, setWs, refreshTrigger, setRefreshTrigger,
+    netMs, setNetMs: _setNetMs, netOk, setNetOk: _setNetOk, errCount, setErrCount, tradingMode, setTradingMode: _setTradingMode,
+    apiConnections: _apiConnections, setApiConnections: _setApiConnections, ws: _ws, setWs: _setWs, refreshTrigger: _refreshTrigger, setRefreshTrigger: _setRefreshTrigger,
     showCreateModal, setShowCreateModal, newStrategy, setNewStrategy,
-    editingStrategyId, setEditingStrategyId, loadingState, setLoadingState,
+    editingStrategyId, setEditingStrategyId, loadingState: _loadingState, setLoadingState,
     // 유틸리티
-    effectiveUserId, toast, fetchPositions,
+    effectiveUserId, toast, fetchPositions: _fetchPositions,
     // Trading mode related
-    isAdmin, canUseMock, loadRealStrategies, isLoadingStrategies, strategiesError, lastLoadTime
+    isAdmin: _isAdmin, canUseMock: _canUseMock, loadRealStrategies, isLoadingStrategies, strategiesError, lastLoadTime
   } = useLegacyTradingState();
 
   // 김치 프리미엄 차트 데이터 관리
-  const { chartData, isLoading: chartLoading, addDataPoint } = useKimchiChartData('BTC');
+  const { chartData, isLoading: _chartLoading, addDataPoint } = useKimchiChartData('BTC');
 
   // 사용자 ID 통일 및 데이터 마이그레이션
   useEffect(() => {
@@ -200,17 +200,17 @@ const LegacyAutoTradingPage = () => {
   }, [effectiveUserId, toast]);
 
   // 타입 정의 (hook에서 이미 상태는 관리됨)
-  type SparkPoint = { t: number; v: number };
-  
+  // type _SparkPoint = { t: number; v: number };
+
   // 🛡️ 전략 데이터 백업 시스템
-  const { 
-    isAutoBackupEnabled, 
-    createBackup, 
-    getAllBackups, 
-    restoreFromBackup, 
-    emergencyRestore,
-    exportBackup,
-    importBackup 
+  const {
+    isAutoBackupEnabled: _isAutoBackupEnabled,
+    createBackup: _createBackup,
+    getAllBackups: _getAllBackups,
+    restoreFromBackup: _restoreFromBackup,
+    emergencyRestore: _emergencyRestore,
+    exportBackup: _exportBackup,
+    importBackup: _importBackup
   } = useStrategyBackup();
 
   // 실시간 거래 모드: 로딩 상태 단순화
@@ -265,9 +265,9 @@ const LegacyAutoTradingPage = () => {
   // 컴포넌트 마운트 시 거래 기록 및 전략 복원
   useEffect(() => {
     // 컴포넌트 마운트 - 데이터 복원 시작
-    
+
     // 거래 기록 복원 (즉시 + 1초 후 한번 더)
-    const restoredTrades = restoreTradesFromPositions();
+    void restoreTradesFromPositions();
     
     // 1초 후 한번 더 시도 (컴포넌트가 완전히 로드된 후)
     const retryTimeout = setTimeout(() => {
@@ -288,18 +288,18 @@ const LegacyAutoTradingPage = () => {
   }, []); // 마운트 시 한 번만 실행
   
   // 새 전략 모달 상태
-  type NewStrategyForm = {
-    name: string;
-    crypto: string;
-    entryCondition: string;
-    takeProfitCondition: string;
-    baseAmount: string;
-    investmentAmount: string;
-    leverage: string;
-    tolerance: string; // 타입 완화: 문자형으로 관리
-    riskLevel: string;
-    activateImmediately: boolean;
-  };
+  // type _NewStrategyForm = {
+  //   name: string;
+  //   crypto: string;
+  //   entryCondition: string;
+  //   takeProfitCondition: string;
+  //   baseAmount: string;
+  //   investmentAmount: string;
+  //   leverage: string;
+  //   tolerance: string; // 타입 완화: 문자형으로 관리
+  //   riskLevel: string;
+  //   activateImmediately: boolean;
+  // };
 
   // 차트 관련 상태는 KimchiChart 컴포넌트로 이동됨
 
@@ -322,7 +322,7 @@ const LegacyAutoTradingPage = () => {
       const calculatedBaseAmount = Math.round(btcAmount * leverage * btcPrice);
 
       if (String(calculatedBaseAmount) !== newStrategy.baseAmount) {
-        setNewStrategy(prev => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
+        setNewStrategy((prev: any) => ({ ...prev, baseAmount: String(calculatedBaseAmount) }));
       }
     }, 800); // 800ms 디바운스로 깜박임 방지
 
@@ -346,7 +346,7 @@ const LegacyAutoTradingPage = () => {
   }, [strategies, effectiveUserId]);
 
   // 전략 복원 완료 추적
-  const hasRestoredRef = useRef(false);
+  // const _hasRestoredRef = useRef(false);
 
   // 실시간 거래 모드: DB가 단일 진실 소스이므로 복원 로직 불필요
 
@@ -366,11 +366,11 @@ const LegacyAutoTradingPage = () => {
   // ===== Memoized maps for O(1) lookups =====
 
   // DOM 요소 참조 (useRef)
-  const bandTbodyRef = useRef<HTMLTableSectionElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
+  // const _bandTbodyRef = useRef<HTMLTableSectionElement>(null);
+  // const _logRef = useRef<HTMLDivElement>(null);
 
   // --- REFS ---
-  const bandRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  // const _bandRefs = useRef<Array<HTMLTableRowElement | null>>([]);
   const abortersRef = useRef<Array<AbortController>>([]);
   const hasLoadedStrategiesRef = useRef<boolean>(false);
   const hasScheduledInitialLoadRef = useRef<boolean>(false);
@@ -504,15 +504,15 @@ const LegacyAutoTradingPage = () => {
 
   // Trading handlers
   const {
-    handleAddBand,
-    handleBandChange,
-    handleSaveBands,
-    handleLoadBands,
-    handleDeleteBand,
-    handleRegisterBand,
-    handleUnregisterBandAt,
-    handleStart,
-    handleStop,
+    handleAddBand: _handleAddBand,
+    handleBandChange: _handleBandChange,
+    handleSaveBands: _handleSaveBands,
+    handleLoadBands: _handleLoadBands,
+    handleDeleteBand: _handleDeleteBand,
+    handleRegisterBand: _handleRegisterBand,
+    handleUnregisterBandAt: _handleUnregisterBandAt,
+    handleStart: _handleStart,
+    handleStop: _handleStop,
     handleCheckSession
   } = useLegacyTradingHandlers(
     setBands,
@@ -541,10 +541,10 @@ const LegacyAutoTradingPage = () => {
 
   // UI helpers hook
   const {
-    configuredByName,
-    statusById,
-    statusByName,
-    createCircleHTML,
+    configuredByName: _configuredByName,
+    statusById: _statusById,
+    statusByName: _statusByName,
+    createCircleHTML: _createCircleHTML,
     updatePreviewForRow
   } = useTradingUIHelpers(
     serverBands,
@@ -553,9 +553,9 @@ const LegacyAutoTradingPage = () => {
 
   // Margin helpers hook
   const {
-    updateUsedMarginFromMock,
+    updateUsedMarginFromMock: _updateUsedMarginFromMock,
     updateUsedMarginFromStatus,
-    removeBoardRowOptimistic
+    removeBoardRowOptimistic: _removeBoardRowOptimistic
   } = useTradingMarginHelpers(
     setBalances,
     realStrategies
@@ -720,35 +720,35 @@ const LegacyAutoTradingPage = () => {
 
 
   // ===== 활성 전략들의 포지션 상태 확인 (중복 진입 방지) =====
-  const checkActiveStrategiesPositions = useCallback(async (strategies: any[]) => {
-    try {
-      const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
+  // const _checkActiveStrategiesPositions = useCallback(async (strategies: any[]) => {
+  //   try {
+  //     const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
 
-      if (positionsResponse.ok) {
-        const positions = await positionsResponse.json();
-        setCurrentPositions(positions);
+  //     if (positionsResponse.ok) {
+  //       const positions = await positionsResponse.json();
+  //       setCurrentPositions(positions);
 
-        const activeStrategies = strategies.filter(s => s.isActive);
+  //       const activeStrategies = strategies.filter(s => s.isActive);
 
-        for (const strategy of activeStrategies) {
-          const activePosition = positions.find((p: any) =>
-            p.status === 'open' &&
-            p.strategyId === parseInt(strategy.id) &&
-            p.symbol === (strategy.crypto || 'BTC')
-          );
+  //       for (const strategy of activeStrategies) {
+  //         const activePosition = positions.find((p: any) =>
+  //           p.status === 'open' &&
+  //           p.strategyId === parseInt(strategy.id) &&
+  //           p.symbol === (strategy.crypto || 'BTC')
+  //         );
 
-          if (activePosition) {
-            // 활성 포지션이 있으면 전략 비활성화 (청산 전까지 재진입 방지)
-            if (activePosition.status === 'open') {
-              strategy.isActive = false;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      // 에러 발생 시 조용히 처리 (로그 스팸 방지)
-    }
-  }, [setCurrentPositions]);
+  //         if (activePosition) {
+  //           // 활성 포지션이 있으면 전략 비활성화 (청산 전까지 재진입 방지)
+  //           if (activePosition.status === 'open') {
+  //             strategy.isActive = false;
+  //           }
+  //         }
+  //       }
+  //     }
+  //   } catch (error) {
+  //     // 에러 발생 시 조용히 처리 (로그 스팸 방지)
+  //   }
+  // }, [setCurrentPositions]);
 
   // 간단한 전략 로드 함수
   const loadStrategiesFromDB = useCallback(async (opts: { force?: boolean; userId?: string | number } = {}) => {
@@ -791,10 +791,10 @@ const LegacyAutoTradingPage = () => {
       if (Array.isArray(dbStrategies)) {
         const formattedStrategies = dbStrategies.map((s: any) => {
           // 안전한 숫자 변환 함수
-          const safeNumber = (value: any, defaultValue: number) => {
-            const num = parseFloat(value);
-            return isNaN(num) ? defaultValue : num;
-          };
+          // const _safeNumber = (value: any, defaultValue: number) => {
+          //   const num = parseFloat(value);
+          //   return isNaN(num) ? defaultValue : num;
+          // };
           
           const safeString = (value: any, defaultValue: string) => {
             // null이나 undefined인 경우에만 기본값 사용
@@ -1266,7 +1266,7 @@ const LegacyAutoTradingPage = () => {
                   isRealTimeValid: hasValidRealTimeData,
                   dataAge: Math.round(dataAge / 1000)
                 }}
-                userId={String(user.id)}
+                userId={user ? String(user.id) : ''}
                 onDailyStatsUpdate={setDailyStats}
                 isLiveMode={true}
                 liveBalances={balances}
@@ -1392,7 +1392,7 @@ const LegacyAutoTradingPage = () => {
 
                   // 추가로 로컬 함수로도 확인 (이중 안전장치)
                   try {
-                    const newStrategies = await loadStrategiesFromDB({ force: true });
+                    void await loadStrategiesFromDB({ force: true });
                   } catch (localError) {
                     console.warn('⚠️ [전략수정] 로컬 함수 새로고침 실패:', localError);
                   }
@@ -1419,20 +1419,20 @@ const LegacyAutoTradingPage = () => {
                   counter++;
                 }
 
-                const newStrategyData = {
-                  id: newId,
-                  name: newName,
-                  crypto: newStrategy.crypto,
-                  entryCondition: newStrategy.entryCondition,
-                  takeProfitCondition: newStrategy.takeProfitCondition,
-                  investmentAmount: newStrategy.investmentAmount,
-                  leverage: newStrategy.leverage,
-                  tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
-                  riskLevel: newStrategy.riskLevel,
-                  isActive: newStrategy.activateImmediately,
-                  profitRate: '+0.00',
-                  executionCount: 0
-                };
+                // const _newStrategyData = {
+                //   id: newId,
+                //   name: newName,
+                //   crypto: newStrategy.crypto,
+                //   entryCondition: newStrategy.entryCondition,
+                //   takeProfitCondition: newStrategy.takeProfitCondition,
+                //   investmentAmount: newStrategy.investmentAmount,
+                //   leverage: newStrategy.leverage,
+                //   tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE,
+                //   riskLevel: newStrategy.riskLevel,
+                //   isActive: newStrategy.activateImmediately,
+                //   profitRate: '+0.00',
+                //   executionCount: 0
+                // };
                 
                 // 실시간 거래 모드: DB 저장
                 try {
@@ -1454,7 +1454,7 @@ const LegacyAutoTradingPage = () => {
                     tolerance: newStrategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE
                   };
 
-                  const result = await fetchJson(`/api/trading-strategies`, {
+                  void await fetchJson(`/api/trading-strategies`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -1468,7 +1468,7 @@ const LegacyAutoTradingPage = () => {
 
                   // 추가로 로컬 함수로도 확인 (이중 안전장치)
                   try {
-                    const newStrategies = await loadStrategiesFromDB({ force: true });
+                    void await loadStrategiesFromDB({ force: true });
                   } catch (localError) {
                     console.warn('⚠️ [전략생성] 로컬 함수 새로고침 실패:', localError);
                   }
@@ -1517,7 +1517,7 @@ const LegacyAutoTradingPage = () => {
                 aria-describedby=":rt:-form-item-description"
                 aria-invalid="false"
                 value={newStrategy.name}
-                onChange={(e) => setNewStrategy(prev => ({...prev, name: e.target.value}))}
+                onChange={(e) => setNewStrategy((prev: any) => ({...prev, name: e.target.value}))}
               />
             </div>
 
@@ -1586,13 +1586,13 @@ const LegacyAutoTradingPage = () => {
                 }} 
                 id="crypto-dropdown"
               >
-                <div className="p-2 hover:bg-slate-700 cursor-pointer rounded-t-lg" onClick={() => {setNewStrategy(prev => ({...prev, crypto: 'BTC'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
+                <div className="p-2 hover:bg-slate-700 cursor-pointer rounded-t-lg" onClick={() => {setNewStrategy((prev: any) => ({...prev, crypto: 'BTC'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
                   <div className="text-white font-medium">BTC - Bitcoin</div>
                 </div>
-                <div className="p-2 hover:bg-slate-700 cursor-pointer" onClick={() => {setNewStrategy(prev => ({...prev, crypto: 'ETH'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
+                <div className="p-2 hover:bg-slate-700 cursor-pointer" onClick={() => {setNewStrategy((prev: any) => ({...prev, crypto: 'ETH'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
                   <div className="text-white font-medium">ETH - Ethereum</div>
                 </div>
-                <div className="p-2 hover:bg-slate-700 cursor-pointer rounded-b-lg" onClick={() => {setNewStrategy(prev => ({...prev, crypto: 'ADA'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
+                <div className="p-2 hover:bg-slate-700 cursor-pointer rounded-b-lg" onClick={() => {setNewStrategy((prev: any) => ({...prev, crypto: 'ADA'})); document.getElementById('crypto-dropdown')?.style.setProperty('display', 'none');}}>
                   <div className="text-white font-medium">ADA - Cardano</div>
                 </div>
               </div>
@@ -1617,7 +1617,7 @@ const LegacyAutoTradingPage = () => {
                   aria-invalid="false"
                   value={newStrategy.entryCondition}
                   onChange={(e) => {
-                    setNewStrategy(prev => ({...prev, entryCondition: e.target.value}));
+                    setNewStrategy((prev: any) => ({...prev, entryCondition: e.target.value}));
                   }}
                 />
               </div>
@@ -1638,7 +1638,7 @@ const LegacyAutoTradingPage = () => {
                   aria-invalid="false"
                   value={newStrategy.takeProfitCondition}
                   onChange={(e) => {
-                    setNewStrategy(prev => ({...prev, takeProfitCondition: e.target.value}));
+                    setNewStrategy((prev: any) => ({...prev, takeProfitCondition: e.target.value}));
                   }}
                 />
               </div>
@@ -1671,7 +1671,7 @@ const LegacyAutoTradingPage = () => {
                   id="tolerance-input"
                   value={newStrategy.tolerance}
                   onChange={(e) => {
-                    setNewStrategy(prev => ({...prev, tolerance: e.target.value}));
+                    setNewStrategy((prev: any) => ({...prev, tolerance: e.target.value}));
                   }}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -1711,8 +1711,8 @@ const LegacyAutoTradingPage = () => {
                       ? calculateInvestmentWithLeverage(baseAmount, leverage, btcPrice)
                       : 0;
                     
-                    setNewStrategy(prev => ({
-                      ...prev, 
+                    setNewStrategy((prev: any) => ({
+                      ...prev,
                       leverage: e.target.value,
                       investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.000'
                     }));
@@ -1754,13 +1754,13 @@ const LegacyAutoTradingPage = () => {
                   pattern="^\\d*(\\.\\d{0,8})?$"
                   onChange={(e) => {
                     // 입력 중에는 원본값 유지 (소수점 입력 허용)
-                    setNewStrategy(prev => ({ ...prev, investmentAmount: e.target.value }));
+                    setNewStrategy((prev: any) => ({ ...prev, investmentAmount: e.target.value }));
                   }}
                   onBlur={(e) => {
                     // 입력 완료 시에만 포맷팅 적용 (업비트용 8자리)
                     const rawValue = parseFloat(e.target.value) || 0;
                     const formattedValue = formatBTCUpbit(rawValue);
-                    setNewStrategy(prev => ({ ...prev, investmentAmount: formattedValue }));
+                    setNewStrategy((prev: any) => ({ ...prev, investmentAmount: formattedValue }));
                   }}
                 />
                 <div className="text-xs text-muted-foreground">
@@ -1798,7 +1798,7 @@ const LegacyAutoTradingPage = () => {
                       ? parseFloat((baseAmount / leverage / btcPrice).toFixed(8))
                       : 0;
                     
-                    setNewStrategy(prev => ({
+                    setNewStrategy((prev: any) => ({
                       ...prev,
                       baseAmount: e.target.value,
                       investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.00000000',
@@ -1874,11 +1874,11 @@ const LegacyAutoTradingPage = () => {
                 }} 
                 id="risk-dropdown"
               >
-                <div className="p-3 hover:bg-slate-700 cursor-pointer rounded-t-lg" onClick={() => {setNewStrategy(prev => ({...prev, riskLevel: 'conservative'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
+                <div className="p-3 hover:bg-slate-700 cursor-pointer rounded-t-lg" onClick={() => {setNewStrategy((prev: any) => ({...prev, riskLevel: 'conservative'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
                   <div className="text-white font-medium">보수적</div>
                   <div className="text-slate-400 text-xs">안전한 투자, 낮은 수익률</div>
                 </div>
-                <div className="p-3 hover:bg-slate-700 cursor-pointer bg-slate-700" onClick={() => {setNewStrategy(prev => ({...prev, riskLevel: 'moderate'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
+                <div className="p-3 hover:bg-slate-700 cursor-pointer bg-slate-700" onClick={() => {setNewStrategy((prev: any) => ({...prev, riskLevel: 'moderate'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
                   <div className="text-white font-medium flex items-center">
                     <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
@@ -1887,7 +1887,7 @@ const LegacyAutoTradingPage = () => {
                   </div>
                   <div className="text-slate-400 text-xs">균형잡힌 투자, 적당한 수익률</div>
                 </div>
-                <div className="p-3 hover:bg-slate-700 cursor-pointer rounded-b-lg" onClick={() => {setNewStrategy(prev => ({...prev, riskLevel: 'aggressive'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
+                <div className="p-3 hover:bg-slate-700 cursor-pointer rounded-b-lg" onClick={() => {setNewStrategy((prev: any) => ({...prev, riskLevel: 'aggressive'})); document.getElementById('risk-dropdown')?.style.setProperty('display', 'none');}}>
                   <div className="text-white font-medium">공격적</div>
                   <div className="text-slate-400 text-xs">고위험 투자, 높은 수익률 기대</div>
                 </div>
@@ -1916,7 +1916,7 @@ const LegacyAutoTradingPage = () => {
                 className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input" 
                 data-testid="switch-activate-strategy" 
                 id=":r15:-form-item" 
-                onClick={() => setNewStrategy(prev => ({...prev, activateImmediately: !prev.activateImmediately}))}
+                onClick={() => setNewStrategy((prev: any) => ({...prev, activateImmediately: !prev.activateImmediately}))}
               >
                 <span 
                   data-state={newStrategy.activateImmediately ? "checked" : "unchecked"} 

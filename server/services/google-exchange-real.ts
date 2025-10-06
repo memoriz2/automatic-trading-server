@@ -144,7 +144,7 @@ export class GoogleExchangeRealService {
   /**
    * 백업용 환율 API (ExchangeRate-API)
    */
-  private async getBackupExchangeRate(): Promise<number | null> {
+  private async _getBackupExchangeRate(): Promise<number | null> {
     try {
       // 무료 API 사용 (API 키 불필요)
       const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');

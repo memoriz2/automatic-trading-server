@@ -79,13 +79,13 @@ export class ApiKeysRepository extends BaseRepository {
   /**
    * 데이터 존재 여부만 확인 (복호화 무관, is_active 상관없이)
    */
-  private async existsByUserAndExchange(userId: number, exchange: string): Promise<boolean> {
+  private async _existsByUserAndExchange(userId: number, exchange: string): Promise<boolean> {
     const query = `
       SELECT COUNT(*) as count
-      FROM exchanges 
+      FROM exchanges
       WHERE user_id = $1 AND exchange = $2
     `;
-    
+
     const result = await this.queryOne<{count: string}>(query, [userId, exchange]);
     return parseInt(result?.count || '0') > 0;
   }

@@ -97,12 +97,12 @@ export function usePositionEntry() {
             variant: "destructive"
           });
         }
-        return { allowed: false, ...result };
+        return { ...result, allowed: false };
       }
 
       // 진입 허용
       console.log('✅ 포지션 진입 허용:', result);
-      return { allowed: true, ...result };
+      return { ...result, allowed: true };
 
     } catch (error) {
       console.error('❌ 포지션 진입 확인 실패:', error);

@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Play, Square, AlertTriangle, TrendingUp, TrendingDown, Settings } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Square, AlertTriangle, TrendingUp, Settings } from "lucide-react";
+  // import { apiRequest } from "@/lib/queryClient";
 import type { TradingSettings } from "@/types/trading";
 
 interface NewKimchiControlProps {
@@ -15,7 +15,7 @@ interface NewKimchiControlProps {
 export function NewKimchiControl({ userId }: NewKimchiControlProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
 
@@ -124,7 +124,7 @@ export function NewKimchiControl({ userId }: NewKimchiControlProps) {
     }
   });
 
-  const handleStart = () => {
+  const ___handleStart = () => {
     startTradingMutation.mutate();
   };
 

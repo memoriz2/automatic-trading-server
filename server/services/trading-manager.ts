@@ -1,10 +1,10 @@
 // ===== 거래 서비스 매니저 (환경별 분기) =====
 
-import { TRADING_CONFIG, isLiveMode } from '../config/trading-config.js';
+import { TRADING_CONFIG} from '../config/trading-config.js';
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
 import { storage } from '../storage.js';
-import { ExchangeServiceFactory, ExchangeServices } from './exchange-factory.js';
+import { ExchangeServiceFactory} from './exchange-factory.js';
 import { TradingResult } from '../types/trading.js';
 
 export class TradingManager {

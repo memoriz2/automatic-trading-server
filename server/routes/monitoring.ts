@@ -70,7 +70,7 @@ export function registerMonitoringRoutes(app: Express): void {
   });
 
   // 실시간 거래 현황 대시보드
-  app.get('/api/monitoring/dashboard', async (req, res) => {
+  app.get('/api/monitoring/dashboard', async (_req, res) => {
     try {
       const data = await storage.getDashboardData();
 
@@ -85,7 +85,7 @@ export function registerMonitoringRoutes(app: Express): void {
   });
 
   // 거래 로그 분석 - 성공/실패 패턴
-  app.get('/api/monitoring/logs/patterns', async (req, res) => {
+  app.get('/api/monitoring/logs/patterns', async (_req, res) => {
     try {
       const data = await storage.getTradeLogPatterns();
 

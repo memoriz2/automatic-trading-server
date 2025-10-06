@@ -1,7 +1,7 @@
 import React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { TRADING_CONSTANTS } from '@/lib/utils';
-import { LEVERAGE_CONFIG, parseLeverage } from '@/utils/trading/leverage';
+  // import { TRADING_CONSTANTS } from '@/lib/utils';
+// import { LEVERAGE_CONFIG, parseLeverage } from '@/utils/trading/leverage';
 import { formatBTC, formatPercent } from '@/utils/trading/formatters';
 import { STRATEGY_DEFAULTS } from '@/config/strategy-defaults';
 import { userIdManager } from '@/utils/user-id-manager';

@@ -36,7 +36,7 @@ export function RecentActivity({ recentTrades, alerts }: RecentActivityProps) {
             {recentTrades.length === 0 ? (
               <p className="text-slate-400 text-center py-4">최근 거래 내역이 없습니다.</p>
             ) : (
-              recentTrades.slice(0, 5).map((trade, index) => (
+              recentTrades.slice(0, 5).map((trade, _index) => (
                 <div key={trade.id} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-b-0">
                   <div className="flex items-center">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${

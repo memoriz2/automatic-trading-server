@@ -1,6 +1,6 @@
 import { UpbitService } from './upbit.js';
 import { BinanceService } from './binance.js';
-import { UpbitWebSocketService } from './upbit-websocket.js';
+  // import { UpbitWebSocketService } from './upbit-websocket.js';
 import { priceCache } from './price-cache.js';
 import fetch from 'node-fetch';
 import { naverExchange } from './naver-exchange.js';
@@ -21,11 +21,11 @@ export interface SimpleKimchiData {
 
 export class SimpleKimchiService {
   private upbitService: UpbitService;
-  private binanceService: BinanceService;
+  private _binanceService: BinanceService;
 
   constructor() {
     this.upbitService = new UpbitService();
-    this.binanceService = new BinanceService();
+    this._binanceService = new BinanceService();
   }
 
 
@@ -58,7 +58,7 @@ export class SimpleKimchiService {
   /**
    * 실시간 USD→KRW 환율 조회 (네이버 금융 사용)
    */
-  private async getRealTimeExchangeRate(): Promise<number> {
+  private async _getRealTimeExchangeRate(): Promise<number> {
     try {
       const rate = await naverExchange.getRate();
       console.log(`🌐 네이버 금융 실시간 USD/KRW 환율: ${rate}원`);
@@ -162,7 +162,7 @@ export class SimpleKimchiService {
   /**
    * 바이낸스 선물 가격 조회 (세션 ID로 DB 조회하여 복호화된 API 키 사용)
    */
-  private async getBinanceFuturesPrice(symbol: string, sessionId?: string): Promise<number> {
+  private async _getBinanceFuturesPrice(symbol: string, sessionId?: string): Promise<number> {
     try {
       let apiKey: string | undefined;
       let secretKey: string | undefined;
@@ -295,7 +295,7 @@ export class SimpleKimchiService {
   /**
    * 바이낸스 현물 가격 조회
    */
-  private async getBinanceSpotPrice(symbol: string, userId?: string): Promise<number> {
+  private async getBinanceSpotPrice(symbol: string, _userId?: string): Promise<number> {
     try {
       const binanceService = new BinanceService();
       const price = await binanceService.getSymbolPrice(symbol);

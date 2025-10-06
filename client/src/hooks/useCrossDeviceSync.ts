@@ -43,7 +43,7 @@ export function useCrossDeviceSync() {
   
   // 중복 이벤트 방지를 위한 최근 처리된 메시지 추적
   const recentMessages = useRef<Set<string>>(new Set());
-  const messageCleanupInterval = useRef<NodeJS.Timeout | null>(null);
+//   const messageCleanupInterval = useRef<NodeJS.Timeout | null>(null);
 
   // BroadcastChannel 초기화 (같은 도메인의 다른 탭과 동기화)
   useEffect(() => {

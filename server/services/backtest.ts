@@ -34,10 +34,10 @@ export interface BacktestResult {
 }
 
 export class BacktestService {
-  private simpleKimchiService: SimpleKimchiService;
+  private _simpleKimchiService: SimpleKimchiService;
 
   constructor() {
-    this.simpleKimchiService = new SimpleKimchiService();
+    this._simpleKimchiService = new SimpleKimchiService();
     // In a real scenario, you'd fetch historical data here or have a way to access it.
   }
 

@@ -317,7 +317,7 @@ export function withErrorHandling<T extends any[], R>(
   exchange?: 'upbit' | 'binance'
 ) {
   return function <F extends (...args: T) => Promise<R>>(fn: F): F {
-    return (async function (...args: T): Promise<R> {
+    return (async function (this: any, ...args: T): Promise<R> {
       try {
         return await fn.apply(this, args);
       } catch (error) {

@@ -18,7 +18,7 @@ export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
   strategies = []
 }) => {
   // 진입 증거금 계산 (현재 포지션 기반)
-  const calculateUsedMargin = () => {
+  const __calculateUsedMargin = () => {
     // 진입 증거금 계산
     
     if (!positions || positions.length === 0) {
@@ -98,7 +98,7 @@ export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
     return result;
   };
   
-  const usedMarginKRW = calculateUsedMargin();
+//   const usedMarginKRW = calculateUsedMargin();
   return (
     <section className="card col-6">
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border">

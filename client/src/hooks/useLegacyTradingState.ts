@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { useToast } from '@/hooks/use-toast';
@@ -66,7 +66,7 @@ export const useLegacyTradingState = () => {
   const [lastLoadTime, setLastLoadTime] = useState<Date | null>(null);
 
   // 사용자 ID 관리
-  const initialUserId = (() => {
+  const ___initialUserId = (() => {
     try {
       const fromAuth = user?.id != null ? String(user.id) : undefined;
       const search = new URLSearchParams(window.location.search);
@@ -81,7 +81,7 @@ export const useLegacyTradingState = () => {
   const effectiveUserId = user?.id ? String(user.id) : userIdManager.getCurrentUserId();
 
   // 안전 숫자 변환기
-  const toNum = (v: any, d = 0) => {
+  const ___toNum = (v: any, d = 0) => {
     if (v === null || v === undefined) return d;
     const n = typeof v === 'string' ? parseFloat(v) : Number(v);
     return Number.isFinite(n) ? n : d;

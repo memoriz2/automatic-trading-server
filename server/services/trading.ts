@@ -6,12 +6,12 @@ export class TradingService {
   constructor() {}
 
   // 기본 자동매매 제어
-  async startTrading(userId: string): Promise<{ success: boolean; message: string }> {
+  async startTrading(_userId: string): Promise<{ success: boolean; message: string }> {
     this.isTrading = true;
     return { success: true, message: '자동매매가 시작되었습니다' };
   }
 
-  async stopTrading(userId: string): Promise<{ success: boolean; message: string }> {
+  async stopTrading(_userId: string): Promise<{ success: boolean; message: string }> {
     this.isTrading = false;
     return { success: true, message: '자동매매가 중지되었습니다' };
   }

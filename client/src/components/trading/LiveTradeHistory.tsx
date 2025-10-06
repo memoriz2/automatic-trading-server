@@ -88,7 +88,7 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
     return trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN');
   };
 
-  const getStrategyDisplay = (strategy: Strategy) => {
+  const ___getStrategyDisplay = (strategy: Strategy) => {
     return strategy.name.includes('강제진입') ? `🧪 ${strategy.name}` : strategy.name;
   };
 

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import { storage } from "../storage.js";
-import { generateToken, verifyToken } from "../utils/auth.js";
+import { verifyToken } from "../utils/auth.js";
 
 const insertUserSchema = z.object({
   username: z.string(),
@@ -268,7 +268,7 @@ export function registerAuthRoutes(app: Express): void {
         (req as any).session.isAdminSession = true; // 관리자 세션 표시
       }
 
-      const token = generateToken(user.id, user.username);
+//       const token = generateToken(user.id, user.username);
 
       res.json({
         message: "로그인 성공",
@@ -328,7 +328,7 @@ export function registerAuthRoutes(app: Express): void {
   // ===== 관리자용 사용자 관리 API =====
 
   // 모든 사용자 목록 조회 (관리자 전용)
-  app.get("/api/admin/users", authenticateAdmin, async (req: any, res) => {
+  app.get("/api/admin/users", authenticateAdmin, async (_req: any, res) => {
     try {
       const users = await storage.getAllUsers();
 
@@ -367,7 +367,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 승인 대기 중인 사용자 목록 조회 (관리자 전용)
-  app.get("/api/admin/users/pending", authenticateAdmin, async (req: any, res) => {
+  app.get("/api/admin/users/pending", authenticateAdmin, async (_req: any, res) => {
     try {
       const pendingUsers = await storage.getPendingUsers();
 
@@ -500,7 +500,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // 관리자 통계 조회 (관리자 전용)
-  app.get("/api/admin/stats", authenticateAdmin, async (req: any, res) => {
+  app.get("/api/admin/stats", authenticateAdmin, async (_req: any, res) => {
     try {
       const allUsers = await storage.getAllUsers();
       const pendingUsers = await storage.getPendingUsers();

@@ -18,7 +18,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 };
 
 // 거래 저장 함수들
-export const saveTradeToDB = async (trade: any, userId: string, isLiveMode: boolean = false) => {
+export const saveTradeToDB = async (trade: any, _userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: 로컬스토리지만 사용 (DB 저장 안함)
     console.log(`🧪 Mock 거래 - 로컬스토리지만 사용:`, trade.id);
@@ -76,7 +76,7 @@ export const savePositionToDB = async (position: any, userId: string, isLiveMode
   }
 };
 
-export const updatePositionInDB = async (position: any, userId: string, isLiveMode: boolean = false) => {
+export const updatePositionInDB = async (position: any, _userId: string, isLiveMode: boolean = false) => {
   if (!isLiveMode) {
     // Mock 모드: DB 업데이트 안함
     console.log(`🧪 Mock 포지션 업데이트 - 로컬스토리지만 사용:`, position.id);

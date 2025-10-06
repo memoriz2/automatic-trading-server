@@ -2,7 +2,7 @@ import crypto from 'crypto';
 // @ts-ignore
 import jwt from 'jsonwebtoken';
 import { TRADING_CONSTANTS } from '../types/constants.js';
-import { ErrorHandler, withErrorHandling } from '../utils/error-handler.js';
+import { ErrorHandler} from '../utils/error-handler.js';
 
 export interface UpbitTicker {
   market: string;

@@ -30,7 +30,7 @@ export const useRealTimeBalances = (userId?: number) => {
     setIsLoading(true);
     setError(null);
 
-    const startTime = Date.now();
+//     const startTime = Date.now();
 
     try {
       const data = await apiFetchJson('/api/realtime-balances', {

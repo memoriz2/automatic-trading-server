@@ -1,5 +1,5 @@
 import { TRADING_CONSTANTS } from '@/constants/trading-constants';
-import { LivePosition, KimchiData, Strategy } from '@/types/trading';
+import { LivePosition, Strategy } from '@/types/trading';
 
 // 가격 데이터 유효성 검증
 export const isValidPriceData = (data: any): boolean => {
@@ -98,8 +98,8 @@ export const logEntryConditions = (
   lastActionAt: { [key: string]: number }
 ) => {
   if (strategy.name && diffEntry <= tolerance + 1.0) {
-    const now = Date.now();
-    const lastAction = lastActionAt[strategy.id] || 0;
+//     const now = Date.now();
+//     const lastAction = lastActionAt[strategy.id] || 0;
 
     // 진입 조건 체크 완료
 

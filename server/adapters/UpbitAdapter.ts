@@ -82,7 +82,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
    */
   async testConnection(): Promise<{ success: boolean; permissions: string[]; error?: string }> {
     try {
-      const accounts = await this.apiRequest<any[]>('/v1/accounts');
+//       const accounts = await this.apiRequest<any[]>('/v1/accounts');
       
       // 계정 정보가 조회되면 연결 성공
       const permissions = ['spot', 'balance']; // 업비트는 현물 거래만 지원
@@ -425,7 +425,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
   /**
    * 수수료율 조회
    */
-  async getFeeRate(symbol: string, orderType: 'market' | 'limit'): Promise<{
+  async getFeeRate(_symbol: string, _orderType: 'market' | 'limit'): Promise<{
     maker: number;
     taker: number;
   }> {
@@ -451,7 +451,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
   /**
    * 표준 주문 방향을 업비트 형식으로 변환
    */
-  private mapOrderSide(side: string): 'bid' | 'ask' {
+  private _mapOrderSide(side: string): 'bid' | 'ask' {
     return side === 'buy' ? 'bid' : 'ask';
   }
 

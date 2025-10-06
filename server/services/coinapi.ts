@@ -88,7 +88,7 @@ export class CoinAPIService {
   }
 
   // 업비트 직접 API 호출 (CoinAPI 실패시 대체)
-  private async getUpbitPriceDirect(symbol: string): Promise<number> {
+  private async _getUpbitPriceDirect(symbol: string): Promise<number> {
     try {
       const market = `KRW-${symbol}`;
       const response = await fetch(`https://api.upbit.com/v1/ticker?markets=${market}`);

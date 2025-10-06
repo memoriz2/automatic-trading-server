@@ -3,14 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { KimchiCards } from "@/components/kimchi-cards";
 import { PositionsTable } from "@/components/positions-table";
-import { BalanceDisplay } from "@/components/balance-display";
+  // import { BalanceDisplay } from "@/components/balance-display";
 
 import { RealTimePrices } from "@/components/real-time-prices";
 import { CryptoPricesGrid } from "@/components/crypto-prices-grid";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { StopCircle, Wifi, WifiOff } from "lucide-react";
+import { Wifi, WifiOff } from "lucide-react";
 import type { KimchiPremium, Position, Trade, TradingSettings, SystemAlert } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
 import { useRealTimeStats } from "@/hooks/useRealTimeStats";
@@ -242,7 +242,7 @@ export default function Dashboard() {
         throw new Error(errorMessage);
       }
 
-      const result = await res.json();
+      const __result = await res.json();
 
       toast({
         title: "성공",
@@ -298,7 +298,7 @@ export default function Dashboard() {
       new Date(typeof d === 'string' ? d : d.toISOString()).toLocaleString('en-US', { timeZone: 'Asia/Seoul' })
     ).toDateString();
 
-  const todayKst = toKstDateString(new Date());
+  const __todayKst = toKstDateString(new Date());
 
   // legacy-auto-trading과 동일한 총 거래 값 사용
   const todayTradeCount = realTimeStats?.totalTrades || 0;

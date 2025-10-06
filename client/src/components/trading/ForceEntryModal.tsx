@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, TrendingUp, AlertTriangle } from 'lucide-react';
-import { LEVERAGE_CONFIG, parseLeverage, validateLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
+import { LEVERAGE_CONFIG, parseLeverage, validateLeverage} from '@/utils/trading/leverage';
 import { formatBTC } from '@/utils/trading/formatters';
 import { useToast } from '@/hooks/use-toast';
 

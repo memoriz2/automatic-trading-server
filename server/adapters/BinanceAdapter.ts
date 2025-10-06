@@ -219,7 +219,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
 
     // 선물 계정 우선 테스트 (exchangeTestService와 동일한 방식)
     try {
-      const futuresAccount = await this.apiRequest('/fapi/v2/account', 'GET', {}, true);
+//       const futuresAccount = await this.apiRequest('/fapi/v2/account', 'GET', {}, true);
       permissions.push('futures');
       hasAnyAccess = true;
       console.log('✅ 바이낸스 선물 API 접근 성공');
@@ -494,7 +494,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   /**
    * 주문 조회
    */
-  async getOrder(orderId: string): Promise<OrderResponseDto> {
+  async getOrder(_orderId: string): Promise<OrderResponseDto> {
     // 구현 필요 - 바이낸스 주문 조회 API 호출
     throw new Error('구현 필요: Binance getOrder');
   }
@@ -502,7 +502,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   /**
    * 주문 취소
    */
-  async cancelOrder(orderId: string): Promise<boolean> {
+  async cancelOrder(_orderId: string): Promise<boolean> {
     // 구현 필요 - 바이낸스 주문 취소 API 호출
     throw new Error('구현 필요: Binance cancelOrder');
   }
@@ -510,7 +510,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   /**
    * 활성 주문 목록 조회
    */
-  async getActiveOrders(symbol?: string): Promise<OrderResponseDto[]> {
+  async getActiveOrders(_symbol?: string): Promise<OrderResponseDto[]> {
     // 구현 필요 - 바이낸스 활성 주문 조회 API 호출
     throw new Error('구현 필요: Binance getActiveOrders');
   }
@@ -518,7 +518,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   /**
    * 거래 내역 조회
    */
-  async getTrades(symbol?: string, limit: number = 100): Promise<Array<{
+  async getTrades(_symbol?: string, _limit: number = 100): Promise<Array<{
     id: string;
     symbol: string;
     side: string;
@@ -630,7 +630,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   /**
    * 수수료율 조회
    */
-  async getFeeRate(symbol: string, orderType: 'market' | 'limit'): Promise<{
+  async getFeeRate(_symbol: string, _orderType: 'market' | 'limit'): Promise<{
     maker: number;
     taker: number;
   }> {
@@ -644,7 +644,7 @@ export class BinanceAdapter extends BaseExchangeAdapter {
   /**
    * 선물 수수료율 조회
    */
-  async getFuturesFeeRate(symbol: string): Promise<{
+  async getFuturesFeeRate(_symbol: string): Promise<{
     maker: number;
     taker: number;
   }> {

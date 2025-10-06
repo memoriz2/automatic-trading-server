@@ -2,7 +2,7 @@ import * as React from "react"
 
 import type {
   ToastActionElement,
-  ToastProps as ShadcnToastProps,
+//   ToastProps as ShadcnToastProps,
 } from "@/components/ui/toast"
 
 import { toast as shadcnToast } from '@/components/ui/use-toast';

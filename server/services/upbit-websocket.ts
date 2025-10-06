@@ -58,13 +58,13 @@ export class UpbitWebSocketService {
         }
       });
 
-      this.ws.on('close', (code: number, reason: string) => {
+      this.ws.on('close', (_code: number, _reason: string) => {
         // console.log('🔌 업비트 WebSocket 연결 종료');
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
-      this.ws.on('error', (error: Error) => {
+      this.ws.on('_error', (_error: Error) => {
         // console.error('❌ 업비트 WebSocket 오류:', error);
         this.isConnected = false;
         this.scheduleReconnect();

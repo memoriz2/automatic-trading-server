@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { TRADING_CONSTANTS } from '@/constants/trading-constants';
-import { saveLiveTradeToDB, saveLivePositionToDB, updateLivePositionInDB } from '@/utils/trading-api';
+import { useState, useEffect, useRef} from 'react';
+  // import { useToast } from '@/hooks/use-toast';
+// import { TRADING_CONSTANTS } from '@/constants/trading-constants';
+// import { saveLiveTradeToDB, saveLivePositionToDB, updateLivePositionInDB } from '@/utils/trading-api';
 import { LiveTrade, LivePosition, LiveBalance, KimchiData, Strategy } from '@/types/trading';
-import { formatKoreanTime } from '@/utils/datetime';
-import { calculatePositionPnL } from '@/utils/pnl-calculator';
+  // import { formatKoreanTime } from '@/utils/datetime';
+  // import { calculatePositionPnL } from '@/utils/pnl-calculator';
 
 interface UseLiveTradingProps {
   strategies: Strategy[];
@@ -25,7 +25,7 @@ export const useLiveTrading = ({
   setIsTrading,
   addTradingLog
 }: UseLiveTradingProps) => {
-  const { toast } = useToast();
+//   const { toast } = useToast();
 
   // State
   const [liveBalance, setLiveBalance] = useState<LiveBalance>({

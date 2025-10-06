@@ -1,13 +1,11 @@
 import { BaseRepository } from './BaseRepository.js';
-import { 
-  TradingErrorDto, 
-  ErrorPatternDto, 
-  RetryHistoryDto, 
-  ErrorNotificationDto,
+import {
+  TradingErrorDto,
+  ErrorPatternDto,
+  RetryHistoryDto,
   ErrorStatsDto,
   ErrorSeverity,
   ErrorCategory,
-  RetryStatus,
   FixStatus
 } from '../types/error-tracking.js';
 

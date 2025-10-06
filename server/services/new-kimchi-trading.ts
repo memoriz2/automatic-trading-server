@@ -47,7 +47,7 @@ export class MultiStrategyTradingService {
   }
 
   // 에러 처리 헬퍼 함수
-  private handleError(operation: string, error: any): string {
+  private _handleError(operation: string, error: any): string {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`❌ ${operation} 실패:`, errorMessage);
     return errorMessage;
@@ -321,7 +321,7 @@ export class MultiStrategyTradingService {
             });
 
           } catch (error) {
-            log.error('업비트 BTC 자동 청산 실패', error, { balance: upbitBtcBalance });
+            log.error('업비트 BTC 자동 청산 실패', error instanceof Error ? error : undefined, { balance: upbitBtcBalance });
 
             // 실패 로그 저장
             await storage.createTradeLog({
@@ -331,7 +331,7 @@ export class MultiStrategyTradingService {
               quantity: upbitBtcBalance,
               orderId: null,
               status: 'failed',
-              note: `자동 청산 실패: ${error.message}`
+              note: `자동 청산 실패: ${error instanceof Error ? error.message : String(error)}`
             });
           }
         }
@@ -530,7 +530,7 @@ export class MultiStrategyTradingService {
     // 🚨 잔고 검증 추가
     try {
       // 직접 스토리지에서 잔고 확인 (더 안전)
-      const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+//       const exchanges = await storage.getExchangesByUserId(parseInt(userId));
       console.log(
         `🔍 잔고 확인: 투자금액 ${upbitEntryAmount.toLocaleString()}원, 진입조건: ${entryRate}%`
       );

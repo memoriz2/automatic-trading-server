@@ -20,7 +20,7 @@ import { exchangeTestService } from "./services/exchange-test.js";
 import { BacktestService } from "./services/backtest.js";
 import { BalanceService } from "./services/BalanceService.js";
 import { ErrorTrackingService } from "./services/ErrorTrackingService.js";
-import { logError, logInfo, logDebug, logWarn, logSecurity } from './utils/logger.js';
+import { logError, logInfo, logDebug, logWarn} from './utils/logger.js';
 import { getApiErrorGuide, getServerIpInfo } from './utils/api-error-guide.js';
 import { PositionsRepository } from "./repositories/PositionsRepository.js";
 import { TRADING_CONFIG } from "./config/trading-config.js";
@@ -45,12 +45,12 @@ const insertUserSchema = z.object({
   username: z.string(),
   password: z.string(),
 });
-const loginUserSchema = z.object({
+const _loginUserSchema = z.object({
   username: z.string(),
   password: z.string(),
 });
 import { getCurrentServerIP, isReplit } from "./utils/ip.js";
-import { registerAuthRoutes, authenticateSession } from "./routes/auth.js";
+import { registerAuthRoutes} from "./routes/auth.js";
 import { registerTradingRoutes } from "./routes/trading.js";
 import { registerApiRoutes } from "./routes/api.js";
 import { registerMonitoringRoutes } from "./routes/monitoring.js";
@@ -91,7 +91,7 @@ function getUserIdFromRequest(req: any): string {
 /**
  * 실제 API 키가 있는 활성 사용자를 찾기
  */
-async function findActiveUserWithApiKeys(): Promise<string> {
+async function _findActiveUserWithApiKeys(): Promise<string> {
   try {
     // 알려진 사용자 ID들을 순회하며 API 키가 있는 사용자 찾기
     const knownUserIds = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10"];
@@ -517,7 +517,7 @@ export async function registerRoutes(
   app.get("/api/trading/daily-stats", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const minutes = parseInt(req.query.minutes as string) || 1440; // 기본 24시간
+      const _minutes = parseInt(req.query.minutes as string) || 1440; // 기본 24시간
 
       // 🚀 SQL에서 직접 한국시간 오전 9시 기준 오늘 데이터만 조회 (storage 함수에서 처리)
       const todayTrades = await storage.getTodayTradesByUserId(String(userId));
@@ -545,7 +545,7 @@ export async function registerRoutes(
 
 
       // 실제 포지션 생성/청산 횟수
-      const todayEntries = todayPositions.length; // 오늘 생성된 포지션 수
+      const _todayEntries = todayPositions.length; // 오늘 생성된 포지션 수
       // 청산 횟수는 exit_time 기준으로 계산
       const todayExits = await storage.getTodayExitedPositionsCount(userId);
 
@@ -581,7 +581,7 @@ export async function registerRoutes(
             const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
             
             // 모든 활성 포지션에 대해 수수료 계산 (캐시된 가격 사용)
-            activePositionFees = todayActivePositions.reduce((sum, position, index) => {
+            activePositionFees = todayActivePositions.reduce((sum, position, _index) => {
               // 업비트 예상 매도 수수료 (실시간) - 올바른 필드명 사용
               const upbitQuantity = position.quantity || position.upbitQuantity || 0;
               const upbitSellAmount = upbitQuantity * currentUpbitPrice;
@@ -640,7 +640,7 @@ export async function registerRoutes(
           for (const position of todayPositions) {
             const entryKimchiRate = Number(position.entry_premium_rate || 0);
             let entryPrice = Number(position.entry_price || 0); // KRW 투자금액
-            const leverage = Number(position.binance_leverage || 1);
+            const _leverage = Number(position.binance_leverage || 1);
             
             // entry_price가 비현실적으로 크면 실제 투자금액으로 추정
             if (entryPrice > 50000000) { // 5천만원 이상이면 비현실적
@@ -925,16 +925,16 @@ export async function registerRoutes(
         const lastLogKey = `auth_fail_${sessionId}`;
         
         // 전역 객체에 마지막 로그 시간 저장 (간단한 메모리 기반 스로틀링)
-        if (!global.authFailLogs) global.authFailLogs = {};
-        const lastLogTime = global.authFailLogs[lastLogKey] || 0;
-        
+        if (!(global as any).authFailLogs) (global as any).authFailLogs = {};
+        const lastLogTime = (global as any).authFailLogs[lastLogKey] || 0;
+
         // 30초마다 한 번만 로그 출력
         if (now - lastLogTime > 30000) {
           console.log('❌ 세션 인증 실패: 사용자 정보 없음', {
             sessionExists: !!req.session,
             sessionId: sessionId
           });
-          global.authFailLogs[lastLogKey] = now;
+          (global as any).authFailLogs[lastLogKey] = now;
         }
       }
       return res.status(401).json({ message: '로그인이 필요합니다' });
@@ -957,7 +957,7 @@ export async function registerRoutes(
   // POST /api/auth/logout 엔드포인트는 registerAuthRoutes(app)을 통해 등록됨
 
   // Download endpoint
-  app.get("/api/download", (req, res) => {
+  app.get("/api/download", (_req, res) => {
     const fs = require("fs");
     const path = require("path");
     const filePath = path.join(process.cwd(), "download-this-file.tar.gz");
@@ -972,7 +972,7 @@ export async function registerRoutes(
   // API Routes
 
   // 서버 정보 조회 (IP 주소, 거래 모드 등)
-  app.get("/api/server-info", async (req, res) => {
+  app.get("/api/server-info", async (_req, res) => {
     try {
       const serverIP = await getCurrentServerIP();
       const isReplitEnv = isReplit();
@@ -992,7 +992,7 @@ export async function registerRoutes(
   });
 
   // 암호화폐 목록 조회
-  app.get("/api/cryptocurrencies", async (req, res) => {
+  app.get("/api/cryptocurrencies", async (_req, res) => {
     try {
       const cryptocurrencies = await storage.getAllCryptocurrencies();
       res.json(cryptocurrencies);
@@ -1002,7 +1002,7 @@ export async function registerRoutes(
   });
 
   // 최신 김프율 조회 (대시보드용) - SimpleKimchiService 사용
-  app.get("/api/kimchi-premium", async (req, res) => {
+  app.get("/api/kimchi-premium", async (_req, res) => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
       const kimchiData = await simpleKimchiService.calculateSimpleKimchi(symbols);
@@ -1014,7 +1014,7 @@ export async function registerRoutes(
   });
 
   // CoinAPI 기반 실시간 김프율 조회 (고정밀도)
-  app.get("/api/kimchi-premium/coinapi", async (req, res) => {
+  app.get("/api/kimchi-premium/coinapi", async (_req, res) => {
     try {
       const symbols = ["BTC", "ETH", "XRP", "ADA", "DOT"];
       const results: any[] = [];
@@ -1059,7 +1059,7 @@ export async function registerRoutes(
   });
 
   // 실시간 가격 캐시 상태 디버깅 엔드포인트
-  app.get("/api/debug/price-cache-status", (req, res) => {
+  app.get("/api/debug/price-cache-status", (_req, res) => {
     try {
       const cacheStatus = priceCache.getCacheStatus();
       const realtimeStatus = realtimeKimchiService.getStatus();
@@ -1107,7 +1107,7 @@ export async function registerRoutes(
   });
 
   // 환율 정보 조회 API
-  app.get("/api/exchange-rate", async (req, res) => {
+  app.get("/api/exchange-rate", async (_req, res) => {
     try {
       // Google Finance에서 실시간 USD/KRW 환율 가져오기
       const exchangeRate = simpleKimchiService.getCurrentExchangeRate();
@@ -1123,7 +1123,7 @@ export async function registerRoutes(
   });
 
   // 최신 김프율 조회 (저장된 데이터) -> KimchiService의 지연 초기화 트리거
-  app.get("/api/kimchi-premiums", async (req, res) => {
+  app.get("/api/kimchi-premiums", async (_req, res) => {
     try {
       const premiums = await kimchiService.getLatestKimchiPremiums();
       res.json(premiums);
@@ -1273,7 +1273,7 @@ export async function registerRoutes(
   // 활성 포지션 중복 체크 API (진입 전 확인용) - 반드시 :userId 라우트보다 앞에 위치
   app.get("/api/positions/check-active", authenticateSession, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const _userId = req.user.id;
       const { strategyId, symbol } = req.query;
 
       const activePosition = await storage.getActivePositionByStrategy(
@@ -1998,7 +1998,7 @@ export async function registerRoutes(
         }
 
         // 보안을 위해 API 키 정보 로깅
-        const exchangeDebugInfo = exchanges.map((ex) => ({
+        const _exchangeDebugInfo = exchanges.map((ex) => ({
           id: ex.id,
           name: ex.exchange || "Unknown",
           hasApiKey: !!ex.apiKey,
@@ -2012,7 +2012,7 @@ export async function registerRoutes(
       }
 
       for (const exchange of exchanges) {
-        const exchangeInfo = {
+        const _exchangeInfo = {
           id: exchange.id,
           name: exchange.exchange || "Unknown",
           hasApiKey: !!exchange.apiKey,
@@ -2422,7 +2422,7 @@ export async function registerRoutes(
     }
   });
 
-  wss.on("connection", (ws, req) => {
+  wss.on("connection", (ws, _req) => {
     // 첫 클라이언트 연결 시 KimchiService의 지연 초기화를 트리거
     kimchiService.getLatestKimchiPremiums();
 
@@ -2751,8 +2751,8 @@ export async function registerRoutes(
   // 활동 추적 API
   app.post("/api/activity", authenticateSession, async (req: any, res) => {
     try {
-      const userId = req.user.id;
-      const { timestamp, type, source } = req.body;
+      const _userId = req.user.id;
+      const { timestamp: _timestamp, type: _type, source: _source } = req.body;
       
       // 활동 감지 시 세션 갱신
       if (req.session) {
@@ -3374,7 +3374,7 @@ export async function registerRoutes(
   });
 
   // CORS preflight 처리
-  app.options("/api/auth/*", (req, res) => {
+  app.options("/api/auth/*", (_req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -3384,7 +3384,7 @@ export async function registerRoutes(
   // ===== IP 밴 방지 모니터링 API =====
   
   // 통합 시스템 상태
-  app.get("/api/v2/system/status", authenticateSession, (req, res) => {
+  app.get("/api/v2/system/status", authenticateSession, (_req, res) => {
     try {
       res.json({
         success: true,
@@ -3410,7 +3410,7 @@ export async function registerRoutes(
   });
 
   // 긴급 시스템 리셋
-  app.post("/api/v2/system/emergency-reset", authenticateSession, (req, res) => {
+  app.post("/api/v2/system/emergency-reset", authenticateSession, (_req, res) => {
     try {
       globalRateLimiter.emergencyReset();
       proxyManager.resetAllProxies();

@@ -78,7 +78,7 @@ export function DualStrategySetup() {
 
       return startResponse.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       toast({
         title: "자동매매 시작",
         description: `${variables.name}이 시작되었습니다.`,

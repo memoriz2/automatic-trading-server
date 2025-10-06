@@ -1,5 +1,5 @@
 import { BaseRepository } from './BaseRepository.js';
-import { OrderRequestDto, OrderResponseDto } from '../types/trading.js';
+import { OrderResponseDto } from '../types/trading.js';
 
 /**
  * 주문 관리 Repository

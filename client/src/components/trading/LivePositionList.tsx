@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatBTC, formatPrice, formatInteger } from '@/utils/trading/formatters';
+import { formatBTC} from '@/utils/trading/formatters';
 import { calculatePositionPnL } from '@/utils/pnl-calculator';
 
 interface LivePosition {

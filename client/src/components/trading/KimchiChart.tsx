@@ -177,7 +177,7 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
 
       const t0 = startTime9AM.getTime(); // 오전 9시
       const oneDayMs = 24 * 60 * 60 * 1000;
-      const t1 = t0 + oneDayMs; // 다음날 오전 9시
+//       const t1 = t0 + oneDayMs; // 다음날 오전 9시
       const tSpan = oneDayMs;
 
       chartData.forEach((point, index) => {

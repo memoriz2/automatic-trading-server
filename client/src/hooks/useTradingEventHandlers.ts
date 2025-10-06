@@ -1,11 +1,11 @@
 import { useCallback, useRef } from 'react';
-import { isNum, fx, formatBTC, formatKRW, formatUSD } from '@/utils/trading/formatters';
-import { normalizeAmountBtc } from '@/utils/trading/calculations';
-import { getInitialStrategy, getSafeLeverage } from '@/config/strategy-defaults';
-import { parseLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
-import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
-import { apiFetchJson } from '@/lib/queryClient';
-import { logger } from '@/utils/logger';
+// import { isNum, fx, formatBTC, formatKRW, formatUSD } from '@/utils/trading/formatters';
+  // import { normalizeAmountBtc } from '@/utils/trading/calculations';
+// import { getInitialStrategy, getSafeLeverage } from '@/config/strategy-defaults';
+// import { parseLeverage, calculateInvestmentWithLeverage } from '@/utils/trading/leverage';
+// import { INFLIGHT_API, API_CACHE } from '@/utils/trading/cache';
+  // import { apiFetchJson } from '@/lib/queryClient';
+  // import { logger } from '@/utils/logger';
 
 export const useTradingEventHandlers = (
   effectiveUserId: string,
@@ -138,7 +138,7 @@ export const useTradingEventHandlers = (
     const updatedStrategies = [...existingStrategies, newStrategy];
     localStorage.setItem(strategyKey, JSON.stringify(updatedStrategies));
     setStrategies(updatedStrategies);
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev: number) => prev + 1);
   }, [effectiveUserId, setStrategies, setRefreshTrigger]);
 
   const handleEditStrategy = useCallback((strategyId: string, updatedData: any) => {
@@ -149,7 +149,7 @@ export const useTradingEventHandlers = (
     );
     localStorage.setItem(strategyKey, JSON.stringify(updatedStrategies));
     setStrategies(updatedStrategies);
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev: number) => prev + 1);
   }, [effectiveUserId, setStrategies, setRefreshTrigger]);
 
   const handleDeleteStrategy = useCallback((strategyId: string) => {
@@ -158,7 +158,7 @@ export const useTradingEventHandlers = (
     const updatedStrategies = existingStrategies.filter((s: any) => s.id !== strategyId);
     localStorage.setItem(strategyKey, JSON.stringify(updatedStrategies));
     setStrategies(updatedStrategies);
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev: number) => prev + 1);
   }, [effectiveUserId, setStrategies, setRefreshTrigger]);
 
   return {

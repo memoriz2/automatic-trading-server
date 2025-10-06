@@ -20,24 +20,24 @@ interface RealtimePrices {
 }
 
 export class KimchiService {
-  private upbitService: UpbitService;
-  private binanceService: BinanceService;
+  private _upbitService: UpbitService;
+  private _binanceService: BinanceService;
   private googleFinanceExchangeService: GoogleFinanceExchangeService;
   private upbitWebSocketService!: UpbitWebSocketService;
   private binanceWebSocketService!: BinanceWebSocketService;
   private usdtKrwRate: number = 1300; // 실시간 USDT 환율
-  
+
   private realtimePrices: RealtimePrices = { upbit: {}, binance: {} };
   private latestKimchiPremiums: KimchiData[] = [];
   private symbols = ['BTC', 'ETH', 'XRP', 'ADA', 'DOT'];
-  
+
   private isInitialized = false;
   private onUpdateCallback: ((data: KimchiData[]) => void) | null = null;
-  private exchangeRateInterval: NodeJS.Timeout | null = null;
+  private _exchangeRateInterval: NodeJS.Timeout | null = null;
 
   constructor() {
-    this.upbitService = new UpbitService();
-    this.binanceService = new BinanceService();
+    this._upbitService = new UpbitService();
+    this._binanceService = new BinanceService();
     this.googleFinanceExchangeService = new GoogleFinanceExchangeService();
   }
 
@@ -47,7 +47,7 @@ export class KimchiService {
 
     // 0. 환율 업데이트 시작 (💥 10초마다 -> 3초마다)
     this.updateExchangeRate(); // 즉시 1회 실행
-    this.exchangeRateInterval = setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
+    this._exchangeRateInterval = setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
 
     // 1. 웹소켓 서비스 초기화
     this.upbitWebSocketService = new UpbitWebSocketService();

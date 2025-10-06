@@ -24,7 +24,7 @@ export const getServerTradingMode = async (): Promise<'live'> => {
   try {
     const response = await fetch('/api/server-info');
     if (response.ok) {
-      const serverInfo = await response.json();
+//       const serverInfo = await response.json();
       // 서버 거래 모드 확인
       return 'live'; // 항상 Live 모드
     }

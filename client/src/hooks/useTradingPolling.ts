@@ -65,7 +65,7 @@ export const useTradingPolling = (
 
       setNetMs(ms);
       setNetOk(false);
-      setErrCount(prev => prev + 1);
+      setErrCount((prev: number) => prev + 1);
 
       console.warn('김치 데이터 가져오기 실패:', error);
     }

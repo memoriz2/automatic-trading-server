@@ -1,7 +1,7 @@
 import React from 'react';
-import { formatBTC, formatBTCUpbit, formatPrice, formatInteger } from '@/utils/trading/formatters';
-import { useRealTimeBalances } from '@/hooks/useRealTimeBalances';
-import { useAuth } from '@/hooks/useAuth';
+import { formatBTC, formatBTCUpbit} from '@/utils/trading/formatters';
+  // import { useRealTimeBalances } from '@/hooks/useRealTimeBalances';
+  // import { useAuth } from '@/hooks/useAuth';
 
 interface LiveBalance {
   krw: number;

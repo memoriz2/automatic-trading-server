@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
+  // import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -70,7 +70,7 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
         queryKey: [`/api/trading-settings/${userId}`],
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         title: "설정 저장 실패",
         description: "설정 저장 중 오류가 발생했습니다.",
@@ -119,7 +119,7 @@ export function NewKimchiSettings({ userId }: NewKimchiSettingsProps) {
   };
 
   // 최소 구매 수량 계산 (0.001 이상 보장)
-  const calculateMinPurchaseAmount = (coinPrice: number) => {
+  const ___calculateMinPurchaseAmount = (coinPrice: number) => {
     return Math.ceil((0.001 * coinPrice) / 100) * 100; // 100원 단위로 올림
   };
 

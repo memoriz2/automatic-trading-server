@@ -31,7 +31,7 @@ export class ErrorTrackingService {
   };
 
   // 기본 알림 설정
-  private defaultNotificationConfig: NotificationConfig = {
+  private _defaultNotificationConfig: NotificationConfig = {
     enabled: true,
     severityThreshold: ErrorSeverity.HIGH,
     channels: [],
@@ -139,7 +139,7 @@ export class ErrorTrackingService {
   /**
    * 오류 카테고리 분류
    */
-  private categorizeError(message: string, code?: string, context?: any): ErrorCategory {
+  private categorizeError(message: string, code?: string, _context?: any): ErrorCategory {
     const lowerMessage = message.toLowerCase();
     
     // API 관련 오류
@@ -211,22 +211,22 @@ export class ErrorTrackingService {
   /**
    * 재시도 가능 여부 판단
    */
-  private isRetryableError(message: string, code?: string, category?: ErrorCategory): boolean {
+  private isRetryableError(message: string, _code?: string, category?: ErrorCategory): boolean {
     const lowerMessage = message.toLowerCase();
-    
+
     // 재시도 불가능한 오류들
     const nonRetryablePatterns = [
       'unauthorized', 'forbidden', 'invalid api key',
       'insufficient balance', 'market closed', 'invalid symbol',
       'validation error', 'bad request'
     ];
-    
+
     for (const pattern of nonRetryablePatterns) {
       if (lowerMessage.includes(pattern)) {
         return false;
       }
     }
-    
+
     // 카테고리별 재시도 가능성
     switch (category) {
       case ErrorCategory.NETWORK:
@@ -316,26 +316,26 @@ export class ErrorTrackingService {
   /**
    * 추천 조치 사항
    */
-  private getSuggestedAction(category: ErrorCategory, severity: ErrorSeverity, message: string): string {
+  private getSuggestedAction(category: ErrorCategory, _severity: ErrorSeverity, message: string): string {
     const lowerMessage = message.toLowerCase();
-    
+
     // 특정 오류 패턴별 조치사항
     if (lowerMessage.includes('unauthorized') || lowerMessage.includes('invalid api key')) {
       return 'API 키를 확인하고 재설정하세요.';
     }
-    
+
     if (lowerMessage.includes('insufficient balance')) {
       return '거래소 잔고를 확인하고 충분한 자금을 준비하세요.';
     }
-    
+
     if (lowerMessage.includes('rate limit')) {
       return 'API 호출 빈도를 줄이거나 잠시 후 다시 시도하세요.';
     }
-    
+
     if (lowerMessage.includes('ip banned')) {
       return 'IP 밴이 해제될 때까지 대기하거나 프록시를 사용하세요.';
     }
-    
+
     // 카테고리별 기본 조치사항
     switch (category) {
       case ErrorCategory.NETWORK:
@@ -383,7 +383,7 @@ export class ErrorTrackingService {
     });
     
     // 재시도 이력 기록 시작
-    const retryHistory = await this.errorRepository.createRetryHistory({
+    const _retryHistory = await this.errorRepository.createRetryHistory({
       tradingErrorId: errorId,
       retryAttempt,
       retryStartedAt: startTime,

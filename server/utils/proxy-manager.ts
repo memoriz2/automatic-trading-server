@@ -97,7 +97,7 @@ export class ProxyManager {
   /**
    * 프록시 에러 기록
    */
-  recordProxyError(proxy: ProxyConfig, error: Error): void {
+  recordProxyError(proxy: ProxyConfig, _error: Error): void {
     proxy.errorCount++;
     
     console.warn(`❌ [ProxyManager] 프록시 에러: ${proxy.host}:${proxy.port} (${proxy.errorCount}/${proxy.maxErrors})`);

@@ -1,7 +1,7 @@
 import { storage } from '../storage.js';
 import { PositionsRepository } from '../repositories/PositionsRepository.js';
 import { TradesRepository } from '../repositories/TradesRepository.js';
-import { extractDeviceInfo, formatDeviceInfo, DeviceInfo } from '../utils/device-info.js';
+import { formatDeviceInfo, DeviceInfo } from '../utils/device-info.js';
 
 export interface PositionEntryParams {
   userId: number;
@@ -103,7 +103,7 @@ export class UnifiedPositionService {
           await this.tradesRepo.create({
             userId: params.userId,
             positionId: position.id,
-            orderId: null,
+            orderId: null as any,
             exchange: params.exchange,
             exchangeTradeId: params.upbitOrderId || params.binanceOrderId || `unified-${Date.now()}`,
             symbol: params.symbol,

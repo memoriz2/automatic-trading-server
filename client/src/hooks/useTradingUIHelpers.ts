@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { isNum, formatKRW, formatBTC, formatPercent } from '@/utils/trading/formatters';
+import { isNum, formatKRW, formatPercent } from '@/utils/trading/formatters';
 
 export const useTradingUIHelpers = (
   serverBands: any[],

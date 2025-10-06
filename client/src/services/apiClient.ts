@@ -3,7 +3,7 @@
  * 모든 API 호출을 중앙화하여 관리
  */
 
-import { apiFetch, apiFetchJson } from '@/lib/queryClient';
+import { apiFetchJson } from '@/lib/queryClient';
 
 export interface KimchiPremiumData {
   symbol: string;
