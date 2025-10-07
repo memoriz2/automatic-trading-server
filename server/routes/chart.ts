@@ -11,20 +11,20 @@ export function registerChartRoutes(app: Express): void {
         const symbol = (req.query.symbol as string) || 'BTC';
 
         // 한국 시간 오전 9시 계산 (UTC+9)
-      const now = new Date();
-      const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+        const now = new Date();
+        const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
 
-      const today9AM = new Date(koreaTime);
-      today9AM.setHours(9, 0, 0, 0);
+        const today9AM = new Date(koreaTime);
+        today9AM.setHours(9, 0, 0, 0);
 
-      // 현재 한국 시간이 오전 9시 이전이면 어제 오전 9시
-      const startTime = koreaTime.getTime() < today9AM.getTime()
-        ? new Date(today9AM.getTime() - 24 * 60 * 60 * 1000)
-        : today9AM;
+        // 현재 한국 시간이 오전 9시 이전이면 어제 오전 9시
+        const startTime = koreaTime.getTime() < today9AM.getTime()
+          ? new Date(today9AM.getTime() - 24 * 60 * 60 * 1000)
+          : today9AM;
 
         const data = await storage.getKimchiPremiumByTimeRange(symbol, startTime);
 
-        // 차트 형식으로 변환
+        // 차트 형식으로 변환 (TIMESTAMPTZ는 자동으로 올바른 밀리초 타임스탬프로 변환됨)
         const chartData = data.map(d => ({
           t: new Date(d.timestamp).getTime(),
           v: parseFloat(d.premium_rate),

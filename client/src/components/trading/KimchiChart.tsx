@@ -110,11 +110,32 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
   // 상세 차트 그리기 함수
   const drawDetailedChart = useCallback(() => {
     const canvas = detailedCanvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.log('🎨 차트 canvas 없음');
+      return;
+    }
 
     const ctx = canvas.getContext('2d');
     const chartData = getChartData();
-    if (!ctx || chartData.length === 0) return;
+
+    console.log('🎨 차트 렌더링:', {
+      hasCanvas: !!canvas,
+      hasCtx: !!ctx,
+      dataLength: chartData.length,
+      rawDataLength: sparkData.length,
+      canvasWidth: canvas.clientWidth,
+      canvasHeight: canvas.clientHeight
+    });
+
+    if (!ctx) {
+      console.log('🎨 차트 ctx 없음');
+      return;
+    }
+
+    if (chartData.length === 0) {
+      console.log('🎨 차트 데이터 없음');
+      return;
+    }
 
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth || 300;
