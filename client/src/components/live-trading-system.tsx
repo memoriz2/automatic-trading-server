@@ -1485,6 +1485,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         const lastAction = lastActionAtRef.current[strategy.id] || 0;
         const cooldownTime = 10000; // 10초
         if (now - lastAction < cooldownTime) {
+          const remainingTime = Math.ceil((cooldownTime - (now - lastAction)) / 1000);
+          addTradingLog(`⏳ ${strategy.name} 쿨다운 대기중 (${remainingTime}초 남음)`);
           entryOk = false;
         }
       }
@@ -1497,6 +1499,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
         try {
           await liveEntry(strategy, currentPremium);
+          lastActionAtRef.current[strategy.id] = now; // 진입 시각 저장 (다음 진입까지 10초 대기)
         } finally {
           // liveEntry 완료 후 무조건 처리 상태 정리
           clearTimeout(timeoutId);
