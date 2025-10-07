@@ -105,10 +105,13 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
     return () => window.removeEventListener('resize', drawSpark);
   }, [drawSpark]);
 
+  const detailedCanvasRef = useRef<HTMLCanvasElement>(null);
+
   // 상세 차트 그리기 함수
-  const drawDetailedChart = useCallback((canvas: HTMLCanvasElement | null) => {
+  const drawDetailedChart = useCallback(() => {
+    const canvas = detailedCanvasRef.current;
     if (!canvas) return;
-    
+
     const ctx = canvas.getContext('2d');
     const chartData = getChartData();
     if (!ctx || chartData.length === 0) return;
@@ -215,6 +218,13 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
     }
   }, [getChartData]);
 
+  // 상세 차트 자동 업데이트
+  useEffect(() => {
+    drawDetailedChart();
+    window.addEventListener('resize', drawDetailedChart);
+    return () => window.removeEventListener('resize', drawDetailedChart);
+  }, [drawDetailedChart]);
+
   return (
     <section className="card col-6">
       <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 border-border" data-testid="card-premium-chart">
@@ -222,11 +232,10 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
           <h2 className="text-xl font-semibold">김치프리미엄 차트 (24시간)</h2>
         </div>
         <div className="h-64 bg-muted rounded-lg p-4">
-          <canvas 
-            ref={drawDetailedChart}
+          <canvas
+            ref={detailedCanvasRef}
             className="w-full h-full rounded"
             style={{backgroundColor: '#1e293b'}}
-            key={`chart-${chartTimeframe}-${getChartData().length}`}
           />
         </div>
         <div className="mt-4 grid grid-cols-3 gap-4 text-center">
