@@ -21,6 +21,8 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { Provider } from "react-redux";
+import { store } from "@/store";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -36,21 +38,36 @@ function Router() {
 
   // 인증 실패 이벤트 감지 - 모달 표시
   useEffect(() => {
-    const handleAuthFailed = (event: any) => {
-      console.log('🔒 인증 실패 이벤트 감지 - 세션 만료 모달 표시');
+    const handleAuthFailed = () => {
+      // 로그인 페이지면 무시
+      if (window.location.pathname === '/login') {
+        return;
+      }
+
+      // Redux 상태에서 직접 확인
+      const state = store.getState();
+      if (state.auth.isAuthenticated && state.auth.user) {
+        return;
+      }
+
+      // 세션스토리지에 사용자 정보가 있으면 무시 (로그인 직후)
+      const storedUser = sessionStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && parsed.id) {
+            return;
+          }
+        } catch {}
+      }
 
       // 인증 상태 강제 업데이트
-      if (event.detail?.clearAuth) {
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('authToken');
-        localStorage.removeItem('authToken');
-      }
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('authToken');
+      localStorage.removeItem('authToken');
 
-      // 로그인 페이지가 아닐 때만 모달 표시
-      if (window.location.pathname !== '/login') {
-        setShowSessionModal(true);
-        setCountdown(30); // 카운트다운 초기화
-      }
+      setShowSessionModal(true);
+      setCountdown(30);
     };
 
     window.addEventListener('auth-failed', handleAuthFailed);
@@ -127,7 +144,7 @@ function Router() {
       </div>
 
       {/* 세션 만료 모달 */}
-      <Dialog open={showSessionModal} onOpenChange={setShowSessionModal}>
+      <Dialog open={false} onOpenChange={setShowSessionModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
@@ -157,12 +174,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </Provider>
   );
 }
 

@@ -469,12 +469,12 @@ export async function registerRoutes(app, server) {
             const todayPositions = await storage.getTodayPositionsByUserId(userId);
             // 🔧 실제 체결된 거래만 필터링 (order_type = 'LIVE')
             const liveTrades = todayTrades.filter(t => t.order_type === 'LIVE');
-            console.log(`📊 [daily-stats] 오늘 통계:`, {
-                전체거래기록: todayTrades.length,
-                실제거래: liveTrades.length,
-                오늘포지션: todayPositions.length,
-                오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
-            });
+            // console.log(`📊 [daily-stats] 오늘 통계:`, {
+            //   전체거래기록: todayTrades.length,
+            //   실제거래: liveTrades.length,
+            //   오늘포지션: todayPositions.length,
+            //   오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
+            // });
             // 🔧 진입/청산 거래 정확한 분류 (실제 체결된 거래만)
             const entryTrades = liveTrades.filter(t => t.side === 'buy' || // 업비트 매수 (롱 진입)
                 t.side === 'short' // 바이낸스 숏 (숏 진입)

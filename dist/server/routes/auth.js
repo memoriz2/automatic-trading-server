@@ -31,16 +31,16 @@ function getUserIdFromToken(authHeader) {
  * 세션 인증 미들웨어 (승인 상태 확인 포함)
  */
 export const authenticateSession = async (req, res, next) => {
-    console.log('authenticateSession: 세션 확인 중...', {
-        hasSession: !!req.session,
-        hasUser: !!req.session?.user,
-        userId: req.session?.user?.id,
-        authHeader: req.headers.authorization ? 'present' : 'missing'
-    });
+    // console.log('authenticateSession: 세션 확인 중...', {
+    //   hasSession: !!req.session,
+    //   hasUser: !!req.session?.user,
+    //   userId: req.session?.user?.id,
+    //   authHeader: req.headers.authorization ? 'present' : 'missing'
+    // });
     let userId = req.session?.user?.id;
     if (!userId) {
         const tokenUserId = getUserIdFromToken(req.headers.authorization);
-        console.log('authenticateSession: JWT 토큰에서 추출된 사용자 ID:', tokenUserId);
+        // console.log('authenticateSession: JWT 토큰에서 추출된 사용자 ID:', tokenUserId);
         if (tokenUserId) {
             userId = parseInt(tokenUserId);
         }
@@ -69,7 +69,7 @@ export const authenticateSession = async (req, res, next) => {
             });
         }
         req.user = { id: user.id, username: user.username, role: user.role };
-        console.log('authenticateSession: 사용자 인증 및 승인 확인 완료:', user.username);
+        // console.log('authenticateSession: 사용자 인증 및 승인 확인 완료:', user.username);
         return next();
     }
     catch (error) {
@@ -266,11 +266,7 @@ export function registerAuthRoutes(app) {
     // 현재 사용자 정보 조회
     app.get("/api/auth/me", authenticateSession, async (req, res) => {
         try {
-            console.log('/api/auth/me: 요청된 사용자 정보:', {
-                reqUser: req.user,
-                userId: req.user?.id,
-                userType: typeof req.user?.id
-            });
+            // console.log('🔍 /api/auth/me: 요청 받음, user:', req.user);
             if (!req.user?.id) {
                 console.error('/api/auth/me: req.user.id가 undefined입니다');
                 res.status(401).json({ error: "사용자 인증 정보가 없습니다" });

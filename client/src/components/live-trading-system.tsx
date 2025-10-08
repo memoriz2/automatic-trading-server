@@ -13,6 +13,17 @@ import { formatKoreanTime } from '@/utils/datetime';
 import { calculatePositionPnL } from '@/utils/pnl-calculator';
 import { TRADING_CONSTANTS } from '@/constants/trading-constants';
 import { saveLiveTradeToDB, apiFetch } from '@/utils/trading-api';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  setLiveBalance,
+  updateLiveBalance,
+  setLiveTrades,
+  setLivePositions,
+  setIsTrading,
+  addTradingLog,
+  clearTradingLogs,
+  incrementTradeRefreshTrigger,
+} from '@/store/slices/tradingSlice';
 // import {
 //   isValidPriceData,
 //   checkEntryCondition,
@@ -21,7 +32,7 @@ import { saveLiveTradeToDB, apiFetch } from '@/utils/trading-api';
 //   calculateTradingAmounts,
 //   logEntryConditions
 // } from '@/utils/trading-logic';
-import { LiveBalance, LiveTrade, LivePosition, KimchiData, Strategy } from '@/types/trading';
+import { LiveTrade, LivePosition, KimchiData, Strategy } from '@/types/trading';
 
 
 
@@ -50,6 +61,15 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   onStrategyStatsUpdate
 }) => {
   const { toast } = useToast();
+  const dispatch = useAppDispatch();
+
+  // Redux 상태 가져오기
+  const liveBalance = useAppSelector((state) => state.trading.liveBalance);
+  const liveTrades = useAppSelector((state) => state.trading.liveTrades);
+  const livePositions = useAppSelector((state) => state.trading.livePositions);
+  const isTrading = useAppSelector((state) => state.trading.isTrading);
+  const tradingLogs = useAppSelector((state) => state.trading.tradingLogs);
+  const tradeRefreshTrigger = useAppSelector((state) => state.trading.tradeRefreshTrigger);
 
   // 실시간 잔고 동기화 (실거래 모드에서만 사용)
   const {
@@ -95,10 +115,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   
   // 유니크한 거래 ID 생성을 위한 카운터
   const [tradeCounter, setTradeCounter] = useState(0);
-  
-  // 강제진입 모달 상태
+
+  // 강제진입 모달 상태 (로컬 상태 유지)
   const [showForceEntryModal, setShowForceEntryModal] = useState(false);
-  const [tradeRefreshTrigger, setTradeRefreshTrigger] = useState(0); // DB 거래 기록 새로고침 트리거
   
   // 토글 방지용: 최소 보유시간
   // const EXIT_EXTRA = 0.2;     // 청산은 허용오차보다 0.2% 더 엄격 (사용하지 않음)
@@ -118,36 +137,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     });
   }, []);
 
-  // 거래 잔고 (실거래: 실제 잔고 사용)
-  const [liveBalance, setLiveBalance] = useState<LiveBalance>(() => {
-    return {
-      krw: 0, // 실제 잔고는 liveBalances에서 가져옴
-      btc: 0,
-      usdt: 0,
-      binanceBtc: 0,
-      binanceSpotBtc: 0,
-      binanceUsdt: 0
-    };
-  });
-
-  // Live 거래 기록 (실거래: DB에서 조회)
-  const [liveTrades, setLiveTrades] = useState<LiveTrade[]>([]);
+  // Redux에서 관리하는 상태들이므로 useState 제거됨
+  // liveBalance, liveTrades, livePositions는 위에서 useAppSelector로 가져옴
 
   // liveTrades 상태 변화 추적
   React.useEffect(() => {
-    // const debugInfo = {
-    //   count: liveTrades.length,
-    //   trades: liveTrades.map(t => ({ id: t.id, type: t.type, exchange: t.exchange })),
-    //   timestamp: new Date().toISOString(),
-    //   stack: new Error().stack?.split('\n').slice(1, 3) // 호출 스택 추적
-    // };
-    
-    // 콘솔과 localStorage 둘 다에 저장
-    // liveTrades 상태 변경 (로그 제거)
+    // Redux 상태 변경 추적 (로그 제거)
   }, [liveTrades]);
-
-  // Live 포지션 (DB에서만 조회 - 로컬스토리지 완전 제거)
-  const [livePositions, setLivePositions] = useState<LivePosition[]>([]);
   
   // 🔒 DB 포지션 주기적 동기화 (3초마다 - 절대 로컬 메모리만 사용 금지!)
   useEffect(() => {
@@ -197,7 +193,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               };
             });
             
-            setLivePositions(convertedPositions);
+            dispatch(setLivePositions(convertedPositions));
             // DB 포지션 변환 완료
           }
         } catch (error) {
@@ -208,8 +204,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 초기 조회
     fetchDbPositions();
 
-    // 3초마다 DB 포지션 동기화 (더 빠른 동기화)
-    const interval = setInterval(fetchDbPositions, 3000);
+    // 30초마다 DB 포지션 동기화
+    const interval = setInterval(fetchDbPositions, 30000);
     return () => clearInterval(interval);
   }, [userId]);
 
@@ -236,8 +232,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             수정필요: true
           });
           
-          setLiveBalance(prev => ({
-            ...prev,
+          dispatch(updateLiveBalance({
             btc: totalUpbitBtc // 활성 포지션과 정확히 일치시킴
           }));
         }
@@ -291,8 +286,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         }
         
         if (Math.abs(totalBinanceBtc - currentBinanceBtc) > 0.000001) {
-          setLiveBalance(prev => ({
-            ...prev,
+          dispatch(updateLiveBalance({
             binanceBtc: totalBinanceBtc // 활성 포지션과 정확히 일치시킴
           }));
         }
@@ -381,10 +375,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     }
   }, [livePositions.length, strategies.length, setStrategies, userId, toast]);
 
-  // 모의 거래 실행 중 상태
-  const [isTrading, setIsTrading] = useState(false);
+  // 로컬 상태 (Redux로 옮기지 않은 UI 전용 상태)
   const [lastToastMessage, setLastToastMessage] = useState('');
-  const [tradingLogs, setTradingLogs] = useState<string[]>([]);
   const [lastKimchiData, setLastKimchiData] = useState<any>(null);
   // 전략별 통계 집계
   const strategyStatsRef = useRef<Record<string, { executionCount: number; realizedPnlKRW: number; investedKRW: number; profitRate: number; }>>({});
@@ -421,7 +413,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           };
         });
         // 거래 기록 로드
-        setLiveTrades(normalizedTrades);
+        dispatch(setLiveTrades(normalizedTrades));
       }
       
       // 포지션 가져오기 (모의거래만): 클라이언트 단일 소스 유지 → 덮어쓰지 않음
@@ -451,7 +443,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           const parsed = JSON.parse(savedTrades);
           if (Array.isArray(parsed) && parsed.length > 0) {
             // 거래 기록 강제 동기화
-            setLiveTrades(parsed);
+            dispatch(setLiveTrades(parsed));
             return true;
           }
         } catch (error) {
@@ -464,7 +456,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 강제 업데이트 이벤트 리스너
     const handleForceUpdate = (event: any) => {
       if (event.detail && Array.isArray(event.detail)) {
-        setLiveTrades(event.detail);
+        dispatch(setLiveTrades(event.detail));
       }
     };
     
@@ -541,12 +533,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   //   localStorage.setItem(storageKey, JSON.stringify(livePositions));
   // }, [livePositions, userId]);
 
-  // 거래 로그 추가 함수
-  const addTradingLog = useCallback((message: string) => {
+  // 거래 로그 추가 함수 (Redux로 처리)
+  const addTradingLogWithTimestamp = useCallback((message: string) => {
     const timestamp = formatKoreanTime();
     const logMessage = `[${timestamp}] ${message}`;
-    setTradingLogs(prev => [...prev.slice(-9), logMessage]); // 최근 10개만 유지
-  }, []);
+    dispatch(addTradingLog(logMessage));
+  }, [dispatch]);
 
 
   // Live 진입 (원자적 처리)
@@ -560,7 +552,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     // 거래 잠금 먼저 설정 (동기적) - 전략별 잠금
     tradingLockRef.current[strategy.id] = true;
-    setIsTrading(true); // 이후 비동기 상태 업데이트
+    dispatch(setIsTrading(true)); // 이후 비동기 상태 업데이트
 
     try {
       if (!currentKimchiData) {
@@ -685,7 +677,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               ]);
 
               // DB 거래 기록도 새로고침
-              setTradeRefreshTrigger(prev => prev + 1);
+              dispatch(incrementTradeRefreshTrigger());
             } catch (refreshError) {
               console.error('❌ 잔고 새로고침 실패:', refreshError);
             } finally {
@@ -756,19 +748,14 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       // 잔고 변경 (실거래는 실제 잔고 사용)
       if (!isLiveMode) {
-        setLiveBalance(prev => {
-        const newBalance = {
-          ...prev,
-          krw: Math.max(0, prev.krw - totalUpbitCost), // 음수 방지
-          btc: Math.max(0, (prev.btc || 0) + upbitBuyAmountBTC), // 음수 방지
-          usdt: Math.max(0, prev.usdt - binanceMargin - binanceFee), // 음수 방지
-          binanceUsdt: Math.max(0, (prev.binanceUsdt || 0) - binanceMargin - binanceFee), // 음수 방지
+        dispatch(updateLiveBalance({
+          krw: Math.max(0, liveBalance.krw - totalUpbitCost), // 음수 방지
+          btc: Math.max(0, (liveBalance.btc || 0) + upbitBuyAmountBTC), // 음수 방지
+          usdt: Math.max(0, liveBalance.usdt - binanceMargin - binanceFee), // 음수 방지
+          binanceUsdt: Math.max(0, (liveBalance.binanceUsdt || 0) - binanceMargin - binanceFee), // 음수 방지
           // 선물 숏 진입 시 숏 포지션 수량 증가 (양수)
-          binanceBtc: Math.max(0, (prev.binanceBtc || 0) + binanceShortAmountBTC)
-        };
-
-        return newBalance;
-        });
+          binanceBtc: Math.max(0, (liveBalance.binanceBtc || 0) + binanceShortAmountBTC)
+        }));
       }
 
       // 거래 기록 생성
@@ -802,7 +789,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         }
       ];
 
-      setLiveTrades(prev => [...prev, ...newTrades]);
+      dispatch(setLiveTrades([...liveTrades, ...newTrades]));
       
       // 거래 기록 저장
       newTrades.forEach(trade => {
@@ -827,7 +814,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       strategyStatsRef.current[strategy.id] = updated;
       onStrategyStatsUpdate?.({ ...strategyStatsRef.current });
 
-      addTradingLog(`✅ ${strategy.name} 진입 완료! 김프 ${premiumRate.toFixed(3)}%`);
+      addTradingLogWithTimestamp(`✅ ${strategy.name} 진입 완료! 김프 ${premiumRate.toFixed(3)}%`);
       
       toast({
         title: "🚀 진입 신호 포착!",
@@ -882,20 +869,21 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     } finally {
       tradingLockRef.current[strategy.id] = false; // 전략별 거래 잠금 해제
       processingEntryRef.current.delete(strategyId); // 처리 상태 해제 (중요!)
-      setIsTrading(false);
+      dispatch(setIsTrading(false));
     }
   }, [
-    currentKimchiData, 
-    liveBalance, 
-    isLiveMode, 
-    userId, 
-    toast, 
+    currentKimchiData,
+    liveBalance,
+    isLiveMode,
+    userId,
+    toast,
     tradeCounter,
     liveTrades,
     livePositions,
-    addTradingLog,
+    addTradingLogWithTimestamp,
     onStrategyStatsUpdate,
     lastToastMessage,
+    dispatch
   ]);
 
   // 강제진입 처리 함수 (DB 우선 저장)
@@ -960,7 +948,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 청산은 긴급 작업이므로 기존 잠금 무시하고 강제 실행
     // 즉시 새로운 잠금 설정 (원자적 작업)
     tradingLockRef.current[Number(position.strategyId)] = true;
-    setIsTrading(true);
+    dispatch(setIsTrading(true));
 
     // 청산 시작 시 잔고 로딩 스피너 활성화
     setBalanceLoading?.(true);
@@ -1130,8 +1118,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 totalPnl: pnlResult.netPnl
               });
 
-              setLivePositions(prev =>
-                prev.map(p =>
+              dispatch(setLivePositions(
+                livePositions.map(p =>
                   p.id === position.id
                     ? {
                         ...p,
@@ -1141,7 +1129,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                       }
                     : p
                 )
-              );
+              ));
 
               // 거래 기록 생성 및 저장 (부분 청산)
               const exitTime = new Date();
@@ -1196,7 +1184,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
               // 메모리 및 DB에 거래 기록 저장
               if (exitTrades.length > 0) {
-                setLiveTrades(prev => [...prev, ...exitTrades]);
+                dispatch(setLiveTrades([...liveTrades, ...exitTrades]));
                 exitTrades.forEach(trade => {
                   saveLiveTradeToDB(trade, userId);
                 });
@@ -1238,8 +1226,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 estimatedExitFees: pnlResult.estimatedExitFees
               });
 
-              setLivePositions(prev =>
-                prev.map(p =>
+              dispatch(setLivePositions(
+                livePositions.map(p =>
                   p.id === position.id
                     ? {
                         ...p,
@@ -1249,7 +1237,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                       }
                     : p
                 )
-              );
+              ));
 
               // 거래 기록 생성 및 저장
               const currentCounter = tradeCounter + 1;
@@ -1303,7 +1291,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
               // 메모리 및 DB에 거래 기록 저장
               if (exitTrades.length > 0) {
-                setLiveTrades(prev => [...prev, ...exitTrades]);
+                dispatch(setLiveTrades([...liveTrades, ...exitTrades]));
                 exitTrades.forEach(trade => {
                   saveLiveTradeToDB(trade, userId);
                 });
@@ -1366,7 +1354,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       });
     } finally {
       tradingLockRef.current[Number(position.strategyId)] = false; // 전략별 거래 잠금 해제
-      setIsTrading(false);
+      dispatch(setIsTrading(false));
     }
   }, [
     currentKimchiData,
@@ -1378,10 +1366,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     strategies,
     livePositions,
     onStrategyStatsUpdate,
-    addTradingLog,
+    addTradingLogWithTimestamp,
     toast,
     setBalanceLoading,
-    refreshRealTimeBalances
+    refreshRealTimeBalances,
+    dispatch
   ]);
 
   // 중복 경고 방지를 위한 ref
@@ -1486,7 +1475,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         const cooldownTime = 10000; // 10초
         if (now - lastAction < cooldownTime) {
           const remainingTime = Math.ceil((cooldownTime - (now - lastAction)) / 1000);
-          addTradingLog(`⏳ ${strategy.name} 쿨다운 대기중 (${remainingTime}초 남음)`);
+          addTradingLogWithTimestamp(`⏳ ${strategy.name} 쿨다운 대기중 (${remainingTime}초 남음)`);
           entryOk = false;
         }
       }
@@ -1494,8 +1483,19 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       // 청산 조건: 익절조건 이상이면 청산 (포지션이 있을 때만)
       const exitOk = currentPosition && (currentPremium >= exitRate);
 
+      // 청산 조건 디버깅
+      if (currentPosition) {
+        console.log(`🔍 [${strategy.name}] 청산 체크:`, {
+          현재김프: currentPremium.toFixed(3),
+          청산조건: exitRate.toFixed(3),
+          조건만족: exitOk,
+          거래잠금: tradingLockRef.current[strategy.id] || false,
+          포지션ID: currentPosition.id
+        });
+      }
+
       if (entryOk) {
-        addTradingLog(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
+        addTradingLogWithTimestamp(`🎯 ${strategy.name} 진입 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${entryRate}%`);
 
         try {
           await liveEntry(strategy, currentPremium);
@@ -1511,14 +1511,14 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           return;
         }
 
-        addTradingLog(`🎯 ${strategy.name} 청산 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${exitRate}%`);
+        addTradingLogWithTimestamp(`🎯 ${strategy.name} 청산 조건 만족! 김프 ${currentPremium.toFixed(3)}% → ${exitRate}%`);
 
         await liveExit(currentPosition, currentPremium);
 
         lastActionAtRef.current[strategy.id] = now; // 현재 시각 저장 (진입 시 10초 체크)
       }
       prevPremiumRef.current = currentPremium; // 마지막에 갱신
-      
+
       // 모든 디버깅 로그 제거
       // 그 외에는 대기 (정확한 조건 만족 시에만 거래)
     } finally {
@@ -1528,7 +1528,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         processingEntryRef.current.delete(strategyId);
       }
     }
-  }, [currentKimchiData, isTrading, livePositions, liveBalance, toast, liveEntry, liveExit, addTradingLog]);
+  }, [currentKimchiData, isTrading, livePositions, liveBalance, toast, liveEntry, liveExit, addTradingLogWithTimestamp]);
 
   // 가격 데이터 유효성 검증 함수
   const isValidPriceData = useCallback((data: any) => {
@@ -1646,7 +1646,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // 비동기로 병렬 실행
           Promise.all(activeStrategies.map(strategy => executeRealTrade(strategy)));
         }
-      }, 2000); // 2초마다 체크 (매매 기회 놓치지 않도록)
+      }, 10000); // 10초마다 체크
 
       return () => clearInterval(interval);
     }
@@ -1677,19 +1677,19 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       binanceSpotBtc: 0, // 0 BTC (바이낸스 현물)
       binanceUsdt: 100000 // 10만 USDT (바이낸스)
     };
-    setLiveBalance(initialBalance);
-    
+    dispatch(setLiveBalance(initialBalance));
+
     // 2. 거래 기록 초기화
-    setLiveTrades([]);
-    
+    dispatch(setLiveTrades([]));
+
     // 3. 포지션 초기화
-    setLivePositions([]);
-    
+    dispatch(setLivePositions([]));
+
     // 4. 카운터 초기화
     setTradeCounter(0);
-    
+
     // 5. 거래 로그 초기화
-    setTradingLogs([]);
+    dispatch(clearTradingLogs());
     
     // 6. 전략별 통계 초기화
     strategyStatsRef.current = {};
@@ -2116,8 +2116,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                           const upbitBtc = parseFloat(upbitData.summary?.btc?.balance || '0');
 
                           // 실제 거래소에 포지션이 없으면 UI에서도 제거
-                          setLivePositions(prev =>
-                            prev.map(p => {
+                          dispatch(setLivePositions(
+                            livePositions.map(p => {
                               if (p.status === 'open') {
                                 const shouldClose =
                                   (p.symbol === 'BTC' && !hasBinancePosition && p.binanceQuantity !== 0) ||
@@ -2134,7 +2134,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                               }
                               return p;
                             })
-                          );
+                          ));
                           
                           toast({
                             title: "실거래 청산 확인 완료",
@@ -2154,13 +2154,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                         realizedPnl: position.unrealizedPnl || 0
                       }));
                       
-                      setLivePositions(prev => 
-                        prev.map(p => 
-                          activePositions.find(ap => ap.id === p.id) 
-                            ? closedPositions.find(cp => cp.id === p.id)! 
+                      dispatch(setLivePositions(
+                        livePositions.map(p =>
+                          activePositions.find(ap => ap.id === p.id)
+                            ? closedPositions.find(cp => cp.id === p.id)!
                             : p
                         )
-                      );
+                      ));
                       
                       toast({
                         title: "실거래 청산 완료",
@@ -2186,7 +2186,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                           ]);
 
                           // DB 거래 기록도 새로고침
-                          setTradeRefreshTrigger(prev => prev + 1);
+                          dispatch(incrementTradeRefreshTrigger());
                         } catch (refreshError) {
                           console.error('❌ 청산 후 잔고 새로고침 실패:', refreshError);
                         } finally {
@@ -2221,13 +2221,13 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     realizedPnl: position.unrealizedPnl || 0
                   }));
                   
-                  setLivePositions(prev => 
-                    prev.map(p => 
-                      activePositions.find(ap => ap.id === p.id) 
-                        ? closedPositions.find(cp => cp.id === p.id)! 
+                  dispatch(setLivePositions(
+                    livePositions.map(p =>
+                      activePositions.find(ap => ap.id === p.id)
+                        ? closedPositions.find(cp => cp.id === p.id)!
                         : p
                     )
-                  );
+                  ));
                   
                   toast({
                     title: "Mock 청산 완료",
@@ -2298,7 +2298,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     if (savedTrades && savedTrades !== '[]' && savedTrades !== 'null') {
                       try {
                         const parsed = JSON.parse(savedTrades);
-                        setLiveTrades(parsed);
+                        dispatch(setLiveTrades(parsed));
 
                         // 강제 리렌더링
                         setTimeout(() => {
@@ -2324,7 +2324,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                         try {
                           const parsed = JSON.parse(savedTrades);
                           if (parsed.length > 0) {
-                            setLiveTrades(parsed);
+                            dispatch(setLiveTrades(parsed));
                             return true;
                           }
                         } catch (error) {

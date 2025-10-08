@@ -953,7 +953,7 @@ export class DatabaseStorage {
         const decryptedApiKey = decryptApiKey(exchange.api_key);
         const decryptedApiSecret = decryptApiKey(exchange.api_secret);
         
-        console.log(`✅ 복호화 성공: 사용자 ${userId}, 거래소 ${exchangeName}`);
+        // console.log(`✅ 복호화 성공: 사용자 ${userId}, 거래소 ${exchangeName}`);
         return {
           ...exchange,
           apiKey: decryptedApiKey,
@@ -1279,6 +1279,26 @@ export class DatabaseStorage {
     return this.updateTradingSettings(data.userId, data);
   }
 
+  // 활성화된 자동매매 사용자 조회
+  async getActiveAutoTradingUsers(): Promise<any[]> {
+    try {
+      const result = await this.pool.query(`
+        SELECT
+          ts.*,
+          u.username,
+          u.email
+        FROM trading_settings ts
+        INNER JOIN users u ON ts.user_id = u.id
+        WHERE ts.is_auto_trading = true
+        AND u.approval_status = 'approved'
+      `);
+      return result.rows;
+    } catch (error) {
+      console.error('활성화된 자동매매 사용자 조회 실패:', error);
+      return [];
+    }
+  }
+
   async getTradingStrategiesByUserId(userId: string | number): Promise<any[]> {
     return this.getTradingStrategies(typeof userId === 'string' ? parseInt(userId) : userId);
   }
@@ -1429,7 +1449,7 @@ export class DatabaseStorage {
         ORDER BY executed_at DESC
       `, [userIdNum]);
 
-      console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
+      // console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
       return result.rows;
     } catch (error) {
       console.error('❌ [getTodayTradesByUserId] SQL 오류:', error);
@@ -1454,7 +1474,7 @@ export class DatabaseStorage {
         ORDER BY entry_time DESC
       `, [userId]);
 
-      console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
+      // console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
       return result.rows;
     } catch (error) {
       console.error('❌ [getTodayPositionsByUserId] SQL 오류:', error);
@@ -1477,7 +1497,7 @@ export class DatabaseStorage {
       `, [userId]);
 
       const count = parseInt(result.rows[0]?.count || '0');
-      console.log(`✅ [getTodayExitedPositionsCount] 사용자 ${userId} 오늘(9시 기준) 청산: ${count}개`);
+      // console.log(`✅ [getTodayExitedPositionsCount] 사용자 ${userId} 오늘(9시 기준) 청산: ${count}개`);
       return count;
     } catch (error) {
       console.error('❌ [getTodayExitedPositionsCount] SQL 오류:', error);

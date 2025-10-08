@@ -9,6 +9,8 @@ import { PositionsTable } from "@/components/positions-table";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useToast } from "@/hooks/use-toast";
 import { formatKoreanTime } from '@/utils/datetime';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setSpark } from '@/store/slices/marketDataSlice';
 import {
   Play,
   Pause,
@@ -48,12 +50,16 @@ type KimpgaMetrics = {
 };
 
 export default function AutoTrading() {
+  // Redux hooks
+  const dispatch = useAppDispatch();
+  const spark = useAppSelector(state => state.marketData.spark);
+
   const [newKimchiActive, setNewKimchiActive] = useState(false);
   const { isConnected } = useWebSocket();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   // 세션 조회 관련 상태
   const [sessionInfo, setSessionInfo] = useState<any>(null);
   const [showSessionInfo, setShowSessionInfo] = useState(false);
@@ -107,17 +113,14 @@ export default function AutoTrading() {
   };
 
   // sparkline
-  const [spark, setSpark] = useState<number[]>([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     if (typeof kimp?.kimp === "number" && isFinite(kimp.kimp)) {
-      setSpark((prev) => {
-        const next = [...prev, Number(kimp.kimp) as number];
-        if (next.length > 180) next.shift();
-        return next;
-      });
+      const next = [...spark, Number(kimp.kimp) as number];
+      if (next.length > 180) next.shift();
+      dispatch(setSpark(next));
     }
-  }, [kimp?.kimp]);
+  }, [kimp?.kimp, dispatch, spark]);
   useEffect(() => {
     const c = canvasRef.current;
     if (!c || spark.length === 0) return;
@@ -231,7 +234,7 @@ export default function AutoTrading() {
           description: `${loadedBands.length}개 밴드를 불러왔습니다.`,
         });
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "불러오기 실패",
         description: "저장된 설정을 불러오는데 실패했습니다.",
@@ -417,7 +420,7 @@ export default function AutoTrading() {
         variant: "destructive",
       });
       refetchPositions();
-    } catch (error) {
+    } catch {
       toast({
         title: "오류",
         description: "긴급 정지 실행 중 오류가 발생했습니다.",
@@ -436,7 +439,7 @@ export default function AutoTrading() {
         title: "세션 조회 성공",
         description: `현재 로그인된 사용자: ${data.username}`,
       });
-    } catch (error: unknown) {
+    } catch {
       setSessionInfo(null);
       setShowSessionInfo(true);
       toast({
@@ -964,7 +967,7 @@ export default function AutoTrading() {
                   title: "포지션 청산",
                   description: "포지션이 성공적으로 청산되었습니다.",
                 });
-              } catch (error) {
+              } catch {
                 toast({
                   title: "청산 실패",
                   description: "포지션 청산 중 오류가 발생했습니다.",

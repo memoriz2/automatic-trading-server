@@ -18,13 +18,18 @@ import {
 } from "lucide-react";
 import type { KimchiPremium } from "@/types/trading";
 import { apiRequest } from "@/lib/queryClient";
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setDataBySymbol, setSelectedSymbol } from '@/store/slices/marketDataSlice';
 
 export default function Trading() {
-  // 심볼별 스테이트(그리드 고정 + 값만 갱신)
-  const [dataBySymbol, setDataBySymbol] = useState<Record<string, KimchiPremium>>({});
+  // Redux 상태 및 dispatch
+  const dispatch = useAppDispatch();
+  const dataBySymbol = useAppSelector((state) => state.marketData.dataBySymbol);
+  const selectedSymbol = useAppSelector((state) => state.marketData.selectedSymbol);
+
+  // 로컬 참조 및 상태
   const incomingRef = useRef<Record<string, KimchiPremium>>({});
   const rafRef = useRef<number | null>(null);
-  const [selectedSymbol, setSelectedSymbol] = useState<string>('BTC');
   const [orderAmount, setOrderAmount] = useState<string>('100000');
   const [isOrderPending, setIsOrderPending] = useState(false);
   const { toast } = useToast();
@@ -66,18 +71,19 @@ export default function Trading() {
     const tick = () => {
       if (!mounted) return;
       // 변경 감지: 심볼별로 값이 변했을 때만 병합
-      setDataBySymbol((prev) => {
-        const next: Record<string, KimchiPremium> = { ...prev };
-        let changed = false;
-        for (const [sym, val] of Object.entries(incomingRef.current)) {
-          const prevVal = prev[sym];
-          if (!prevVal || prevVal.timestamp !== val.timestamp || prevVal.premiumRate !== val.premiumRate || prevVal.upbitPrice !== val.upbitPrice) {
-            next[sym] = val;
-            changed = true;
-          }
+      const prev = dataBySymbol;
+      const next: Record<string, KimchiPremium> = { ...prev };
+      let changed = false;
+      for (const [sym, val] of Object.entries(incomingRef.current)) {
+        const prevVal = prev[sym];
+        if (!prevVal || prevVal.timestamp !== val.timestamp || prevVal.premiumRate !== val.premiumRate || prevVal.upbitPrice !== val.upbitPrice) {
+          next[sym] = val;
+          changed = true;
         }
-        return changed ? next : prev;
-      });
+      }
+      if (changed) {
+        dispatch(setDataBySymbol(next));
+      }
       rafRef.current = window.setTimeout(tick, 100) as unknown as number;
     };
     rafRef.current = window.setTimeout(tick, 100) as unknown as number;
@@ -85,7 +91,7 @@ export default function Trading() {
       mounted = false;
       if (rafRef.current) window.clearTimeout(rafRef.current);
     };
-  }, []);
+  }, [dataBySymbol, dispatch]);
 
   // 선택된 심볼의 김프 데이터(없으면 이전 값 유지 대신 안전 출력)
   const selectedCrypto = dataBySymbol[selectedSymbol];
@@ -155,7 +161,7 @@ export default function Trading() {
                         className={`p-4 rounded-lg border cursor-pointer transition-all ${
                           isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600 bg-slate-800 hover:border-slate-500'
                         }`}
-                        onClick={() => setSelectedSymbol(sym)}
+                        onClick={() => dispatch(setSelectedSymbol(sym))}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="text-white font-semibold">{sym}</h3>

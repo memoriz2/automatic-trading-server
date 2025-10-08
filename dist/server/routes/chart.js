@@ -15,7 +15,7 @@ export function registerChartRoutes(app) {
                 ? new Date(today9AM.getTime() - 24 * 60 * 60 * 1000)
                 : today9AM;
             const data = await storage.getKimchiPremiumByTimeRange(symbol, startTime);
-            // 차트 형식으로 변환
+            // 차트 형식으로 변환 (TIMESTAMPTZ는 자동으로 올바른 밀리초 타임스탬프로 변환됨)
             const chartData = data.map(d => ({
                 t: new Date(d.timestamp).getTime(),
                 v: parseFloat(d.premium_rate),

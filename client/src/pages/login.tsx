@@ -37,10 +37,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && user) {
       console.log('🎉 인증 상태 확인됨 - 홈페이지로 이동', user);
-      // 페이지 새로고침으로 useAuth 상태 동기화 강제 수행
-      window.location.href = '/';
+      // SPA 방식으로 페이지 이동 (Redux 상태 유지)
+      setLocation('/');
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, setLocation]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

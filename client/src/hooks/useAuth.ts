@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { apiFetchJson } from '@/lib/queryClient';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setUser, clearUser, setLoading } from '@/store/slices/authSlice';
 
 interface User {
   id: number;
@@ -7,53 +9,79 @@ interface User {
   token?: string;
 }
 
+// 전역 플래그로 중복 실행 방지
+let isCheckingSession = false;
+let hasCheckedSession = false;
+
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { user, isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
+  const mounted = useRef(false);
 
   const checkSession = useCallback(async () => {
-    // setIsLoading(true)는 초기 로딩 시에만 적용되도록 useEffect에서 호출
+    // 이미 체크 중이거나 완료되었으면 스킵
+    if (isCheckingSession || hasCheckedSession) {
+      console.log('⏭️ useAuth: 세션 확인 스킵 (이미 실행 중 또는 완료)');
+      dispatch(setLoading(false));
+      return;
+    }
+
+    isCheckingSession = true;
     try {
       console.log('🔍 useAuth: 서버 세션 확인 중...');
       const userData = await apiFetchJson('/api/auth/me');
       if (userData && userData.id) {
-        setUser(userData);
+        dispatch(setUser(userData));
         sessionStorage.setItem('user', JSON.stringify(userData));
         console.log('✅ useAuth: 세션 확인됨', userData);
+        hasCheckedSession = true;
       } else {
         throw new Error('No session');
       }
-    } catch (error) {
+    } catch (error: any) {
+        const errorMessage = error?.message || String(error);
         console.log('❌ useAuth: 서버 세션 확인 실패. 세션스토리지 확인.', error);
+
+        // 403 Forbidden - 승인 대기/거부 상태는 auth-failed 이벤트를 발생시키지 않음
+        if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+          console.log('⚠️ useAuth: 승인 대기 또는 거부 상태 - 로그인 페이지로 이동하지 않음');
+          dispatch(clearUser());
+          hasCheckedSession = true;
+          return;
+        }
+
         try {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
                 const parsedUser = JSON.parse(storedUser);
                 console.log('📱 useAuth: 세션스토리지에서 사용자 복원', parsedUser);
-                setUser(parsedUser);
+                dispatch(setUser(parsedUser));
             } else {
                 console.log('❌ useAuth: 세션스토리지에도 사용자 없음 - null로 설정');
-                setUser(null);
+                dispatch(clearUser());
                 if (window.location.pathname !== '/login') {
                     window.dispatchEvent(new CustomEvent('auth-failed'));
                 }
             }
         } catch (e) {
             console.log('❌ useAuth: 세션스토리지 파싱 실패 - null로 설정');
-            setUser(null);
+            dispatch(clearUser());
         }
+        hasCheckedSession = true;
     } finally {
-      setIsLoading(false);
+      dispatch(setLoading(false));
+      isCheckingSession = false;
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
-    setIsLoading(true);
-    checkSession();
-  }, [checkSession]);
+    if (mounted.current) return;
+    mounted.current = true;
 
-  // 주기적 재검사는 전역 Provider나 사용자 동작 이벤트에서만 수행하도록 변경
-  
+    dispatch(setLoading(true));
+    checkSession();
+  }, [checkSession, dispatch]);
+
   const login = (userData: User, token?: string) => {
     console.log('🔐 useAuth: login() 호출됨', userData);
     if (token) {
@@ -63,8 +91,8 @@ export function useAuth() {
     }
     sessionStorage.setItem('user', JSON.stringify(userData));
     const finalUser = token ? { ...userData, token } : userData;
-    setUser(finalUser);
-    setIsLoading(false); // 로딩 상태도 완료로 설정
+    dispatch(setUser(finalUser));
+    hasCheckedSession = true; // 로그인 후 세션 체크 완료로 표시
     console.log('✅ useAuth: 사용자 상태 업데이트 완료', finalUser);
   };
 
@@ -74,10 +102,11 @@ export function useAuth() {
     } catch {}
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('user');
-    setUser(null);
+    hasCheckedSession = false; // 로그아웃 시 세션 체크 플래그 초기화
+    dispatch(clearUser());
   };
 
-  return { user, isLoading, isAuthenticated: !!user, login, logout, checkSession };
+  return { user, isLoading, isAuthenticated, login, logout, checkSession };
 }
 
 // 인증이 필요한 API 요청을 위한 헬퍼 함수

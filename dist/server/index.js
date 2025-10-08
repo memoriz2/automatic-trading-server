@@ -30,6 +30,10 @@ catch { }
 // 거래 모드 설정 로그
 import { logTradingMode } from './config/trading-config.js';
 logTradingMode();
+// 백그라운드 김치프리미엄 수집기
+import { kimchiPremiumCollector } from './services/kimchi-premium-collector.js';
+// 백그라운드 자동매매 관리자
+import { autoTradingManager } from './services/auto-trading-manager.js';
 const app = express();
 // 리버스 프록시(HTTPS) 뒤에서 secure 쿠키 신뢰
 app.set('trust proxy', 1);
@@ -266,6 +270,12 @@ app.get("/healthz", (_req, res) => {
     server.listen(port, () => {
         // 서버 시작 로그 최소화
         console.log(`✅ 서버 시작: http://localhost:${port}`);
+        // 백그라운드 김치프리미엄 수집 시작
+        kimchiPremiumCollector.start();
+        // 백그라운드 자동매매 시작 (비동기)
+        autoTradingManager.start().catch(err => {
+            console.error('❌ 자동매매 관리자 시작 실패:', err);
+        });
     });
     // ✅ 서버 에러 핸들링 추가
     server.on("error", (error) => {
@@ -322,5 +332,24 @@ app.get("/healthz", (_req, res) => {
     // 세션 정리 스케줄러 설정
     setInterval(cleanupInactiveSessions, 60 * 60 * 1000); // 1시간마다 실행
     setTimeout(cleanupInactiveSessions, 10000); // 서버 시작 10초 후 첫 실행
+    // Graceful shutdown
+    const gracefulShutdown = async (signal) => {
+        console.log(`\n${signal} 수신, 서버 종료 중...`);
+        // 백그라운드 수집기 중지
+        kimchiPremiumCollector.stop();
+        // 백그라운드 자동매매 중지
+        await autoTradingManager.stop();
+        server.close(() => {
+            console.log('✅ 서버 종료 완료');
+            process.exit(0);
+        });
+        // 강제 종료 타임아웃 (30초)
+        setTimeout(() => {
+            console.error('⚠️ 강제 종료');
+            process.exit(1);
+        }, 30000);
+    };
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
     // 세션 스케줄러 시작 로그 제거
 })();

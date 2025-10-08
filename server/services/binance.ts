@@ -304,18 +304,18 @@ export class BinanceService {
       });
 
       if (!response.ok) {
-        console.log(`📊 선물 계정 조회 실패 (${response.status}): 지역 제한으로 추정`);
-        console.log(`📊 바이낸스 선물 USDT 잔고: 지역 제한으로 조회 불가 (실제 잔고는 바이낸스에서 확인)`);
-        
+        // console.log(`📊 선물 계정 조회 실패 (${response.status}): 지역 제한으로 추정`);
+        // console.log(`📊 바이낸스 선물 USDT 잔고: 지역 제한으로 조회 불가 (실제 잔고는 바이낸스에서 확인)`);
+
         // 스팟 계정 시도해보기
         try {
           const account = await this.getAccount();
           const usdtBalance = account.balances.find((balance: any) => balance.asset === 'USDT');
           const spotBalance = usdtBalance ? parseFloat(usdtBalance.free) : 0;
-          console.log(`📊 바이낸스 스팟 USDT 잔고: $${spotBalance}`);
+          // console.log(`📊 바이낸스 스팟 USDT 잔고: $${spotBalance}`);
           return spotBalance;
         } catch (error) {
-          console.log(`📊 스팟 계정도 지역 제한, 잔고 조회 불가`);
+          // console.log(`📊 스팟 계정도 지역 제한, 잔고 조회 불가`);
           return 0;
         }
       }
@@ -324,8 +324,8 @@ export class BinanceService {
       const usdtAsset = futuresAccount.assets?.find((asset: any) => asset.asset === 'USDT');
       // 선물 계정에서 사용가능한 잔고 사용 (availableBalance 우선, 없으면 walletBalance)
       const futuresBalance = usdtAsset ? parseFloat(usdtAsset.availableBalance || usdtAsset.walletBalance) : 0;
-      
-      console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
+
+      // console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
       return futuresBalance;
     } catch (error) {
       console.error('Binance getUSDTBalance error:', error);
@@ -857,8 +857,8 @@ export class BinanceService {
       });
 
       if (!response.ok) {
-        console.log(`📊 선물 계정 조회 실패 (${response.status}): 지역 제한으로 추정`);
-        console.log(`📊 바이낸스 선물 USDT 잔고: 지역 제한으로 조회 불가 (실제 잔고는 바이낸스에서 확인)`);
+        // console.log(`📊 선물 계정 조회 실패 (${response.status}): 지역 제한으로 추정`);
+        // console.log(`📊 바이낸스 선물 USDT 잔고: 지역 제한으로 조회 불가 (실제 잔고는 바이낸스에서 확인)`);
         return 0;
       }
 
@@ -866,8 +866,8 @@ export class BinanceService {
       const usdtAsset = futuresAccount.assets?.find((asset: any) => asset.asset === 'USDT');
       // 선물 계정에서 사용가능한 잔고 사용 (availableBalance 우선, 없으면 walletBalance)
       const futuresBalance = usdtAsset ? parseFloat(usdtAsset.availableBalance || usdtAsset.walletBalance) : 0;
-      
-      console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
+
+      // console.log(`📊 바이낸스 선물 USDT 잔고: $${futuresBalance}`);
       return futuresBalance;
     } catch (error) {
       console.error('Binance getUSDTBalanceWithSession error:', error);
