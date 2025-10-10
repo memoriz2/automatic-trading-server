@@ -481,9 +481,9 @@ model RealDailyStats {
   maxDrawdown       Decimal @default("0") @map("max_drawdown") @db.Decimal(20, 2)
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
-  
+
   // user User @relation(fields: [userId], references: [id])
-  
+
   @@map("real_daily_stats")
   @@unique([userId, date], name: "unique_user_date_stats")
   @@index([date], name: "idx_real_daily_stats_date")

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { X, TrendingUp, AlertTriangle } from 'lucide-react';
+import { X, TrendingUp } from 'lucide-react';
 import { LEVERAGE_CONFIG, parseLeverage, validateLeverage} from '@/utils/trading/leverage';
 import { formatBTC } from '@/utils/trading/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ interface ForceEntrySettings {
   margin: string;           // 증거금 (KRW)
   leverage: string;         // 레버리지
   investmentAmount: string; // 투자수량 (BTC)
+  takeProfitOffset: string; // 익절 오프셋 (%)
 }
 
 interface ForceEntryModalProps {
@@ -23,8 +24,6 @@ interface ForceEntryModalProps {
   isLiveMode: boolean;
 }
 
-const STORAGE_KEY = 'force-entry-settings';
-
 export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   isOpen,
   onClose,
@@ -33,51 +32,54 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   isLiveMode
 }) => {
   const { toast } = useToast();
-  
-  // 강제진입 설정 상태 (로컬스토리지에서 복원)
+
+  // 강제진입 설정 상태 (DB에서 로드)
   const [settings, setSettings] = useState<ForceEntrySettings>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const investment = parsed.investmentAmount || '0.003';
-        const leverage = parsed.leverage || String(LEVERAGE_CONFIG.DEFAULT);
-        
-        // 투자수량과 레버리지로 증거금 계산
-        const btcPrice = 156000000; // 기본 BTC 가격
-        const calculatedMargin = Math.round(parseFloat(investment) * parseLeverage(leverage) * btcPrice);
-        
-        return {
-          margin: String(calculatedMargin),
-          leverage: leverage,
-          investmentAmount: formatBTC(parseFloat(investment))
-        };
-      }
-    } catch (error) {
-      console.warn('강제진입 설정 로드 실패:', error);
-    }
-    
-    // 기본값 - 투자수량 기준으로 증거금 계산
     const defaultInvestment = '0.003';
     const defaultLeverage = LEVERAGE_CONFIG.DEFAULT;
+    const defaultOffset = '0.5';
     const btcPrice = 156000000;
     const calculatedMargin = Math.round(parseFloat(defaultInvestment) * defaultLeverage * btcPrice);
-    
+
     return {
       margin: String(calculatedMargin),
       leverage: String(defaultLeverage),
-      investmentAmount: formatBTC(parseFloat(defaultInvestment))
+      investmentAmount: formatBTC(parseFloat(defaultInvestment)),
+      takeProfitOffset: defaultOffset
     };
   });
 
-  // 설정 변경 시 로컬스토리지에 저장
+  // DB에서 설정 로드
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-      console.warn('강제진입 설정 저장 실패:', error);
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/force-entry-settings');
+        if (response.ok) {
+          const data = await response.json();
+          const investment = data.investmentAmount || '0.003';
+          const leverage = String(data.leverage || LEVERAGE_CONFIG.DEFAULT);
+          const offset = String(data.takeProfitOffset || '0.5');
+
+          const btcPrice = 156000000;
+          const calculatedMargin = Math.round(parseFloat(investment) * parseLeverage(leverage) * btcPrice);
+
+          setSettings({
+            margin: String(calculatedMargin),
+            leverage: leverage,
+            investmentAmount: formatBTC(parseFloat(investment)),
+            takeProfitOffset: offset
+          });
+        }
+      } catch (error) {
+        console.warn('강제진입 설정 로드 실패:', error);
+      }
+    };
+
+    if (isOpen) {
+      loadSettings();
     }
-  }, [settings]);
+  }, [isOpen]);
+
 
   // 투자수량 변경 시 증거금 자동 계산
   const handleInvestmentChange = (investmentValue: string) => {
@@ -115,7 +117,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   };
 
   // 강제진입 실행
-  const handleExecuteEntry = () => {
+  const handleExecuteEntry = async () => {
     const leverageValidation = validateLeverage(parseLeverage(settings.leverage));
     if (!leverageValidation.isValid) {
       toast({
@@ -128,7 +130,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
 
     const margin = parseFloat(settings.margin);
     const investmentAmount = parseFloat(settings.investmentAmount);
-    
+
     if (margin <= 0 || investmentAmount <= 0) {
       toast({
         title: '입력 오류',
@@ -138,9 +140,24 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
       return;
     }
 
+    // 강제진입 설정을 DB에 저장 (기록용)
+    try {
+      await fetch('/api/force-entry-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          investmentAmount: settings.investmentAmount,
+          leverage: parseInt(settings.leverage),
+          takeProfitOffset: parseFloat(settings.takeProfitOffset)
+        })
+      });
+    } catch (error) {
+      console.warn('강제진입 설정 저장 실패:', error);
+    }
+
     // 강제진입 실행
     onForceEntry(settings);
-    
+
     toast({
       title: '강제진입 실행',
       description: `김프 ${currentKimp.toFixed(3)}%에서 ${investmentAmount} BTC 진입`,
@@ -185,17 +202,6 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* 경고 메시지 */}
-          {isLiveMode && (
-            <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-red-800">실거래 모드 경고</p>
-                <p className="text-red-600 mt-1">실제 자금으로 거래가 실행됩니다. 신중하게 설정해주세요.</p>
-              </div>
-            </div>
-          )}
-
           {/* 설정 입력 폼 */}
           <div className="space-y-4">
             {/* 투자수량 입력 (메인 설정) */}
@@ -239,6 +245,27 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               </p>
             </div>
 
+            {/* 익절 오프셋 입력 */}
+            <div>
+              <Label htmlFor="takeProfitOffset" className="text-sm font-medium">
+                익절 오프셋 (%) 🎯
+              </Label>
+              <Input
+                id="takeProfitOffset"
+                type="number"
+                min="0.1"
+                max="5"
+                step="0.1"
+                value={settings.takeProfitOffset}
+                onChange={(e) => setSettings(prev => ({ ...prev, takeProfitOffset: e.target.value }))}
+                placeholder="0.5"
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                현재 김프에서 더할 값 (익절점 = 현재김프 + 이 값)
+              </p>
+            </div>
+
             {/* 증거금 (자동 계산됨) */}
             <div>
               <Label htmlFor="margin" className="text-sm font-medium">
@@ -267,7 +294,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               </div>
               <div>
                 <p className="text-muted-foreground">예상 익절점</p>
-                <p className="font-medium text-green-500">{Math.max(0.1, currentKimp + 0.5).toFixed(3)}%</p>
+                <p className="font-medium text-green-500">{Math.max(0.1, currentKimp + parseFloat(settings.takeProfitOffset || '0.5')).toFixed(3)}%</p>
               </div>
               <div>
                 <p className="text-muted-foreground">투자 수량</p>
@@ -310,11 +337,6 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
                 💡 모달을 열어둔 채로 <strong>강제진입 실행</strong> 버튼을 여러 번 눌러서 연속 진입이 가능합니다
               </p>
             </div>
-          </div>
-
-          {/* 안내 메시지 */}
-          <div className="text-xs text-muted-foreground text-center">
-            설정은 로컬스토리지에 자동 저장되며, 브라우저 데이터 삭제 전까지 영구 보관됩니다.
           </div>
         </CardContent>
       </Card>

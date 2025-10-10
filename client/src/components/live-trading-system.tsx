@@ -162,10 +162,20 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // DB 포지션을 LivePosition 형태로 변환
           const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
               // 포지션 변환 처리
+              // 강제진입 포지션 이름 생성
+              let displayName = pos.strategy_name;
+              if (!displayName) {
+                if (pos.type === 'force_entry') {
+                  displayName = `강제진입${pos.id}`;
+                } else {
+                  displayName = `전략 #${pos.strategy_id}`;
+                }
+              }
+
               return {
                 id: `db-${pos.id}`,
                 strategyId: pos.strategy_id,
-                strategyName: pos.strategy_name || `전략 #${pos.strategy_id}`,
+                strategyName: displayName,
                 symbol: pos.symbol,
               entryTime: new Date(pos.entry_time),
               exitTime: pos.exit_time ? new Date(pos.exit_time) : undefined,
@@ -189,7 +199,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               realizedPnl: pos.realized_pnl || 0,
               upbitOrderId: pos.upbit_order_id,
               binanceOrderId: pos.binance_order_id,
-              isRealTrade: true
+              isRealTrade: true,
+              takeProfitTargets: pos.take_profit_offset // 강제진입 익절 오프셋
               };
             });
             
@@ -545,6 +556,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const liveEntry = useCallback(async (strategy: any, premiumRate: number) => {
     const strategyId = String(strategy.id);
 
+    // 강제진입 판별 (force-entry-XXX 형식)
+    const isForceEntry = typeof strategy.id === 'string' && strategy.id.startsWith('force-entry-');
+    // DB 저장용 strategyId (강제진입이면 null, 아니면 실제 ID)
+    const dbStrategyId = isForceEntry ? null : strategy.id;
+
     // 거래 잠금 확인 (전략별 체크만)
     if (tradingLockRef.current[strategy.id]) {
       return;
@@ -560,15 +576,17 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         return; // finally에서 lock 해제
       }
 
-      // 🔒 DB에서 활성 포지션 중복 체크 (동일 전략+심볼)
-      const dbCheckResponse = await fetch(`/api/positions/check-active?strategyId=${strategy.id}&symbol=BTC`, {
-        credentials: 'include'
-      });
-      if (dbCheckResponse.ok) {
-        const { hasActivePosition } = await dbCheckResponse.json();
-        if (hasActivePosition) {
-          console.warn(`🚫 [${strategy.name}] DB에 이미 활성 포지션 존재 - 진입 취소`);
-          return;
+      // 🔒 DB에서 활성 포지션 중복 체크 (동일 전략+심볼) - 강제진입은 스킵
+      if (!isForceEntry) {
+        const dbCheckResponse = await fetch(`/api/positions/check-active?strategyId=${dbStrategyId}&symbol=BTC`, {
+          credentials: 'include'
+        });
+        if (dbCheckResponse.ok) {
+          const { hasActivePosition } = await dbCheckResponse.json();
+          if (hasActivePosition) {
+            console.warn(`🚫 [${strategy.name}] DB에 이미 활성 포지션 존재 - 진입 취소`);
+            return;
+          }
         }
       }
 
@@ -613,7 +631,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               symbol: 'BTCUSDT',
               quantity: binanceShortAmountBTC,
               leverage: leverage,
-              strategyId: strategy?.id // 전략 ID 추가
+              strategyId: dbStrategyId // 강제진입이면 null, 일반 전략이면 ID
             })
           });
           
@@ -644,7 +662,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               volume: upbitBuyAmountBTC,
               price: Math.round(upbitBuyAmountBTC * (currentKimchiData?.upbit_price || 160000000)), // BTC 수량을 원화로 변환
               ord_type: 'market',
-              strategyId: strategy?.id // 전략 ID 추가
+              strategyId: dbStrategyId // 강제진입이면 null, 일반 전략이면 ID
             })
           });
           
@@ -992,7 +1010,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           if (actualUpbitBalance <= 0 && actualBinanceBalance <= 0) {
             toast({
               title: "청산 완료",
-              description: `전략 #${position.strategyId}는 이미 청산되었습니다.`,
+              description: `${position.strategyName || `전략 #${position.strategyId}`}는 이미 청산되었습니다.`,
             });
             return;
           }
@@ -1209,7 +1227,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
               toast({
                 title: `${Math.round(ratio * 100)}% 청산 완료`,
-                description: `전략 #${position.strategyId}의 일부가 실제로 청산되었습니다. 손익: ${partialPnl >= 0 ? '+' : ''}${Math.round(partialPnl).toLocaleString()}원`,
+                description: `${position.strategyName || `전략 #${position.strategyId}`}의 일부가 실제로 청산되었습니다. 손익: ${partialPnl >= 0 ? '+' : ''}${Math.round(partialPnl).toLocaleString()}원`,
               });
             } else {
               // 전체 청산: 상태 변경 및 정확한 손익 계산
@@ -1316,7 +1334,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
               toast({
                 title: realizedPnl >= 0 ? "💰 수익 실현!" : "📉 손실 확정",
-                description: `전략 #${position.strategyId} 청산 완료. 손익: ${realizedPnl >= 0 ? '+' : ''}${Math.round(realizedPnl).toLocaleString()}원`,
+                description: `${position.strategyName || `전략 #${position.strategyId}`} 청산 완료. 손익: ${realizedPnl >= 0 ? '+' : ''}${Math.round(realizedPnl).toLocaleString()}원`,
                 variant: realizedPnl >= 0 ? "default" : "destructive"
               });
             }
@@ -1431,10 +1449,20 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           const { hasActivePosition, position } = await posCheckRes.json();
           // DB raw 데이터를 LivePosition 형태로 변환
           if (hasActivePosition && position) {
+            // 포지션 이름 생성
+            let positionName = position.strategy_name;
+            if (!positionName) {
+              if (position.type === 'force_entry') {
+                positionName = `강제진입${position.id}`;
+              } else {
+                positionName = `전략 #${position.strategy_id}`;
+              }
+            }
+
             currentPosition = {
               id: position.id,
               strategyId: position.strategy_id,
-              strategyName: position.strategy_name || `전략 #${position.strategy_id}`,
+              strategyName: positionName,
               symbol: position.symbol,
               entryTime: new Date(position.entry_time),
               entryPremiumRate: position.entry_premium_rate || 0,

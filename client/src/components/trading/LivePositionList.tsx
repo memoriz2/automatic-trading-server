@@ -22,6 +22,7 @@ interface LivePosition {
   status: 'open' | 'closed';
   unrealizedPnl: number;
   realizedPnl: number;
+  takeProfitTargets?: number; // 강제진입 익절 오프셋
 }
 
 interface Strategy {
@@ -133,6 +134,12 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                 </div>
                 <div className="text-[10px] text-slate-400 mt-1" style={{ float: 'left' }}>
                   {(() => {
+                    // 강제진입은 익절 구간 표시 안함 (수동 청산)
+                    if (position.type === 'force_entry') {
+                      return '-';
+                    }
+
+                    // 일반 전략 포지션인 경우만 익절 구간 표시
                     const strategy = strategies.find(s => String(s.id) === String(position.strategyId));
                     return strategy?.takeProfitCondition ? `수익구간 ${parseFloat(parseFloat(strategy.takeProfitCondition).toFixed(3))}% ≤ 김프율` : '-';
                   })()}

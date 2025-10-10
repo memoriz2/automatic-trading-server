@@ -64,11 +64,22 @@ export const useLiveTrading = ({
 
           if (response.ok) {
             const dbPositions = await response.json();
-            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => ({
-              id: `db-${pos.id}`,
-              strategyId: pos.strategy_id,
-              strategyName: pos.strategy_name || `전략 #${pos.strategy_id}`,
-              symbol: pos.symbol,
+            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
+              // 포지션 이름 생성
+              let displayName = pos.strategy_name;
+              if (!displayName) {
+                if (pos.type === 'force_entry') {
+                  displayName = `강제진입${pos.id}`;
+                } else {
+                  displayName = `전략 #${pos.strategy_id}`;
+                }
+              }
+
+              return {
+                id: `db-${pos.id}`,
+                strategyId: pos.strategy_id,
+                strategyName: displayName,
+                symbol: pos.symbol,
               entryTime: new Date(pos.entry_time),
               entryPremiumRate: pos.entry_premium_rate || 0,
               upbitQuantity: pos.quantity || 0,
@@ -81,8 +92,10 @@ export const useLiveTrading = ({
               status: pos.status === 'closed' ? 'closed' : 'open',
               exitTime: pos.exit_time ? new Date(pos.exit_time) : undefined,
               exitPremiumRate: pos.exit_premium_rate || 0,
-              realizedPnL: pos.realized_pnl || 0
-            }));
+              realizedPnL: pos.realized_pnl || 0,
+              takeProfitTargets: pos.take_profit_offset // 강제진입 익절 오프셋
+              };
+            });
 
             setLivePositions(convertedPositions);
           }

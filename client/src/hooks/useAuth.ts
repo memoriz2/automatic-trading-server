@@ -78,6 +78,13 @@ export function useAuth() {
     if (mounted.current) return;
     mounted.current = true;
 
+    // 세션스토리지에 사용자 정보가 없으면 세션 체크 안 함 (로그인 전)
+    const storedUser = sessionStorage.getItem('user');
+    if (!storedUser) {
+      dispatch(setLoading(false));
+      return;
+    }
+
     dispatch(setLoading(true));
     checkSession();
   }, [checkSession, dispatch]);

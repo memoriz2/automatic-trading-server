@@ -181,6 +181,7 @@ export interface LivePosition {
   upbitOrderId?: string;
   binanceOrderId?: string;
   isRealTrade?: boolean;
+  takeProfitTargets?: any; // 강제진입 익절 구간
 }
 
 export interface KimchiData {

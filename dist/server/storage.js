@@ -339,9 +339,13 @@ export class DatabaseStorage {
     // === 포지션 관련 메서드들 ===
     async getActivePositions(userId) {
         try {
-            const result = await this.pool.query(`SELECT p.*, ts.name as strategy_name
+            const result = await this.pool.query(`SELECT p.*,
+                ts.name as strategy_name,
+                fes.take_profit_offset,
+                fes.id as force_entry_settings_id
          FROM positions p
          LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+         LEFT JOIN force_entry_settings fes ON p.force_entry_settings_id = fes.id
          WHERE p.user_id = $1 AND p.status = $2
          ORDER BY p.entry_time DESC`, [userId, 'open']);
             return result.rows;
@@ -378,10 +382,10 @@ export class DatabaseStorage {
         INSERT INTO positions (
           user_id, strategy_id, symbol, type, entry_price, quantity,
           entry_premium_rate, status, side, binance_leverage,
-          binance_entry_price, created_at, updated_at, entry_time
+          binance_entry_price, force_entry_settings_id, created_at, updated_at, entry_time
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, $11,
+          $7, $8, $9, $10, $11, $12,
           NOW(), NOW(), NOW()
         )
         RETURNING *
@@ -397,7 +401,8 @@ export class DatabaseStorage {
                 data.side,
                 // 우선순위: 명시 전달값 → 전략 레버리지 → 안전 기본값 5
                 (data.binanceLeverage ?? data.leverage ?? 5),
-                data.binanceEntryPrice
+                data.binanceEntryPrice,
+                data.forceEntrySettingsId || null
             ]);
             return result.rows[0];
         }
@@ -882,15 +887,23 @@ export class DatabaseStorage {
     }
     async getAllPositions(userId) {
         try {
-            let query = `SELECT p.*, ts.name as strategy_name
+            let query = `SELECT p.*,
+                          ts.name as strategy_name,
+                          fes.take_profit_offset,
+                          fes.id as force_entry_settings_id
                    FROM positions p
                    LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+                   LEFT JOIN force_entry_settings fes ON p.force_entry_settings_id = fes.id
                    ORDER BY p.entry_time DESC`;
             let params = [];
             if (userId) {
-                query = `SELECT p.*, ts.name as strategy_name
+                query = `SELECT p.*,
+                        ts.name as strategy_name,
+                        fes.take_profit_offset,
+                        fes.id as force_entry_settings_id
                  FROM positions p
                  LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+                 LEFT JOIN force_entry_settings fes ON p.force_entry_settings_id = fes.id
                  WHERE p.user_id = $1
                  ORDER BY p.entry_time DESC`;
                 params = [userId];
@@ -1169,21 +1182,34 @@ export class DatabaseStorage {
     async getTradesWithStrategyInfo(userId, limit = 50) {
         try {
             const result = await this.pool.query(`
-        SELECT 
+        SELECT
           t.*,
-          ts.name as strategy_name
+          ts.name as strategy_name,
+          p.type as position_type,
+          p.id as position_db_id
         FROM trades t
         LEFT JOIN trading_strategies ts ON t.strategy_id = ts.id
-        WHERE t.user_id = $1 
-        ORDER BY t.executed_at DESC 
+        LEFT JOIN positions p ON t.position_id = p.id
+        WHERE t.user_id = $1
+        ORDER BY t.executed_at DESC
         LIMIT $2
       `, [parseInt(userId), limit]);
-            return result.rows.map(row => ({
-                ...row,
-                strategyId: row.strategy_id,
-                strategyName: row.strategy_name || '전략 정보 없음',
-                positionId: row.position_id
-            }));
+            return result.rows.map(row => {
+                let strategyName = row.strategy_name;
+                // 강제진입 포지션인 경우 포지션 ID로 이름 생성
+                if (!strategyName && row.position_type === 'force_entry' && row.position_db_id) {
+                    strategyName = `강제진입${row.position_db_id}`;
+                }
+                else if (!strategyName) {
+                    strategyName = '전략 정보 없음';
+                }
+                return {
+                    ...row,
+                    strategyId: row.strategy_id,
+                    strategyName,
+                    positionId: row.position_id
+                };
+            });
         }
         catch (error) {
             console.error('Error getting trades with strategy info:', error);

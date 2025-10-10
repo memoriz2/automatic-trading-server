@@ -2606,6 +2606,81 @@ export async function registerRoutes(app, server) {
             });
         }
     });
+    // 강제진입 설정 조회 API
+    app.get("/api/force-entry-settings", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const result = await storage.pool.query(`SELECT
+          investment_amount,
+          leverage,
+          take_profit_offset,
+          created_at
+         FROM force_entry_settings
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`, [userId]);
+            if (result.rows.length === 0) {
+                // 설정이 없으면 기본값 반환
+                res.json({
+                    investmentAmount: '0.003',
+                    leverage: 3,
+                    takeProfitOffset: '0.5'
+                });
+                return;
+            }
+            const settings = result.rows[0];
+            res.json({
+                investmentAmount: settings.investment_amount,
+                leverage: settings.leverage,
+                takeProfitOffset: settings.take_profit_offset,
+                createdAt: settings.created_at
+            });
+        }
+        catch (error) {
+            console.error('❌ 강제진입 설정 조회 오류:', error);
+            res.status(500).json({
+                error: "강제진입 설정 조회 중 오류가 발생했습니다"
+            });
+        }
+    });
+    // 강제진입 설정 저장 API (INSERT - 기록용)
+    app.post("/api/force-entry-settings", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const { investmentAmount, leverage, takeProfitOffset } = req.body;
+            // 유효성 검증
+            if (!investmentAmount || !leverage || takeProfitOffset === undefined) {
+                res.status(400).json({
+                    error: "필수 필드가 누락되었습니다"
+                });
+                return;
+            }
+            const amount = parseFloat(investmentAmount);
+            const lev = parseInt(leverage);
+            const offset = parseFloat(takeProfitOffset);
+            if (amount <= 0 || lev < 1 || lev > 125) {
+                res.status(400).json({
+                    error: "잘못된 설정값입니다"
+                });
+                return;
+            }
+            // INSERT - 강제진입할 때마다 새 레코드 생성 (기록 보관)
+            await storage.pool.query(`INSERT INTO force_entry_settings
+          (user_id, investment_amount, leverage, take_profit_offset, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())`, [userId, amount, lev, offset]);
+            console.log(`✅ 강제진입 설정 저장: userId=${userId}, amount=${amount}, lev=${lev}, offset=${offset}`);
+            res.json({
+                success: true,
+                message: "설정이 저장되었습니다"
+            });
+        }
+        catch (error) {
+            console.error('❌ 강제진입 설정 저장 오류:', error);
+            res.status(500).json({
+                error: "강제진입 설정 저장 중 오류가 발생했습니다"
+            });
+        }
+    });
     // 어드민 권한 확인 API
     app.get("/api/admin/check", authenticateSession, async (req, res) => {
         try {

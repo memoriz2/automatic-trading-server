@@ -55,7 +55,7 @@ export const authenticateSession = async (req: any, res: any, next: any) => {
   }
 
   if (!userId) {
-    console.log('authenticateSession: 인증 실패 - 세션과 토큰 모두 유효하지 않음');
+    // console.log('authenticateSession: 인증 실패 - 세션과 토큰 모두 유효하지 않음');
     return res.status(401).json({ message: "로그인이 필요합니다" });
   }
 
