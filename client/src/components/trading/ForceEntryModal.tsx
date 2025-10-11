@@ -13,7 +13,6 @@ interface ForceEntrySettings {
   margin: string;           // 증거금 (KRW)
   leverage: string;         // 레버리지
   investmentAmount: string; // 투자수량 (BTC)
-  takeProfitOffset: string; // 익절 오프셋 (%)
 }
 
 interface ForceEntryModalProps {
@@ -37,15 +36,13 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   const [settings, setSettings] = useState<ForceEntrySettings>(() => {
     const defaultInvestment = '0.003';
     const defaultLeverage = LEVERAGE_CONFIG.DEFAULT;
-    const defaultOffset = '0.5';
     const btcPrice = 156000000;
     const calculatedMargin = Math.round(parseFloat(defaultInvestment) * defaultLeverage * btcPrice);
 
     return {
       margin: String(calculatedMargin),
       leverage: String(defaultLeverage),
-      investmentAmount: formatBTC(parseFloat(defaultInvestment)),
-      takeProfitOffset: defaultOffset
+      investmentAmount: formatBTC(parseFloat(defaultInvestment))
     };
   });
 
@@ -58,7 +55,6 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
           const data = await response.json();
           const investment = data.investmentAmount || '0.003';
           const leverage = String(data.leverage || LEVERAGE_CONFIG.DEFAULT);
-          const offset = String(data.takeProfitOffset || '0.5');
 
           const btcPrice = 156000000;
           const calculatedMargin = Math.round(parseFloat(investment) * parseLeverage(leverage) * btcPrice);
@@ -66,8 +62,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
           setSettings({
             margin: String(calculatedMargin),
             leverage: leverage,
-            investmentAmount: formatBTC(parseFloat(investment)),
-            takeProfitOffset: offset
+            investmentAmount: formatBTC(parseFloat(investment))
           });
         }
       } catch (error) {
@@ -147,8 +142,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           investmentAmount: settings.investmentAmount,
-          leverage: parseInt(settings.leverage),
-          takeProfitOffset: parseFloat(settings.takeProfitOffset)
+          leverage: parseInt(settings.leverage)
         })
       });
     } catch (error) {
@@ -245,27 +239,6 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               </p>
             </div>
 
-            {/* 익절 오프셋 입력 */}
-            <div>
-              <Label htmlFor="takeProfitOffset" className="text-sm font-medium">
-                익절 오프셋 (%) 🎯
-              </Label>
-              <Input
-                id="takeProfitOffset"
-                type="number"
-                min="0.1"
-                max="5"
-                step="0.1"
-                value={settings.takeProfitOffset}
-                onChange={(e) => setSettings(prev => ({ ...prev, takeProfitOffset: e.target.value }))}
-                placeholder="0.5"
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                현재 김프에서 더할 값 (익절점 = 현재김프 + 이 값)
-              </p>
-            </div>
-
             {/* 증거금 (자동 계산됨) */}
             <div>
               <Label htmlFor="margin" className="text-sm font-medium">
@@ -293,10 +266,6 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
                 <p className="font-medium text-primary">{currentKimp.toFixed(3)}%</p>
               </div>
               <div>
-                <p className="text-muted-foreground">예상 익절점</p>
-                <p className="font-medium text-green-500">{Math.max(0.1, currentKimp + parseFloat(settings.takeProfitOffset || '0.5')).toFixed(3)}%</p>
-              </div>
-              <div>
                 <p className="text-muted-foreground">투자 수량</p>
                 <p className="font-medium text-blue-500">{formatBTC(parseFloat(settings.investmentAmount || '0'))} BTC</p>
               </div>
@@ -304,7 +273,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
                 <p className="text-muted-foreground">실효 레버리지</p>
                 <p className="font-medium text-orange-500">{parseLeverage(settings.leverage)}배</p>
               </div>
-              <div className="col-span-2">
+              <div>
                 <p className="text-muted-foreground">필요 증거금</p>
                 <p className="font-bold text-lg text-red-500">₩{Math.floor(parseFloat(settings.margin || '0')).toLocaleString()}</p>
               </div>

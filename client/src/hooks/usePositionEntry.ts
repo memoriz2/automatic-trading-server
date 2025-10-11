@@ -1,34 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useToast } from './use-toast';
 
-export interface PositionEntryRequest {
-  strategyId: number;
-  symbol: string;
-  side: 'buy' | 'sell' | 'short' | 'cover';
-  exchange: 'upbit' | 'binance';
-  deviceId?: string;
-  deviceType?: string;
-}
+// 중앙화된 타입 import
+import type { PositionEntryRequest, PositionEntryResponse } from '../../../shared/types/position';
 
-export interface ExistingPosition {
-  id: number;
-  symbol: string;
-  side: string;
-  entryTime: string;
-  unrealizedPnl: number;
-}
-
-export interface PositionEntryResponse {
-  allowed: boolean;
-  message?: string;
-  error?: string;
-  existingPosition?: ExistingPosition;
-  suggestedApi?: string;
-  deviceInfo?: {
-    deviceId: string;
-    deviceType: string;
-  };
-}
+// 호환성을 위해 re-export
+export type { PositionEntryRequest, PositionEntryResponse };
 
 export function usePositionEntry() {
   const [isChecking, setIsChecking] = useState(false);

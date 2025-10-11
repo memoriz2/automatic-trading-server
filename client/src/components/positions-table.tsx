@@ -219,7 +219,7 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                           variant="destructive"
                           size="sm"
                           className="font-bold border-2 border-yellow-300"
-                          onClick={() => onClosePosition(position.id)}
+                          onClick={() => onClosePosition(typeof position.id === 'number' ? position.id : parseInt(String(position.id)))}
                           title="포지션 청산 (즉시 종료)"
                         >
                           <X className="w-4 h-4" />

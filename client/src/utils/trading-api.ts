@@ -1,104 +1,32 @@
-import { LiveTrade, LivePosition } from '@/types/trading';
+/**
+ * 실거래 API (중앙화된 shared 모듈 사용)
+ * @deprecated 이 파일은 호환성을 위해 유지되며, shared/services/api-client.ts를 사용합니다.
+ */
 
-// API 호출 함수
-export const apiFetch = async (url: string, options: RequestInit = {}) => {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+import {
+  LiveTradingDataService,
+  type LiveTrade,
+  type LivePosition
+} from '../../../shared/services/api-client';
 
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
-  }
+// Re-export types
+export type { LiveTrade, LivePosition };
 
-  return response.json();
-};
-
-// 거래 저장 함수들
+/**
+ * 실거래 저장 함수들 - shared 모듈로 위임
+ */
 export const saveLiveTradeToDB = async (trade: LiveTrade, userId: string) => {
-  try {
-    await apiFetch('/api/live-trades', {
-      method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify({
-        id: trade.id,
-        timestamp: trade.timestamp.toISOString(),
-        type: trade.type,
-        symbol: trade.symbol,
-        quantity: trade.quantity,
-        price: trade.price,
-        fee: trade.fee,
-        exchange: trade.exchange,
-        strategyId: trade.strategyId,
-        premiumRate: trade.premiumRate,
-        usdKrw: trade.usdKrw,
-        isMock: false,
-        userId
-      })
-    });
-  } catch (error) {
-    console.error(`❌ 실거래 DB 저장 실패:`, error);
-  }
+  return LiveTradingDataService.saveLiveTradeToDB(trade, userId);
 };
 
 export const saveLivePositionToDB = async (position: LivePosition, userId: string) => {
-  try {
-    await apiFetch('/api/live-positions', {
-      method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify({
-        id: position.id,
-        strategyId: position.strategyId,
-        strategyName: position.strategyName,
-        symbol: position.symbol,
-        entryTime: position.entryTime.toISOString(),
-        entryPremiumRate: position.entryPremiumRate,
-        upbitQuantity: position.upbitQuantity,
-        upbitPrice: position.upbitPrice,
-        entryUsdKrw: position.entryUsdKrw,
-        binanceQuantity: position.binanceQuantity,
-        binancePrice: position.binancePrice,
-        status: position.status,
-        exitTime: position.exitTime?.toISOString(),
-        exitPremiumRate: position.exitPremiumRate,
-        realizedPnL: position.realizedPnL,
-        isMock: false,
-        userId
-      })
-    });
-  } catch (error) {
-    console.error('❌ 실거래 포지션 DB 저장 실패:', error);
-  }
+  return LiveTradingDataService.saveLivePositionToDB(position, userId);
 };
 
 export const updateLivePositionInDB = async (position: LivePosition, userId: string) => {
-  try {
-    await apiFetch(`/api/live-positions/${position.id}`, {
-      method: 'PUT',
-      credentials: 'include',
-      body: JSON.stringify({
-        strategyId: position.strategyId,
-        strategyName: position.strategyName,
-        symbol: position.symbol,
-        entryTime: position.entryTime.toISOString(),
-        entryPremiumRate: position.entryPremiumRate,
-        upbitQuantity: position.upbitQuantity,
-        upbitPrice: position.upbitPrice,
-        entryUsdKrw: position.entryUsdKrw,
-        binanceQuantity: position.binanceQuantity,
-        binancePrice: position.binancePrice,
-        status: position.status,
-        exitTime: position.exitTime?.toISOString(),
-        exitPremiumRate: position.exitPremiumRate,
-        realizedPnL: position.realizedPnL,
-        isMock: false,
-        userId
-      })
-    });
-  } catch (error) {
-    console.error('❌ 실거래 포지션 DB 업데이트 실패:', error);
-  }
+  return LiveTradingDataService.updateLivePositionInDB(position, userId);
 };
+
+// apiFetch는 더 이상 필요하지 않음 (shared 모듈에서 내부적으로 처리)
+// 호환성을 위해 필요하다면 shared에서 re-export 가능
+export { apiFetch } from '../../../shared/services/api-client';

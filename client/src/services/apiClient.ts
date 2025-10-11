@@ -1,148 +1,77 @@
 /**
- * 통합 API 클라이언트 서비스
- * 모든 API 호출을 중앙화하여 관리
+ * API 클라이언트 (중앙화된 shared 모듈 사용)
+ * @deprecated 이 파일은 호환성을 위해 유지되며, shared/services/api-client.ts를 사용합니다.
  */
 
 import { apiFetchJson } from '@/lib/queryClient';
+import {
+  ApiClient as SharedApiClient,
+  TradingExecutionService as SharedTradingExecutionService,
+  type KimchiPremiumData,
+  type BalanceData,
+  type TradingStrategy
+} from '../../../shared/services/api-client';
 
-export interface KimchiPremiumData {
-  symbol: string;
-  upbitPrice: number;
-  binanceFuturesPrice: number;
-  usdKrwRate: number;
-  premiumRate: number;
-  timestamp: string;
-}
+// Re-export types
+export type { KimchiPremiumData, BalanceData, TradingStrategy };
 
-export interface BalanceData {
-  upbit: {
-    krw: number;
-    connected: boolean;
-  };
-  binance: {
-    usdt: number;
-    connected: boolean;
-  };
-}
-
-export interface TradingStrategy {
-  id: number;
-  name: string;
-  entryCondition: number;
-  takeProfitCondition: number;
-  tolerance: number;
-  leverage: string;
-  investmentAmount: string;
-  isActive: boolean;
-  crypto: string;
-  strategyType: string;
-}
-
+/**
+ * 래퍼 클래스 - apiFetchJson을 주입하여 shared API 클라이언트 사용
+ */
 export class ApiClient {
-  /**
-   * 김치 프리미엄 조회
-   */
   static async getKimchiPremium(): Promise<KimchiPremiumData[]> {
-    return await apiFetchJson('/api/kimchi-premium');
+    return SharedApiClient.getKimchiPremium(apiFetchJson);
   }
 
-  /**
-   * 실시간 환율 조회
-   */
   static async getExchangeRate(): Promise<{ rate: number; timestamp: string; source: string }> {
-    return await apiFetchJson('/api/exchange-rate');
+    return SharedApiClient.getExchangeRate(apiFetchJson);
   }
 
-  /**
-   * 사용자 잔고 조회
-   */
   static async getUserBalance(userId: string): Promise<BalanceData> {
-    return await apiFetchJson(`/api/balances/${userId}`);
+    return SharedApiClient.getUserBalance(userId, apiFetchJson);
   }
 
-  /**
-   * 거래 전략 목록 조회
-   */
   static async getTradingStrategies(userId?: string): Promise<TradingStrategy[]> {
-    const endpoint = userId ? `/api/trading-strategies/${userId}` : '/api/trading-strategies';
-    return await apiFetchJson(endpoint);
+    return SharedApiClient.getTradingStrategies(apiFetchJson, userId);
   }
 
-  /**
-   * 거래 전략 생성
-   */
   static async createTradingStrategy(userId: string, strategy: Partial<TradingStrategy>): Promise<TradingStrategy> {
-    return await apiFetchJson(`/api/trading-strategies/${userId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(strategy)
-    });
+    return SharedApiClient.createTradingStrategy(userId, strategy, apiFetchJson);
   }
 
-  /**
-   * 거래 전략 업데이트
-   */
   static async updateTradingStrategy(strategyId: string, updates: Partial<TradingStrategy>): Promise<TradingStrategy> {
-    return await apiFetchJson(`/api/trading-strategies/${strategyId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
+    return SharedApiClient.updateTradingStrategy(strategyId, updates, apiFetchJson);
   }
 
-  /**
-   * 거래 전략 삭제
-   */
   static async deleteTradingStrategy(strategyId: string): Promise<{ success: boolean; message: string }> {
-    return await apiFetchJson(`/api/trading-strategies/${strategyId}`, {
-      method: 'DELETE'
-    });
+    return SharedApiClient.deleteTradingStrategy(strategyId, apiFetchJson);
   }
 
-  /**
-   * 자동매매 시작
-   */
   static async startAutoTrading(userId: string): Promise<{ success: boolean; message: string }> {
-    return await apiFetchJson(`/api/trading/start/${userId}`, {
-      method: 'POST'
-    });
+    return SharedApiClient.startAutoTrading(userId, apiFetchJson);
   }
 
-  /**
-   * 자동매매 중지
-   */
   static async stopAutoTrading(userId: string): Promise<{ success: boolean; message: string }> {
-    return await apiFetchJson(`/api/trading/stop/${userId}`, {
-      method: 'POST'
-    });
+    return SharedApiClient.stopAutoTrading(userId, apiFetchJson);
   }
 
-  /**
-   * 자동매매 상태 조회
-   */
   static async getTradingStatus(): Promise<{
     isRunning: boolean;
     strategies: TradingStrategy[];
     activeStrategies: number;
   }> {
-    return await apiFetchJson('/api/trading/status');
+    return SharedApiClient.getTradingStatus(apiFetchJson);
   }
 
-  /**
-   * 거래소 연결 상태 확인
-   */
   static async getExchangeStatus(): Promise<{
     connected: boolean;
     totalExchanges: number;
     connectedExchanges: number;
     exchanges: Record<string, any>;
   }> {
-    return await apiFetchJson('/api/v2/exchanges/status');
+    return SharedApiClient.getExchangeStatus(apiFetchJson);
   }
 
-  /**
-   * 강제 진입 실행
-   */
   static async executeForceEntry(params: {
     symbol: string;
     quantity: number;
@@ -150,16 +79,9 @@ export class ApiClient {
     currentKimp: number;
     userId: string;
   }): Promise<{ success: boolean; message: string; data?: any }> {
-    return await apiFetchJson('/api/force-entry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    });
+    return SharedTradingExecutionService.executeForceEntrySimple(params, apiFetchJson);
   }
 
-  /**
-   * 일일 통계 조회
-   */
   static async getDailyStats(userId: string): Promise<{
     date: string;
     total_orders: number;
@@ -169,22 +91,14 @@ export class ApiClient {
     fees_krw: number;
     net_profit_krw: number;
   }> {
-    return await apiFetchJson(`/api/daily-stats/${userId}`);
+    return SharedApiClient.getDailyStats(userId, apiFetchJson);
   }
 
-  /**
-   * 거래 기록 조회
-   */
   static async getTrades(userId?: string): Promise<any[]> {
-    const endpoint = userId ? `/api/trades?userId=${userId}` : '/api/trades';
-    return await apiFetchJson(endpoint);
+    return SharedApiClient.getTrades(apiFetchJson, userId);
   }
 
-  /**
-   * 포지션 목록 조회
-   */
   static async getPositions(userId?: string): Promise<any[]> {
-    const endpoint = userId ? `/api/positions?userId=${userId}` : '/api/positions';
-    return await apiFetchJson(endpoint);
+    return SharedApiClient.getPositions(apiFetchJson, userId);
   }
 }

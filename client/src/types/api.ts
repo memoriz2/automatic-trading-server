@@ -1,3 +1,11 @@
+// ===== 중앙화된 타입 import =====
+import type {
+  PositionInfo,
+  PositionSummary,
+  PositionEntryRequest,
+  PositionEntryResponse
+} from '../../../shared/types/position';
+
 // ===== API 연결 관련 타입 =====
 
 export interface ApiKeyForm {
@@ -94,55 +102,13 @@ export interface OrderInfo {
 }
 
 // ===== 포지션 관련 타입 =====
-
-export interface PositionInfo {
-  id: number;
-  userId: number;
-  strategyId?: number;
-  symbol: string;
-  side: 'long' | 'short';
-  status: 'open' | 'closed' | 'liquidated';
-  
-  // 업비트 정보
-  upbitQuantity: number;
-  upbitEntryPrice: number;
-  upbitCurrentPrice?: number;
-  upbitOrderId?: string;
-  
-  // 바이낸스 정보
-  binanceQuantity: number;
-  binanceEntryPrice: number;
-  binanceCurrentPrice?: number;
-  binanceLeverage: number;
-  binanceOrderId?: string;
-  
-  // 김치 프리미엄 정보
-  entryPremiumRate: number;
-  currentPremiumRate?: number;
-  
-  // 손익 정보
-  unrealizedPnl: number;
-  realizedPnl?: number;
-  totalFees: number;
-  
-  // 시간 정보
-  entryTime: string;
-  exitTime?: string;
-  
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PositionSummary {
-  totalPositions: number;
-  openPositions: number;
-  closedPositions: number;
-  totalUnrealizedPnl: number;
-  totalRealizedPnl: number;
-  totalFees: number;
-  totalInvestment: number;
-  profitRate: number;
-}
+// 중앙화된 타입 re-export (이미 위에서 import됨)
+export type {
+  PositionInfo,
+  PositionSummary,
+  PositionEntryRequest,
+  PositionEntryResponse
+};
 
 // ===== 거래 관련 타입 =====
 

@@ -25,12 +25,8 @@ export const TRADING_LIMITS = {
   }
 } as const;
 
-export const LEVERAGE_LIMITS = {
-  MIN: 1,
-  MAX: 125,
-  RECOMMENDED_MAX: 20,
-  DEFAULT: 5
-} as const;
+// 중앙화된 레버리지 설정 사용
+export { LEVERAGE_LIMITS } from '../../../shared/utils/leverage';
 
 export const PREMIUM_RATE_LIMITS = {
   MIN: -50,

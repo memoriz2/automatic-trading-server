@@ -1,9 +1,10 @@
 // ===== 전략 및 거래 기본값 설정 =====
+import { LEVERAGE_LIMITS } from '../../../shared/utils/leverage';
 
 export const STRATEGY_DEFAULTS = {
   // 레버리지 설정
-  LEVERAGE: '1',                    // 기본 레버리지 1배
-  LEVERAGE_NUMERIC: 1,              // 숫자형 기본 레버리지
+  LEVERAGE: String(LEVERAGE_LIMITS.MIN),        // 기본 레버리지 1배
+  LEVERAGE_NUMERIC: LEVERAGE_LIMITS.MIN,        // 숫자형 기본 레버리지
   
   // 투자 관련 - 기본값 0 (사용자 입력 필요)
   BASE_AMOUNT: '0',                 // 기본 투자금액 (KRW)
@@ -35,7 +36,7 @@ export const getInitialStrategy = () => ({
 // 안전한 값 가져오기 함수들
 export const getSafeLeverage = (value?: string | number): number => {
   const parsed = typeof value === 'string' ? parseFloat(value) : (value || 0);
-  return Math.max(1, parsed || STRATEGY_DEFAULTS.LEVERAGE_NUMERIC);
+  return Math.max(LEVERAGE_LIMITS.MIN, parsed || STRATEGY_DEFAULTS.LEVERAGE_NUMERIC);
 };
 
 export const getSafeStrategy = (strategy: any, currentBtcPrice?: number) => {

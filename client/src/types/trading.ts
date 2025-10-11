@@ -1,3 +1,6 @@
+// ===== 중앙화된 타입 import =====
+import type { PositionDisplay } from '../../../shared/types/position';
+
 export interface KimchiPremium {
   symbol: string;
   upbitPrice: number;
@@ -10,21 +13,8 @@ export interface KimchiPremium {
   binancePriceKRW?: number;
 }
 
-export interface Position {
-  id: number;
-  symbol: string;
-  type: string;
-  entryPrice: number;
-  currentPrice?: number;
-  quantity: number;
-  entryPremiumRate: number;
-  currentPremiumRate?: number;
-  profitLossRate?: number;
-  profitLossAmount?: number;
-  status: 'active' | 'closed' | 'pending';
-  entryTime: Date;
-  exitTime?: Date;
-}
+// 중앙화된 Position 타입 사용 (re-export)
+export type Position = PositionDisplay;
 
 export interface Trade {
   id: number;
