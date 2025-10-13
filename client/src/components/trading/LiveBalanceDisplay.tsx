@@ -18,6 +18,8 @@ interface LiveBalanceDisplayProps {
   totalPnl: number;
   realtimeBalances?: { upbitBtc: number; binanceBtc: number; timestamp: string };
   balanceLoading?: boolean;
+  btcKrwPrice?: number;
+  usdtKrwRate?: number;
 }
 
 export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
@@ -25,7 +27,9 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   profitRate,
   totalPnl,
   realtimeBalances,
-  balanceLoading
+  balanceLoading,
+  btcKrwPrice,
+  usdtKrwRate
 }) => {
   return (
     <>
@@ -47,7 +51,11 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
               <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
             )}
           </div>
-          <p className="text-xs text-slate-500">실시간</p>56
+          {btcKrwPrice && (
+            <p className="text-xs text-slate-500">
+              ≈ ₩{Math.floor((realtimeBalances?.upbitBtc || 0) * btcKrwPrice).toLocaleString()}
+            </p>
+          )}
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>
@@ -60,13 +68,22 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
               <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
             )}
           </div>
-          <p className="text-xs text-slate-500">실시간</p>
+          {btcKrwPrice && (
+            <p className="text-xs text-slate-500">
+              ≈ ₩{Math.floor(Math.abs(realtimeBalances?.binanceBtc || 0) * btcKrwPrice).toLocaleString()}
+            </p>
+          )}
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 USDT</h4>
           <p className="text-base md:text-xl font-bold text-green-400">
             ${Math.floor(liveBalance.binanceUsdt || 0).toLocaleString()}
           </p>
+          {usdtKrwRate && (
+            <p className="text-xs text-slate-500">
+              ≈ ₩{Math.floor((liveBalance.binanceUsdt || 0) * usdtKrwRate).toLocaleString()}
+            </p>
+          )}
         </div>
       </div>
 

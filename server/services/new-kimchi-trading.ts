@@ -545,6 +545,7 @@ export class MultiStrategyTradingService {
       let binanceResult: any;
       let currentPrice: any;
       let adjustedQuantity: any;
+      let upbitEntryPrice: any; // 업비트 진입가 변수 추가
 
       // 김치프리미엄 차익거래 (양수/음수 동일한 전략)
       const market = `KRW-${symbol}`;
@@ -639,16 +640,18 @@ export class MultiStrategyTradingService {
         const executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
         const avgPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
         const paidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
+        upbitEntryPrice = avgPrice || upbitCurrentPrice; // 업비트 진입가 저장
 
         console.log(`📊 업비트 체결 분석:`, {
           목표수량: adjustedQuantity,
           실제체결: executedVolume,
           체결가: avgPrice,
-          실제수수료: paidFee
+          실제수수료: paidFee,
+          업비트진입가: upbitEntryPrice
         });
 
         // 업비트 수수료 계산 (중앙화된 로직 사용, API 응답의 paid_fee 우선)
-        const upbitFee = calculateUpbitFee(adjustedQuantity, avgPrice || upbitCurrentPrice, paidFee);
+        const upbitFee = calculateUpbitFee(adjustedQuantity, upbitEntryPrice, paidFee);
 
         // 업비트 거래 즉시 DB 저장
         try {
@@ -686,8 +689,13 @@ export class MultiStrategyTradingService {
       console.log(`업비트:`, upbitResult);
       console.log(`바이낸스:`, binanceResult);
 
-      // 포지션 생성
+      // 포지션 생성 - 진입가 명시적 저장
       const entryTimeKST = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST 시간
+      console.log(`💾 포지션 저장 진입가:`, {
+        업비트진입가: upbitEntryPrice,
+        바이낸스진입가: currentPrice
+      });
+
       const position = await storage.createPosition({
         userId: parseInt(userId),
         strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
@@ -695,7 +703,8 @@ export class MultiStrategyTradingService {
         type: "HEDGE",
         side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
         status: "open",
-        entryPrice: String(currentPrice),
+        entryPrice: String(upbitEntryPrice), // ← 업비트 진입가
+        binanceEntryPrice: String(currentPrice), // ← 바이낸스 진입가 추가
         quantity: String(adjustedQuantity),
         entryPremiumRate: String(signal.premiumRate),
         binanceLeverage: Number(strategy.leverage || 5),

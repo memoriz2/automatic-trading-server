@@ -144,6 +144,57 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     return strategy?.takeProfitCondition ? `수익구간 ${parseFloat(parseFloat(strategy.takeProfitCondition).toFixed(3))}% ≤ 김프율` : '-';
                   })()}
                 </div>
+                <div className="text-[10px] text-slate-400 mt-1" style={{ float: 'left', clear: 'left' }}>
+                  {(() => {
+                    // 업비트 vs 바이낸스 개별 손익 비교 (환율 데이터가 있을 때만 표시)
+                    if (!lastKimchiData || !lastKimchiData.usdkrw) return null;
+
+                    const currentUpbitPrice = lastKimchiData.upbit_price || position.upbitPrice;
+                    const currentBinancePrice = lastKimchiData.binance_price || position.binancePrice;
+                    const usdkrw = lastKimchiData.usdkrw; // 기본값 없음
+
+                    // 업비트 순손익 = 현재가치 - 진입가치 (진입 수수료는 이미 지불됨)
+                    const upbitEntryCost = position.upbitQuantity * position.upbitPrice; // 진입 가치 (수수료 제외)
+                    const upbitCurrentValue = position.upbitQuantity * currentUpbitPrice; // 현재 가치
+                    const upbitNetPnl = upbitCurrentValue - upbitEntryCost; // 순손익
+
+                    // 바이낸스 순손익 (USDT → KRW 환산, 진입 수수료는 이미 지불됨)
+                    // 숏 포지션: 가격 차이만큼 손익
+                    const binancePriceUsd = position.binancePrice > 1000000
+                      ? position.binancePrice / usdkrw
+                      : position.binancePrice;
+                    const currentBinancePriceUsd = currentBinancePrice > 1000000
+                      ? currentBinancePrice / usdkrw
+                      : currentBinancePrice;
+
+                    // 가격 차익만 계산 (숏이므로 진입가 - 현재가)
+                    const binancePricePnlUsdt = (binancePriceUsd - currentBinancePriceUsd) * position.binanceQuantity;
+                    const binanceNetPnlKrw = binancePricePnlUsdt * usdkrw; // USDT/KRW 환율로 환산
+
+                    // 포맷팅
+                    const formatPnl = (pnl: number) => {
+                      const sign = pnl >= 0 ? '+' : '';
+                      return `${sign}${Math.round(pnl).toLocaleString()} KRW`;
+                    };
+
+                    const upbitStr = formatPnl(upbitNetPnl);
+                    const binanceStr = formatPnl(binanceNetPnlKrw);
+
+                    // 비교 기호: 어디가 더 수익/손실이 큰지
+                    const comparison = Math.abs(upbitNetPnl) > Math.abs(binanceNetPnlKrw) ? '>' : '<';
+
+                    // 디버깅: 실제 값 화면에 표시
+                    // const debugInfo = `(U진입:${Math.round(position.upbitPrice/1000000)}M, U현재:${Math.round(currentUpbitPrice/1000000)}M, B진입:${Math.round(position.binancePrice)}, B현재:${Math.round(currentBinancePrice)})`;
+
+                    return (
+                      <>
+                        <span>{`업비트 ${upbitStr} ${comparison} ${binanceStr} 바이낸스`}</span>
+                        {/* <br />
+                        <span className="text-[9px] text-slate-600">{debugInfo}</span> */}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-2 ml-auto">
                 <div className="text-right">

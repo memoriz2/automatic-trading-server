@@ -1227,7 +1227,27 @@ export async function registerRoutes(
       }
 
       const positions = await storage.getActivePositions(userIdNum);
-      res.json(positions);
+
+      // DB snake_case → Frontend camelCase 매핑
+      const mappedPositions = positions.map(p => ({
+        ...p,
+        upbitPrice: p.entry_price || 0,  // 진입가 매핑
+        binancePrice: p.binance_entry_price || 0,  // 바이낸스 진입가 매핑
+        leverage: p.binance_leverage || 1,
+        upbitQuantity: p.upbit_quantity || 0,
+        binanceQuantity: p.binance_quantity || 0,
+        binanceSpotQuantity: p.binance_spot_quantity || 0,
+        entryPremiumRate: p.entry_premium_rate || 0,
+        unrealizedPnl: p.unrealized_pnl || 0,
+        realizedPnl: p.realized_pnl || 0,
+        entryTime: p.entry_time,
+        strategyId: p.strategy_id,
+        strategyName: p.strategy_name,
+        takeProfitTargets: p.take_profit_offset,
+        entryUsdKrw: p.entry_usdkrw
+      }));
+
+      res.json(mappedPositions);
     } catch (error) {
       console.error("포지션 조회 오류:", error);
       res.status(500).json({ error: "Failed to fetch positions" });
