@@ -16,14 +16,19 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
   // 시간대별 데이터 필터링(타임스탬프 윈도우 + 리샘플)
   const getChartData = useCallback(() => {
     if (sparkData.length === 0) return [] as SparkPoint[];
-    const now = Date.now();
-    const WINDOW_MS: Record<string, number> = { 
-      '1H': 60 * 60 * 1000, 
-      '4H': 4 * 60 * 60 * 1000, 
-      '1D': 24 * 60 * 60 * 1000 
-    };
-    const windowMs = WINDOW_MS[chartTimeframe] ?? WINDOW_MS['1H'];
-    const inWindow = sparkData.filter(p => p.t >= now - windowMs);
+
+    // 한국 시간 오전 9시 기준으로 필터링 (1D 고정)
+    const koreaTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const today9AM = new Date(koreaTime);
+    today9AM.setHours(9, 0, 0, 0);
+
+    // 현재 한국 시간이 오전 9시 이전이면 어제 9시, 아니면 오늘 9시
+    const startTime9AM = koreaTime.getTime() < today9AM.getTime()
+      ? new Date(today9AM.getTime() - 24 * 60 * 60 * 1000)
+      : today9AM;
+
+    const t0 = startTime9AM.getTime(); // 오전 9시
+    const inWindow = sparkData.filter(p => p.t >= t0);
 
     // 리샘플 버킷(ms): 1H=1m, 4H=5m, 1D=15m
     const bucketMs = chartTimeframe === '1H' ? 60 * 1000 : chartTimeframe === '4H' ? 5 * 60 * 1000 : 15 * 60 * 1000;

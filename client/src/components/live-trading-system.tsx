@@ -677,7 +677,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           upbitOrderId = upbitResult.uuid || upbitResult.orderId || upbitOrderId;
 
           // 🔄 거래 완료 후 즉시 잔고 새로고침
-          setTimeout(async () => {
+          (async () => {
             try {
               // 로딩 상태 시작 (스피너 표시)
               setBalanceLoading && setBalanceLoading(true);
@@ -704,7 +704,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 setBalanceLoading && setBalanceLoading(false);
               }, 1500);
             }
-          }, 500); // 0.5초 후 새로고침 (더 빠르게)
+          })();
           
         } catch (realTradingError) {
           const msg = (realTradingError as any)?.message || '';
@@ -1117,8 +1117,28 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             r.type === 'upbit_sell' || r.type === 'binance_close' ||
             r.type === 'upbit_already_closed' || r.type === 'binance_already_closed'
           )) {
-            // 실시간 잔고 갱신
-            await refreshRealTimeBalances?.();
+            // 실시간 잔고 갱신 (스피너 표시)
+            (async () => {
+              try {
+                setBalanceLoading && setBalanceLoading(true);
+                await Promise.all([
+                  fetch('/api/v2/balance/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ forceRefresh: true })
+                  }),
+                  refreshRealTimeBalances?.()
+                ]);
+                dispatch(incrementTradeRefreshTrigger());
+              } catch (refreshError) {
+                console.error('❌ 잔고 새로고침 실패:', refreshError);
+              } finally {
+                setTimeout(() => {
+                  setBalanceLoading && setBalanceLoading(false);
+                }, 1500);
+              }
+            })();
 
             // 부분 청산인 경우 수량 조정, 전체 청산인 경우 상태 변경
             if (ratio < 1.0) {
@@ -2196,7 +2216,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                       });
                       
                       // 🔄 청산 완료 후 즉시 잔고 새로고침
-                      setTimeout(async () => {
+                      (async () => {
                         try {
                           // 로딩 상태 시작 (스피너 표시)
                           setBalanceLoading && setBalanceLoading(true);
@@ -2223,7 +2243,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                             setBalanceLoading && setBalanceLoading(false);
                           }, 1500);
                         }
-                      }, 500); // 0.5초 후 새로고침 (더 빠르게)
+                      })();
                     } else {
                       toast({
                         title: "청산 실패",

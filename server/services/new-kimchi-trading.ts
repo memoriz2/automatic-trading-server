@@ -606,12 +606,27 @@ export class MultiStrategyTradingService {
         throw new Error(`바이낸스 숏 실패: ${error.message}`);
       }
 
-      // 2단계: 업비트 매수 (바이낸스 수량 기준)
+      // 2단계: 업비트 매수 (바이낸스 체결 금액을 실시간 환율로 환산)
       try {
-        // 바이낸스 체결 수량을 원화로 환산
-        const upbitBuyAmount = Math.round(adjustedQuantity * upbitCurrentPrice);
+        // 실시간 USDT/KRW 환율 조회 (업비트 공개 API)
+        const { UpbitAdapter } = await import('../adapters/UpbitAdapter.js');
+        const upbitAdapter = new UpbitAdapter();
+        const usdtKrwRate = await upbitAdapter.getCurrentPrice('USDT');
 
-        console.log(`업비트 매수: ${market}, 금액: ${upbitBuyAmount}원 (${adjustedQuantity} BTC 기준)`);
+        console.log(`💱 실시간 USDT/KRW 환율: ${usdtKrwRate}원`);
+
+        // 바이낸스 체결 금액(USDT) 계산
+        const binanceUsdtAmount = adjustedQuantity * currentPrice;
+        console.log(`📊 바이낸스 체결 금액: $${binanceUsdtAmount.toFixed(2)} USDT`);
+
+        // USDT를 원화로 환산
+        const upbitBuyAmount = Math.round(binanceUsdtAmount * usdtKrwRate);
+
+        console.log(`💰 업비트 매수 금액 계산:`);
+        console.log(`  - 바이낸스 체결: ${adjustedQuantity} BTC × $${currentPrice} = $${binanceUsdtAmount.toFixed(2)}`);
+        console.log(`  - 환율 적용: $${binanceUsdtAmount.toFixed(2)} × ${usdtKrwRate}원 = ₩${upbitBuyAmount.toLocaleString()}`);
+
+        console.log(`업비트 매수: ${market}, 금액: ${upbitBuyAmount}원 (환율 반영)`);
 
         upbitResult = await upbitService.placeBuyOrder(
           market,

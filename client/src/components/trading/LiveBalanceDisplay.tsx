@@ -47,7 +47,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
               <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
             )}
           </div>
-          <p className="text-xs text-slate-500">실시간</p>
+          <p className="text-xs text-slate-500">실시간</p>56
         </div>
         <div className="bg-slate-800 p-4 rounded-lg">
           <h4 className="text-slate-400 text-sm">바이낸스 BTC (선물)</h4>

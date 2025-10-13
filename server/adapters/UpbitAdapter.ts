@@ -36,23 +36,33 @@ export class UpbitAdapter extends BaseExchangeAdapter {
    * API 요청 헬퍼
    */
   private async apiRequest<T>(
-    endpoint: string, 
+    endpoint: string,
     method: 'GET' | 'POST' | 'DELETE' = 'GET',
     body?: any
   ): Promise<T> {
     try {
       const url = `${this.baseUrl}${endpoint}`;
       const query = body ? new URLSearchParams(body).toString() : '';
-      // GET 요청에서 query가 빈 문자열이면 undefined로 전달 (업비트 JWT 인증 요구사항)
-      const token = this.generateAuthToken(query || undefined);
+
+      // 공개 API 엔드포인트 목록 (인증 불필요)
+      const publicEndpoints = ['/v1/ticker', '/v1/orderbook', '/v1/market/all', '/v1/candles'];
+      const isPublicApi = publicEndpoints.some(pe => endpoint.startsWith(pe));
 
       const options: RequestInit = {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       };
+
+      // 개인 API만 인증 토큰 추가
+      if (!isPublicApi) {
+        const token = this.generateAuthToken(query || undefined);
+        options.headers = {
+          ...options.headers,
+          'Authorization': `Bearer ${token}`
+        };
+      }
 
       if (method === 'POST' && body) {
         options.headers = {
@@ -62,7 +72,8 @@ export class UpbitAdapter extends BaseExchangeAdapter {
         options.body = JSON.stringify(body);
       }
 
-      const finalUrl = url + (query && method === 'GET' ? `?${query}` : '');
+      // GET과 DELETE는 쿼리 파라미터를 URL에 추가
+      const finalUrl = url + (query && (method === 'GET' || method === 'DELETE') ? `?${query}` : '');
       
       const response = await fetch(finalUrl, options);
       
@@ -283,14 +294,14 @@ export class UpbitAdapter extends BaseExchangeAdapter {
       locked: string;
       executed_volume: string;
       trades_count: number;
-    }>(`/v1/order?uuid=${orderId}`);
+    }>('/v1/order', 'GET', { uuid: orderId });
 
     return {
       id: 0, // DB ID는 별도 관리
       userId: 0, // 별도 설정 필요
       exchange: 'upbit',
       exchangeOrderId: result.uuid,
-      symbol: result.market.replace('-', ''),
+      symbol: result.market.replace('KRW-', ''), // KRW-BTC → BTC
       side: result.side === 'bid' ? 'buy' : 'sell',
       type: result.ord_type === 'market' ? 'market' : 'limit',
       status: this.mapUpbitStatus(result.state),
@@ -310,7 +321,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
    */
   async cancelOrder(orderId: string): Promise<boolean> {
     try {
-      await this.apiRequest(`/v1/order?uuid=${orderId}`, 'DELETE');
+      await this.apiRequest('/v1/order', 'DELETE', { uuid: orderId });
       return true;
     } catch (error) {
       console.error('업비트 주문 취소 실패:', error);
@@ -322,9 +333,10 @@ export class UpbitAdapter extends BaseExchangeAdapter {
    * 활성 주문 목록 조회
    */
   async getActiveOrders(symbol?: string): Promise<OrderResponseDto[]> {
-    let endpoint = '/v1/orders?state=wait';
+    // 쿼리 파라미터를 객체로 구성 (JWT에 포함하기 위해)
+    const params: any = { state: 'wait' };
     if (symbol) {
-      endpoint += `&market=${this.normalizeSymbol(symbol)}`;
+      params.market = this.normalizeSymbol(symbol);
     }
 
     const orders = await this.apiRequest<Array<{
@@ -343,14 +355,14 @@ export class UpbitAdapter extends BaseExchangeAdapter {
       locked: string;
       executed_volume: string;
       trades_count: number;
-    }>>(endpoint);
+    }>>('/v1/orders', 'GET', params);
 
     return orders.map(order => ({
       id: 0,
       userId: 0,
       exchange: 'upbit',
       exchangeOrderId: order.uuid,
-      symbol: order.market.replace('-', ''),
+      symbol: order.market.replace('KRW-', ''), // KRW-BTC → BTC
       side: order.side === 'bid' ? 'buy' : 'sell',
       type: order.ord_type === 'market' ? 'market' : 'limit',
       status: this.mapUpbitStatus(order.state),
@@ -377,10 +389,17 @@ export class UpbitAdapter extends BaseExchangeAdapter {
     fee: number;
     timestamp: Date;
   }>> {
-    let endpoint = '/v1/orders?state=done';
+    // 체결 완료된 주문만 조회 (done)
+    const params: any = {
+      state: 'done',
+      limit: Math.min(limit, 100), // 업비트 최대 100건
+      order_by: 'desc'
+    };
     if (symbol) {
-      endpoint += `&market=${this.normalizeSymbol(symbol)}`;
+      params.market = this.normalizeSymbol(symbol);
     }
+
+    console.log(`🔍 [UpbitAdapter] getTrades 호출 - limit: ${limit}, symbol: ${symbol || 'all'}`);
 
     const orders = await this.apiRequest<Array<{
       uuid: string;
@@ -390,27 +409,43 @@ export class UpbitAdapter extends BaseExchangeAdapter {
       price: string;
       paid_fee: string;
       created_at: string;
-    }>>(endpoint);
+      executed_volume: string;
+      avg_price: string;
+      trades_count: number;
+    }>>('/v1/orders', 'GET', params);
 
-    return orders.slice(0, limit).map(order => ({
-      id: order.uuid,
-      symbol: order.market.replace('-', ''),
-      side: order.side === 'bid' ? 'buy' : 'sell',
-      quantity: parseFloat(order.volume || '0'),
-      price: parseFloat(order.price || '0'),
-      fee: parseFloat(order.paid_fee || '0'),
-      timestamp: new Date(order.created_at)
-    }));
+    console.log(`✅ [UpbitAdapter] 업비트 API 응답: ${orders.length}건`);
+
+    // 원본 데이터 그대로 사용
+    const result = orders.map(order => {
+      const quantity = parseFloat(order.executed_volume || order.volume || '0');
+      const avgPrice = parseFloat(order.avg_price || order.price || '0');
+
+      return {
+        id: order.uuid,
+        symbol: order.market.replace('KRW-', ''),
+        side: order.side === 'bid' ? 'buy' : 'sell',
+        quantity: quantity,
+        price: avgPrice,
+        fee: parseFloat(order.paid_fee || '0'),
+        timestamp: new Date(order.created_at)
+      };
+    });
+
+    console.log(`📊 [UpbitAdapter] 변환된 거래내역 - ${result.length}건`);
+    console.log(`   매수: ${result.filter(r => r.side === 'buy').length}건, 매도: ${result.filter(r => r.side === 'sell').length}건`);
+
+    return result;
   }
 
   /**
-   * 심볼 정규화 (BTC → BTC-KRW)
+   * 심볼 정규화 (BTC → KRW-BTC)
    */
   normalizeSymbol(symbol: string): string {
     if (symbol.includes('-')) {
       return symbol; // 이미 업비트 형식
     }
-    return `${symbol}-KRW`; // KRW 마켓으로 변환
+    return `KRW-${symbol}`; // KRW 마켓으로 변환
   }
 
   /**

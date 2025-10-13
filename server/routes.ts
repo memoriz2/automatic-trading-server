@@ -1463,17 +1463,9 @@ export async function registerRoutes(
     }
   });
 
-  // 거래 내역 조회 (기존 userId 파라미터 방식 - 호환성 유지)
-  app.get("/api/trades/:userId", async (req, res) => {
-    try {
-      const userId = req.params.userId; // string으로 처리
-      const limit = parseInt(req.query.limit as string) || 50;
-      const trades = await storage.getTradesByUserId(userId, limit);
-      res.json(trades);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch trades" });
-    }
-  });
+  // 거래 내역 조회 (기존 userId 파라미터 방식 - 더 이상 사용하지 않음, 제거됨)
+  // 이 엔드포인트는 /api/trades/history와 충돌하므로 제거
+  // app.get("/api/trades/:userId", ...) - REMOVED
 
   // 시스템 알림 조회
   app.get("/api/alerts", async (req, res) => {

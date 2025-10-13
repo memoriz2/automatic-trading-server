@@ -28,28 +28,23 @@ export class CoinAPIService {
     }
   }
 
-  // 실시간 환율 조회 (USDT/KRW)
+  // 실시간 환율 조회 (USDT/KRW) - 업비트 직접 조회로 변경
   async getUSDTKRWRate(): Promise<number> {
-    try {
-      const headers = {
-        'X-CoinAPI-Key': this.apiKey,
-        'Accept': 'application/json'
-      };
+    const response = await fetch('https://api.upbit.com/v1/ticker?markets=KRW-USDT');
 
-      const response = await fetch(`${this.baseUrl}/exchangerate/USDT/KRW`, { headers });
-      
-      if (response.ok) {
-        const data = await response.json() as { rate: number };
-        const rate = data.rate;
-        console.log(`CoinAPI USDT/KRW 환율: ${rate}원`);
-        return rate;
-      }
-      
-      throw new Error(`CoinAPI USDT/KRW 조회 실패: ${response.status}`);
-    } catch (error) {
-      console.warn('CoinAPI USDT/KRW 조회 실패, 대체값 사용:', error);
-      return 1358; // 대체값
+    if (!response.ok) {
+      throw new Error(`USDT/KRW 환율 API 오류: ${response.status}`);
     }
+
+    const data = await response.json() as Array<{ trade_price: number }>;
+    const rate = data[0]?.trade_price;
+
+    if (!rate || rate <= 1000 || rate >= 2000) {
+      throw new Error(`비정상적인 환율 값: ${rate}`);
+    }
+
+    console.log(`업비트 USDT/KRW 환율: ${rate}원`);
+    return rate;
   }
 
   async getExchangeRate(baseAsset: string, quoteAsset: string): Promise<number> {
