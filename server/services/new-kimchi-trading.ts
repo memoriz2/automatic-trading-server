@@ -142,7 +142,7 @@ export class MultiStrategyTradingService {
         // BTC 단일 전략 신호 분석 (사용자별 전략 사용)
         const userStrategyMap = this.userStrategies.get(userId);
         if (!userStrategyMap) continue;
-        
+
         for (const [_strategyId, strategy] of Array.from(userStrategyMap)) {
           // BTC 데이터만 처리
           const btcData = kimchiData.find((d) => d.symbol === "BTC");
@@ -151,22 +151,14 @@ export class MultiStrategyTradingService {
           // 현재 김프율 저장
           this.lastKimchiRates.set("BTC", btcData.premiumRate);
 
-          // 활성 포지션이 이미 있는지 확인 (1개 제한)
-          const hasActivePosition = activePositions.some(
-            (p: any) => p.status === "open"
-          );
-
           const signal = await this.analyzeStrategySignal(
             btcData,
             strategy,
-            activePositions,
-            hasActivePosition
+            activePositions
           );
 
           if (signal) {
             await this.executeStrategySignal(userId, signal);
-            // BTC 포지션 생성 후 루프 종료 (1개 포지션 제한)
-            if (signal.action === "entry") break;
           }
         }
 
@@ -218,8 +210,7 @@ export class MultiStrategyTradingService {
   private async analyzeStrategySignal(
     kimchiData: any,
     strategy: TradingStrategy,
-    activePositions: Position[],
-    hasActivePosition: boolean = false
+    activePositions: Position[]
   ): Promise<StrategySignal | null> {
     const premiumRate = kimchiData.premiumRate;
     // const symbol = "BTC"; // BTC 고정 - 현재 사용하지 않음
@@ -238,101 +229,10 @@ export class MultiStrategyTradingService {
       `🔍 [서버] BTC 자동매매 체크 - 전략 #${strategy.id}: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`
     );
 
-    console.log(`🔍 [서버] 포지션 확인: existingPosition=${existingPosition ? 'O' : 'X'}, hasActivePosition=${hasActivePosition}`);
+    console.log(`🔍 [서버] 포지션 확인: existingPosition=${existingPosition ? 'O' : 'X'}`);
 
-    // 진입 조건 체크 (포지션이 없을 때만)
-    if (!hasActivePosition && !existingPosition) {
-      const userId = String(strategy.userId);
-
-      // 🔒 오픈된 포지션 또는 업비트 BTC 잔고가 있으면 진입 금지 (청산이 완료되지 않은 상태)
-      const openPositions = await storage.getPositions(parseInt(userId));
-      const hasOpenPositions = openPositions.some((p: any) => p.status === 'open');
-
-      // 업비트 실제 BTC 잔고도 체크
-      let upbitBtcBalance = 0;
-      let services: any = null;
-      try {
-        services = await this.initializeExchangeServices(userId);
-        if (services.upbitService) {
-          const accounts = await services.upbitService.getAccounts();
-          const btcAccount = accounts.find((acc: any) => acc.currency === 'BTC');
-          upbitBtcBalance = parseFloat(btcAccount?.balance || '0');
-        }
-      } catch (error) {
-        log.warn('업비트 잔고 조회 실패', { userId: parseInt(userId) });
-      }
-
-      if (hasOpenPositions || upbitBtcBalance >= 0.00008) {
-        log.debug('진입 제한', { hasOpenPositions, upbitBtcBalance, userId: parseInt(userId) });
-
-        // 🚀 업비트 BTC 잔고가 있으면 자동 청산 시도 (최소 거래 단위 확인)
-        if (upbitBtcBalance >= TRADING_CONSTANTS.BTC_MIN_QUANTITY && services?.upbitService) {
-          log.info('업비트 BTC 자동 청산 시도 시작', { balance: upbitBtcBalance });
-
-          try {
-            log.debug('청산 조건 확인', { balance: upbitBtcBalance, minQuantity: TRADING_CONSTANTS.BTC_MIN_QUANTITY });
-
-            // 현재가 조회해서 거래 금액 확인
-            const ticker = await services.upbitService.getTicker(['KRW-BTC']);
-            const currentPrice = ticker[0]?.trade_price || 0;
-            const tradeAmount = upbitBtcBalance * currentPrice;
-
-            log.debug('예상 거래금액 계산', { btcAmount: upbitBtcBalance, price: currentPrice, totalAmount: tradeAmount });
-
-            if (tradeAmount < 5000) {
-              throw new Error(`거래 금액이 최소 기준 미달: ${tradeAmount.toLocaleString()}원 < 5,000원`);
-            }
-
-            // 업비트 계좌 정보 다시 확인 (locked 잔고 체크)
-            const accounts = await services.upbitService.getAccounts();
-            const btcAccount = accounts.find((acc: any) => acc.currency === 'BTC');
-            const availableBalance = parseFloat(btcAccount?.balance || '0');
-            const lockedBalance = parseFloat(btcAccount?.locked || '0');
-
-            log.debug('업비트 BTC 잔고 상세', { totalBalance: upbitBtcBalance, available: availableBalance, locked: lockedBalance });
-
-            if (availableBalance < 0.0001) {
-              throw new Error(`사용 가능한 BTC 잔고 부족: ${availableBalance} (잠긴잔고: ${lockedBalance})`);
-            }
-
-            // 안전한 매도 수량 계산 (사용가능 잔고의 99% 또는 정밀도 조정)
-            const safeSellAmount = Math.min(availableBalance * 0.99, parseFloat(availableBalance.toFixed(8)));
-            log.debug('안전 매도 수량 계산', { safeSellAmount, original: upbitBtcBalance, available: availableBalance });
-
-            // 업비트 시장가 매도
-            const sellResult = await services.upbitService.placeSellOrder(`KRW-BTC`, safeSellAmount, 'market');
-            log.success('업비트 BTC 청산 완료', { orderId: sellResult.uuid, amount: safeSellAmount });
-
-            // 청산 로그 저장
-            await storage.createTradeLog({
-              exchange: 'upbit',
-              symbol: 'BTC',
-              side: 'sell',
-              quantity: safeSellAmount,
-              orderId: sellResult.uuid,
-              status: 'completed',
-              note: '자동 청산 (잔고 정리)'
-            });
-
-          } catch (error) {
-            log.error('업비트 BTC 자동 청산 실패', error instanceof Error ? error : undefined, { balance: upbitBtcBalance });
-
-            // 실패 로그 저장
-            await storage.createTradeLog({
-              exchange: 'upbit',
-              symbol: 'BTC',
-              side: 'sell',
-              quantity: upbitBtcBalance,
-              orderId: null,
-              status: 'failed',
-              note: `자동 청산 실패: ${error instanceof Error ? error.message : String(error)}`
-            });
-          }
-        }
-
-        return null;
-      }
-
+    // 진입 조건 체크 (해당 전략의 포지션이 없을 때만)
+    if (!existingPosition) {
       // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
       const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
 
@@ -342,11 +242,12 @@ export class MultiStrategyTradingService {
 
         if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
           const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-          log.debug('DB 기반 진입 쿨다운 진행중', { remainSec });
+          log.debug('DB 기반 진입 쿨다운 진행중', { remainSec, strategyId: strategy.id });
           log.debug('최근 진입 시간', { lastEntry: recentPosition.entryTime.toISOString() });
           return null;
         }
       }
+
       // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
       const entryDifference = Math.abs(premiumRate - entryRate);
       const sameSign =

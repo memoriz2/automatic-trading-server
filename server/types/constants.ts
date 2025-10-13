@@ -200,8 +200,8 @@ export const TRADING_CONSTANTS = {
   DEFAULT_UPBIT_BTC_PRICE: 160000000, // 1억 6천만원
   DEFAULT_BINANCE_BTC_PRICE_USD: 115000, // 11만 5천 달러
 
-  // 쿨다운 시간
-  MIN_ENTRY_COOLDOWN_MS: 10 * 60 * 1000, // 10분
+  // 쿨다운 시간 (청산 후 재진입 대기 시간)
+  MIN_ENTRY_COOLDOWN_MS: 30 * 1000, // 30초
 
   // 재시도 횟수
   BALANCE_CHECK_RETRY_COUNT: 3,

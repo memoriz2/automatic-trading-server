@@ -82,31 +82,20 @@ export class ApiKeysRepository extends BaseRepository {
    */
   async upsert(apiKeyData: Omit<ApiKeyDto, 'id' | 'createdAt' | 'updatedAt'>): Promise<ApiKeyDto> {
     try {
-      console.log('🔍 API 키 upsert 시작:', {
-        userId: apiKeyData.userId,
-        exchange: apiKeyData.exchange,
-        isActive: apiKeyData.isActive
-      });
-
       // 1. 먼저 기존 데이터 삭제 (손상된 암호화 데이터 정리)
       await this.query(`
-        DELETE FROM exchanges 
+        DELETE FROM exchanges
         WHERE user_id = $1 AND exchange = $2
       `, [apiKeyData.userId, apiKeyData.exchange]);
-      
-      console.log('🗑️ 기존 데이터 삭제 완료:', {
-        userId: apiKeyData.userId,
-        exchange: apiKeyData.exchange
-      });
 
-      // 2. 새로운 데이터 삽입
+      // 2. 새로운 데이터 삽입 (API 변경 시 승인 대기 상태로 설정)
       const insertQuery = `
         INSERT INTO exchanges (
-          user_id, exchange, api_key, api_secret, passphrase, is_active, created_at, updated_at
+          user_id, exchange, api_key, api_secret, passphrase, is_active, api_change_status, created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, NOW(), NOW()
+          $1, $2, $3, $4, $5, $6, 'pending', NOW(), NOW()
         )
-        RETURNING 
+        RETURNING
           id,
           user_id as "userId",
           exchange,
@@ -114,6 +103,7 @@ export class ApiKeysRepository extends BaseRepository {
           api_secret as "secretKey",
           passphrase,
           is_active as "isActive",
+          api_change_status as "apiChangeStatus",
           created_at as "createdAt",
           updated_at as "updatedAt"
       `;
@@ -130,13 +120,6 @@ export class ApiKeysRepository extends BaseRepository {
       if (!result) {
         throw new Error('API 키 저장에 실패했습니다.');
       }
-
-      console.log('✅ API 키 upsert 성공:', {
-        id: result.id,
-        userId: result.userId,
-        exchange: result.exchange,
-        isActive: result.isActive
-      });
 
       return result;
     } catch (error: any) {
@@ -195,22 +178,9 @@ export class ApiKeysRepository extends BaseRepository {
       WHERE user_id = $1 AND is_active = true
       ORDER BY created_at DESC
     `;
-    
+
     const results = await this.query<ApiKeyDto>(query, [userId]);
-    
-    // 🔍 디버깅: 조회된 API 키 정보 로그
-    console.log(`🔍 [DEBUG] 사용자 ${userId}의 API 키 조회 결과:`, {
-      count: results.length,
-      exchanges: results.map(r => ({
-        id: r.id,
-        exchange: r.exchange,
-        apiKeyLength: r.apiKey?.length || 0,
-        secretKeyLength: r.secretKey?.length || 0,
-        apiKeyPrefix: r.apiKey?.substring(0, 8) + '...',
-        isEncrypted: r.apiKey?.includes('U2FsdGVkX1') || false
-      }))
-    });
-    
+
     // 모든 API 키 복호화 (안전한 방식)
     return results.map(result => {
       try {
@@ -226,11 +196,9 @@ export class ApiKeysRepository extends BaseRepository {
             secretKey: decryptedSecretKey
           };
         } else {
-          console.warn(`⚠️ API 키 복호화 결과가 비어있음 (ID: ${result.id}), 원본 사용`);
           return result;
         }
       } catch (error) {
-        console.warn(`⚠️ API 키 복호화 실패 (ID: ${result.id}), 원본 사용:`, error instanceof Error ? error.message : String(error));
         // 복호화 실패시 원본 반환 (암호화되지 않은 키일 수 있음)
         return result;
       }

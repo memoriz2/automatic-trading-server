@@ -25,6 +25,33 @@ export function registerTradingRoutes(app) {
         try {
             const userId = req.params.userId;
             const traceId = req.header("X-Trace-Id") || `srv-${Date.now()}`;
+            // API 승인 상태 확인
+            try {
+                const { pool } = await import('../db.js');
+                const result = await pool.query(`SELECT api_change_status FROM exchanges WHERE user_id = $1 AND is_active = true`, [userId]);
+                if (result.rows.length === 0) {
+                    res.status(400).json({
+                        error: "등록된 거래소 API 키가 없습니다. 설정에서 API 키를 등록해주세요.",
+                        traceId
+                    });
+                    return;
+                }
+                const hasPendingApiChange = result.rows.some((row) => row.api_change_status === 'pending');
+                if (hasPendingApiChange) {
+                    res.status(403).json({
+                        error: "API 키 변경이 관리자 승인 대기 중입니다. 승인 후 거래를 시작할 수 있습니다.",
+                        traceId
+                    });
+                    return;
+                }
+            }
+            catch (apiCheckError) {
+                res.status(500).json({
+                    error: "API 승인 상태 확인 중 오류가 발생했습니다",
+                    traceId
+                });
+                return;
+            }
             // 사용자별 거래 설정 확인
             const settings = await storage.getTradingSettingsByUserId(userId);
             if (!settings) {
@@ -140,14 +167,12 @@ export function registerTradingRoutes(app) {
     });
     // 거래내역 조회
     app.get("/api/trades/history", authenticateSession, async (req, res) => {
-        console.log('🚨🚨🚨 [TRACE] /api/trades/history 엔드포인트 호출됨!');
         try {
             const userId = req.user.id;
             const exchange = req.query.exchange; // 'upbit', 'binance', 'all'
             const symbol = req.query.symbol;
             const upbitLimit = 100; // 업비트 최신 100건 (API 최대치)
             const binanceLimit = 50; // 바이낸스 최신 50건
-            console.log(`📊 거래내역 조회 요청 - 사용자: ${userId}, 거래소: ${exchange || 'all'}, 심볼: ${symbol || 'all'}`);
             const apiKeysRepo = new ApiKeysRepository();
             const apiKeys = await apiKeysRepo.findActiveByUserId(userId);
             if (apiKeys.length === 0) {
@@ -158,7 +183,6 @@ export function registerTradingRoutes(app) {
             // 실시간 USDT/KRW 환율 조회 (업비트에서) - 필수
             const upbitAdapter = new UpbitAdapter();
             const usdtKrwRate = await upbitAdapter.getCurrentPrice('USDT');
-            console.log(`💱 실시간 USDT/KRW 환율: ${usdtKrwRate}원`);
             // 업비트 거래내역 조회 (단순화 - 최신 50건)
             if (!exchange || exchange === 'all' || exchange === 'upbit') {
                 const upbitKey = apiKeys.find(key => key.exchange === 'upbit');
@@ -168,9 +192,6 @@ export function registerTradingRoutes(app) {
                         upbitAdapter.setCredentials(upbitKey.apiKey, upbitKey.secretKey);
                         // 업비트 API 직접 호출 - done 상태만
                         const upbitOrders = await upbitAdapter.getTrades(symbol, upbitLimit);
-                        console.log(`✅ 업비트 원본 데이터: ${upbitOrders.length}건`);
-                        console.log(`   - 매수: ${upbitOrders.filter(t => t.side === 'buy').length}건`);
-                        console.log(`   - 매도: ${upbitOrders.filter(t => t.side === 'sell').length}건`);
                         // 그대로 추가
                         allTrades.push(...upbitOrders.map(trade => ({
                             ...trade,
@@ -215,7 +236,6 @@ export function registerTradingRoutes(app) {
                                 console.warn(`⚠️  바이낸스 ${sym} 거래내역 조회 실패:`, error.message);
                             }
                         }
-                        console.log(`✅ 바이낸스 거래내역: ${allTrades.filter(t => t.exchange === 'binance').length}건`);
                     }
                     catch (error) {
                         console.error('❌ 바이낸스 거래내역 조회 실패:', error.message);
@@ -224,13 +244,6 @@ export function registerTradingRoutes(app) {
             }
             // 시간순 정렬 (최신순) - 필터링 없이 그대로 반환
             allTrades.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-            console.log(`📊 최종 거래내역:`);
-            console.log(`   - 업비트: ${allTrades.filter(t => t.exchange === 'upbit').length}건 (매수: ${allTrades.filter(t => t.exchange === 'upbit' && t.side === 'buy').length}, 매도: ${allTrades.filter(t => t.exchange === 'upbit' && t.side === 'sell').length})`);
-            console.log(`   - 바이낸스: ${allTrades.filter(t => t.exchange === 'binance').length}건`);
-            console.log(`   - 총합: ${allTrades.length}건`);
-            if (allTrades.length > 0) {
-                console.log(`📅 최신 거래: ${allTrades[0].exchange} ${allTrades[0].side} ${allTrades[0].symbol} at ${allTrades[0].timestamp}`);
-            }
             res.json({
                 success: true,
                 count: allTrades.length,

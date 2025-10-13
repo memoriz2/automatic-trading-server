@@ -316,6 +316,7 @@ export class DatabaseStorage {
         apiSecret: decryptApiKey(exchange.api_secret),
         isActive: exchange.is_active, // snake_case → camelCase 변환
         userId: exchange.user_id,     // snake_case → camelCase 변환
+        apiChangeStatus: exchange.api_change_status, // snake_case → camelCase 변환
         createdAt: exchange.created_at,
         updatedAt: exchange.updated_at
       }));

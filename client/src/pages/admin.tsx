@@ -32,6 +32,7 @@ interface User {
   username: string;
   role: string;
   approvalStatus: 'pending' | 'approved' | 'rejected';
+  apiChangeStatus?: 'pending' | 'approved';
   lastLoginAt?: string;
   createdAt: string;
   updatedAt?: string;
@@ -195,6 +196,32 @@ export default function AdminPage() {
     }
   };
 
+  const handleApproveApiChange = async (userId: number) => {
+    if (!confirm('이 사용자의 API 변경을 승인하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      await authenticatedApiRequest(`/api/admin/users/${userId}/approve-api`, {
+        method: 'POST',
+      });
+
+      toast({
+        title: "API 변경 승인",
+        description: "API 변경이 승인되었습니다.",
+      });
+
+      // 사용자 목록 새로고침
+      refetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "승인 실패",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="flex-1 space-y-6 p-6 bg-slate-950 overflow-auto">
       {/* 헤더 */}
@@ -350,6 +377,7 @@ export default function AdminPage() {
                 <TableHead>사용자명</TableHead>
                 <TableHead>역할</TableHead>
                 <TableHead>상태</TableHead>
+                <TableHead>API 변경</TableHead>
                 <TableHead>마지막 로그인</TableHead>
                 <TableHead>가입일</TableHead>
                 <TableHead>통계</TableHead>
@@ -373,6 +401,21 @@ export default function AdminPage() {
                       {user.approvalStatus === 'approved' ? '승인됨' :
                        user.approvalStatus === 'pending' ? '승인대기' : '거부됨'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.apiChangeStatus === 'pending' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleApproveApiChange(user.id)}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        <UserCheck className="h-4 w-4 mr-1" />
+                        승인대기
+                      </Button>
+                    ) : (
+                      <Badge variant="default">승인</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     {user.lastLoginAt ? (
