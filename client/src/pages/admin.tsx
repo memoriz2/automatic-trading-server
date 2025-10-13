@@ -404,15 +404,13 @@ export default function AdminPage() {
                   </TableCell>
                   <TableCell>
                     {user.apiChangeStatus === 'pending' ? (
-                      <Button
-                        size="sm"
+                      <Badge
                         variant="outline"
                         onClick={() => handleApproveApiChange(user.id)}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
+                        className="cursor-pointer text-green-600 border-green-600 hover:bg-green-50"
                       >
-                        <UserCheck className="h-4 w-4 mr-1" />
                         승인대기
-                      </Button>
+                      </Badge>
                     ) : (
                       <Badge variant="default">승인</Badge>
                     )}
