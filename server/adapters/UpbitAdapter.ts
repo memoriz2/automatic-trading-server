@@ -416,6 +416,13 @@ export class UpbitAdapter extends BaseExchangeAdapter {
 
     console.log(`✅ [UpbitAdapter] 업비트 API 응답: ${orders.length}건`);
 
+    // 디버깅: 매수 주문만 로깅
+    const bidOrders = orders.filter(o => o.side === 'bid');
+    console.log(`🔍 [DEBUG] 매수(bid) 주문: ${bidOrders.length}건`);
+    bidOrders.slice(0, 5).forEach(order => {
+      console.log(`  - UUID: ${order.uuid.substring(0, 8)}, side: ${order.side}, 수량: ${order.executed_volume}, 생성: ${order.created_at}`);
+    });
+
     // 원본 데이터 그대로 사용
     const result = orders.map(order => {
       const quantity = parseFloat(order.executed_volume || order.volume || '0');
@@ -424,7 +431,7 @@ export class UpbitAdapter extends BaseExchangeAdapter {
       return {
         id: order.uuid,
         symbol: order.market.replace('KRW-', ''),
-        side: order.side === 'bid' ? 'buy' : 'sell',
+        side: order.side === 'bid' ? 'buy' : 'sell', // bid=매수, ask=매도
         quantity: quantity,
         price: avgPrice,
         fee: parseFloat(order.paid_fee || '0'),

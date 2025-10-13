@@ -158,6 +158,7 @@ export function registerTradingRoutes(app: Express): void {
       const userId = req.user.id;
       const exchange = req.query.exchange as string | undefined; // 'upbit', 'binance', 'all'
       const symbol = req.query.symbol as string | undefined;
+      const upbitLimit = 100; // 업비트 최신 100건 (API 최대치)
       const binanceLimit = 50; // 바이낸스 최신 50건
 
       console.log(`📊 거래내역 조회 요청 - 사용자: ${userId}, 거래소: ${exchange || 'all'}, 심볼: ${symbol || 'all'}`);
@@ -176,6 +177,33 @@ export function registerTradingRoutes(app: Express): void {
       const upbitAdapter = new UpbitAdapter();
       const usdtKrwRate = await upbitAdapter.getCurrentPrice('USDT');
       console.log(`💱 실시간 USDT/KRW 환율: ${usdtKrwRate}원`);
+
+      // 업비트 거래내역 조회 (단순화 - 최신 50건)
+      if (!exchange || exchange === 'all' || exchange === 'upbit') {
+        const upbitKey = apiKeys.find(key => key.exchange === 'upbit');
+        if (upbitKey) {
+          try {
+            const upbitAdapter = new UpbitAdapter();
+            upbitAdapter.setCredentials(upbitKey.apiKey, upbitKey.secretKey);
+
+            // 업비트 API 직접 호출 - done 상태만
+            const upbitOrders = await upbitAdapter.getTrades(symbol, upbitLimit);
+
+            console.log(`✅ 업비트 원본 데이터: ${upbitOrders.length}건`);
+            console.log(`   - 매수: ${upbitOrders.filter(t => t.side === 'buy').length}건`);
+            console.log(`   - 매도: ${upbitOrders.filter(t => t.side === 'sell').length}건`);
+
+            // 그대로 추가
+            allTrades.push(...upbitOrders.map(trade => ({
+              ...trade,
+              exchange: 'upbit'
+            })));
+
+          } catch (error: any) {
+            console.error('❌ 업비트 거래내역 조회 실패:', error.message);
+          }
+        }
+      }
 
       // 바이낸스 거래내역 조회 (50건)
       if (!exchange || exchange === 'all' || exchange === 'binance') {
@@ -220,10 +248,11 @@ export function registerTradingRoutes(app: Express): void {
         }
       }
 
-      // 시간순 정렬 (최신순)
+      // 시간순 정렬 (최신순) - 필터링 없이 그대로 반환
       allTrades.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       console.log(`📊 최종 거래내역:`);
+      console.log(`   - 업비트: ${allTrades.filter(t => t.exchange === 'upbit').length}건 (매수: ${allTrades.filter(t => t.exchange === 'upbit' && t.side === 'buy').length}, 매도: ${allTrades.filter(t => t.exchange === 'upbit' && t.side === 'sell').length})`);
       console.log(`   - 바이낸스: ${allTrades.filter(t => t.exchange === 'binance').length}건`);
       console.log(`   - 총합: ${allTrades.length}건`);
 

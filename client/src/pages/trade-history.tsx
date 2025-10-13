@@ -236,8 +236,8 @@ export default function TradeHistory() {
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${
                             trade.side === 'buy'
-                              ? 'bg-blue-900 text-blue-300'
-                              : 'bg-red-900 text-red-300'
+                              ? 'bg-red-900 text-red-300'
+                              : 'bg-blue-900 text-blue-300'
                           }`}>
                             {trade.side === 'buy' ? '매수' : '매도'}
                           </span>
