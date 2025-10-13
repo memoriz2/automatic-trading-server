@@ -2,27 +2,27 @@ import 'dotenv/config';
 import { storage } from '../storage.js';
 import { UpbitWebSocketService } from './upbit-websocket.js';
 import { BinanceWebSocketService } from './binance-websocket.js';
-import { GoogleFinanceExchangeService } from './google-finance-exchange.js';
+import { UpbitAdapter } from '../adapters/UpbitAdapter.js';
 export class KimchiService {
-    googleFinanceExchangeService;
+    upbitAdapter;
     upbitWebSocketService;
     binanceWebSocketService;
-    usdtKrwRate = 1300; // 실시간 USDT 환율
+    usdtKrwRate = 0; // 실시간 USDT 환율 (업비트에서 조회)
     realtimePrices = { upbit: {}, binance: {} };
     latestKimchiPremiums = [];
     symbols = ['BTC', 'ETH', 'XRP', 'ADA', 'DOT'];
     isInitialized = false;
     onUpdateCallback = null;
     constructor() {
-        this.googleFinanceExchangeService = new GoogleFinanceExchangeService();
+        this.upbitAdapter = new UpbitAdapter();
     }
     initialize() {
         if (this.isInitialized)
             return;
-        console.log('🚀 실시간 김프 서비스 초기화 (구글 환율 기준)');
-        // 0. 환율 업데이트 시작 (💥 10초마다 -> 3초마다)
+        console.log('🚀 실시간 김프 서비스 초기화 (업비트 실시간 USDT 환율 기준)');
+        // 0. 환율 업데이트 시작 (업비트 실시간 USDT 가격 조회)
         this.updateExchangeRate(); // 즉시 1회 실행
-        setInterval(() => this.updateExchangeRate(), 3000); // 10000 -> 3000
+        setInterval(() => this.updateExchangeRate(), 3000); // 3초마다 업데이트
         // 1. 웹소켓 서비스 초기화
         this.upbitWebSocketService = new UpbitWebSocketService();
         this.binanceWebSocketService = new BinanceWebSocketService();
@@ -49,14 +49,15 @@ export class KimchiService {
     }
     async updateExchangeRate() {
         try {
-            // 💥 getRate() -> getCurrentRate()로 변경하여 불필요한 호출 방지
-            this.usdtKrwRate = this.googleFinanceExchangeService.getCurrentRate();
-            // console.log(`💱 USD/KRW 환율 업데이트 (Google): ${this.usdtKrwRate}`);
+            // 업비트에서 실시간 USDT/KRW 가격 조회 (공개 API)
+            this.usdtKrwRate = await this.upbitAdapter.getCurrentPrice('USDT');
+            // console.log(`💱 USDT/KRW 환율 업데이트 (업비트 실시간): ${this.usdtKrwRate}원`);
             // 환율이 업데이트 되었으므로, 프리미엄 재계산
             this.recalculateAndStorePremiums();
         }
         catch (error) {
-            console.error('Google 환율 업데이트 실패:', error);
+            console.error('❌ 업비트 USDT 환율 업데이트 실패:', error);
+            // 오류 발생 시에도 계속 진행 (이전 환율 값 유지)
         }
     }
     recalculateAndStorePremiums() {

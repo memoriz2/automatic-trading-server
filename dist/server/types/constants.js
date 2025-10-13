@@ -73,22 +73,8 @@ export const SYMBOLS = {
     }
 };
 // ===== 수수료 관련 상수 =====
-export const TRADING_FEES = {
-    UPBIT: {
-        MAKER: 0.0005, // 0.05%
-        TAKER: 0.0005 // 0.05%
-    },
-    BINANCE: {
-        SPOT: {
-            MAKER: 0.001, // 0.1%
-            TAKER: 0.001 // 0.1%
-        },
-        FUTURES: {
-            MAKER: 0.0002, // 0.02%
-            TAKER: 0.0004 // 0.04%
-        }
-    }
-};
+// 중앙화된 수수료율을 사용 (shared/constants/fees.ts)
+export { TRADING_FEES } from '../../shared/constants/fees.js';
 // ===== 레버리지 관련 상수 =====
 export const LEVERAGE_LIMITS = {
     BINANCE: {

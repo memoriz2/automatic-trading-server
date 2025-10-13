@@ -305,25 +305,18 @@ export class BinanceService {
         }
     }
     async getUSDTKRWRate() {
-        try {
-            // 업비트 USDT-KRW 마켓에서 실제 환율 조회
-            const response = await fetch('https://api.upbit.com/v1/ticker?markets=KRW-USDT');
-            if (!response.ok) {
-                console.warn(`USDT/KRW rate API error: ${response.status}`);
-                return 1359; // 현재 실제 환율 기본값
-            }
-            const data = await response.json();
-            const rate = data[0]?.trade_price;
-            if (rate && rate > 1000 && rate < 2000) { // 합리적인 범위 체크
-                console.log(`USDT/KRW 환율 업데이트: ${rate}원`);
-                return rate;
-            }
-            return 1359; // 현재 실제 환율 기본값
+        // 업비트에서 실시간 USDT/KRW 가격 조회 (기본값 없음)
+        const response = await fetch('https://api.upbit.com/v1/ticker?markets=KRW-USDT');
+        if (!response.ok) {
+            throw new Error(`USDT/KRW 환율 API 오류: ${response.status}`);
         }
-        catch (error) {
-            console.error('USDT/KRW rate error:', error);
-            return 1359; // 현재 실제 환율 기본값
+        const data = await response.json();
+        const rate = data[0]?.trade_price;
+        if (!rate || rate <= 1000 || rate >= 2000) {
+            throw new Error(`비정상적인 환율 값: ${rate}`);
         }
+        console.log(`USDT/KRW 환율 업데이트: ${rate}원`);
+        return rate;
     }
     async getLeverage(symbol) {
         try {

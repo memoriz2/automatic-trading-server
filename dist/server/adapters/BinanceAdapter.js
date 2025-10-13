@@ -371,11 +371,63 @@ export class BinanceAdapter extends BaseExchangeAdapter {
         throw new Error('구현 필요: Binance getActiveOrders');
     }
     /**
-     * 거래 내역 조회
+     * 거래 내역 조회 (현물)
      */
-    async getTrades(_symbol, _limit = 100) {
-        // 구현 필요 - 바이낸스 거래 내역 조회 API 호출
-        throw new Error('구현 필요: Binance getTrades');
+    async getTrades(symbol, limit = 100) {
+        if (!symbol) {
+            // 심볼이 없으면 빈 배열 반환 (바이낸스는 심볼 필수)
+            console.warn('바이낸스 거래내역 조회에는 symbol이 필수입니다.');
+            return [];
+        }
+        try {
+            const normalizedSymbol = this.normalizeSymbol(symbol);
+            const trades = await this.apiRequest('/api/v3/myTrades', 'GET', {
+                symbol: normalizedSymbol,
+                limit: Math.min(limit, 1000) // 바이낸스 최대 1000
+            });
+            return trades.map(trade => ({
+                id: trade.id.toString(),
+                symbol: normalizedSymbol.replace('USDT', ''),
+                side: trade.isBuyer ? 'buy' : 'sell',
+                quantity: parseFloat(trade.qty),
+                price: parseFloat(trade.price),
+                fee: parseFloat(trade.commission),
+                timestamp: new Date(trade.time)
+            }));
+        }
+        catch (error) {
+            console.error('바이낸스 현물 거래내역 조회 실패:', error);
+            return [];
+        }
+    }
+    /**
+     * 선물 거래 내역 조회
+     */
+    async getFuturesTrades(symbol, limit = 100) {
+        if (!symbol) {
+            console.warn('바이낸스 선물 거래내역 조회에는 symbol이 필수입니다.');
+            return [];
+        }
+        try {
+            const normalizedSymbol = this.normalizeSymbol(symbol);
+            const trades = await this.apiRequest('/fapi/v1/userTrades', 'GET', {
+                symbol: normalizedSymbol,
+                limit: Math.min(limit, 1000)
+            }, true);
+            return trades.map(trade => ({
+                id: trade.id.toString(),
+                symbol: normalizedSymbol.replace('USDT', ''),
+                side: trade.side.toLowerCase(),
+                quantity: parseFloat(trade.qty),
+                price: parseFloat(trade.price),
+                fee: parseFloat(trade.commission),
+                timestamp: new Date(trade.time)
+            }));
+        }
+        catch (error) {
+            console.error('바이낸스 선물 거래내역 조회 실패:', error);
+            return [];
+        }
     }
     /**
      * 포지션 조회 (선물 전용)

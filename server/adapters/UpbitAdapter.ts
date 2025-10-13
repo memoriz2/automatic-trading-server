@@ -416,11 +416,20 @@ export class UpbitAdapter extends BaseExchangeAdapter {
 
     console.log(`✅ [UpbitAdapter] 업비트 API 응답: ${orders.length}건`);
 
-    // 디버깅: 매수 주문만 로깅
+    // 디버깅: 전체 주문의 생성 시간 범위 확인
+    const sortedByTime = [...orders].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    console.log(`🔍 [DEBUG] 주문 시간 범위:`);
+    console.log(`  - 가장 최신: ${sortedByTime[0]?.created_at} (${sortedByTime[0]?.side})`);
+    console.log(`  - 가장 오래됨: ${sortedByTime[sortedByTime.length - 1]?.created_at} (${sortedByTime[sortedByTime.length - 1]?.side})`);
+
+    // 매수 주문만 로깅
     const bidOrders = orders.filter(o => o.side === 'bid');
     console.log(`🔍 [DEBUG] 매수(bid) 주문: ${bidOrders.length}건`);
-    bidOrders.slice(0, 5).forEach(order => {
-      console.log(`  - UUID: ${order.uuid.substring(0, 8)}, side: ${order.side}, 수량: ${order.executed_volume}, 생성: ${order.created_at}`);
+    console.log(`  최신 매수 3건:`);
+    bidOrders.slice(0, 3).forEach(order => {
+      console.log(`  - UUID: ${order.uuid.substring(0, 8)}, 수량: ${order.executed_volume}, 생성: ${order.created_at}`);
     });
 
     // 원본 데이터 그대로 사용

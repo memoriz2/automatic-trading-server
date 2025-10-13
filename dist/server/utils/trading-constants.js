@@ -1,17 +1,5 @@
-// ===== 서버 트레이딩 상수 =====
-export const LEVERAGE_CONFIG = {
-    DEFAULT: 5,
-    MIN: 1,
-    MAX: 10
-};
-// 레버리지 값 정규화 (서버용)
-export const normalizeLeverage = (value) => {
-    const num = Number(value);
-    if (!isFinite(num) || num < LEVERAGE_CONFIG.MIN) {
-        return LEVERAGE_CONFIG.DEFAULT;
-    }
-    if (num > LEVERAGE_CONFIG.MAX) {
-        return LEVERAGE_CONFIG.MAX;
-    }
-    return Math.round(num);
-};
+/**
+ * 서버 트레이딩 상수 (중앙화된 shared 모듈 사용)
+ * @deprecated 이 파일은 호환성을 위해 유지되며, shared/utils/leverage.ts를 re-export합니다.
+ */
+export { LEVERAGE_CONFIG, normalizeLeverage } from '../../shared/utils/leverage.js';
