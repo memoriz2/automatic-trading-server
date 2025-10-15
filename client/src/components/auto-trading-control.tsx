@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Square, AlertTriangle, Settings } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TradingStatus {
   isActive: boolean;
@@ -15,6 +16,7 @@ interface TradingStatus {
 export function AutoTradingControl() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
 
@@ -27,8 +29,11 @@ export function AutoTradingControl() {
   // 자동매매 시작
   const startTradingMutation = useMutation({
     mutationFn: async () => {
+      if (!user?.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
       setIsStarting(true);
-      return apiRequest('POST', '/api/trading/start/1');
+      return apiRequest('POST', `/api/trading/start/${user.id}`);
     },
     onSuccess: () => {
       toast({
@@ -53,8 +58,11 @@ export function AutoTradingControl() {
   // 자동매매 중지
   const stopTradingMutation = useMutation({
     mutationFn: async () => {
+      if (!user?.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
       setIsStopping(true);
-      return apiRequest('POST', '/api/trading/stop');
+      return apiRequest('POST', `/api/trading/stop/${user.id}`);
     },
     onSuccess: () => {
       toast({
@@ -79,7 +87,10 @@ export function AutoTradingControl() {
   // 긴급 정지
   const emergencyStopMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('POST', '/api/trading/emergency-stop/1');
+      if (!user?.id) {
+        throw new Error('사용자 정보를 찾을 수 없습니다');
+      }
+      return apiRequest('POST', `/api/trading/emergency-stop/${user.id}`);
     },
     onSuccess: () => {
       toast({

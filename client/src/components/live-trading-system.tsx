@@ -1069,11 +1069,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               const pnlResult = calculatePositionPnL(position, currentKimchiData);
               const partialPnl = pnlResult.netPnl * ratio;
 
-              console.log(`💰 부분 청산 손익 계산 (${Math.round(ratio * 100)}%):`, {
-                positionId: position.id,
-                partialPnl: partialPnl,
-                totalPnl: pnlResult.netPnl
-              });
 
               dispatch(setLivePositions(
                 livePositions.map(p =>
@@ -1159,7 +1154,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     realizedPnl: (position.realizedPnl || 0) + partialPnl
                   })
                 });
-                console.log(`✅ 포지션 ${position.id} 부분 청산 DB 업데이트 완료 (손익: ${partialPnl.toFixed(2)}원)`);
               } catch (dbError) {
                 console.error('❌ 부분 청산 DB 업데이트 실패:', dbError);
               }
@@ -1176,12 +1170,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               const pnlResult = calculatePositionPnL(position, currentKimchiData);
               const realizedPnl = pnlResult.netPnl;
 
-              console.log(`💰 청산 손익 계산:`, {
-                positionId: position.id,
-                netPnl: realizedPnl,
-                premiumPnl: pnlResult.premiumPnl,
-                estimatedExitFees: pnlResult.estimatedExitFees
-              });
 
               dispatch(setLivePositions(
                 livePositions.map(p =>
@@ -1266,7 +1254,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                     realizedPnl: realizedPnl
                   })
                 });
-                console.log(`✅ 포지션 ${position.id} DB 업데이트 완료 (손익: ${realizedPnl.toFixed(2)}원)`);
               } catch (dbError) {
                 console.error('❌ DB 업데이트 실패:', dbError);
               }
@@ -1452,13 +1439,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       // 청산 조건 디버깅
       if (currentPosition) {
-        console.log(`🔍 [${strategy.name}] 청산 체크:`, {
-          현재김프: currentPremium.toFixed(3),
-          청산조건: exitRate.toFixed(3),
-          조건만족: exitOk,
-          거래잠금: tradingLockRef.current[strategy.id] || false,
-          포지션ID: currentPosition.id
-        });
       }
 
       if (entryOk) {
@@ -1785,12 +1765,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     const todayExitPositions = livePositions.filter(position => {
       // 디버깅: 최근 5개의 closed 포지션 체크
       if (position.status === 'closed' && Number(position.id) >= 940) {
-        console.log(`🔍 포지션 ${position.id} 초기 체크:`, {
-          status: position.status,
-          exitTime: position.exitTime,
-          hasExitTime: !!position.exitTime,
-          exitTimeType: typeof position.exitTime
-        });
       }
 
       if (position.status !== 'closed' || !position.exitTime) return false;
@@ -1803,8 +1777,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         return false;
       }
 
-      const originalExitDate = new Date(exitDate);
-
       if (exitDate.getHours() < 9) {
         exitDate.setDate(exitDate.getDate() - 1);
       }
@@ -1814,13 +1786,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
       // 디버깅: 최근 5개만 로그
       if (Number(position.id) >= 940) {
-        console.log(`🔍 포지션 ${position.id} 체크:`, {
-          exitTime: position.exitTime,
-          originalDate: originalExitDate.toISOString(),
-          adjustedDate: exitDate.toISOString(),
-          todayDate: today.toISOString(),
-          isToday
-        });
       }
 
       return isToday;
@@ -1849,29 +1814,6 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     // 디버깅: 총 수익금이 0인 이유 확인
     if (todayExitPositions.length > 0) {
-      console.log('📊 오늘 청산 포지션:', todayExitPositions.length, '개');
-      console.log('📊 청산 포지션 상세:', todayExitPositions.slice(0, 5).map(p => ({
-        id: p.id,
-        exitTime: p.exitTime,
-        status: p.status,
-        realizedPnl: p.realizedPnl
-      })));
-      console.log('📊 총 수익금:', realizedPnl);
-    } else {
-      console.log('❌ 오늘 청산한 포지션 없음');
-      console.log('전체 포지션:', livePositions.length, '개');
-      const closedPositions = livePositions.filter(p => p.status === 'closed');
-      console.log('closed 포지션 총 개수:', closedPositions.length);
-      console.log('closed 포지션 샘플 (최근 5개):', closedPositions.slice(0, 5).map(p => ({
-        id: p.id,
-        status: p.status,
-        exitTime: p.exitTime,
-        exitTimeType: typeof p.exitTime,
-        entryTime: p.entryTime,
-        realizedPnl: p.realizedPnl
-      })));
-      console.log('오늘 기준 시간:', today);
-      console.log('현재 시간:', now);
     }
 
     // 활성 포지션 수

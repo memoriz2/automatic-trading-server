@@ -94,6 +94,7 @@ export class MultiStrategyTradingService {
     });
 
     this.userTradingStates.set(userId, true);
+
     await storage.createSystemAlert({
       type: "info",
       title: "다중 전략 자동매매 시작",
@@ -109,6 +110,7 @@ export class MultiStrategyTradingService {
       // 특정 사용자의 거래만 중지
       this.userTradingStates.set(userId, false);
       this.userStrategies.delete(userId);
+
       await storage.createSystemAlert({
         type: "info",
         title: "자동매매 중지",
@@ -119,6 +121,7 @@ export class MultiStrategyTradingService {
       this.userTradingStates.clear();
       this.activeStrategies.clear();
       this.userStrategies.clear();
+
       await storage.createSystemAlert({
         type: "info",
         title: "다중 전략 자동매매 중지",
@@ -136,8 +139,8 @@ export class MultiStrategyTradingService {
           symbols, userId
         );
 
-        // 활성 포지션 조회
-        const activePositions = await storage.getActivePositions(parseInt(userId));
+        // 활성 포지션 조회 (루프 시작 시 한 번만 조회)
+        let activePositions = await storage.getActivePositions(parseInt(userId));
 
         // BTC 단일 전략 신호 분석 (사용자별 전략 사용)
         const userStrategyMap = this.userStrategies.get(userId);
@@ -151,18 +154,27 @@ export class MultiStrategyTradingService {
           // 현재 김프율 저장
           this.lastKimchiRates.set("BTC", btcData.premiumRate);
 
+          // 🔍 해당 전략의 활성 포지션만 필터링하여 신호 분석
+          const strategyActivePositions = activePositions.filter(
+            (p: any) => p.strategyId === strategy.id && p.status === "open"
+          );
+
           const signal = await this.analyzeStrategySignal(
             btcData,
             strategy,
-            activePositions
+            strategyActivePositions
           );
 
           if (signal) {
             await this.executeStrategySignal(userId, signal);
+
+            // 🔄 진입/청산 후 즉시 활성 포지션 재조회 (다음 전략이 이미 닫힌 포지션을 다시 청산하지 않도록)
+            activePositions = await storage.getActivePositions(parseInt(userId));
+            console.log(`🔄 신호 실행 후 활성 포지션 재조회: ${activePositions.length}개`);
           }
         }
 
-        // 기존 포지션 관리
+        // 기존 포지션 관리 (최신 활성 포지션 사용)
         await this.manageMultiStrategyPositions(userId, activePositions);
 
         // 5초 대기
@@ -477,9 +489,12 @@ export class MultiStrategyTradingService {
         );
         console.log(`바이낸스 숏 결과:`, binanceResult);
 
-        // 바이낸스 체결가 저장
+        // 바이낸스 체결가 저장 (0이어도 경고만 출력)
         const binancePrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
-        currentPrice = binancePrice || upbitCurrentPrice;
+        if (!binancePrice || binancePrice === 0) {
+          console.warn(`⚠️ 바이낸스 체결가가 0입니다. trades 테이블에서 자동 수정됩니다: ${binancePrice}`);
+        }
+        currentPrice = binancePrice;
 
         // 바이낸스 수수료 계산 (중앙화된 로직 사용)
         const binanceFee = calculateBinanceFee(adjustedQuantity, binancePrice);
@@ -541,7 +556,12 @@ export class MultiStrategyTradingService {
         const executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
         const avgPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
         const paidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
-        upbitEntryPrice = avgPrice || upbitCurrentPrice; // 업비트 진입가 저장
+
+        // 업비트 진입가 검증 (0이어도 경고만 출력)
+        if (!avgPrice || avgPrice === 0) {
+          console.warn(`⚠️ 업비트 체결가가 0입니다. trades 테이블에서 자동 수정됩니다: ${avgPrice}`);
+        }
+        upbitEntryPrice = avgPrice; // 업비트 진입가 저장
 
         console.log(`📊 업비트 체결 분석:`, {
           목표수량: adjustedQuantity,
@@ -592,10 +612,21 @@ export class MultiStrategyTradingService {
 
       // 포지션 생성 - 진입가 명시적 저장
       const entryTimeKST = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST 시간
-      console.log(`💾 포지션 저장 진입가:`, {
-        업비트진입가: upbitEntryPrice,
-        바이낸스진입가: currentPrice
-      });
+
+      // 진입가 경고 (0이면 백그라운드에서 수정 예정)
+      const needsEntryPriceFix = (!upbitEntryPrice || upbitEntryPrice === 0) || (!currentPrice || currentPrice === 0);
+      if (needsEntryPriceFix) {
+        console.warn(`⚠️ 진입가가 0입니다. 백그라운드에서 trades 테이블 조회 후 자동 수정 예정:`, {
+          업비트진입가: upbitEntryPrice,
+          바이낸스진입가: currentPrice
+        });
+      } else {
+        console.log(`💾 DB 저장 전 진입가 확인:`, {
+          업비트진입가: upbitEntryPrice,
+          바이낸스진입가: currentPrice,
+          수량: adjustedQuantity
+        });
+      }
 
       const position = await storage.createPosition({
         userId: parseInt(userId),
@@ -617,6 +648,15 @@ export class MultiStrategyTradingService {
 
       console.log(`✅ 포지션 생성 완료:`, position);
       console.log(`🕒 진입 시간 (KST):`, entryTimeKST.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+
+      // DB 저장 후 검증
+      console.log(`🔍 DB 저장 확인:`, {
+        id: position?.id,
+        entry_price: position?.entry_price,
+        binance_entry_price: position?.binance_entry_price,
+        quantity: position?.quantity
+      });
+
       console.log(`🔍 [자동거래] 포지션 ID 확인:`, {
         positionId: position?.id,
         positionObject: position ? Object.keys(position) : 'null',
@@ -641,7 +681,7 @@ export class MultiStrategyTradingService {
         console.warn('⚠️ 레버리지 저장 실패(무시 가능):', levErr);
       }
 
-      // 거래 기록에 positionId 업데이트 (이미 저장된 거래 기록 업데이트)
+      // 거래 기록에 positionId 업데이트 (이미 저장된 거래 기록 업데이트) - 백그라운드 수정 전에 먼저 실행!
       try {
         await storage.updateTradePositionId(binanceResult.orderId, positionId);
         console.log(`✅ 바이낸스 거래 기록 positionId 업데이트 완료`);
@@ -654,6 +694,14 @@ export class MultiStrategyTradingService {
         console.log(`✅ 업비트 거래 기록 positionId 업데이트 완료`);
       } catch (error) {
         console.error(`❌ 업비트 거래 기록 업데이트 실패:`, error);
+      }
+
+      // 🔧 백그라운드에서 진입가 수정 (0인 경우) - trades positionId 업데이트 후 실행!
+      if (needsEntryPriceFix && position?.id) {
+        console.log(`🔄 백그라운드에서 포지션 ${position.id} 진입가 자동 수정 시작...`);
+        this.fixPositionEntryPriceFromTrades(position.id).catch((err: Error) => {
+          console.error(`❌ 포지션 ${position.id} 진입가 자동 수정 실패:`, err);
+        });
       }
 
       // 성공 알림
@@ -779,8 +827,9 @@ export class MultiStrategyTradingService {
         throw new Error(`완전 청산 실패: 업비트(${upbitError.message}), 바이낸스(${binanceError.message})`);
       }
 
-      // 3. 포지션 상태 업데이트
+      // 3. 포지션 상태 업데이트 - status를 'closed'로 변경하여 재청산 방지
       await storage.updatePosition(position.id, {
+        status: 'closed',
         currentPremiumRate: signal.premiumRate,
       });
 
@@ -926,6 +975,58 @@ export class MultiStrategyTradingService {
   }
 
   /**
+   * 서버 시작 시 활성 전략으로 자동매매 자동 시작
+   */
+  async restoreAutoTradingStates(): Promise<void> {
+    try {
+      console.log('🔄 활성 전략 기반 자동매매 복원 시작...');
+
+      // 활성화된 전략이 있는 사용자 조회
+      const result = await storage.pool.query(`
+        SELECT DISTINCT user_id
+        FROM trading_strategies
+        WHERE is_active = true
+      `);
+
+      if (result.rows.length === 0) {
+        console.log('✅ 활성화된 전략이 없습니다. 자동매매를 시작하지 않습니다.');
+        return;
+      }
+
+      console.log(`🔍 활성 전략을 가진 사용자 ${result.rows.length}명 발견`);
+
+      // 각 사용자별로 자동매매 시작
+      for (const row of result.rows) {
+        const userId = String(row.user_id);
+        try {
+          console.log(`🚀 사용자 ${userId} 자동매매 시작 중...`);
+
+          // 활성 전략 확인
+          const strategies = await storage.getTradingStrategies(parseInt(userId));
+          const activeStrategies = strategies.filter((s: any) => s.isActive);
+
+          if (activeStrategies.length === 0) {
+            console.log(`⚠️ 사용자 ${userId}는 활성 전략이 없습니다.`);
+            continue;
+          }
+
+          // 자동매매 시작
+          await this.startMultiStrategyTrading(userId);
+          console.log(`✅ 사용자 ${userId} 자동매매 시작 완료 (${activeStrategies.length}개 활성 전략)`);
+
+        } catch (error) {
+          console.error(`❌ 사용자 ${userId} 자동매매 시작 실패:`, error);
+        }
+      }
+
+      console.log('✅ 활성 전략 기반 자동매매 복원 완료');
+
+    } catch (error) {
+      console.error('❌ 자동매매 복원 중 오류:', error);
+    }
+  }
+
+  /**
    * 진입 전 잔고 확인
    */
   private async checkBalanceBeforeEntry(
@@ -1042,6 +1143,59 @@ export class MultiStrategyTradingService {
       
     } catch (error) {
       console.error(`❌ 전략 ${strategyId} 조건 업데이트 실패:`, error);
+    }
+  }
+
+  /**
+   * 백그라운드에서 trades 테이블 조회해서 포지션 진입가 자동 수정
+   */
+  private async fixPositionEntryPriceFromTrades(positionId: number): Promise<void> {
+    try {
+      console.log(`🔄 포지션 ${positionId} 진입가 자동 수정 시작...`);
+
+      // 2초 대기 (거래 기록이 저장될 시간 확보)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // trades 테이블에서 진입가 조회
+      const result = await storage.pool.query(`
+        SELECT
+          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_entry_price,
+          MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price END) as binance_entry_price
+        FROM trades
+        WHERE position_id = $1
+        GROUP BY position_id
+      `, [positionId]);
+
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ 포지션 ${positionId}의 거래 기록을 찾을 수 없습니다`);
+        return;
+      }
+
+      const { upbit_entry_price, binance_entry_price } = result.rows[0];
+
+      if (!upbit_entry_price || !binance_entry_price) {
+        console.warn(`⚠️ 포지션 ${positionId}의 진입가를 trades에서 찾을 수 없습니다:`, {
+          upbit: upbit_entry_price,
+          binance: binance_entry_price
+        });
+        return;
+      }
+
+      // 포지션 업데이트
+      await storage.pool.query(`
+        UPDATE positions
+        SET entry_price = $1, binance_entry_price = $2, updated_at = NOW()
+        WHERE id = $3
+      `, [upbit_entry_price, binance_entry_price, positionId]);
+
+      console.log(`✅ 포지션 ${positionId} 진입가 자동 수정 완료:`, {
+        upbit: Number(upbit_entry_price),
+        binance: Number(binance_entry_price)
+      });
+
+    } catch (error) {
+      console.error(`❌ 포지션 ${positionId} 진입가 자동 수정 실패:`, error);
+      throw error;
     }
   }
 }

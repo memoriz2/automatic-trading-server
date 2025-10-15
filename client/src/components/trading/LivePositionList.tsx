@@ -54,6 +54,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
   onLiveExit
 }) => {
   const activePositions = livePositions.filter(p => p.status === 'open');
+  const [isFixing, setIsFixing] = React.useState(false);
 
   const handleButtonClick = (callback: () => void) => {
     // 햅틱 피드백 (모바일)
@@ -61,6 +62,35 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
       navigator.vibrate(50);
     }
     callback();
+  };
+
+  const handleFixEntryPrices = async () => {
+    if (isFixing) return;
+
+    setIsFixing(true);
+    try {
+      const response = await fetch('/api/monitoring/fix-entry-prices', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`✅ 진입가 수정 완료!\n성공: ${result.fixed}개\n실패: ${result.failed}개`);
+        // 페이지 새로고침하여 업데이트된 데이터 표시
+        window.location.reload();
+      } else {
+        alert(`❌ 수정 실패: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('진입가 수정 실패:', error);
+      alert('❌ 진입가 수정 중 오류가 발생했습니다.');
+    } finally {
+      setIsFixing(false);
+    }
   };
 
   const getStrategyName = (position: LivePosition): string => {
@@ -102,8 +132,19 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
 
   return (
     <div className="mb-4">
-      <h4 className="text-white font-medium mb-2">활성 포지션 ({activePositions.length}개)</h4>
-      
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-white font-medium">활성 포지션 ({activePositions.length}개)</h4>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs px-3 py-1 h-7"
+          onClick={handleFixEntryPrices}
+          disabled={isFixing}
+        >
+          {isFixing ? '🔄 수정 중...' : '🔧 진입가 수정'}
+        </Button>
+      </div>
+
       {/* 포지션이 없을 때 안내 */}
       {activePositions.length === 0 && (
         <div className="bg-slate-800 p-3 rounded-lg text-center">
@@ -184,13 +225,19 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     const comparison = Math.abs(upbitNetPnl) > Math.abs(binanceNetPnlKrw) ? '>' : '<';
 
                     // 디버깅: 실제 값 화면에 표시
-                    // const debugInfo = `(U진입:${Math.round(position.upbitPrice/1000000)}M, U현재:${Math.round(currentUpbitPrice/1000000)}M, B진입:${Math.round(position.binancePrice)}, B현재:${Math.round(currentBinancePrice)})`;
+                    console.log(`🔍 포지션 ${position.id} 프론트엔드 데이터:`, {
+                      upbitPrice: position.upbitPrice,
+                      binancePrice: position.binancePrice,
+                      upbitQuantity: position.upbitQuantity,
+                      binanceQuantity: position.binanceQuantity
+                    });
+                    const debugInfo = `(U진입:${Math.round(position.upbitPrice/1000000)}M, U현재:${Math.round(currentUpbitPrice/1000000)}M, B진입:${Math.round(position.binancePrice)}, B현재:${Math.round(currentBinancePrice)})`;
 
                     return (
                       <>
                         <span>{`업비트 ${upbitStr} ${comparison} ${binanceStr} 바이낸스`}</span>
-                        {/* <br />
-                        <span className="text-[9px] text-slate-600">{debugInfo}</span> */}
+                        <br />
+                        <span className="text-[9px] text-slate-600">{debugInfo}</span>
                       </>
                     );
                   })()}

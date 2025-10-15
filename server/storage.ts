@@ -537,11 +537,11 @@ export class DatabaseStorage {
         INSERT INTO positions (
           user_id, strategy_id, symbol, type, entry_price, quantity,
           entry_premium_rate, status, side, binance_leverage,
-          binance_entry_price, force_entry_settings_id, created_at, updated_at, entry_time
+          binance_entry_price, force_entry_settings_id, upbit_order_id, binance_order_id, created_at, updated_at, entry_time
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11, $12,
-          NOW(), NOW(), NOW()
+          $13, $14, NOW(), NOW(), NOW()
         )
         RETURNING *
       `, [
@@ -557,7 +557,9 @@ export class DatabaseStorage {
         // 우선순위: 명시 전달값 → 전략 레버리지 → 안전 기본값 5
         (data.binanceLeverage ?? data.leverage ?? 5),
         data.binanceEntryPrice,
-        data.forceEntrySettingsId || null
+        data.forceEntrySettingsId || null,
+        data.upbitOrderId || null,
+        data.binanceOrderId || null
       ]);
 
       return result.rows[0];
@@ -1112,16 +1114,10 @@ export class DatabaseStorage {
 
       const result = await this.pool.query(query, params);
 
-      // 디버깅: 포지션 데이터 로그
+      // 디버깅: 간단한 요약만 출력
       if (result.rows.length > 0) {
-        console.log('🔍 [getAllPositions] 조회된 포지션 데이터:', {
-          count: result.rows.length,
-          firstPosition: result.rows[0],
-          openPositions: result.rows.filter(p => p.status === 'open').length,
-          strategyNames: result.rows.map(p => ({ id: p.id, strategy_id: p.strategy_id, strategy_name: p.strategy_name }))
-        });
-      } else {
-        console.log('🔍 [getAllPositions] 포지션 없음');
+        const openCount = result.rows.filter(p => p.status === 'open').length;
+        console.log(`🔍 [getAllPositions] 포지션 ${result.rows.length}개 조회 (활성: ${openCount}개)`);
       }
 
       return result.rows;
@@ -1565,7 +1561,6 @@ export class DatabaseStorage {
 
   async getPositions(whereClause: any = {}): Promise<any[]> {
     const userId = whereClause.user_id || whereClause.userId;
-    console.log(`🔍 [getPositions] 사용자 ${userId} 포지션 조회`);
     return this.getAllPositions(userId);
   }
 

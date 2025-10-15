@@ -1229,24 +1229,38 @@ export async function registerRoutes(
       const positions = await storage.getActivePositions(userIdNum);
 
       // DB snake_case → Frontend camelCase 매핑
-      const mappedPositions = positions.map(p => ({
-        ...p,
-        upbitPrice: p.entry_price || 0,  // 진입가 매핑
-        binancePrice: p.binance_entry_price || 0,  // 바이낸스 진입가 매핑
-        leverage: p.binance_leverage || 1,
-        upbitQuantity: p.upbit_quantity || 0,
-        binanceQuantity: p.binance_quantity || 0,
-        binanceSpotQuantity: p.binance_spot_quantity || 0,
-        entryPremiumRate: p.entry_premium_rate || 0,
-        unrealizedPnl: p.unrealized_pnl || 0,
-        realizedPnl: p.realized_pnl || 0,
-        entryTime: p.entry_time,
-        strategyId: p.strategy_id,
-        strategyName: p.strategy_name,
-        takeProfitTargets: p.take_profit_offset,
-        entryUsdKrw: p.entry_usdkrw
-      }));
+      const mappedPositions = positions.map(p => {
+        const upbitPrice = Number(p.entry_price) || 0;
+        const binancePrice = Number(p.binance_entry_price) || 0;
 
+        // 디버깅: 진입가 변환 확인
+        if (p.id === 1030) {
+          console.log(`🔍 포지션 1030 매핑:`, {
+            raw_entry_price: p.entry_price,
+            raw_binance_entry_price: p.binance_entry_price,
+            mapped_upbitPrice: upbitPrice,
+            mapped_binancePrice: binancePrice
+          });
+        }
+
+        return {
+          ...p,
+          upbitPrice,  // 진입가 매핑
+          binancePrice,  // 바이낸스 진입가 매핑
+          leverage: p.binance_leverage || 1,
+          upbitQuantity: Number(p.quantity) || 0,  // quantity 컬럼 사용
+          binanceQuantity: Number(p.binance_quantity || p.quantity) || 0,  // binance_quantity 우선, 없으면 quantity
+          binanceSpotQuantity: 0,  // 사용하지 않음
+          entryPremiumRate: Number(p.entry_premium_rate) || 0,
+          unrealizedPnl: Number(p.unrealized_pnl) || 0,
+          realizedPnl: Number(p.realized_pnl) || 0,
+          entryTime: p.entry_time,
+          strategyId: p.strategy_id,
+          strategyName: p.strategy_name,
+          takeProfitTargets: p.take_profit_offset,
+          entryUsdKrw: p.entry_usdkrw
+        };
+      });
       res.json(mappedPositions);
     } catch (error) {
       console.error("포지션 조회 오류:", error);

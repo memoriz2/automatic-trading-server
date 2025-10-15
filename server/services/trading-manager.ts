@@ -87,52 +87,53 @@ export class TradingManager {
       // 3. 실제 체결가 조회 (짧은 대기 후)
       await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
 
-      let actualUpbitPrice = upbitPrice; // 현재가를 기본값으로
-      let actualUpbitQuantity = params.quantity; // 요청 수량을 기본값으로
-      let actualBinancePrice = 100000; // 기본값
+      let actualUpbitPrice: number;
+      let actualUpbitQuantity: number;
+      let actualBinancePrice: number;
       let upbitPaidFee: number | undefined = undefined; // 업비트 API의 paid_fee
 
-      try {
-        // 업비트 주문 상세 조회
-        const upbitOrderDetail = await services.upbit.getOrderDetail(upbitOrder.uuid);
-        console.log(`📊 업비트 주문 상세:`, upbitOrderDetail);
+      // 업비트 주문 상세 조회 (필수)
+      const upbitOrderDetail = await services.upbit.getOrderDetail(upbitOrder.uuid);
+      console.log(`📊 업비트 주문 상세:`, upbitOrderDetail);
 
-        // 업비트 실제 체결가와 체결 수량
-        if (upbitOrderDetail.avg_price) {
-          actualUpbitPrice = parseFloat(upbitOrderDetail.avg_price);
-        } else if (upbitOrderDetail.price) {
-          actualUpbitPrice = parseFloat(upbitOrderDetail.price);
-        }
-
-        // 실제 체결된 BTC 수량 (executed_volume)
-        if (upbitOrderDetail.executed_volume) {
-          actualUpbitQuantity = parseFloat(upbitOrderDetail.executed_volume);
-        }
-
-        // 업비트 수수료 (paid_fee 필드)
-        if (upbitOrderDetail.paid_fee) {
-          upbitPaidFee = parseFloat(upbitOrderDetail.paid_fee);
-        }
-
-        console.log(`✅ 업비트 실제 체결: ${actualUpbitQuantity} BTC @ ₩${actualUpbitPrice.toLocaleString()}`);
-      } catch (error) {
-        console.warn(`⚠️ 업비트 체결 정보 조회 실패, 기본값 사용:`, error);
+      // 업비트 실제 체결가와 체결 수량
+      if (upbitOrderDetail.avg_price) {
+        actualUpbitPrice = parseFloat(upbitOrderDetail.avg_price);
+      } else if (upbitOrderDetail.price) {
+        actualUpbitPrice = parseFloat(upbitOrderDetail.price);
+      } else {
+        console.warn('⚠️ 업비트 체결가 정보를 가져올 수 없습니다. 0으로 저장 후 자동 수정됩니다.');
+        actualUpbitPrice = 0;
       }
 
-      try {
-        // 바이낸스 주문 상세 조회
-        const binanceOrderDetail = await services.binance.getFuturesOrderDetail(params.symbol, binanceOrder.orderId);
-        console.log(`📊 바이낸스 주문 상세:`, binanceOrderDetail);
-
-        // 바이낸스는 avgPrice 필드에 체결가가 있음
-        if (binanceOrderDetail.avgPrice) {
-          actualBinancePrice = parseFloat(binanceOrderDetail.avgPrice);
-        }
-
-        console.log(`✅ 바이낸스 실제 체결가: $${actualBinancePrice.toLocaleString()}`);
-      } catch (error) {
-        console.warn(`⚠️ 바이낸스 체결가 조회 실패, 기본값 사용:`, error);
+      // 실제 체결된 BTC 수량 (executed_volume)
+      if (upbitOrderDetail.executed_volume) {
+        actualUpbitQuantity = parseFloat(upbitOrderDetail.executed_volume);
+      } else {
+        console.warn('⚠️ 업비트 체결 수량 정보를 가져올 수 없습니다. params.quantity 사용.');
+        actualUpbitQuantity = params.quantity;
       }
+
+      // 업비트 수수료 (paid_fee 필드)
+      if (upbitOrderDetail.paid_fee) {
+        upbitPaidFee = parseFloat(upbitOrderDetail.paid_fee);
+      }
+
+      console.log(`✅ 업비트 실제 체결: ${actualUpbitQuantity} BTC @ ₩${actualUpbitPrice.toLocaleString()}`);
+
+      // 바이낸스 주문 상세 조회 (필수)
+      const binanceOrderDetail = await services.binance.getFuturesOrderDetail(params.symbol, binanceOrder.orderId);
+      console.log(`📊 바이낸스 주문 상세:`, binanceOrderDetail);
+
+      // 바이낸스는 avgPrice 필드에 체결가가 있음
+      if (binanceOrderDetail.avgPrice) {
+        actualBinancePrice = parseFloat(binanceOrderDetail.avgPrice);
+      } else {
+        console.warn('⚠️ 바이낸스 체결가 정보를 가져올 수 없습니다. 0으로 저장 후 자동 수정됩니다.');
+        actualBinancePrice = 0;
+      }
+
+      console.log(`✅ 바이낸스 실제 체결가: $${actualBinancePrice.toLocaleString()}`);
 
       // 4. 수수료 계산 (중앙화된 유틸리티 사용)
       const fees = await calculateTotalTradingFees({
@@ -169,8 +170,39 @@ export class TradingManager {
         forceEntrySettingsId: forceEntrySettingsId // 강제진입 설정 ID 추가
       };
 
+      // 진입가 경고 (0이면 백그라운드에서 수정 예정)
+      const needsEntryPriceFix = (!actualUpbitPrice || actualUpbitPrice === 0) || (!actualBinancePrice || actualBinancePrice === 0);
+      if (needsEntryPriceFix) {
+        console.warn(`⚠️ 진입가가 0입니다. trades 테이블에서 자동 수정 예정:`, {
+          upbitPrice: actualUpbitPrice,
+          binancePrice: actualBinancePrice
+        });
+      } else {
+        console.log(`💾 DB 저장 전 진입가 확인:`, {
+          upbitPrice: actualUpbitPrice,
+          binancePrice: actualBinancePrice,
+          quantity: actualUpbitQuantity
+        });
+      }
+
       const savedPosition = await storage.createPosition(realPosition);
       console.log(`✅ 포지션 저장 완료: ID=${savedPosition.id}, Settings ID=${forceEntrySettingsId}`);
+
+      // DB 저장 후 검증
+      console.log(`🔍 DB 저장 확인:`, {
+        id: savedPosition.id,
+        entry_price: savedPosition.entry_price,
+        binance_entry_price: savedPosition.binance_entry_price,
+        quantity: savedPosition.quantity
+      });
+
+      // 🔧 백그라운드에서 진입가 수정 (0인 경우)
+      if (needsEntryPriceFix && savedPosition?.id) {
+        console.log(`🔄 백그라운드에서 포지션 ${savedPosition.id} 진입가 자동 수정 시작...`);
+        this.fixPositionEntryPriceFromTrades(savedPosition.id).catch((err: Error) => {
+          console.error(`❌ 포지션 ${savedPosition.id} 진입가 자동 수정 실패:`, err);
+        });
+      }
 
       // 5. 거래 기록 생성 (업비트 매수 + 바이낸스 숏)
       try {
@@ -249,15 +281,15 @@ export class TradingManager {
 
   private async getRealBalance(userId: number): Promise<any> {
     const services = await this.initializeServices(userId);
-    
+
     const balance: any = { source: 'real' };
-    
+
     // 업비트 잔고
     if (services.upbit) {
       const upbitAccounts = await services.upbit.getAccounts();
       const krwAccount = upbitAccounts.find((acc: any) => acc.currency === 'KRW');
       const btcAccount = upbitAccounts.find((acc: any) => acc.currency === 'BTC');
-      
+
       balance.krw = parseFloat(krwAccount?.balance || '0');
       balance.btc = parseFloat(btcAccount?.balance || '0');
     }
@@ -269,6 +301,59 @@ export class TradingManager {
     }
 
     return balance;
+  }
+
+  /**
+   * 백그라운드에서 trades 테이블 조회해서 포지션 진입가 자동 수정
+   */
+  private async fixPositionEntryPriceFromTrades(positionId: number): Promise<void> {
+    try {
+      console.log(`🔄 포지션 ${positionId} 진입가 자동 수정 시작...`);
+
+      // 2초 대기 (거래 기록이 저장될 시간 확보)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // trades 테이블에서 진입가 조회
+      const result = await storage.pool.query(`
+        SELECT
+          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_entry_price,
+          MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price END) as binance_entry_price
+        FROM trades
+        WHERE position_id = $1
+        GROUP BY position_id
+      `, [positionId]);
+
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ 포지션 ${positionId}의 거래 기록을 찾을 수 없습니다`);
+        return;
+      }
+
+      const { upbit_entry_price, binance_entry_price } = result.rows[0];
+
+      if (!upbit_entry_price || !binance_entry_price) {
+        console.warn(`⚠️ 포지션 ${positionId}의 진입가를 trades에서 찾을 수 없습니다:`, {
+          upbit: upbit_entry_price,
+          binance: binance_entry_price
+        });
+        return;
+      }
+
+      // 포지션 업데이트
+      await storage.pool.query(`
+        UPDATE positions
+        SET entry_price = $1, binance_entry_price = $2, updated_at = NOW()
+        WHERE id = $3
+      `, [upbit_entry_price, binance_entry_price, positionId]);
+
+      console.log(`✅ 포지션 ${positionId} 진입가 자동 수정 완료:`, {
+        upbit: Number(upbit_entry_price),
+        binance: Number(binance_entry_price)
+      });
+
+    } catch (error) {
+      console.error(`❌ 포지션 ${positionId} 진입가 자동 수정 실패:`, error);
+      throw error;
+    }
   }
 }
 

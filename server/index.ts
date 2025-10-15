@@ -312,7 +312,7 @@ app.get("/healthz", (_req: Request, res: Response) => {
   const port = await getPort();
   
   // Windows 환경 호환성을 위해 host와 reusePort 옵션 제거
-  server.listen(port, () => {
+  server.listen(port, async () => {
     // 서버 시작 로그 최소화
     console.log(`✅ 서버 시작: http://localhost:${port}`);
 
@@ -323,6 +323,14 @@ app.get("/healthz", (_req: Request, res: Response) => {
     autoTradingManager.start().catch(err => {
       console.error('❌ 자동매매 관리자 시작 실패:', err);
     });
+
+    // 🔥 자동매매 상태 복원 (서버 재시작 시)
+    try {
+      const { multiStrategyTradingService } = await import('./services/new-kimchi-trading.js');
+      await multiStrategyTradingService.restoreAutoTradingStates();
+    } catch (err) {
+      console.error('❌ 자동매매 상태 복원 실패:', err);
+    }
   });
 
   // ✅ 서버 에러 핸들링 추가

@@ -99,5 +99,125 @@ export function registerMonitoringRoutes(app: Express): void {
     }
   });
 
+  // 진입가가 0인 포지션 자동 수정
+  app.post('/api/monitoring/fix-entry-prices', async (_req, res): Promise<void> => {
+    try {
+      console.log('🔧 진입가 0인 포지션 자동 수정 시작...');
+
+      // 진입가가 0인 포지션 조회
+      const zeroEntryPositions = await storage.pool.query(`
+        SELECT id, entry_price, binance_entry_price, created_at
+        FROM positions
+        WHERE (entry_price = 0 OR binance_entry_price = 0)
+          AND status = 'open'
+        ORDER BY id DESC
+        LIMIT 50
+      `);
+
+      if (zeroEntryPositions.rows.length === 0) {
+        res.json({
+          success: true,
+          message: '수정할 포지션이 없습니다',
+          fixed: 0,
+          failed: 0
+        });
+        return;
+      }
+
+      console.log(`📊 수정 대상: ${zeroEntryPositions.rows.length}개 포지션`);
+
+      const results = {
+        fixed: 0,
+        failed: 0,
+        details: [] as any[]
+      };
+
+      // 각 포지션별로 수정
+      for (const position of zeroEntryPositions.rows) {
+        try {
+          // trades 테이블에서 진입가 조회
+          const tradesResult = await storage.pool.query(`
+            SELECT
+              MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_entry_price,
+              MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price END) as binance_entry_price
+            FROM trades
+            WHERE position_id = $1
+            GROUP BY position_id
+          `, [position.id]);
+
+          if (tradesResult.rows.length === 0) {
+            console.warn(`⚠️ 포지션 ${position.id}: 거래 기록 없음`);
+            results.failed++;
+            results.details.push({
+              positionId: position.id,
+              status: 'failed',
+              reason: 'no_trades'
+            });
+            continue;
+          }
+
+          const { upbit_entry_price, binance_entry_price } = tradesResult.rows[0];
+
+          if (!upbit_entry_price || !binance_entry_price) {
+            console.warn(`⚠️ 포지션 ${position.id}: 진입가 데이터 불완전`, {
+              upbit: upbit_entry_price,
+              binance: binance_entry_price
+            });
+            results.failed++;
+            results.details.push({
+              positionId: position.id,
+              status: 'failed',
+              reason: 'incomplete_data',
+              upbit: upbit_entry_price,
+              binance: binance_entry_price
+            });
+            continue;
+          }
+
+          // 포지션 업데이트
+          await storage.pool.query(`
+            UPDATE positions
+            SET entry_price = $1, binance_entry_price = $2, updated_at = NOW()
+            WHERE id = $3
+          `, [upbit_entry_price, binance_entry_price, position.id]);
+
+          console.log(`✅ 포지션 ${position.id} 수정 완료:`, {
+            upbit: Number(upbit_entry_price),
+            binance: Number(binance_entry_price)
+          });
+
+          results.fixed++;
+          results.details.push({
+            positionId: position.id,
+            status: 'fixed',
+            upbit: Number(upbit_entry_price),
+            binance: Number(binance_entry_price)
+          });
+
+        } catch (error: any) {
+          console.error(`❌ 포지션 ${position.id} 수정 실패:`, error);
+          results.failed++;
+          results.details.push({
+            positionId: position.id,
+            status: 'error',
+            error: error.message
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `수정 완료: ${results.fixed}개 성공, ${results.failed}개 실패`,
+        fixed: results.fixed,
+        failed: results.failed,
+        details: results.details
+      });
+
+    } catch (error: any) {
+      console.error('❌ 진입가 수정 실패:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   console.log('✅ 모니터링 API 라우터 등록 완료');
 }
