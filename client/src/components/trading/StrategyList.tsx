@@ -71,7 +71,7 @@ export const StrategyList: React.FC<StrategyListProps> = React.memo(({
     // 🔒 활성화 시 기존 포지션 확인 (중복 진입 방지)
     if (newActiveState) {
       try {
-        const positionsResponse = await fetch('/api/positions', { credentials: 'include' });
+        const positionsResponse = await fetch('/api/me/positions?status=open', { credentials: 'include' });
         if (positionsResponse.ok) {
           const positions = await positionsResponse.json();
           const activePosition = positions.find((p: any) => 

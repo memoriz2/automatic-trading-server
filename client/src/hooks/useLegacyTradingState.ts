@@ -181,7 +181,7 @@ export const useLegacyTradingState = () => {
   // 포지션 데이터 로드
   const fetchPositions = useCallback(async () => {
     try {
-      const response = await fetch('/api/positions', { credentials: 'include' });
+      const response = await fetch('/api/me/positions?status=open', { credentials: 'include' });
       if (response.ok) {
         const positions = await response.json();
         setCurrentPositions(positions);

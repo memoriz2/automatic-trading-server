@@ -2867,47 +2867,134 @@ export async function registerRoutes(
 
       const positions = await storage.getPositions(whereClause);
 
-      // 🔍 첫 번째 포지션의 바이낸스 필드 확인 (디버깅)
-      if (positions.length > 0) {
-        console.log('🔍 [GET /api/positions] 첫 번째 포지션의 바이낸스 필드:', {
-          id: positions[0].id,
-          binanceMarkPrice: positions[0].binanceMarkPrice,
-          binanceLiquidationPrice: positions[0].binanceLiquidationPrice,
-          binanceSizeUsdt: positions[0].binanceSizeUsdt,
-          binanceMarginUsdt: positions[0].binanceMarginUsdt
-        });
-      }
+      // DB에서 넘어온 혼합된 케이스의 필드명을 프론트엔드가 기대하는 형태로 매핑합니다。
+      const mappedPositions = positions.map(p => {
+        let displayName = p.strategy_name; // DB의 snake_case 필드
+        if (!displayName) {
+          if (p.type === 'force_entry') {
+            displayName = `강제진입${p.id}`;
+          } else {
+            displayName = `전략 #${p.strategy_id}`;
+          }
+        }
 
-      // DB에서 이미 camelCase로 매핑된 상태로 옴 (storage.ts의 SELECT에서 AS 사용)
-      const mappedPositions = positions.map(p => ({
-        ...p,
-        upbitPrice: Number(p.upbitPrice) || Number(p.entry_price) || 0,
-        binancePrice: Number(p.binancePrice || p.binance_entry_price) || 0,
-        leverage: p.binance_leverage || p.leverage || 1,
-        upbitQuantity: Number(p.upbitQuantity || p.upbitquantity) || 0,
-        binanceQuantity: Number(p.binanceQuantity || p.binancequantity || p.upbitQuantity || p.upbitquantity) || 0,
-        entryPremiumRate: Number(p.entry_premium_rate) || 0,
-        unrealizedPnl: Number(p.unrealized_pnl) || 0,
-        realizedPnl: Number(p.realized_pnl) || 0,
-        entryTime: p.entry_time,
-        strategyId: p.strategy_id,
-        strategyName: p.strategy_name,
-        takeProfitTargets: p.take_profit_offset,
-        entryUsdKrw: p.entryUsdKrw || p.entryusdkrw,
-        // 바이낸스 선물 상세 정보 (DB에서 이미 camelCase로 변환됨)
-        binanceEntryPrice: Number(p.binancePrice || p.binance_entry_price) || 0,
-        binanceMarkPrice: Number(p.binanceMarkPrice) || 0,
-        binanceLiquidationPrice: Number(p.binanceLiquidationPrice) || 0,
-        binanceSizeUsdt: Number(p.binanceSizeUsdt) || 0,
-        binanceMarginUsdt: Number(p.binanceMarginUsdt) || 0,
-        binanceMarginRatio: Number(p.binanceMarginRatio) || 0,
-        binanceMarginType: p.binanceMarginType || 'cross',
-        binanceUnrealizedPnl: Number(p.binanceUnrealizedPnl) || 0
-      }));
+        return {
+          ...p,
+          upbitPrice: Number(p.upbitprice) || 0, // 소문자 필드 매핑
+          binancePrice: Number(p.binanceprice) || 0, // 소문자 필드 매핑
+          upbitQuantity: Number(p.upbitquantity) || 0, // 소문자 필드 매핑
+          binanceQuantity: Number(p.binancequantity) || 0, // 소문자 필드 매핑
+          strategyId: p.strategy_id,
+          strategyName: displayName,
+          entryTime: p.entry_time,
+          exitTime: p.exit_time,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+          entryPremiumRate: p.entry_premium_rate,
+          currentPremiumRate: p.current_premium_rate,
+          remainingQuantity: p.remaining_quantity,
+          unrealizedPnl: p.unrealized_pnl,
+          totalFees: p.total_fees,
+          upbitOrderId: p.upbit_order_id,
+          binanceOrderId: p.binance_order_id,
+          forceEntrySettingsId: p.force_entry_settings_id,
+          takeProfitOffset: p.take_profit_offset,
+          leverage: p.leverage,
+          // 이미 camelCase인 필드들은 그대로 사용
+          entryUsdKrw: p.entryUsdKrw,
+          binanceMarkPrice: p.binanceMarkPrice,
+          binanceLiquidationPrice: p.binanceLiquidationPrice,
+          binanceSizeUsdt: p.binanceSizeUsdt,
+          binanceMarginUsdt: p.binanceMarginUsdt,
+          binanceMarginRatio: p.binanceMarginRatio,
+          binanceUnrealizedPnl: p.binanceUnrealizedPnl
+        };
+      });
 
       res.json(mappedPositions);
     } catch (error) {
       console.error("포지션 조회 오류:", error);
+      res.status(500).json({ error: "포지션 조회 중 오류가 발생했습니다" });
+    }
+  });
+
+  // 인증 사용자 전용 포지션 조회 API
+  // 기본: status=open 만 반환
+  app.get("/api/me/positions", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { status } = req.query as { status?: string };
+
+      const whereClause: any = { userId, status: status || 'open' };
+      const positions = await storage.getPositions(whereClause);
+
+      // camelCase로만 정규화하여 반환 (원본 로우 필드는 포함하지 않음)
+      const mappedPositions = positions.map((p: any) => {
+        const displayName = p.strategy_name
+          ? p.strategy_name
+          : (p.type === 'force_entry' ? `강제진입${p.id}` : `전략 #${p.strategy_id}`);
+
+        const num = (v: any) => {
+          const n = typeof v === 'string' ? parseFloat(v) : v;
+          return Number.isFinite(n) ? n : undefined;
+        };
+
+        return {
+          // 식별/기본
+          id: p.id,
+          userId: p.user_id,
+          strategyId: p.strategy_id,
+          strategyName: displayName,
+          symbol: p.symbol,
+          type: p.type,
+          side: p.side,
+          status: p.status,
+
+          // 포지션 수량/가격
+          upbitPrice: num(p.upbitPrice ?? p.upbitprice),
+          binancePrice: num(p.binancePrice ?? p.binanceprice),
+          upbitQuantity: num(p.upbitQuantity ?? p.upbitquantity),
+          binanceQuantity: num(p.binanceQuantity ?? p.binancequantity),
+          remainingQuantity: num(p.remaining_quantity),
+
+          // 진입/지표
+          entryPremiumRate: num(p.entryPremiumRate ?? p.entry_premium_rate),
+          currentPremiumRate: num(p.currentPremiumRate ?? p.current_premium_rate),
+          entryTime: p.entryTime ?? p.entry_time,
+          exitTime: p.exitTime ?? p.exit_time,
+
+          // 손익/수수료
+          unrealizedPnl: num(p.unrealizedPnl ?? p.unrealized_pnl) ?? 0,
+          totalFees: num(p.totalFees ?? p.total_fees) ?? 0,
+
+          // 주문/연계
+          upbitOrderId: p.upbitOrderId ?? p.upbit_order_id,
+          binanceOrderId: p.binanceOrderId ?? p.binance_order_id,
+          forceEntrySettingsId: p.forceEntrySettingsId ?? p.force_entry_settings_id,
+          takeProfitOffset: p.takeProfitOffset ?? p.take_profit_offset,
+
+          // 레버리지
+          leverage: num(p.leverage ?? p.binance_leverage) ?? undefined,
+
+          // 환율/바이낸스 상세(정규화된 단위 명시)
+          entryUsdKrw: num(p.entryUsdKrw ?? p.entryusdkrw),
+          binanceMarkPrice: num(p.binanceMarkPrice ?? p.binancemarkprice),
+          binanceLiquidationPrice: num(p.binanceLiquidationPrice ?? p.binanceliquidationprice),
+          binanceSizeUsdt: num(p.binanceSizeUsdt ?? p.binancesizeusdt),
+          binanceMarginUsdt: num(p.binanceMarginUsdt ?? p.binancemarginusdt),
+          binanceMarginRatio: num(p.binanceMarginRatio ?? p.binancemarginratio),
+          binanceMarginType: p.binanceMarginType ?? p.binancemargintype,
+          binanceUnrealizedPnl: num(p.binanceUnrealizedPnl ?? p.binanceunrealizedpnl),
+
+          // 메타
+          createdAt: p.createdAt ?? p.created_at,
+          updatedAt: p.updatedAt ?? p.updated_at,
+        };
+      });
+
+      res.json(mappedPositions);
+    } catch (error) {
+      console.error("/api/me/positions 조회 오류:", error);
       res.status(500).json({ error: "포지션 조회 중 오류가 발생했습니다" });
     }
   });

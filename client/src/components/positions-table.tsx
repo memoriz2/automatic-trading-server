@@ -80,8 +80,8 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                   
                   // 🔄 쿼리 무효화 및 즉시 새로고침
                   await Promise.all([
-                    queryClient.invalidateQueries({ queryKey: ['/api/positions', 1] }),
-                    queryClient.refetchQueries({ queryKey: ['/api/positions', 1] })
+                    queryClient.invalidateQueries({ queryKey: ['/api/me/positions'] }),
+                    queryClient.refetchQueries({ queryKey: ['/api/me/positions'] })
                   ]);
                   onRefresh();
                   
@@ -116,8 +116,8 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
               className="bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
               onClick={() => {
                 // 완전한 캐시 무효화
-                queryClient.invalidateQueries({ queryKey: ['/api/positions', 1] });
-                queryClient.refetchQueries({ queryKey: ['/api/positions', 1] });
+                queryClient.invalidateQueries({ queryKey: ['/api/me/positions'] });
+                queryClient.refetchQueries({ queryKey: ['/api/me/positions'] });
                 onRefresh();
               }}
             >

@@ -58,7 +58,7 @@ export const useLiveTrading = ({
     if (userId) {
       const fetchDbPositions = async () => {
         try {
-          const response = await fetch('/api/positions', {
+          const response = await fetch('/api/me/positions?status=open', {
             credentials: 'include'
           });
 

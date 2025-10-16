@@ -151,7 +151,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
     const fetchDbPositions = async () => {
       try {
-        const response = await fetch('/api/positions', {
+        const response = await fetch('/api/me/positions?status=open', {
           credentials: 'include'
         });
 
@@ -162,54 +162,60 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           // DB 포지션을 LivePosition 형태로 변환
           const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
               // 포지션 변환 처리
-              // 강제진입 포지션 이름 생성
-              let displayName = pos.strategy_name;
+              // 전략 이름
+              let displayName = pos.strategyName ?? pos.strategy_name;
               if (!displayName) {
-                if (pos.type === 'force_entry') {
+                if ((pos.type || '') === 'force_entry') {
                   displayName = `강제진입${pos.id}`;
                 } else {
-                  displayName = `전략 #${pos.strategy_id}`;
+                  const sid = pos.strategyId ?? pos.strategy_id;
+                  displayName = `전략 #${sid}`;
                 }
               }
 
+              const strategyIdStr = String(pos.strategyId ?? pos.strategy_id ?? '');
+
               return {
                 id: `db-${pos.id}`,
-                strategyId: pos.strategy_id,
+                strategyId: strategyIdStr,
                 strategyName: displayName,
                 symbol: pos.symbol,
-              entryTime: new Date(pos.entry_time),
-              exitTime: pos.exit_time ? new Date(pos.exit_time) : undefined,
-              entryPremiumRate: pos.entry_premium_rate || 0,
-              upbitQuantity: pos.quantity || 0,
-              upbitPrice: pos.entry_price || 0,
-              entryUsdKrw: 1394, // 기본값 (표시 계산 시 최신값으로 보정됨)
-              binanceSpotQuantity: 0,
-              binanceQuantity: pos.quantity || 0,
-              // 바이낸스 진입가격: 전용 필드가 있으면 우선 사용, 없으면 보조 필드 → 최후엔 entry_price
-              binancePrice: (
-                pos.binance_entry_price ??
-                pos.binance_price_usd ??
-                pos.binance_current_price ??
-                pos.entry_price
-              ) || 0,
-              // 레버리지 기본값 보정 (실거래 일반값 3~10배)
-              leverage: pos.binance_leverage || 10,
-              status: pos.status === 'open' ? 'open' : 'closed',
-              unrealizedPnl: pos.unrealized_pnl || 0,
-              realizedPnl: pos.realized_pnl || 0,
-              upbitOrderId: pos.upbit_order_id,
-              binanceOrderId: pos.binance_order_id,
-              isRealTrade: true,
-              takeProfitTargets: pos.take_profit_offset, // 강제진입 익절 오프셋
-              // 바이낸스 선물 상세 정보
-              binanceEntryPrice: pos.binanceEntryPrice,
-              binanceMarkPrice: pos.binanceMarkPrice,
-              binanceLiquidationPrice: pos.binanceLiquidationPrice,
-              binanceSizeUsdt: pos.binanceSizeUsdt,
-              binanceMarginUsdt: pos.binanceMarginUsdt,
-              binanceMarginRatio: pos.binanceMarginRatio,
-              binanceMarginType: pos.binanceMarginType,
-              binanceUnrealizedPnl: pos.binanceUnrealizedPnl
+                type: pos.type,
+                side: pos.side,
+                entryTime: new Date(pos.entryTime ?? pos.entry_time),
+                exitTime: pos.exitTime ? new Date(pos.exitTime) : (pos.exit_time ? new Date(pos.exit_time) : undefined),
+                entryPremiumRate: pos.entryPremiumRate ?? pos.entry_premium_rate ?? 0,
+                upbitQuantity: pos.upbitQuantity ?? pos.quantity ?? 0,
+                upbitPrice: pos.upbitPrice ?? pos.entry_price ?? 0,
+                entryUsdKrw: (pos.entryUsdKrw ?? 1394), // 기본값 (표시 계산 시 최신값으로 보정됨)
+                binanceSpotQuantity: 0,
+                binanceQuantity: pos.binanceQuantity ?? pos.quantity ?? 0,
+                // 바이낸스 진입가격: 전용 필드가 있으면 우선 사용, 없으면 보조 필드 → 최후엔 entry_price
+                binancePrice: (
+                  pos.binanceEntryPrice ??
+                  pos.binancePrice ??
+                  pos.binance_price_usd ??
+                  pos.binance_current_price ??
+                  pos.entry_price
+                ) || 0,
+                // 레버리지 기본값 보정 (실거래 일반값 3~10배)
+                leverage: pos.leverage ?? pos.binance_leverage ?? 10,
+                status: (pos.status === 'open' ? 'open' : 'closed'),
+                unrealizedPnl: pos.unrealizedPnl ?? pos.unrealized_pnl ?? 0,
+                realizedPnl: pos.realizedPnl ?? pos.realized_pnl ?? 0,
+                upbitOrderId: pos.upbitOrderId ?? pos.upbit_order_id,
+                binanceOrderId: pos.binanceOrderId ?? pos.binance_order_id,
+                isRealTrade: true,
+                takeProfitTargets: pos.takeProfitOffset ?? pos.take_profit_offset,
+                // 바이낸스 선물 상세 정보
+                binanceEntryPrice: pos.binanceEntryPrice,
+                binanceMarkPrice: pos.binanceMarkPrice,
+                binanceLiquidationPrice: pos.binanceLiquidationPrice,
+                binanceSizeUsdt: pos.binanceSizeUsdt,
+                binanceMarginUsdt: pos.binanceMarginUsdt,
+                binanceMarginRatio: pos.binanceMarginRatio,
+                binanceMarginType: pos.binanceMarginType,
+                binanceUnrealizedPnl: pos.binanceUnrealizedPnl
               };
             });
             

@@ -10,6 +10,7 @@ interface LivePosition {
   strategyName?: string; // 전략 이름 추가
   symbol: string;
   type?: string;
+  side?: 'long' | 'short' | 'LONG' | 'SHORT';
   entryTime: Date;
   entryPremiumRate: number;
   upbitQuantity: number;
@@ -287,9 +288,21 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       <p className="text-xs text-slate-400">
                         업비트: {formatBTC(position.upbitQuantity)} BTC
                       </p>
-                      <p className="text-xs text-slate-400">
-                        바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC (숏) × {position.leverage}배
-                      </p>
+                      {(() => {
+                        const isFutures = String(position.type || '').startsWith('futures');
+                        const sideLower = String(position.side || '').toLowerCase();
+                        const inferred = String(position.type || '').includes('short') ? '숏' : (String(position.type || '').includes('long') ? '롱' : undefined);
+                        const sideText = sideLower === 'short' ? '숏' : sideLower === 'long' ? '롱' : inferred;
+                        const hasQty = Math.abs(position.binanceQuantity || 0) > 0;
+                        const showBadge = isFutures && (hasQty || !!sideText || !!position.leverage);
+                        return (
+                          <p className="text-xs text-slate-400">
+                            바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC
+                            {showBadge && sideText ? <> ({sideText})</> : null}
+                            {showBadge && position.leverage ? <> × {position.leverage}배</> : null}
+                          </p>
+                        );
+                      })()}
 
                       {/* 바이낸스 선물 상세 정보 */}
                       <div className="text-[10px] text-slate-400 mt-2 space-y-0.5">

@@ -71,9 +71,9 @@ export default function Dashboard() {
 
   // Queries
   const { data: allPositions = [], refetch: refetchPositions, isLoading: isLoadingPositions, error: positionsError } = useQuery<Position[]>({
-    queryKey: ['/api/positions', userId], // 올바른 queryKey 형식
+    queryKey: ['/api/me/positions', 'open', userId],
     queryFn: async () => {
-      const response = await fetch(`/api/positions`, { credentials: 'include' });
+      const response = await fetch(`/api/me/positions?status=open`, { credentials: 'include' });
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch positions: ${errorText}`);
@@ -84,11 +84,8 @@ export default function Dashboard() {
     enabled: !!userId,
   });
 
-  // 활성 포지션만 필터링 (open/active 상태만)
-  const positions = allPositions.filter(p => {
-    const status = p.status as string;
-    return status === 'open' || status === 'active';
-  });
+  // 서버에서 이미 open 필터 적용됨
+  const positions = allPositions;
 
   const { refetch: refetchSettings } = useQuery<TradingSettings>({
     queryKey: [`/api/trading-settings/${userId}`],

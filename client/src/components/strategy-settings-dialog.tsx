@@ -290,7 +290,7 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
       });
       // 모든 관련 캐시 무효화
       queryClient.invalidateQueries({ queryKey: ['/api/trading/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/positions'] });
       
       console.log('🎯 Dialog 자동매매 시작 응답:', data);
       
@@ -501,7 +501,7 @@ export function StrategySettingsDialog({ userId, open, onOpenChange }: StrategyS
             />
             <div className="text-xs text-muted-foreground space-y-1">
               <div>• 업비트에서 이 금액만큼 KRW로 코인을 시장가 매수합니다</div>
-              <div>• 매수 완료 후 수량을 확인하여 바이낸스에서 동일 수량 숏 포지션 진입</div>
+              <div>• 매수 완료 후 수량을 확인하여 바이낸스에서 동일 수량 바이낸스 숏</div>
               <div>• 바이낸스 최소 수량 0.001 이상만 거래 (미만시 자동 거래 제외)</div>
               <div>• 예: 10,000,000원 → BTC 시장가 매수 → 동일 수량 바이낸스 숏</div>
             </div>

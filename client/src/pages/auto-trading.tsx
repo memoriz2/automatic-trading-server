@@ -247,7 +247,7 @@ export default function AutoTrading() {
   const { data: positions = [], refetch: refetchPositions } = useQuery<
     Position[]
   >({
-    queryKey: ["/api/positions", userId],
+    queryKey: ["/api/me/positions", "open", userId],
     refetchInterval: 30000, // 30초마다 조회 (API 제한으로 인한 조정) // 1초마다 포지션 업데이트
     staleTime: 0, // 항상 fresh하게 처리
     gcTime: 0, // 캐시 무효화 (TanStack Query v5)
