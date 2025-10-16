@@ -184,7 +184,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     {pnlData.isRising ? '📈' : pnlData.isFalling ? '📉' : '➡️'} {position.entryPremiumRate.toFixed(3)}% → {pnlData.currentPremium.toFixed(3)}%
                   </Badge>
                 </div>
-                <div className="text-[10px] text-slate-400 mt-1" style={{ float: 'left' }}>
+                <div className="text-[10px] text-slate-400 mt-1">
                   {(() => {
                     // 강제진입은 익절 구간 표시 안함 (수동 청산)
                     if (position.type === 'force_entry') {
@@ -196,7 +196,19 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     return strategy?.takeProfitCondition ? `수익구간 ${parseFloat(parseFloat(strategy.takeProfitCondition).toFixed(3))}% ≤ 김프율` : '-';
                   })()}
                 </div>
-                {/* (삭제됨) 좌측 하단 가격 비교/디버그 표시는 우측 상단 요약 라인만 유지 */}
+                
+                {/* 바이낸스 선물 상세 정보 (정렬 정돈) */}
+                <div className="text-[10px] text-slate-400 mt-2 space-y-1">
+                  <div className="flex items-center gap-4">
+                    <span>Size</span>
+                    <span className="tabular-nums">${(position.binanceSizeUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span>Margin</span>
+                    <span className="tabular-nums">${(position.binanceMarginUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>
+                  </div>
+                </div>
+                      
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-2 ml-auto">
                 <div className="text-right">
@@ -262,21 +274,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                         );
                       })()}
 
-                      {/* 바이낸스 선물 상세 정보 */}
-                      <div className="text-[10px] text-slate-400 mt-2 space-y-0.5">
-                        <p className={position.binanceUnrealizedPnl && position.binanceUnrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          Unrealized PNL: {position.binanceUnrealizedPnl && position.binanceUnrealizedPnl >= 0 ? '+' : ''}${(position.binanceUnrealizedPnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
-                        </p>
-                        <p>Size: ${(position.binanceSizeUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</p>
-                        <p>Margin: ${(position.binanceMarginUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</p>
-                        <p>Margin Ratio: {((position.binanceMarginRatio || 0) * 100).toFixed(2)}%</p>
-                        {position.binanceMarkPrice && position.binanceMarkPrice > 0 && (
-                          <p>Mark Price: ${position.binanceMarkPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                        )}
-                        {position.binanceLiquidationPrice && position.binanceLiquidationPrice > 0 && (
-                          <p>Liq. Price: ${position.binanceLiquidationPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                        )}
-                      </div>
+                      
                 </div>
                 <div className="flex gap-1 md:flex-col ml-auto md:ml-0 p-2 -m-2 md:p-0 md:m-0">
                   <Button
