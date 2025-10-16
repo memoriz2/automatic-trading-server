@@ -2928,6 +2928,34 @@ export async function registerRoutes(
       const whereClause: any = { userId, status: status || 'open' };
       const positions = await storage.getPositions(whereClause);
 
+      // 누락된 바이낸스 진입가 보정: binanceOrderId가 있고 binancePrice가 없거나 0인 경우 재조회
+      const needsRepair = positions.filter((p: any) => (!p.binancePrice || Number(p.binancePrice) === 0) && (p.binance_order_id || p.binanceOrderId));
+      if (needsRepair.length > 0) {
+        try {
+          const { ExchangeServiceFactory } = await import('./services/exchange-factory.js');
+          const binanceService = await ExchangeServiceFactory.initializeBinanceOnly(parseInt(userId));
+          if (binanceService) {
+            for (const p of needsRepair) {
+              try {
+                const symbol = (p.symbol || 'BTC').toUpperCase();
+                const orderIdStr = String(p.binance_order_id ?? p.binanceOrderId ?? '');
+                const orderIdNum = parseInt(orderIdStr);
+                if (!isNaN(orderIdNum)) {
+                  const detail = await binanceService.getFuturesOrderDetail(symbol, orderIdNum);
+                  // price/avgPrice/avgPrice from fills
+                  const avg = parseFloat(detail.avgPrice || detail.price || '0');
+                  if (avg && isFinite(avg)) {
+                    p.binancePrice = avg;
+                    // DB에 즉시 반영 시도 (best-effort)
+                    await storage.updatePosition(p.id, { binanceEntryPrice: avg });
+                  }
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+
       // camelCase로만 정규화하여 반환 (원본 로우 필드는 포함하지 않음)
       const mappedPositions = positions.map((p: any) => {
         const displayName = p.strategy_name
