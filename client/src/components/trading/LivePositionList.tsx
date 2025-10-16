@@ -249,35 +249,38 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
               </div>
               <div className="flex flex-col md:flex-row md:items-center gap-2 ml-auto">
                 <div className="text-right">
-                  {/* 차익거래 수익 표시 (김프율 증가 = 수익) */}
-                  <p className={`font-bold flex justify-end text-right gap-1 ${
-                    pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {pnlData.unrealizedPnl >= 0 ? '🟢' : '🔴'}
-                    {pnlData.unrealizedPnl >= 0 ? '+' : '−'}₩{Math.max(1, Math.round(Math.abs(pnlData.unrealizedPnl))).toLocaleString()}
-                  </p>
-                  <p className={`text-xs ${
-                    pnlData.unrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {(() => {
-                      // 중앙화된 계산 함수 사용 (중복 계산 제거)
-                      const pnlResult = calculatePositionPnL(position, lastKimchiData);
-                      const netPnlKRW = pnlResult.netPnl;
-                      const premiumPnlPercentRaw = pnlResult.netEntryExposure > 0 ? (netPnlKRW / pnlResult.netEntryExposure * 100) : 0;
+                  {(() => {
+                    // 우측 상단 라인에 업비트/바이낸스 가치 변화 표시
+                    // (현재가 − 진입가) × 수량, 선물은 숏/롱 부호 반영, 환율 적용
+                    const usdkrw = lastKimchiData?.usdkrw || 0;
+                    const currentUpbitPrice = lastKimchiData?.upbit_price || position.upbitPrice;
+                    const currentBinancePrice = lastKimchiData?.binance_price || position.binancePrice;
 
-                      // 디버깅용 로그
-                      // Position PnL 계산됨
+                    const entryUpbitUnit = (position.upbitQuantity && position.upbitQuantity > 0)
+                      ? (position.upbitPrice / position.upbitQuantity)
+                      : position.upbitPrice;
+                    const upbitPriceDiff = currentUpbitPrice - entryUpbitUnit; // 1 BTC 기준
+                    const upbitValueDiff = upbitPriceDiff * (position.upbitQuantity || 0);
 
-                      const premiumPnlPercent = Math.abs(premiumPnlPercentRaw);
+                    const entryUsd = position.binancePrice > 1_000_000 ? position.binancePrice / (usdkrw || 1) : position.binancePrice;
+                    const nowUsd = currentBinancePrice > 1_000_000 ? currentBinancePrice / (usdkrw || 1) : currentBinancePrice;
+                    const sideLower = String(position.side || position.type || '').toLowerCase();
+                    const isShort = sideLower.includes('short');
+                    const binancePriceDiffKrw = (isShort ? (entryUsd - nowUsd) : (nowUsd - entryUsd)) * (usdkrw || 0);
+                    const binanceValueDiff = binancePriceDiffKrw * (position.binanceQuantity || 0);
 
-                      // 실제 손익에 따라 표시
-                      const isProfit = netPnlKRW >= 0;
-                      const directionText = isProfit ? '차익거래 수익' : '차익거래 손실';
-                      const sign = isProfit ? '+' : '−';
+                    const fmtKRW = (v: number) => `${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()} KRW`;
+                    const upbitStr = fmtKRW(upbitValueDiff);
+                    const binanceStr = fmtKRW(binanceValueDiff);
+                    const comparison = Math.abs(upbitValueDiff) > Math.abs(binanceValueDiff) ? '>' : '<';
+                    const isProfit = (upbitValueDiff + binanceValueDiff) >= 0;
 
-                      return `${directionText}: ${sign}₩${Math.max(1, Math.round(Math.abs(netPnlKRW))).toLocaleString()} (${sign}${premiumPnlPercent.toFixed(3)}%)`;
-                    })()}
-                  </p>
+                    return (
+                      <p className={`font-bold text-xs md:text-sm ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                        {isProfit ? '🟢' : '🔴'} 업비트 {upbitStr} {comparison} {binanceStr} 바이낸스
+                      </p>
+                    );
+                  })()}
                       <p className="text-xs text-slate-400">
                         업비트: {formatBTC(position.upbitQuantity)} BTC
                       </p>
