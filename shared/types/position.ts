@@ -43,15 +43,23 @@ export interface PositionInfo extends BasePosition {
   upbitQuantity: number;
   upbitPrice: number;
   upbitEntryPrice?: number;
-  upbitCurrentPrice?: number;
   upbitOrderId?: string | null;
 
   // 바이낸스 정보
   binanceQuantity: number;
   binancePrice: number;
-  binanceEntryPrice?: number;
   binanceLeverage?: number;
   binanceOrderId?: string | null;
+
+  // 바이낸스 선물 상세 정보 (이미지 데이터)
+  binanceEntryPrice?: number; // 진입가 (바이낸스 API)
+  binanceMarkPrice?: number; // 마크 가격
+  binanceLiquidationPrice?: number; // 청산 가격
+  binanceSizeUsdt?: number; // Size (USDT) - 진입가 기준 명목 가치
+  binanceMarginUsdt?: number; // Margin (USDT) - 실제 투자 금액
+  binanceMarginRatio?: number; // 마진 비율 (%)
+  binanceMarginType?: 'cross' | 'isolated'; // 마진 모드
+  binanceUnrealizedPnl?: number; // 미실현 손익 (USDT)
 
   // 환율 정보
   entryUsdKrw: number;
@@ -101,7 +109,6 @@ export interface PositionDisplay {
   symbol: string;
   type: string;
   entryPrice: number;
-  currentPrice?: number;
   quantity: number;
   entryPremiumRate: number;
   currentPremiumRate?: number;
@@ -140,7 +147,6 @@ export interface PositionDto {
   side: 'long' | 'short';
   status: 'open' | 'closed' | 'liquidated';
   entryPrice: number;
-  currentPrice?: number;
   quantity: number;
 
   // 바이낸스 선물 정보

@@ -11,26 +11,30 @@ export class PositionsRepository extends BaseRepository {
         const query = `
       INSERT INTO positions (
         user_id, strategy_id, symbol, type, side, status,
-        entry_price, current_price, quantity,
+        entry_price, quantity,
         binance_quantity, binance_entry_price, binance_leverage,
         entry_premium_rate, current_premium_rate,
         unrealized_pnl, realized_pnl, total_fees,
         entry_time, exit_time,
         upbit_order_id, binance_order_id,
         ip, device_type,
+        binance_mark_price, binance_liquidation_price, binance_size_usdt,
+        binance_margin_usdt, binance_margin_ratio, binance_margin_type, binance_unrealized_pnl,
         created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6,
-        $7, $8, $9,
-        $10, $11, $12,
-        $13, $14,
-        $15, $16, $17,
-        $18, $19,
-        $20, $21,
-        $22, $23,
+        $7, $8,
+        $9, $10, $11,
+        $12, $13,
+        $14, $15, $16,
+        $17, $18,
+        $19, $20,
+        $21, $22,
+        $23, $24, $25,
+        $26, $27, $28, $29,
         NOW(), NOW()
       )
-      RETURNING 
+      RETURNING
         id,
         user_id as "userId",
         strategy_id as "strategyId",
@@ -39,7 +43,6 @@ export class PositionsRepository extends BaseRepository {
         status,
         quantity as "upbitQuantity",
         entry_price as "upbitEntryPrice",
-        current_price as "upbitCurrentPrice",
         upbit_order_id as "upbitOrderId",
         binance_quantity as "binanceQuantity",
         binance_entry_price as "binanceEntryPrice",
@@ -63,7 +66,6 @@ export class PositionsRepository extends BaseRepository {
             positionData.side,
             positionData.status,
             positionData.entryPrice,
-            positionData.currentPrice || null,
             positionData.quantity,
             // Binance 전용 필드(없으면 0/기본값)
             positionData.binanceQuantity ?? 0,
@@ -80,6 +82,14 @@ export class PositionsRepository extends BaseRepository {
             positionData.binanceOrderId || null,
             positionData.ip || null,
             positionData.deviceType || 'Unknown',
+            // Binance 상세 정보 (선물 포지션 데이터)
+            positionData.binanceMarkPrice ?? 0,
+            positionData.binanceLiquidationPrice ?? 0,
+            positionData.binanceSizeUsdt ?? 0,
+            positionData.binanceMarginUsdt ?? 0,
+            positionData.binanceMarginRatio ?? 0,
+            positionData.binanceMarginType || 'cross',
+            positionData.binanceUnrealizedPnl ?? 0,
         ]);
         if (!result) {
             throw new Error('포지션 생성에 실패했습니다.');
@@ -91,7 +101,7 @@ export class PositionsRepository extends BaseRepository {
      */
     async findById(id) {
         const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         strategy_id as "strategyId",
@@ -100,7 +110,6 @@ export class PositionsRepository extends BaseRepository {
         status,
         quantity as "upbitQuantity",
         entry_price as "upbitEntryPrice",
-        current_price as "upbitCurrentPrice",
         upbit_order_id as "upbitOrderId",
         binance_quantity as "binanceQuantity",
         binance_entry_price as "binanceEntryPrice",
@@ -115,7 +124,7 @@ export class PositionsRepository extends BaseRepository {
         exit_time as "exitTime",
         created_at as "createdAt",
         updated_at as "updatedAt"
-      FROM positions 
+      FROM positions
       WHERE id = $1     `;
         return this.queryOne(query, [id]);
     }
@@ -124,7 +133,7 @@ export class PositionsRepository extends BaseRepository {
      */
     async findActiveByUserId(userId) {
         const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         strategy_id as "strategyId",
@@ -133,7 +142,6 @@ export class PositionsRepository extends BaseRepository {
         status,
         quantity as "upbitQuantity",
         entry_price as "upbitEntryPrice",
-        current_price as "upbitCurrentPrice",
         upbit_order_id as "upbitOrderId",
         binance_quantity as "binanceQuantity",
         binance_entry_price as "binanceEntryPrice",
@@ -148,22 +156,16 @@ export class PositionsRepository extends BaseRepository {
         exit_time as "exitTime",
         created_at as "createdAt",
         updated_at as "updatedAt"
-      FROM positions 
+      FROM positions
       WHERE user_id = $1 AND status = 'open'       ORDER BY entry_time DESC
     `;
         return this.query(query, [userId]);
     }
     /**
-     * 포지션 현재가 및 PnL 업데이트
+     * 포지션 현재 김프율 및 PnL 업데이트
      */
-    async updatePricesAndPnl(id, upbitCurrentPrice, binanceCurrentPrice, currentPremiumRate, unrealizedPnl) {
+    async updatePricesAndPnl(id, currentPremiumRate, unrealizedPnl) {
         const updates = {};
-        if (upbitCurrentPrice !== undefined) {
-            updates.current_price = upbitCurrentPrice;
-        }
-        if (binanceCurrentPrice !== undefined) {
-            updates.binance_current_price = binanceCurrentPrice;
-        }
         if (currentPremiumRate !== undefined) {
             updates.current_premium_rate = currentPremiumRate;
         }
@@ -226,7 +228,7 @@ export class PositionsRepository extends BaseRepository {
      */
     async findByStrategyId(strategyId) {
         const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         strategy_id as "strategyId",
@@ -235,7 +237,6 @@ export class PositionsRepository extends BaseRepository {
         status,
         quantity as "upbitQuantity",
         entry_price as "upbitEntryPrice",
-        current_price as "upbitCurrentPrice",
         upbit_order_id as "upbitOrderId",
         binance_quantity as "binanceQuantity",
         binance_entry_price as "binanceEntryPrice",
@@ -250,7 +251,7 @@ export class PositionsRepository extends BaseRepository {
         exit_time as "exitTime",
         created_at as "createdAt",
         updated_at as "updatedAt"
-      FROM positions 
+      FROM positions
       WHERE strategy_id = $1       ORDER BY entry_time DESC
     `;
         return this.query(query, [strategyId]);
@@ -261,7 +262,7 @@ export class PositionsRepository extends BaseRepository {
      */
     async getOpenPositionByStrategyAndSymbol(strategyId, symbol) {
         const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         strategy_id as "strategyId",
@@ -270,7 +271,6 @@ export class PositionsRepository extends BaseRepository {
         status,
         quantity as "upbitQuantity",
         entry_price as "upbitEntryPrice",
-        current_price as "upbitCurrentPrice",
         upbit_order_id as "upbitOrderId",
         binance_quantity as "binanceQuantity",
         binance_entry_price as "binanceEntryPrice",
@@ -286,7 +286,7 @@ export class PositionsRepository extends BaseRepository {
         COALESCE(remaining_quantity, quantity, binance_quantity) as "remainingQuantity",
         created_at as "createdAt",
         updated_at as "updatedAt"
-      FROM positions 
+      FROM positions
       WHERE strategy_id = $1 AND symbol = $2 AND status = 'open'       LIMIT 1
     `;
         return this.queryOne(query, [strategyId, symbol]);

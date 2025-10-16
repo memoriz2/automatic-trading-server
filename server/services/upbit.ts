@@ -192,7 +192,12 @@ export class UpbitService {
     if (method === 'GET' || method === 'DELETE') {
       if (queryString) fullUrl += `?${queryString}`;
     } else if (method === 'POST') {
+      // Upbit API는 POST도 form data로 전송
       options.body = JSON.stringify(nonNilParams);
+      options.headers = {
+        ...options.headers,
+        'Content-Type': 'application/json'
+      };
     }
 
     const response = await fetch(fullUrl, options);
@@ -218,7 +223,16 @@ export class UpbitService {
       } else {
         params.price = price.toString(); // 시장가 매수 시 총액
       }
-      return this.sendRequest('orders', 'POST', params);
+      const result = await this.sendRequest('orders', 'POST', params);
+
+      // 🔍 응답 구조 로그 (디버깅용)
+      console.log('📊 [placeBuyOrder] API 응답 구조:', {
+        hasUuid: !!result.uuid,
+        uuid: result.uuid || 'N/A',
+        keys: Object.keys(result)
+      });
+
+      return result;
     } catch (error) {
       console.error('Upbit placeBuyOrder error:', error);
       throw new Error(`주문 조회 실패: ${(error as Error).message}`);
@@ -228,8 +242,8 @@ export class UpbitService {
   // 주문 상세 조회 (체결가 확인용)
   async getOrderDetail(uuid: string): Promise<any> {
     try {
-      const params = `uuid=${uuid}`;
-      return this.sendRequest(`order?${params}`, 'GET');
+      const params = { uuid };
+      return this.sendRequest('order', 'GET', params);
     } catch (error) {
       console.error('Upbit getOrderDetail error:', error);
       throw new Error(`주문 상세 조회 실패: ${(error as Error).message}`);

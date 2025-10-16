@@ -111,14 +111,13 @@ export interface PositionDto {
   side: 'long' | 'short';
   status: 'open' | 'closed' | 'liquidated';
   entryPrice: number;
-  currentPrice?: number;
   quantity: number;
 
   // 바이낸스 선물 정보
   binanceQuantity?: number;
   binanceEntryPrice?: number;
   binanceLeverage?: number;
-  
+
   // 김치 프리미엄 정보
   entryPremiumRate: number;
   currentPremiumRate?: number;
@@ -256,7 +255,6 @@ export interface Position {
   symbol: string;
   type: string;
   entryPrice: number;
-  currentPrice?: number | null;
   quantity: number;
   entryPremiumRate: number;
   currentPremiumRate?: number | null;

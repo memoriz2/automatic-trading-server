@@ -533,18 +533,22 @@ export class DatabaseStorage {
 
   async createPosition(data: any): Promise<any> {
     try {
-      const result = await this.pool.query(`
-        INSERT INTO positions (
-          user_id, strategy_id, symbol, type, entry_price, quantity,
-          entry_premium_rate, status, side, binance_leverage,
-          binance_entry_price, force_entry_settings_id, upbit_order_id, binance_order_id, created_at, updated_at, entry_time
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, $11, $12,
-          $13, $14, NOW(), NOW(), NOW()
-        )
-        RETURNING *
-      `, [
+      // 🔍 DEBUG: createPosition에 전달된 data 객체 전체 출력
+      console.log(`\n========== [DEBUG] createPosition 호출됨 ==========`);
+      console.log(`🔍 [DEBUG] 전달받은 data 객체 전체:`, JSON.stringify(data, null, 2));
+
+      // 🔍 DEBUG: 바이낸스 상세 정보만 따로 출력
+      console.log(`\n🔍 [DEBUG] 바이낸스 선물 상세 정보 추출:`);
+      console.log(`  - binanceMarkPrice: ${data.binanceMarkPrice} (타입: ${typeof data.binanceMarkPrice})`);
+      console.log(`  - binanceLiquidationPrice: ${data.binanceLiquidationPrice} (타입: ${typeof data.binanceLiquidationPrice})`);
+      console.log(`  - binanceSizeUsdt: ${data.binanceSizeUsdt} (타입: ${typeof data.binanceSizeUsdt})`);
+      console.log(`  - binanceMarginUsdt: ${data.binanceMarginUsdt} (타입: ${typeof data.binanceMarginUsdt})`);
+      console.log(`  - binanceMarginRatio: ${data.binanceMarginRatio} (타입: ${typeof data.binanceMarginRatio})`);
+      console.log(`  - binanceMarginType: ${data.binanceMarginType} (타입: ${typeof data.binanceMarginType})`);
+      console.log(`  - binanceUnrealizedPnl: ${data.binanceUnrealizedPnl} (타입: ${typeof data.binanceUnrealizedPnl})`);
+
+      // 🔍 DEBUG: SQL에 전달될 실제 값들 출력
+      const sqlParams = [
         data.userId,
         data.strategyId,
         data.symbol,
@@ -552,19 +556,61 @@ export class DatabaseStorage {
         data.entryPrice,
         data.quantity,
         data.entryPremiumRate,
+        data.currentPremiumRate || data.entryPremiumRate,
         data.status || 'open',
         data.side,
-        // 우선순위: 명시 전달값 → 전략 레버리지 → 안전 기본값 5
         (data.binanceLeverage ?? data.leverage ?? 5),
         data.binanceEntryPrice,
+        data.binanceQuantity || data.quantity,
+        data.remainingQuantity || data.quantity,
+        data.unrealizedPnl || 0,
+        data.totalFees || 0,
         data.forceEntrySettingsId || null,
         data.upbitOrderId || null,
-        data.binanceOrderId || null
-      ]);
+        data.binanceOrderId || null,
+        // 바이낸스 선물 상세 정보 (신규)
+        data.binanceMarkPrice || 0,
+        data.binanceLiquidationPrice || 0,
+        data.binanceSizeUsdt || 0,
+        data.binanceMarginUsdt || 0,
+        data.binanceMarginRatio || 0,
+        data.binanceMarginType || 'cross',
+        data.binanceUnrealizedPnl || 0
+      ];
 
+      console.log(`\n🔍 [DEBUG] SQL 파라미터 ($20 ~ $26 = 바이낸스 상세 정보):`);
+      console.log(`  $20 (binance_mark_price): ${sqlParams[19]}`);
+      console.log(`  $21 (binance_liquidation_price): ${sqlParams[20]}`);
+      console.log(`  $22 (binance_size_usdt): ${sqlParams[21]}`);
+      console.log(`  $23 (binance_margin_usdt): ${sqlParams[22]}`);
+      console.log(`  $24 (binance_margin_ratio): ${sqlParams[23]}`);
+      console.log(`  $25 (binance_margin_type): ${sqlParams[24]}`);
+      console.log(`  $26 (binance_unrealized_pnl): ${sqlParams[25]}`);
+      console.log(`========== [DEBUG] createPosition 로그 끝 ==========\n`);
+
+      const result = await this.pool.query(`
+        INSERT INTO positions (
+          user_id, strategy_id, symbol, type, entry_price, quantity,
+          entry_premium_rate, current_premium_rate, status, side, binance_leverage,
+          binance_entry_price, binance_quantity, remaining_quantity,
+          unrealized_pnl, total_fees, force_entry_settings_id, upbit_order_id, binance_order_id,
+          binance_mark_price, binance_liquidation_price, binance_size_usdt, binance_margin_usdt,
+          binance_margin_ratio, binance_margin_type, binance_unrealized_pnl,
+          created_at, updated_at, entry_time
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11, $12,
+          $13, $14, $15, $16, $17, $18,
+          $19, $20, $21, $22, $23, $24,
+          $25, $26, NOW(), NOW(), NOW()
+        )
+        RETURNING *
+      `, sqlParams);
+
+      console.log(`✅ [DEBUG] 포지션 생성 성공! 반환된 row:`, result.rows[0]);
       return result.rows[0];
     } catch (error) {
-      console.error('Error creating position:', error);
+      console.error('❌ [DEBUG] Error creating position:', error);
       throw error;
     }
   }
@@ -1089,7 +1135,38 @@ export class DatabaseStorage {
 
   async getAllPositions(userId?: number): Promise<any[]> {
     try {
-      let query = `SELECT p.*,
+      let query = `SELECT p.id,
+                          p.user_id,
+                          p.strategy_id,
+                          p.symbol,
+                          p.type,
+                          p.entry_price as upbitPrice,
+                          p.binance_entry_price as binancePrice,
+                          p.quantity as upbitQuantity,
+                          p.binance_quantity as binanceQuantity,
+                          p.remaining_quantity,
+                          p.entry_premium_rate,
+                          p.current_premium_rate,
+                          p.status,
+                          p.side,
+                          p.binance_leverage as leverage,
+                          p.unrealized_pnl,
+                          p.total_fees,
+                          p.upbit_order_id,
+                          p.binance_order_id,
+                          p.force_entry_settings_id,
+                          p.entry_time,
+                          p.exit_time,
+                          p.created_at,
+                          p.updated_at,
+                          p.entry_usd_krw as "entryUsdKrw",
+                          p.binance_mark_price as "binanceMarkPrice",
+                          p.binance_liquidation_price as "binanceLiquidationPrice",
+                          p.binance_size_usdt as "binanceSizeUsdt",
+                          p.binance_margin_usdt as "binanceMarginUsdt",
+                          p.binance_margin_ratio as "binanceMarginRatio",
+                          p.binance_margin_type as "binanceMarginType",
+                          p.binance_unrealized_pnl as "binanceUnrealizedPnl",
                           ts.name as strategy_name,
                           fes.take_profit_offset,
                           fes.id as force_entry_settings_id
@@ -1100,7 +1177,38 @@ export class DatabaseStorage {
       let params: any[] = [];
 
       if (userId) {
-        query = `SELECT p.*,
+        query = `SELECT p.id,
+                        p.user_id,
+                        p.strategy_id,
+                        p.symbol,
+                        p.type,
+                        p.entry_price as upbitPrice,
+                        p.binance_entry_price as binancePrice,
+                        p.quantity as upbitQuantity,
+                        p.binance_quantity as binanceQuantity,
+                        p.remaining_quantity,
+                        p.entry_premium_rate,
+                        p.current_premium_rate,
+                        p.status,
+                        p.side,
+                        p.binance_leverage as leverage,
+                        p.unrealized_pnl,
+                        p.total_fees,
+                        p.upbit_order_id,
+                        p.binance_order_id,
+                        p.force_entry_settings_id,
+                        p.entry_time,
+                        p.exit_time,
+                        p.created_at,
+                        p.updated_at,
+                        p.entry_usd_krw as "entryUsdKrw",
+                        p.binance_mark_price as "binanceMarkPrice",
+                        p.binance_liquidation_price as "binanceLiquidationPrice",
+                        p.binance_size_usdt as "binanceSizeUsdt",
+                        p.binance_margin_usdt as "binanceMarginUsdt",
+                        p.binance_margin_ratio as "binanceMarginRatio",
+                        p.binance_margin_type as "binanceMarginType",
+                        p.binance_unrealized_pnl as "binanceUnrealizedPnl",
                         ts.name as strategy_name,
                         fes.take_profit_offset,
                         fes.id as force_entry_settings_id
@@ -1561,6 +1669,68 @@ export class DatabaseStorage {
 
   async getPositions(whereClause: any = {}): Promise<any[]> {
     const userId = whereClause.user_id || whereClause.userId;
+    const status = whereClause.status;
+
+    // status 필터가 있으면 필터링된 결과 반환
+    if (status) {
+      try {
+        let query = `SELECT p.id,
+                            p.user_id,
+                            p.strategy_id,
+                            p.symbol,
+                            p.type,
+                            p.entry_price as upbitPrice,
+                            p.binance_entry_price as binancePrice,
+                            p.quantity as upbitQuantity,
+                            p.binance_quantity as binanceQuantity,
+                            p.remaining_quantity,
+                            p.entry_premium_rate,
+                            p.current_premium_rate,
+                            p.status,
+                            p.side,
+                            p.binance_leverage as leverage,
+                            p.unrealized_pnl,
+                            p.total_fees,
+                            p.upbit_order_id,
+                            p.binance_order_id,
+                            p.force_entry_settings_id,
+                            p.entry_time,
+                            p.exit_time,
+                            p.created_at,
+                            p.updated_at,
+                            p.entry_usd_krw as entryUsdKrw,
+                            p.binance_mark_price as binanceMarkPrice,
+                            p.binance_liquidation_price as binanceLiquidationPrice,
+                            p.binance_size_usdt as binanceSizeUsdt,
+                            p.binance_margin_usdt as binanceMarginUsdt,
+                            p.binance_margin_ratio as binanceMarginRatio,
+                            p.binance_margin_type as binanceMarginType,
+                            p.binance_unrealized_pnl as binanceUnrealizedPnl,
+                            ts.name as strategy_name,
+                            fes.take_profit_offset,
+                            fes.id as force_entry_settings_id
+                     FROM positions p
+                     LEFT JOIN trading_strategies ts ON p.strategy_id = ts.id
+                     LEFT JOIN force_entry_settings fes ON p.force_entry_settings_id = fes.id
+                     WHERE p.status = $1`;
+        let params: any[] = [status];
+
+        if (userId) {
+          query += ` AND p.user_id = $2`;
+          params.push(userId);
+        }
+
+        query += ` ORDER BY p.entry_time DESC`;
+
+        const result = await this.pool.query(query, params);
+        return result.rows;
+      } catch (error) {
+        console.error('Error getting positions with status filter:', error);
+        return [];
+      }
+    }
+
+    // status 필터 없으면 모든 포지션 반환
     return this.getAllPositions(userId);
   }
 

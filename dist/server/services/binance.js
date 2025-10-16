@@ -698,7 +698,7 @@ export class BinanceService {
             throw error;
         }
     }
-    // 현재 포지션 정보 조회
+    // 현재 포지션 정보 조회 (마진 비율 계산 포함)
     async getFuturesPositions() {
         try {
             if (!this.apiKey) {
@@ -719,8 +719,38 @@ export class BinanceService {
                 throw new Error(`Binance futures positions error: ${response.status}`);
             }
             const positions = await response.json();
-            // 포지션이 있는 것만 필터링
-            return positions.filter((pos) => parseFloat(pos.positionAmt) !== 0);
+            // 포지션이 있는 것만 필터링하고 전체 정보 반환 (마진 비율 계산 추가)
+            return positions.filter((pos) => parseFloat(pos.positionAmt) !== 0).map((pos) => {
+                const positionAmt = parseFloat(pos.positionAmt);
+                const entryPrice = parseFloat(pos.entryPrice);
+                const markPrice = parseFloat(pos.markPrice);
+                const leverage = parseInt(pos.leverage);
+                // Size (USDT): 진입가 기준 명목 가치 (레버리지 반영)
+                const sizeUsdt = Math.abs(positionAmt * entryPrice);
+                // Margin (USDT): 실제 투자 금액 = Size / 레버리지
+                const marginUsdt = sizeUsdt / leverage;
+                // 유지 마진 비율 계산
+                const maintMargin = pos.maintMargin ? parseFloat(pos.maintMargin) : 0;
+                const marginRatio = marginUsdt > 0 ? (maintMargin / marginUsdt) * 100 : 0;
+                return {
+                    symbol: pos.symbol,
+                    positionAmt,
+                    entryPrice, // 진입가
+                    markPrice, // 마크 가격
+                    unRealizedProfit: parseFloat(pos.unRealizedProfit), // 미실현 손익 (USDT)
+                    liquidationPrice: parseFloat(pos.liquidationPrice),
+                    leverage,
+                    marginType: pos.marginType, // 'cross' or 'isolated'
+                    isolatedMargin: pos.isolatedMargin ? parseFloat(pos.isolatedMargin) : 0,
+                    positionSide: pos.positionSide, // 'BOTH', 'LONG', 'SHORT'
+                    sizeUsdt, // Size (USDT) - 진입가 기준 명목 가치
+                    marginUsdt, // Margin (USDT) - 실제 투자 금액
+                    maintMargin, // 유지 마진
+                    marginRatio, // 마진 비율 (%)
+                    isolatedWallet: pos.isolatedWallet ? parseFloat(pos.isolatedWallet) : 0,
+                    updateTime: pos.updateTime
+                };
+            });
         }
         catch (error) {
             console.error('Binance getFuturesPositions error:', error);

@@ -49,10 +49,18 @@ export function calculateUpbitFee(quantity, price, paidFee) {
  *
  * @param quantity BTC 수량
  * @param price 거래 가격 (USDT)
+ * @param paidFee API 응답의 commission 값 (있는 경우)
  * @returns 수수료 (USDT)
  */
-export function calculateBinanceFee(quantity, price) {
-    // 시장가 주문 = Taker 수수료
+export function calculateBinanceFee(quantity, price, paidFee) {
+    // API에서 commission을 제공한 경우 그 값 사용
+    if (paidFee !== undefined && paidFee !== null) {
+        const fee = typeof paidFee === 'string' ? parseFloat(paidFee) : paidFee;
+        if (!isNaN(fee) && fee > 0) {
+            return fee;
+        }
+    }
+    // 수수료율로 계산 (0.04%)
     return quantity * price * FEE_RATES.BINANCE_FUTURES_TAKER;
 }
 /**
@@ -72,16 +80,17 @@ export function convertBinanceFeeToKRW(feeInUSDT, usdtKrwRate) {
  * @param binancePrice 바이낸스 거래 가격 (USDT)
  * @param usdtKrwRate USDT-KRW 환율
  * @param upbitPaidFee 업비트 API 응답의 paid_fee (선택)
+ * @param binancePaidFee 바이낸스 API 응답의 commission (선택)
  * @returns { upbitFee: KRW, binanceFee: USDT, binanceFeeKRW: KRW, totalFeeKRW: KRW }
  */
 export async function calculateTotalTradingFees(params) {
-    const { upbitQuantity, upbitPrice, binanceQuantity, binancePrice, upbitPaidFee } = params;
+    const { upbitQuantity, upbitPrice, binanceQuantity, binancePrice, upbitPaidFee, binancePaidFee } = params;
     // 환율 (제공되지 않으면 조회)
     const usdtKrwRate = params.usdtKrwRate ?? await getUSDTKRWRate();
     // 업비트 수수료 (KRW)
     const upbitFee = calculateUpbitFee(upbitQuantity, upbitPrice, upbitPaidFee);
-    // 바이낸스 수수료 (USDT)
-    const binanceFee = calculateBinanceFee(binanceQuantity, binancePrice);
+    // 바이낸스 수수료 (USDT) - API에서 받은 값 우선 사용
+    const binanceFee = calculateBinanceFee(binanceQuantity, binancePrice, binancePaidFee);
     // 바이낸스 수수료 (KRW 환산)
     const binanceFeeKRW = convertBinanceFeeToKRW(binanceFee, usdtKrwRate);
     // 총 수수료 (KRW)

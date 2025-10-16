@@ -82,7 +82,6 @@ export class UnifiedPositionService {
         side: params.side === 'buy' ? 'long' : params.side === 'sell' ? 'short' : params.side as 'long' | 'short',
         status: "open",
         entryPrice: params.price,
-        currentPrice: params.price,
         quantity: params.quantity,
         entryPremiumRate: params.premiumRate,
         unrealizedPnl: 0,

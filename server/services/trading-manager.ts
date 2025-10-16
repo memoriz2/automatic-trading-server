@@ -73,6 +73,9 @@ export class TradingManager {
         totalKRWAmount
       );
 
+      // 🔍 업비트 주문 응답 전체 로그 (디버깅용)
+      console.log(`🔍 [업비트 주문 응답 전체]:`, JSON.stringify(upbitOrder, null, 2));
+
       // 2. 바이낸스 선물 숏
       const binanceOrder = await services.binance.placeFuturesShortOrder(
         params.symbol,
@@ -133,15 +136,23 @@ export class TradingManager {
         actualBinancePrice = 0;
       }
 
+      // 바이낸스 수수료 (API에서 직접 받아오기)
+      let binancePaidFee: number | undefined = undefined;
+      if (binanceOrderDetail.commission) {
+        binancePaidFee = parseFloat(binanceOrderDetail.commission);
+        console.log(`💰 바이낸스 실제 수수료: ${binancePaidFee} ${binanceOrderDetail.commissionAsset || 'USDT'}`);
+      }
+
       console.log(`✅ 바이낸스 실제 체결가: $${actualBinancePrice.toLocaleString()}`);
 
-      // 4. 수수료 계산 (중앙화된 유틸리티 사용)
+      // 4. 수수료 계산 (API에서 받은 실제 수수료 우선 사용)
       const fees = await calculateTotalTradingFees({
         upbitQuantity: actualUpbitQuantity,
         upbitPrice: actualUpbitPrice,
         binanceQuantity: actualUpbitQuantity,
         binancePrice: actualBinancePrice,
-        upbitPaidFee
+        upbitPaidFee,
+        binancePaidFee // 바이낸스 실제 수수료 추가
       });
 
       console.log(`💰 수수료 계산 완료:`, {
@@ -158,15 +169,21 @@ export class TradingManager {
         type: 'force_entry',
         entryPrice: actualUpbitPrice, // 실제 체결된 업비트 가격
         binanceEntryPrice: actualBinancePrice, // 실제 체결된 바이낸스 가격 (USD)
+        currentPrice: actualUpbitPrice, // 현재가 = 진입가로 초기화
         quantity: actualUpbitQuantity, // 실제 체결된 업비트 BTC 수량
+        binanceQuantity: actualUpbitQuantity, // 바이낸스 수량 (동일)
+        remainingQuantity: actualUpbitQuantity, // 남은 수량 (초기값 = 전체 수량)
         entryPremiumRate: params.currentKimp,
         currentPremiumRate: params.currentKimp,
+        unrealizedPnl: 0, // 초기값 0 (이후 백그라운드에서 업데이트)
+        totalFees: fees.totalFeeKRW, // 총 수수료 (KRW)
         status: 'open',
         side: 'long',
         isMock: false,
         leverage: params.leverage,
+        binanceLeverage: params.leverage, // 바이낸스 레버리지
         upbitOrderId: upbitOrder.uuid,
-        binanceOrderId: binanceOrder.orderId,
+        binanceOrderId: binanceOrder.orderId.toString(),
         forceEntrySettingsId: forceEntrySettingsId // 강제진입 설정 ID 추가
       };
 

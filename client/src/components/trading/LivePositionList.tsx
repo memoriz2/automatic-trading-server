@@ -23,6 +23,16 @@ interface LivePosition {
   unrealizedPnl: number;
   realizedPnl: number;
   takeProfitTargets?: number; // 강제진입 익절 오프셋
+
+  // 바이낸스 선물 상세 정보 추가
+  binanceEntryPrice?: number; // 진입가 (바이낸스 API)
+  binanceMarkPrice?: number; // 마크 가격
+  binanceLiquidationPrice?: number; // 청산 가격
+  binanceSizeUsdt?: number; // Size (USDT) - 진입가 기준 명목 가치
+  binanceMarginUsdt?: number; // Margin (USDT) - 실제 투자 금액
+  binanceMarginRatio?: number; // 마진 비율 (%)
+  binanceMarginType?: 'cross' | 'isolated'; // 마진 모드
+  binanceUnrealizedPnl?: number; // 미실현 손익 (USDT)
 }
 
 interface Strategy {
@@ -280,6 +290,22 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                       <p className="text-xs text-slate-400">
                         바이낸스 선물: {formatBTC(position.binanceQuantity)} BTC (숏) × {position.leverage}배
                       </p>
+
+                      {/* 바이낸스 선물 상세 정보 */}
+                      <div className="text-[10px] text-slate-400 mt-2 space-y-0.5">
+                        <p className={position.binanceUnrealizedPnl && position.binanceUnrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}>
+                          Unrealized PNL: {position.binanceUnrealizedPnl && position.binanceUnrealizedPnl >= 0 ? '+' : ''}${(position.binanceUnrealizedPnl || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                        </p>
+                        <p>Size: ${(position.binanceSizeUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</p>
+                        <p>Margin: ${(position.binanceMarginUsdt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</p>
+                        <p>Margin Ratio: {((position.binanceMarginRatio || 0) * 100).toFixed(2)}%</p>
+                        {position.binanceMarkPrice && position.binanceMarkPrice > 0 && (
+                          <p>Mark Price: ${position.binanceMarkPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        )}
+                        {position.binanceLiquidationPrice && position.binanceLiquidationPrice > 0 && (
+                          <p>Liq. Price: ${position.binanceLiquidationPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        )}
+                      </div>
                 </div>
                 <div className="flex gap-1 md:flex-col ml-auto md:ml-0 p-2 -m-2 md:p-0 md:m-0">
                   <Button

@@ -200,7 +200,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               upbitOrderId: pos.upbit_order_id,
               binanceOrderId: pos.binance_order_id,
               isRealTrade: true,
-              takeProfitTargets: pos.take_profit_offset // 강제진입 익절 오프셋
+              takeProfitTargets: pos.take_profit_offset, // 강제진입 익절 오프셋
+              // 바이낸스 선물 상세 정보
+              binanceEntryPrice: pos.binanceEntryPrice,
+              binanceMarkPrice: pos.binanceMarkPrice,
+              binanceLiquidationPrice: pos.binanceLiquidationPrice,
+              binanceSizeUsdt: pos.binanceSizeUsdt,
+              binanceMarginUsdt: pos.binanceMarginUsdt,
+              binanceMarginRatio: pos.binanceMarginRatio,
+              binanceMarginType: pos.binanceMarginType,
+              binanceUnrealizedPnl: pos.binanceUnrealizedPnl
               };
             });
             
@@ -1404,7 +1413,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               unrealizedPnl: 0,
               unrealizedPnlKrw: 0,
               realizedPnl: 0,
-              currentPremiumRate: 0
+              currentPremiumRate: 0,
+              // 바이낸스 선물 상세 정보
+              binanceEntryPrice: position.binanceEntryPrice,
+              binanceMarkPrice: position.binanceMarkPrice,
+              binanceLiquidationPrice: position.binanceLiquidationPrice,
+              binanceSizeUsdt: position.binanceSizeUsdt,
+              binanceMarginUsdt: position.binanceMarginUsdt,
+              binanceMarginRatio: position.binanceMarginRatio,
+              binanceMarginType: position.binanceMarginType,
+              binanceUnrealizedPnl: position.binanceUnrealizedPnl
             } as LivePosition;
           }
         }

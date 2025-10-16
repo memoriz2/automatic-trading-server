@@ -64,6 +64,20 @@ export const useLiveTrading = ({
 
           if (response.ok) {
             const dbPositions = await response.json();
+
+            // 🔍 첫 번째 포지션의 바이낸스 데이터 확인
+            if (dbPositions.length > 0) {
+              console.log('🔍 [프론트엔드] API에서 받은 첫 번째 포지션:', {
+                id: dbPositions[0].id,
+                binanceMarkPrice: dbPositions[0].binanceMarkPrice,
+                binanceLiquidationPrice: dbPositions[0].binanceLiquidationPrice,
+                binanceSizeUsdt: dbPositions[0].binanceSizeUsdt,
+                binanceMarginUsdt: dbPositions[0].binanceMarginUsdt,
+                binanceMarginRatio: dbPositions[0].binanceMarginRatio,
+                binanceUnrealizedPnl: dbPositions[0].binanceUnrealizedPnl
+              });
+            }
+
             const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
               // 포지션 이름 생성
               let displayName = pos.strategy_name;
@@ -93,7 +107,16 @@ export const useLiveTrading = ({
               exitTime: pos.exit_time ? new Date(pos.exit_time) : undefined,
               exitPremiumRate: pos.exit_premium_rate || 0,
               realizedPnL: pos.realized_pnl || 0,
-              takeProfitTargets: pos.take_profit_offset // 강제진입 익절 오프셋
+              takeProfitTargets: pos.take_profit_offset, // 강제진입 익절 오프셋
+              // 바이낸스 선물 상세 정보 (API는 camelCase로 반환)
+              binanceEntryPrice: pos.binanceEntryPrice,
+              binanceMarkPrice: pos.binanceMarkPrice,
+              binanceLiquidationPrice: pos.binanceLiquidationPrice,
+              binanceSizeUsdt: pos.binanceSizeUsdt,
+              binanceMarginUsdt: pos.binanceMarginUsdt,
+              binanceMarginRatio: pos.binanceMarginRatio,
+              binanceMarginType: pos.binanceMarginType,
+              binanceUnrealizedPnl: pos.binanceUnrealizedPnl
               };
             });
 

@@ -179,8 +179,8 @@ export function PositionsTable({ positions, onRefresh, onClosePosition }: Positi
                       <div className="text-xs text-slate-400">포지션 진입 시점 가격</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-white">₩{position.currentPrice ? parseFloat(position.currentPrice?.toString() || '0').toLocaleString() : '-'}</div>
-                      <div className="text-xs text-slate-400">실시간 업데이트 가격</div>
+                      <div className="text-sm text-white">₩{parseFloat(position.entryPrice?.toString() || '0').toLocaleString()}</div>
+                      <div className="text-xs text-slate-400">현재가 (실시간 계산)</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-white">{parseFloat(position.quantity?.toString() || '0').toFixed(4)}</div>
