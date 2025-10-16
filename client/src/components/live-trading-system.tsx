@@ -1704,49 +1704,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   const totalPnl = totalPositionPnl; // 실현손익 제외, 활성 포지션 PnL만 사용
 
 
-  // === 총 순투자금 계산 (활성 포지션만) ===
-  const activePositions = livePositions.filter(p => p.status === 'open');
+  // (정리) activePositions 로컬 변수 제거 – 아래에서 즉시 계산 후 사용
 
 
-  // === 💰 총 순투자금 계산 (수수료 제외 방식으로 일관성 유지) ===
-  const totalActiveInvestment = activePositions
-    .reduce((sum, position) => {
-      const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
+  // (정리) totalActiveInvestment 사용하지 않음 – LiveBalanceDisplay에 합산 결과 전달
 
-      // 🔧 포지션 가격이 0인 경우 시장 데이터 사용 (PnL 계산기와 동일한 로직)
-      const effectiveUpbitPrice = position.upbitPrice || currentKimchiData?.upbit_price || 0;
-      const effectiveBinancePrice = position.binancePrice || currentKimchiData?.binance_price || 0;
-
-      // 업비트 순투자금 계산 (실시간 매도 수수료 적용)
-      const upbitGrossAmount = position.upbitQuantity * effectiveUpbitPrice;  // 업비트 총 매수금액 (KRW)
-      const upbitEntryFee = upbitGrossAmount * 0.0005;                        // 업비트 진입 수수료 (매수 0.05%) - 고정
-
-      const upbitNetInvestment = upbitGrossAmount - upbitEntryFee;            // 업비트 순투자금 = 매수금액 - 진입수수료만
-
-      // 바이낸스 순투자금 계산 (실시간 매도 수수료 적용)
-      // 바이낸스 가격이 큰 값(KRW)인 경우 USD로 변환
-      const entryBinancePriceUsd = effectiveBinancePrice > 1000000
-        ? effectiveBinancePrice / currentUsdKrw
-        : effectiveBinancePrice;
-      const binanceGrossMargin = (position.binanceQuantity * entryBinancePriceUsd) / position.leverage; // 바이낸스 증거금 (USD)
-      const binanceEntryFee = (position.binanceQuantity * entryBinancePriceUsd * 0.0004); // 바이낸스 진입 수수료 (USD)
-
-      const binanceNetMargin = binanceGrossMargin - binanceEntryFee;          // 바이낸스 순증거금 = 증거금 - 진입수수료만
-      const binanceNetMarginKRW = binanceNetMargin * currentUsdKrw;           // 바이낸스 순증거금 (KRW)
-
-
-      return sum + upbitNetInvestment + binanceNetMarginKRW;                  // 순투자금만 누적 (수수료 차감 후)
-    }, 0);
-
-  // === 총 수익률 계산 (현재 활성 포지션만) ===
-  const profitRate = totalActiveInvestment > 0
-    ? ((totalPnl / totalActiveInvestment) * 100)                              // 현재 포지션 손익만으로 수익률 계산
-    : 0;
-
-  // 수익률 계산 완료 - 디버깅이 필요한 경우에만 활성화
-  // console.log('📊 수익률:', { investment: Math.round(totalActiveInvestment), pnl: Math.round(totalPnl), rate: profitRate.toFixed(2) + '%' });
-  
-  // 수익률 계산 완료 (로그 제거)
+  // (제거) profitRate: 현재는 LiveBalanceDisplay에 계산된 수익률을 전달함
     
   // 수익률 계산 완료 (상세 로그 제거)
 
@@ -2191,24 +2154,64 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       <CardContent>
         
         {/* 잔고 및 수익률 표시 */}
-        <LiveBalanceDisplay
-          liveBalance={isLiveMode ? {
-            krw: liveBalances?.real?.krw || 0,
-            btc: liveBalances?.real?.btc_upbit || 0,
-            usdt: liveBalances?.real?.usdt || 0,
-            binanceBtc: openBinanceQty, // 활성 포지션 기반
-            binanceSpotBtc: 0,
-            binanceUsdt: liveBalances?.real?.usdt || 0
-          } : liveBalance}
-          openUpbitQty={isLiveMode ? (liveBalances?.real?.btc_upbit || 0) : liveBalance.btc}
-          openBinanceQty={openBinanceQty}
-          profitRate={profitRate}
-          totalPnl={totalPnl}
-          realtimeBalances={realtimeBalances}
-          balanceLoading={balanceLoading}
-          btcKrwPrice={currentKimchiData?.upbit_price}
-          usdtKrwRate={currentKimchiData?.usdkrw}
-        />
+        {(() => {
+          // 활성 포지션 합산: 업비트/바이낸스 가치 변화 총합
+          const activePositions = livePositions.filter((p) => p.status === 'open');
+          const usdkrw = currentKimchiData?.usdkrw || lastKimchiData?.usdkrw || 0;
+          const upNow = currentKimchiData?.upbit_price || lastKimchiData?.upbit_price || 0;
+          const binNow = currentKimchiData?.binance_price || lastKimchiData?.binance_price || 0;
+
+          const sums = activePositions.reduce(
+            (acc, p: any) => {
+              const upQty = p.upbitQuantity || 0;
+              const upEntryUnit = upQty > 0 ? (p.upbitPrice / upQty) : (p.upbitPrice || 0);
+              const upValueDiff = (upNow - upEntryUnit) * upQty;
+
+              const sideLower = String(p.side || p.type || '').toLowerCase();
+              const isShort = sideLower.includes('short');
+              const entryUsd = (p.binancePrice || 0) > 1_000_000 ? (p.binancePrice / (usdkrw || 1)) : (p.binancePrice || 0);
+              const nowUsd = binNow > 1_000_000 ? (binNow / (usdkrw || 1)) : binNow;
+              const binDiffKrw = (isShort ? (entryUsd - nowUsd) : (nowUsd - entryUsd)) * (usdkrw || 0);
+              const binValueDiff = binDiffKrw * (p.binanceQuantity || 0);
+
+              const upExposure = upEntryUnit * upQty;
+              const binExposure = entryUsd * (usdkrw || 0) * (Math.abs(p.binanceQuantity || 0));
+
+              acc.totalUp += upValueDiff;
+              acc.totalBin += binValueDiff;
+              acc.exposure += (upExposure + binExposure);
+              return acc;
+            },
+            { totalUp: 0, totalBin: 0, exposure: 0 }
+          );
+
+          const computedTotalPnl = sums.totalUp + sums.totalBin;
+          const computedProfitRate = sums.exposure > 0 ? (computedTotalPnl / sums.exposure) * 100 : 0;
+
+          return (
+            <LiveBalanceDisplay
+              liveBalance={isLiveMode ? {
+                krw: liveBalances?.real?.krw || 0,
+                btc: liveBalances?.real?.btc_upbit || 0,
+                usdt: liveBalances?.real?.usdt || 0,
+                binanceBtc: openBinanceQty, // 활성 포지션 기반
+                binanceSpotBtc: 0,
+                binanceUsdt: liveBalances?.real?.usdt || 0
+              } : liveBalance}
+              openUpbitQty={isLiveMode ? (liveBalances?.real?.btc_upbit || 0) : liveBalance.btc}
+              openBinanceQty={openBinanceQty}
+              profitRate={computedProfitRate}
+              totalPnl={computedTotalPnl}
+              upbitPnlSum={sums.totalUp}
+              binancePnlSum={sums.totalBin}
+              realtimeBalances={realtimeBalances}
+              balanceLoading={balanceLoading}
+              btcKrwPrice={currentKimchiData?.upbit_price}
+              usdtKrwRate={currentKimchiData?.usdkrw}
+            />
+          );
+        })()}
+
 
 
         {/* 활성 포지션 */}

@@ -16,6 +16,8 @@ interface LiveBalanceDisplayProps {
   openBinanceQty: number;
   profitRate: number;
   totalPnl: number;
+  upbitPnlSum?: number;      // 활성 포지션 업비트 가치 변화 합계(KRW)
+  binancePnlSum?: number;    // 활성 포지션 바이낸스 가치 변화 합계(KRW)
   realtimeBalances?: { upbitBtc: number; binanceBtc: number; timestamp: string };
   balanceLoading?: boolean;
   btcKrwPrice?: number;
@@ -24,8 +26,10 @@ interface LiveBalanceDisplayProps {
 
 export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   liveBalance,
-  profitRate,
-  totalPnl,
+  profitRate: _profitRate,
+  totalPnl: _totalPnl,
+  upbitPnlSum = 0,
+  binancePnlSum = 0,
   realtimeBalances,
   balanceLoading,
   btcKrwPrice,
@@ -87,17 +91,21 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
         </div>
       </div>
 
-      {/* 수익률 표시 */}
+      {/* 활성 포지션 합계 표시 (업비트/바이낸스 분리 합산) */}
       <div className="bg-slate-800 p-4 rounded-lg mb-4">
         <div className="flex items-center justify-between">
           <h4 className="text-slate-400 text-sm">총 투자수익금</h4>
           <div className="text-right">
-            <p className={`text-xl font-bold ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {totalPnl >= 0 ? '+' : '−'}₩{isFinite(totalPnl) ? Math.floor(Math.abs(totalPnl)).toLocaleString() : '0'}
-            </p>
-            <p className={`text-sm ${profitRate >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              ({profitRate >= 0 ? '+' : '−'}{isFinite(profitRate) ? Math.abs(profitRate).toFixed(2) : '0.00'}%)
-            </p>
+            {(() => {
+              const total = (upbitPnlSum || 0) + (binancePnlSum || 0);
+              const fmt = (v: number) => `${v >= 0 ? '+' : '−'}₩${Math.floor(Math.abs(v)).toLocaleString()}`;
+              const cmp = Math.abs(upbitPnlSum || 0) > Math.abs(binancePnlSum || 0) ? '>' : '<';
+              return (
+                <p className={`text-base font-bold ${total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  업비트 {fmt(upbitPnlSum || 0)} {cmp} {fmt(binancePnlSum || 0)} 바이낸스
+                </p>
+              );
+            })()}
           </div>
         </div>
       </div>

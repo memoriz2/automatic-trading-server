@@ -65,7 +65,6 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
   onLiveExit
 }) => {
   const activePositions = livePositions.filter(p => p.status === 'open');
-  const [isFixing, setIsFixing] = React.useState(false);
 
   const handleButtonClick = (callback: () => void) => {
     // 햅틱 피드백 (모바일)
@@ -75,34 +74,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
     callback();
   };
 
-  const handleFixEntryPrices = async () => {
-    if (isFixing) return;
-
-    setIsFixing(true);
-    try {
-      const response = await fetch('/api/monitoring/fix-entry-prices', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert(`✅ 진입가 수정 완료!\n성공: ${result.fixed}개\n실패: ${result.failed}개`);
-        // 페이지 새로고침하여 업데이트된 데이터 표시
-        window.location.reload();
-      } else {
-        alert(`❌ 수정 실패: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('진입가 수정 실패:', error);
-      alert('❌ 진입가 수정 중 오류가 발생했습니다.');
-    } finally {
-      setIsFixing(false);
-    }
-  };
+  // (삭제) 진입가 일괄 수정 관련 로직 제거
 
   const getStrategyName = (position: LivePosition): string => {
     // 우선 position.strategyName이 있으면 사용
@@ -145,15 +117,6 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-white font-medium">활성 포지션 ({activePositions.length}개)</h4>
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-xs px-3 py-1 h-7"
-          onClick={handleFixEntryPrices}
-          disabled={isFixing}
-        >
-          {isFixing ? '🔄 수정 중...' : '🔧 진입가 수정'}
-        </Button>
       </div>
 
       {/* 포지션이 없을 때 안내 */}
