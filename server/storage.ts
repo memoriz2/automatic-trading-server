@@ -702,8 +702,8 @@ export class DatabaseStorage {
       const result = await this.pool.query(`
         INSERT INTO trades (
           user_id, position_id, strategy_id, trade_log_id, symbol, side, exchange, quantity, price, fee,
-          order_type, exchange_order_id, exchange_trade_id, executed_at, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+          exchange_order_id, exchange_trade_id, executed_at, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
         RETURNING *
       `, [
         data.userId,
@@ -716,17 +716,60 @@ export class DatabaseStorage {
         data.quantity,
         data.price,
         data.fee || 0,
-        data.orderType || 'market',
         data.exchangeOrderId || null,
         data.exchangeTradeId || null
       ]);
 
       console.log('✅ [createTrade] 저장 성공:', { id: result.rows[0].id });
-      return result.rows[0];
+
+      const trade = result.rows[0];
+
+      // position_id가 있으면 positions 테이블 자동 업데이트
+      if (trade.position_id) {
+        try {
+          await this.updatePositionFromTrades(trade.position_id);
+        } catch (updateError) {
+          console.error(`⚠️ 포지션 ${trade.position_id} 업데이트 실패 (trade는 저장됨):`, updateError);
+        }
+      }
+
+      return trade;
     } catch (error) {
       console.error('❌ [createTrade] 저장 실패:', error);
       console.error('📊 [createTrade] 실패한 데이터:', data);
       throw error;
+    }
+  }
+
+  // trades 기반으로 positions 테이블 업데이트
+  private async updatePositionFromTrades(positionId: number): Promise<void> {
+    // 진입 거래 (buy, short) 집계
+    const entryResult = await this.pool.query(`
+      SELECT
+        exchange,
+        side,
+        SUM(quantity) as total_quantity,
+        SUM(quantity * price) / NULLIF(SUM(quantity), 0) as avg_price
+      FROM trades
+      WHERE position_id = $1 AND side IN ('buy', 'short')
+      GROUP BY exchange, side
+    `, [positionId]);
+
+    const updates: any = {};
+
+    for (const row of entryResult.rows) {
+      if (row.exchange === 'upbit' && row.side === 'buy') {
+        updates.entryPrice = parseFloat(row.avg_price);
+        updates.quantity = parseFloat(row.total_quantity);
+      } else if (row.exchange === 'binance' && row.side === 'short') {
+        updates.binanceEntryPrice = parseFloat(row.avg_price);
+        updates.binanceQuantity = parseFloat(row.total_quantity);
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.updatePosition(positionId, updates);
+      console.log(`✅ 포지션 ${positionId} 자동 업데이트:`, updates);
     }
   }
 

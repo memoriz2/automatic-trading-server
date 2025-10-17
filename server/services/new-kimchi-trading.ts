@@ -733,7 +733,6 @@ export class MultiStrategyTradingService {
         entryTime: entryTimeKST, // ← KST 시간으로 명시적 설정
         upbitOrderId: upbitResult.uuid,
         binanceOrderId: String(binanceResult.orderId),
-        isMock: false, // ← 실제 거래로 설정 (실제 자산 사용)
         // 바이낸스 선물 상세 정보 즉시 저장
         ...binanceDetails
       });
