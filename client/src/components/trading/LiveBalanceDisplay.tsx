@@ -94,14 +94,14 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
       {/* 활성 포지션 합계 표시 (업비트/바이낸스 분리 합산) */}
       <div className="bg-slate-800 p-4 rounded-lg mb-4">
         <div className="flex items-center justify-between">
-          <h4 className="text-slate-400 text-sm">총 투자수익금</h4>
+          <h4 className="text-slate-400 balance-text">총 투자수익금</h4>
           <div className="text-right">
             {(() => {
               const total = (upbitPnlSum || 0) + (binancePnlSum || 0);
               const fmt = (v: number) => `${v >= 0 ? '+' : '−'}₩${Math.floor(Math.abs(v)).toLocaleString()}`;
               const cmp = Math.abs(upbitPnlSum || 0) > Math.abs(binancePnlSum || 0) ? '>' : '<';
               return (
-                <p className={`text-base font-bold ${total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <p className={`font-bold balance-text ${total >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   업비트 {fmt(upbitPnlSum || 0)} {cmp} {fmt(binancePnlSum || 0)} 바이낸스
                 </p>
               );
