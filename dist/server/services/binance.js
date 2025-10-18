@@ -798,31 +798,65 @@ export class BinanceService {
             return 0;
         }
     }
-    // 선물 주문 상세 조회 (체결가 확인용)
+    // 선물 주문 상세 조회 (체결가 및 수수료 확인용)
     async getFuturesOrderDetail(symbol, orderId) {
         try {
             if (!this.apiKey) {
                 throw new Error('Binance API key not configured');
             }
             const timestamp = Date.now();
-            const params = {
-                symbol: `${symbol}USDT`,
+            const symbolWithUsdt = `${symbol}USDT`;
+            // 1. 주문 정보 조회
+            const orderParams = {
+                symbol: symbolWithUsdt,
                 orderId: orderId.toString(),
                 timestamp: timestamp.toString()
             };
-            const queryString = new URLSearchParams(params).toString();
-            const signature = this.generateSignature(queryString);
-            const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/order?${queryString}&signature=${signature}`, {
+            const orderQueryString = new URLSearchParams(orderParams).toString();
+            const orderSignature = this.generateSignature(orderQueryString);
+            const orderResponse = await fetch(`${this.futuresBaseUrl}/fapi/v1/order?${orderQueryString}&signature=${orderSignature}`, {
                 method: 'GET',
                 headers: {
                     'X-MBX-APIKEY': this.apiKey
                 }
             });
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Binance futures order detail error (${response.status}): ${errorText}`);
+            if (!orderResponse.ok) {
+                const errorText = await orderResponse.text();
+                throw new Error(`Binance futures order detail error (${orderResponse.status}): ${errorText}`);
             }
-            return await response.json();
+            const orderData = await orderResponse.json();
+            // 2. 거래 내역 조회 (수수료 정보 포함)
+            const tradesParams = {
+                symbol: symbolWithUsdt,
+                orderId: orderId.toString(),
+                timestamp: Date.now().toString()
+            };
+            const tradesQueryString = new URLSearchParams(tradesParams).toString();
+            const tradesSignature = this.generateSignature(tradesQueryString);
+            const tradesResponse = await fetch(`${this.futuresBaseUrl}/fapi/v1/userTrades?${tradesQueryString}&signature=${tradesSignature}`, {
+                method: 'GET',
+                headers: {
+                    'X-MBX-APIKEY': this.apiKey
+                }
+            });
+            if (tradesResponse.ok) {
+                const trades = await tradesResponse.json();
+                // 모든 거래의 수수료 합산
+                const totalCommission = trades.reduce((sum, trade) => {
+                    return sum + parseFloat(trade.commission || '0');
+                }, 0);
+                console.log(`📊 바이낸스 거래 내역 조회 성공 (${trades.length}건), 총 수수료: ${totalCommission}`);
+                // 주문 데이터에 수수료 추가
+                return {
+                    ...orderData,
+                    commission: totalCommission,
+                    trades: trades
+                };
+            }
+            else {
+                console.warn(`⚠️ 거래 내역 조회 실패, 주문 정보만 반환`);
+                return orderData;
+            }
         }
         catch (error) {
             console.error('Binance getFuturesOrderDetail error:', error);

@@ -165,7 +165,6 @@ export interface TradeDto {
   positionId?: number;
   orderId: number;
   exchange: 'upbit' | 'binance';
-  exchangeTradeId: string;
   symbol: string;
   side: 'buy' | 'sell' | 'short' | 'cover';
   quantity: number;

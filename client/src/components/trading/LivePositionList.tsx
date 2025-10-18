@@ -14,11 +14,13 @@ interface LivePosition {
   entryTime: Date;
   entryPremiumRate: number;
   upbitQuantity: number;
-  upbitPrice: number;
+  upbitPrice: number; // 현재가 (deprecated)
+  upbitEntryPrice?: number; // 업비트 진입가 (신규)
   entryUsdKrw?: number;
   binanceSpotQuantity: number;
   binanceQuantity: number;
-  binancePrice: number;
+  binancePrice: number; // 현재가 (deprecated)
+  binanceEntryPrice?: number; // 바이낸스 진입가
   leverage: number;
   status: 'open' | 'closed';
   unrealizedPnl: number;
@@ -26,7 +28,6 @@ interface LivePosition {
   takeProfitTargets?: number; // 강제진입 익절 오프셋
 
   // 바이낸스 선물 상세 정보 추가
-  binanceEntryPrice?: number; // 진입가 (바이낸스 API)
   binanceMarkPrice?: number; // 마크 가격
   binanceLiquidationPrice?: number; // 청산 가격
   binanceSizeUsdt?: number; // Size (USDT) - 진입가 기준 명목 가치
@@ -176,45 +177,45 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
               <div className="flex flex-col md:flex-row md:items-center gap-2 ml-auto">
                 <div className="text-right">
                   {(() => {
-                    // 우측 상단 라인에 업비트/바이낸스 가치 변화 표시
-                    // (현재가 − 진입가) × 수량, 선물은 숏/롱 부호 반영, 환율 적용
-                    const usdkrw = lastKimchiData?.usdkrw || 0;
-                    const currentUpbitPrice = lastKimchiData?.upbit_price || position.upbitPrice;
-                    const currentBinancePrice = lastKimchiData?.binance_price || position.binancePrice;
+                    // 우측 상단 라인에 업비트/바이낸스 총 투자금액 기준 손익 표시
+                    // (현재 총 가치 - 진입 총 가치)
+                    const usdkrw = lastKimchiData?.usdkrw || 1400;
+                    const currentUpbitPrice = lastKimchiData?.upbit_price || 0;
+                    const currentBinancePrice = lastKimchiData?.binance_price || 0;
 
-                    const entryUpbitUnit = (position.upbitQuantity && position.upbitQuantity > 0)
-                      ? (position.upbitPrice / position.upbitQuantity)
-                      : position.upbitPrice;
-                    const upbitPriceDiff = currentUpbitPrice - entryUpbitUnit; // 1 BTC 기준
-                    const upbitValueDiff = upbitPriceDiff * (position.upbitQuantity || 0);
+                    const upbitQuantity = position.upbitQuantity || 0;
+                    const binanceQuantity = position.binanceQuantity || 0;
 
-                    const entryUsd = position.binancePrice > 1_000_000 ? position.binancePrice / (usdkrw || 1) : position.binancePrice;
-                    const nowUsd = currentBinancePrice > 1_000_000 ? currentBinancePrice / (usdkrw || 1) : currentBinancePrice;
+                    // 업비트: upbitPrice를 진입가로 사용 (DB의 entry_price)
+                    const upbitEntryTotal = position.upbitPrice || 0;
+                    const upEntryUnit = upbitQuantity > 0 ? (upbitEntryTotal / upbitQuantity) : upbitEntryTotal;
+                    const upValueDiff = (currentUpbitPrice - upEntryUnit) * upbitQuantity;
+
                     const sideLower = String(position.side || position.type || '').toLowerCase();
-                    const isShort = sideLower.includes('short');
-                    const binancePriceDiffKrw = (isShort ? (entryUsd - nowUsd) : (nowUsd - entryUsd)) * (usdkrw || 0);
-                    const binanceValueDiff = binancePriceDiffKrw * (position.binanceQuantity || 0);
+                    const isShort = sideLower.includes('short') || sideLower.includes('sell');
 
-                    const fmtKRW = (v: number) => `${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()} KRW`;
-                    const upbitStr = fmtKRW(upbitValueDiff);
+                    // 바이낸스: DB 값 그대로 사용 (이미 USD 총액)
+                    const binanceEntryTotal = position.binanceEntryPrice || 0; // USD 총액
+                    const binanceCurrentTotal = currentBinancePrice * Math.abs(binanceQuantity); // 현재 USD 총액
+                    const binDiff = isShort ? (binanceEntryTotal - binanceCurrentTotal) : (binanceCurrentTotal - binanceEntryTotal); // 손익 (USD)
+                    const binanceValueDiff = binDiff * usdkrw; // 손익 (KRW)
+
+                    // 총 투자금액 기준 손익 표시
+                    const fmtKRW = (v: number) => `₩${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}`;
+                    const upbitStr = fmtKRW(upValueDiff);
                     const binanceStr = fmtKRW(binanceValueDiff);
-                    const comparison = Math.abs(upbitValueDiff) > Math.abs(binanceValueDiff) ? '>' : '<';
-                    const isProfit = (upbitValueDiff + binanceValueDiff) >= 0;
+                    const comparison = Math.abs(upValueDiff) > Math.abs(binanceValueDiff) ? '>' : '<';
+                    const isProfit = (upValueDiff + binanceValueDiff) >= 0;
 
                     const fmtInt = (n: number) => Math.round(n).toLocaleString();
-                    const debugInfo = `(
-                      U진입:${fmtInt(entryUpbitUnit)} KRW, 
-                      U현재:${fmtInt(currentUpbitPrice)} KRW, 
-                      B진입:$${fmtInt(position.binancePrice)}, 
-                      B현재:$${fmtInt(currentBinancePrice)}
-                    )`;
+                    const debugInfo = `U진입:₩${fmtInt(upEntryUnit)} 현재:₩${fmtInt(currentUpbitPrice)} | B진입:$${fmtInt(binanceEntryTotal)} 현재:$${fmtInt(binanceCurrentTotal)}`;
 
                     return (
                       <>
                         <p className={`font-bold text-xs md:text-sm ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                           {isProfit ? '🟢' : '🔴'} 업비트 {upbitStr} {comparison} {binanceStr} 바이낸스
                         </p>
-                        <p className="text-[9px] text-slate-600">{debugInfo}</p>
+                        <p className="text-[9px] text-slate-500 mt-0.5">{debugInfo}</p>
                       </>
                     );
                   })()}

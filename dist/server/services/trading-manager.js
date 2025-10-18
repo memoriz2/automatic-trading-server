@@ -188,8 +188,7 @@ export class TradingManager {
                     price: actualUpbitPrice,
                     fee: fees.upbitFee, // 중앙화된 수수료 계산 결과 사용
                     orderType: 'LIVE',
-                    exchangeOrderId: upbitOrder.uuid,
-                    exchangeTradeId: upbitOrder.uuid
+                    exchangeOrderId: upbitOrder.uuid
                 });
                 console.log(`✅ 업비트 매수 거래 기록 저장 완료`);
                 // 바이낸스 숏 거래 기록
@@ -205,8 +204,7 @@ export class TradingManager {
                     price: actualBinancePrice,
                     fee: fees.binanceFee, // USDT 단위 수수료
                     orderType: 'LIVE',
-                    exchangeOrderId: binanceOrder.orderId.toString(),
-                    exchangeTradeId: binanceOrder.orderId.toString()
+                    exchangeOrderId: binanceOrder.orderId.toString()
                 });
                 console.log(`✅ 바이낸스 숏 거래 기록 저장 완료`);
             }

@@ -13,18 +13,17 @@ export class TradesRepository extends BaseRepository {
   async create(tradeData: Omit<TradeDto, 'id' | 'createdAt'>): Promise<TradeDto> {
     const query = `
       INSERT INTO trades (
-        user_id, position_id, order_id, exchange, exchange_trade_id,
+        user_id, position_id, order_id, exchange,
         symbol, side, quantity, price, fee, fee_currency, executed_at, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()
       )
-      RETURNING 
+      RETURNING
         id,
         user_id as "userId",
         position_id as "positionId",
         order_id as "orderId",
         exchange,
-        exchange_trade_id as "exchangeTradeId",
         symbol,
         side,
         quantity,
@@ -40,7 +39,6 @@ export class TradesRepository extends BaseRepository {
       tradeData.positionId || null,
       tradeData.orderId,
       tradeData.exchange,
-      tradeData.exchangeTradeId,
       tradeData.symbol,
       tradeData.side,
       tradeData.quantity,
@@ -62,13 +60,12 @@ export class TradesRepository extends BaseRepository {
    */
   async findById(id: number): Promise<TradeDto | null> {
     const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         position_id as "positionId",
         order_id as "orderId",
         exchange,
-        exchange_trade_id as "exchangeTradeId",
         symbol,
         side,
         quantity,
@@ -84,32 +81,6 @@ export class TradesRepository extends BaseRepository {
     return this.queryOne<TradeDto>(query, [id]);
   }
 
-  /**
-   * 거래소 거래 ID로 조회
-   */
-  async findByExchangeTradeId(exchange: string, exchangeTradeId: string): Promise<TradeDto | null> {
-    const query = `
-      SELECT 
-        id,
-        user_id as "userId",
-        position_id as "positionId",
-        order_id as "orderId",
-        exchange,
-        exchange_trade_id as "exchangeTradeId",
-        symbol,
-        side,
-        quantity,
-        price,
-        fee,
-        fee_currency as "feeCurrency",
-        executed_at as "executedAt",
-        created_at as "createdAt"
-      FROM trades 
-      WHERE exchange = $1 AND exchange_trade_id = $2
-    `;
-    
-    return this.queryOne<TradeDto>(query, [exchange, exchangeTradeId]);
-  }
 
   /**
    * 사용자의 거래 내역 조회 (페이지네이션)
@@ -122,13 +93,12 @@ export class TradesRepository extends BaseRepository {
     symbol?: string
   ): Promise<{ data: TradeDto[]; total: number; page: number; limit: number; pages: number }> {
     let baseQuery = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         position_id as "positionId",
         order_id as "orderId",
         exchange,
-        exchange_trade_id as "exchangeTradeId",
         symbol,
         side,
         quantity,
@@ -174,13 +144,12 @@ export class TradesRepository extends BaseRepository {
    */
   async findByPositionId(positionId: number): Promise<TradeDto[]> {
     const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         position_id as "positionId",
         order_id as "orderId",
         exchange,
-        exchange_trade_id as "exchangeTradeId",
         symbol,
         side,
         quantity,
@@ -202,13 +171,12 @@ export class TradesRepository extends BaseRepository {
    */
   async findByOrderId(orderId: number): Promise<TradeDto[]> {
     const query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         position_id as "positionId",
         order_id as "orderId",
         exchange,
-        exchange_trade_id as "exchangeTradeId",
         symbol,
         side,
         quantity,
@@ -278,13 +246,12 @@ export class TradesRepository extends BaseRepository {
     exchange?: string
   ): Promise<TradeDto[]> {
     let query = `
-      SELECT 
+      SELECT
         id,
         user_id as "userId",
         position_id as "positionId",
         order_id as "orderId",
         exchange,
-        exchange_trade_id as "exchangeTradeId",
         symbol,
         side,
         quantity,
@@ -311,13 +278,4 @@ export class TradesRepository extends BaseRepository {
     return this.query<TradeDto>(query, params);
   }
 
-  /**
-   * 거래 내역 존재 여부 확인 (중복 방지)
-   */
-  async existsByExchangeTradeId(exchange: string, exchangeTradeId: string): Promise<boolean> {
-    return this.exists('trades', { 
-      exchange, 
-      exchange_trade_id: exchangeTradeId 
-    });
-  }
 }

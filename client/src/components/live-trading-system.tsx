@@ -12,7 +12,7 @@ import { logClientTradingMode } from '@/config/trading-config';
 import { formatKoreanTime } from '@/utils/datetime';
 import { calculatePositionPnL } from '@/utils/pnl-calculator';
 import { TRADING_CONSTANTS } from '@/constants/trading-constants';
-import { saveLiveTradeToDB, apiFetch } from '@/utils/trading-api';
+import { apiFetch } from '@/utils/trading-api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   setLiveBalance,
@@ -32,7 +32,7 @@ import {
 //   calculateTradingAmounts,
 //   logEntryConditions
 // } from '@/utils/trading-logic';
-import { LiveTrade, LivePosition, KimchiData, Strategy } from '@/types/trading';
+import { LivePosition, KimchiData, Strategy } from '@/types/trading';
 
 
 
@@ -187,17 +187,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 entryPremiumRate: pos.entryPremiumRate ?? pos.entry_premium_rate ?? 0,
                 upbitQuantity: pos.upbitQuantity ?? pos.quantity ?? 0,
                 upbitPrice: pos.upbitPrice ?? pos.entry_price ?? 0,
+                upbitEntryPrice: pos.upbitEntryPrice ?? pos.entry_price ?? 0, // 업비트 진입 총액
                 entryUsdKrw: (pos.entryUsdKrw ?? 1394), // 기본값 (표시 계산 시 최신값으로 보정됨)
                 binanceSpotQuantity: 0,
-                binanceQuantity: pos.binanceQuantity ?? pos.quantity ?? 0,
-                // 바이낸스 진입가격: 전용 필드가 있으면 우선 사용, 없으면 보조 필드 → 최후엔 entry_price
-                binancePrice: (
-                  pos.binanceEntryPrice ??
-                  pos.binancePrice ??
-                  pos.binance_price_usd ??
-                  pos.binance_current_price ??
-                  pos.entry_price
-                ) || 0,
+                binanceQuantity: pos.binanceQuantity ?? pos.binance_quantity ?? 0,
+                // 바이낸스 진입가격: binance_entry_price 사용
+                binancePrice: pos.binancePrice ?? pos.binance_entry_price ?? 0,
                 // 레버리지 기본값 보정 (실거래 일반값 3~10배)
                 leverage: pos.leverage ?? pos.binance_leverage ?? 10,
                 status: (pos.status === 'open' ? 'open' : 'closed'),
@@ -208,7 +203,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 isRealTrade: true,
                 takeProfitTargets: pos.takeProfitOffset ?? pos.take_profit_offset,
                 // 바이낸스 선물 상세 정보
-                binanceEntryPrice: pos.binanceEntryPrice,
+                binanceEntryPrice: pos.binance_entry_price ?? pos.binancePrice ?? pos.binanceEntryPrice ?? 0, // 바이낸스 진입 총액 (DB 우선)
                 binanceMarkPrice: pos.binanceMarkPrice,
                 binanceLiquidationPrice: pos.binanceLiquidationPrice,
                 binanceSizeUsdt: pos.binanceSizeUsdt,
@@ -710,43 +705,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         }));
       }
 
-      // 거래 기록 생성
-      const tradeTimestamp = new Date(); // 거래 시점 고정
-      const newTrades: LiveTrade[] = [
-        {
-          id: `${tradeId}-binance`,
-          timestamp: tradeTimestamp,
-          type: 'short', // SHORT 포지션 진입
-          symbol: 'BTC',
-          quantity: binanceShortAmountBTC,
-          price: binancePrice,
-          fee: binanceFee,
-          exchange: 'binance',
-          strategyId: strategy.id,
-          strategyName: strategy.name,
-          premiumRate
-        },
-        {
-          id: `${tradeId}-upbit`,
-          timestamp: tradeTimestamp, // 동일한 거래 시점 사용
-          type: 'buy',
-          symbol: 'BTC',
-          quantity: upbitBuyAmountBTC,
-          price: upbitPrice,
-          fee: upbitFee,
-          exchange: 'upbit',
-          strategyId: strategy.id,
-          strategyName: strategy.name,
-          premiumRate
-        }
-      ];
-
-      dispatch(setLiveTrades([...liveTrades, ...newTrades]));
-      
-      // 거래 기록 저장
-      newTrades.forEach(trade => {
-        saveLiveTradeToDB(trade, userId);
-      });
+      // ✅ 실거래 모드에서는 거래 기록을 프론트엔드에서 생성하지 않음
+      // 서버의 /api/trading/upbit/buy와 /api/trading/binance/short에서 자동으로 저장됨
+      console.log(`✅ 실거래 진입 완료 - 거래 기록은 서버에서 자동 저장됨`);
 
       // 포지션은 DB에서만 관리 (로컬 상태 추가 제거)
       // DB에 저장된 포지션은 3초마다 자동 동기화됨
@@ -1098,64 +1059,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 )
               ));
 
-              // 거래 기록 생성 및 저장 (부분 청산)
-              const exitTime = new Date();
-              const currentCounter = tradeCounter + 1;
-              setTradeCounter(currentCounter);
-              const randomId = Math.random().toString(36).substring(2, 8);
-              const tradeId = `exit-partial-${Date.now()}-${currentCounter}-${randomId}`;
+              // ❌ 실거래 모드에서는 거래 기록을 프론트엔드에서 생성하지 않음
+              // ✅ 서버의 /api/trading/upbit/sell와 /api/trading/binance/close-short에서 자동으로 저장됨
+              // 클라이언트에서 중복 저장하면 가짜 ID로 인한 데이터 오염 발생
 
-              const exitTrades: LiveTrade[] = [];
-
-              // 업비트 거래 기록
-              if (liquidationResults.some(r => r.type === 'upbit_sell')) {
-                const upbitPrice = currentKimchiData?.upbit_price || 0;
-                const upbitQuantity = actualUpbitBalance * ratio;
-                const upbitFee = upbitQuantity * upbitPrice * 0.0005;
-
-                exitTrades.push({
-                  id: `${tradeId}-upbit`,
-                  timestamp: exitTime,
-                  type: 'sell',
-                  symbol: position.symbol,
-                  quantity: upbitQuantity,
-                  price: upbitPrice,
-                  fee: upbitFee,
-                  exchange: 'upbit',
-                  strategyId: position.strategyId,
-                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
-                  premiumRate: currentKimchiData?.kimp || 0
-                });
-              }
-
-              // 바이낸스 거래 기록
-              if (liquidationResults.some(r => r.type === 'binance_close')) {
-                const binancePrice = currentKimchiData?.binance_price || 0;
-                const binanceQuantity = actualBinanceBalance * ratio;
-                const binanceFee = binanceQuantity * binancePrice * 0.0004;
-
-                exitTrades.push({
-                  id: `${tradeId}-binance`,
-                  timestamp: exitTime,
-                  type: 'cover',
-                  symbol: position.symbol,
-                  quantity: binanceQuantity,
-                  price: binancePrice,
-                  fee: binanceFee,
-                  exchange: 'binance',
-                  strategyId: position.strategyId,
-                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
-                  premiumRate: currentKimchiData?.kimp || 0
-                });
-              }
-
-              // 메모리 및 DB에 거래 기록 저장
-              if (exitTrades.length > 0) {
-                dispatch(setLiveTrades([...liveTrades, ...exitTrades]));
-                exitTrades.forEach(trade => {
-                  saveLiveTradeToDB(trade, userId);
-                });
-              }
+              console.log(`✅ 부분 청산 완료 - 거래 기록은 서버에서 자동 저장됨`);
 
               // DB 업데이트
               try {
@@ -1199,63 +1107,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 )
               ));
 
-              // 거래 기록 생성 및 저장
-              const currentCounter = tradeCounter + 1;
-              setTradeCounter(currentCounter);
-              const randomId = Math.random().toString(36).substring(2, 8);
-              const tradeId = `exit-real-${Date.now()}-${currentCounter}-${randomId}`;
-
-              const exitTrades: LiveTrade[] = [];
-
-              // 업비트 거래 기록
-              if (liquidationResults.some(r => r.type === 'upbit_sell')) {
-                const upbitPrice = currentKimchiData?.upbit_price || 0;
-                const upbitQuantity = actualUpbitBalance * ratio;
-                const upbitFee = upbitQuantity * upbitPrice * 0.0005;
-
-                exitTrades.push({
-                  id: `${tradeId}-upbit`,
-                  timestamp: exitTime,
-                  type: 'sell',
-                  symbol: position.symbol,
-                  quantity: upbitQuantity,
-                  price: upbitPrice,
-                  fee: upbitFee,
-                  exchange: 'upbit',
-                  strategyId: position.strategyId,
-                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
-                  premiumRate: currentKimchiData?.kimp || 0
-                });
-              }
-
-              // 바이낸스 거래 기록
-              if (liquidationResults.some(r => r.type === 'binance_close')) {
-                const binancePrice = currentKimchiData?.binance_price || 0;
-                const binanceQuantity = actualBinanceBalance * ratio;
-                const binanceFee = binanceQuantity * binancePrice * 0.0004;
-
-                exitTrades.push({
-                  id: `${tradeId}-binance`,
-                  timestamp: exitTime,
-                  type: 'cover',
-                  symbol: position.symbol,
-                  quantity: binanceQuantity,
-                  price: binancePrice,
-                  fee: binanceFee,
-                  exchange: 'binance',
-                  strategyId: position.strategyId,
-                  strategyName: strategies.find(s => s.id === position.strategyId)?.name,
-                  premiumRate: currentKimchiData?.kimp || 0
-                });
-              }
-
-              // 메모리 및 DB에 거래 기록 저장
-              if (exitTrades.length > 0) {
-                dispatch(setLiveTrades([...liveTrades, ...exitTrades]));
-                exitTrades.forEach(trade => {
-                  saveLiveTradeToDB(trade, userId);
-                });
-              }
+              // ❌ Mock 청산 로직 제거됨
+              // 실제 거래소 청산은 executeLiquidation()에서 처리
+              // 거래 기록은 서버에서 실제 주문 결과를 받아서 저장해야 함
 
               // DB에 청산 정보 저장
               try {

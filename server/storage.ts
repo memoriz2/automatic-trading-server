@@ -548,19 +548,39 @@ export class DatabaseStorage {
       console.log(`  - binanceUnrealizedPnl: ${data.binanceUnrealizedPnl} (타입: ${typeof data.binanceUnrealizedPnl})`);
 
       // 🔍 DEBUG: SQL에 전달될 실제 값들 출력
+      // 입력 값 정규화: 업비트 entryPrice는 총액(KRW), 바이낸스 binanceEntryPrice는 USD 단가
+      const normalizedEntryPrice = (() => {
+        const price = Number(data.entryPrice) || 0;
+        const qty = Number(data.quantity) || 0;
+        // 단가가 들어왔다면 총액으로 환원
+        if (qty > 0 && price > 0 && price < 10000000) {
+          return price * qty;
+        }
+        return price;
+      })();
+      const normalizedBinanceEntryPrice = (() => {
+        const price = Number(data.binanceEntryPrice) || 0;
+        const usdkrw = Number(data.entryUsdKrw || data.entry_usd_krw) || 0;
+        // KRW로 들어온 경우 USD로 환원
+        if (price > 1000000 && usdkrw > 0) {
+          return price / usdkrw;
+        }
+        return price;
+      })();
+
       const sqlParams = [
         data.userId,
         data.strategyId,
         data.symbol,
         data.type || 'kimchi_arbitrage',
-        data.entryPrice,
+        normalizedEntryPrice,
         data.quantity,
         data.entryPremiumRate,
         data.currentPremiumRate || data.entryPremiumRate,
         data.status || 'open',
         data.side,
         (data.binanceLeverage ?? data.leverage ?? 5),
-        data.binanceEntryPrice,
+        normalizedBinanceEntryPrice,
         data.binanceQuantity || data.quantity,
         data.remainingQuantity || data.quantity,
         data.unrealizedPnl || 0,
@@ -672,6 +692,17 @@ export class DatabaseStorage {
   
   async createTrade(data: any): Promise<any> {
     try {
+      // fee가 0이면 저장하지 않음
+      if (!data.fee || data.fee <= 0) {
+        console.warn('⚠️ [createTrade] fee가 0이므로 거래 기록을 저장하지 않습니다:', {
+          userId: data.userId,
+          symbol: data.symbol,
+          exchange: data.exchange,
+          exchangeOrderId: data.exchangeOrderId
+        });
+        return null;
+      }
+
       // 필수 필드 검증
       const requiredFields = ['userId', 'symbol', 'side', 'exchange', 'quantity', 'price'];
       for (const field of requiredFields) {
@@ -696,14 +727,15 @@ export class DatabaseStorage {
         exchange: data.exchange,
         quantity: data.quantity,
         price: data.price,
+        fee: data.fee,
         exchangeOrderId: data.exchangeOrderId
       });
 
       const result = await this.pool.query(`
         INSERT INTO trades (
           user_id, position_id, strategy_id, trade_log_id, symbol, side, exchange, quantity, price, fee,
-          exchange_order_id, exchange_trade_id, executed_at, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+          exchange_order_id, executed_at, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING *
       `, [
         data.userId,
@@ -715,12 +747,11 @@ export class DatabaseStorage {
         data.exchange,
         data.quantity,
         data.price,
-        data.fee || 0,
-        data.exchangeOrderId || null,
-        data.exchangeTradeId || null
+        data.fee,
+        data.exchangeOrderId || null
       ]);
 
-      console.log('✅ [createTrade] 저장 성공:', { id: result.rows[0].id });
+      console.log('✅ [createTrade] 저장 성공:', { id: result.rows[0].id, fee: data.fee });
 
       const trade = result.rows[0];
 
@@ -1185,6 +1216,7 @@ export class DatabaseStorage {
                           p.type,
                           p.entry_price as upbitPrice,
                           p.binance_entry_price as binancePrice,
+                          p.binance_entry_price, -- DB 원본 컬럼 추가
                           p.quantity as upbitQuantity,
                           p.binance_quantity as binanceQuantity,
                           p.remaining_quantity,
@@ -1227,6 +1259,7 @@ export class DatabaseStorage {
                         p.type,
                         p.entry_price as upbitPrice,
                         p.binance_entry_price as binancePrice,
+                        p.binance_entry_price, -- DB 원본 컬럼 추가
                         p.quantity as upbitQuantity,
                         p.binance_quantity as binanceQuantity,
                         p.remaining_quantity,

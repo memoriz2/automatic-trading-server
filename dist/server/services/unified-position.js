@@ -70,7 +70,6 @@ export class UnifiedPositionService {
                         positionId: position.id,
                         orderId: null,
                         exchange: params.exchange,
-                        exchangeTradeId: params.upbitOrderId || params.binanceOrderId || `unified-${Date.now()}`,
                         symbol: params.symbol,
                         side: tradeSide,
                         quantity: params.quantity,

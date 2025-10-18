@@ -458,9 +458,12 @@ export class MultiStrategyTradingService {
       let binanceResult: any;
       let currentPrice: any;
       let adjustedQuantity: any;
-      let upbitEntryPrice: any; // 업비트 진입가 변수 추가
+      let upbitEntryPrice: any; // 업비트 진입가 변수 추가 (총액 KRW)
+      let binanceTotalFunds: number = 0; // 바이낸스 총 진입금액 (총액 USD)
       let binancePaidFee: number | undefined; // 바이낸스 실제 수수료
       let paidFee: number | undefined; // 업비트 실제 수수료
+      let executedVolume: number = 0; // 업비트 체결 수량 (BTC)
+      let totalFunds: number = 0; // 업비트 체결 총액 (KRW)
 
       // 김치프리미엄 차익거래 (양수/음수 동일한 전략)
       const market = `KRW-${symbol}`;
@@ -491,23 +494,53 @@ export class MultiStrategyTradingService {
         );
         console.log(`바이낸스 숏 결과:`, binanceResult);
 
-        // 바이낸스 체결가 저장 (0이어도 경고만 출력)
-        const binancePrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
+        // 🔧 바이낸스 체결 정보 집계 (1:n 거래 대비)
+        let totalQuoteQty = 0;  // 총 체결금액 (USD)
+        let totalQty = 0;        // 총 체결수량 (BTC)
+        let totalCommission = 0; // 총 수수료 (USDT)
+
+        // trades 배열에서 총 체결금액과 총 체결수량 계산
+        if (binanceResult.trades && Array.isArray(binanceResult.trades) && binanceResult.trades.length > 0) {
+          for (const trade of binanceResult.trades) {
+            totalQuoteQty += parseFloat(trade.quoteQty || "0");     // 총 체결금액 (USD)
+            totalQty += parseFloat(trade.qty || "0");               // 총 체결수량 (BTC)
+            totalCommission += parseFloat(trade.commission || "0"); // 총 수수료 (USDT)
+          }
+          console.log(`💡 바이낸스 trades 배열 집계: 총금액=$${totalQuoteQty.toFixed(2)}, 총수량=${totalQty} BTC, 총수수료=$${totalCommission.toFixed(6)}`);
+        } else {
+          // trades 배열이 없으면 최상위 필드 사용 (fallback)
+          totalQty = parseFloat(binanceResult.executedQty || binanceResult.origQty || String(adjustedQuantity));
+          totalQuoteQty = parseFloat(binanceResult.cumQuote || "0");
+          totalCommission = parseFloat(binanceResult.commission || "0");
+
+          // cumQuote가 없으면 avgPrice로 계산
+          if (totalQuoteQty === 0) {
+            const avgPrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
+            totalQuoteQty = avgPrice * totalQty;
+          }
+
+          console.warn(`⚠️ 바이낸스 trades 배열 없음, 최상위 필드 사용: 총금액=$${totalQuoteQty.toFixed(2)}, 총수량=${totalQty} BTC`);
+        }
+
+        // 평균 체결가 계산 (단가)
+        const binancePrice = totalQty > 0 ? totalQuoteQty / totalQty : parseFloat(binanceResult.avgPrice || "0");
+
         if (!binancePrice || binancePrice === 0) {
           console.warn(`⚠️ 바이낸스 체결가가 0입니다. trades 테이블에서 자동 수정됩니다: ${binancePrice}`);
         }
         currentPrice = binancePrice;
 
-        // 바이낸스 수수료 (API에서 직접 받아오기)
-        if (binanceResult.commission) {
-          binancePaidFee = parseFloat(binanceResult.commission);
-          console.log(`💰 바이낸스 실제 수수료: ${binancePaidFee} ${binanceResult.commissionAsset || 'USDT'}`);
-        }
+        // 바이낸스 총 체결금액 저장 (USD)
+        binanceTotalFunds = totalQuoteQty;
+
+        // 바이낸스 수수료 (trades 배열에서 집계한 총 수수료 사용)
+        binancePaidFee = totalCommission;
+        console.log(`💰 바이낸스 실제 수수료 (trades 배열 집계): ${binancePaidFee} USDT`);
 
         // 바이낸스 수수료 계산 (API에서 받은 값 우선 사용)
-        const binanceFee = calculateBinanceFee(adjustedQuantity, binancePrice, binancePaidFee);
+        const binanceFee = calculateBinanceFee(totalQty, binancePrice, binancePaidFee);
 
-        // 바이낸스 거래 즉시 DB 저장
+        // 바이낸스 거래 즉시 DB 저장 (총액으로 저장)
         try {
           await storage.createTrade({
             userId: parseInt(userId),
@@ -516,12 +549,12 @@ export class MultiStrategyTradingService {
             symbol,
             side: "sell",
             exchange: "binance",
-            quantity: String(adjustedQuantity),
-            price: String(currentPrice),
+            quantity: String(totalQty), // 총 체결수량 (trades 배열 집계)
+            price: String(binanceTotalFunds), // 총 체결금액 (USD, trades 배열 집계)
             fee: binanceFee, // USDT 단위 수수료
             exchangeOrderId: binanceResult.orderId,
           });
-          console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료 (수수료: $${binanceFee.toFixed(4)})`);
+          console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료 (총액: $${binanceTotalFunds.toFixed(2)}, 수량: ${totalQty} BTC, 수수료: $${binanceFee.toFixed(4)})`);
         } catch (dbError) {
           console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);
         }
@@ -564,42 +597,50 @@ export class MultiStrategyTradingService {
 
         console.log(`업비트 매수 결과:`, upbitResult);
 
-        // 업비트 체결 결과 확인
-        let executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
-        let avgPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
+        // 업비트 체결 결과 확인 (변수는 이미 외부 스코프에 선언됨)
         paidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
 
-        // 체결가가 0이면 주문 상세 조회 (시장가 주문은 즉시 체결되므로 1초 대기 후 재조회)
-        if ((!avgPrice || avgPrice === 0) && upbitResult.uuid) {
+        // 🔧 시장가 주문은 즉시 체결되므로 1초 대기 후 주문 상세 조회
+        if (upbitResult.uuid) {
           console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
           await new Promise(resolve => setTimeout(resolve, 1000));
 
           const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
-          console.log(`🔍 주문 상세 조회 결과:`, orderDetail);
+          console.log(`🔍 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
 
-          executedVolume = parseFloat(orderDetail.executed_volume || orderDetail.volume || "0");
-          avgPrice = parseFloat(orderDetail.avg_price || orderDetail.price || "0");
           paidFee = orderDetail.paid_fee ? parseFloat(orderDetail.paid_fee) : undefined;
+
+          // 🔧 trades 배열에서 총 체결금액과 총 체결수량 계산
+          if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
+            for (const trade of orderDetail.trades) {
+              totalFunds += parseFloat(trade.funds || "0"); // 총 체결금액 (KRW)
+              executedVolume += parseFloat(trade.volume || "0"); // 총 체결수량 (BTC)
+            }
+            console.log(`💡 trades 배열 집계: 총금액=${totalFunds.toLocaleString()}원, 총수량=${executedVolume} BTC`);
+          } else {
+            // trades 배열이 없으면 기본 필드 사용 (fallback)
+            executedVolume = parseFloat(orderDetail.executed_volume || orderDetail.volume || "0");
+            totalFunds = parseFloat(orderDetail.price || "0");
+            console.warn(`⚠️ trades 배열 없음, 기본 필드 사용: volume=${executedVolume}, price=${totalFunds}`);
+          }
         }
 
-        // 업비트 진입가 검증 (0이어도 경고만 출력)
-        if (!avgPrice || avgPrice === 0) {
-          console.warn(`⚠️ 업비트 체결가가 0입니다. trades 테이블에서 자동 수정됩니다: ${avgPrice}`);
-        }
-        upbitEntryPrice = avgPrice; // 업비트 진입가 저장
+        // 업비트 총 진입금액 저장 (총액)
+        upbitEntryPrice = totalFunds;
 
         console.log(`📊 업비트 체결 분석:`, {
           목표수량: adjustedQuantity,
-          실제체결: executedVolume,
-          체결가: avgPrice,
+          실제체결수량: executedVolume,
+          총체결금액: totalFunds,
           실제수수료: paidFee,
-          업비트진입가: upbitEntryPrice
+          업비트총진입금액: upbitEntryPrice
         });
 
         // 업비트 수수료 계산 (중앙화된 로직 사용, API 응답의 paid_fee 우선)
-        const upbitFee = calculateUpbitFee(adjustedQuantity, upbitEntryPrice, paidFee);
+        const avgPriceForFee = executedVolume > 0 ? totalFunds / executedVolume : 0;
+        const upbitFee = calculateUpbitFee(executedVolume, avgPriceForFee, paidFee);
 
-        // 업비트 거래 즉시 DB 저장
+        // 업비트 거래 즉시 DB 저장 (총액으로 저장)
         try {
           await storage.createTrade({
             userId: parseInt(userId),
@@ -608,12 +649,12 @@ export class MultiStrategyTradingService {
             symbol,
             side: "buy",
             exchange: "upbit",
-            quantity: String(adjustedQuantity),
-            price: String(avgPrice || upbitCurrentPrice),
+            quantity: String(executedVolume), // 총 체결수량
+            price: String(totalFunds), // 총 체결금액
             fee: upbitFee, // KRW 단위 수수료
             exchangeOrderId: upbitResult.uuid,
           });
-          console.log(`✅ 업비트 매수 거래 기록 즉시 저장 완료 (수수료: ₩${upbitFee.toLocaleString()})`);
+          console.log(`✅ 업비트 매수 거래 기록 즉시 저장 완료 (총액: ₩${totalFunds.toLocaleString()}, 수량: ${executedVolume} BTC, 수수료: ₩${upbitFee.toLocaleString()})`);
         } catch (dbError) {
           console.error(`❌ 업비트 거래 기록 저장 실패:`, dbError);
         }
@@ -653,8 +694,9 @@ export class MultiStrategyTradingService {
         });
       }
 
-      // 수수료 총합 계산 (KRW)
-      const upbitEntryFee = calculateUpbitFee(adjustedQuantity, upbitEntryPrice, paidFee);
+      // 수수료 총합 계산 (KRW) - 단가 계산 필요
+      const avgPriceForFeeCal = executedVolume > 0 ? upbitEntryPrice / executedVolume : 0;
+      const upbitEntryFee = calculateUpbitFee(executedVolume, avgPriceForFeeCal, paidFee);
       const binanceEntryFeeUSDT = calculateBinanceFee(adjustedQuantity, currentPrice, binancePaidFee);
 
       // USDT/KRW 환율로 바이낸스 수수료를 KRW로 환산
@@ -720,9 +762,10 @@ export class MultiStrategyTradingService {
         type: "HEDGE",
         side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
         status: "open",
-        entryPrice: String(upbitEntryPrice), // ← 업비트 진입가
-        binanceEntryPrice: String(currentPrice), // ← 바이낸스 진입가 추가
-        quantity: String(adjustedQuantity),
+        // 업비트 진입가는 항상 총액(KRW)으로 저장 (upbitEntryPrice는 이미 총액)
+        entryPrice: String(Math.round(Number(upbitEntryPrice) || 0)),
+        binanceEntryPrice: String(binanceTotalFunds), // ← 바이낸스 진입가 (USD 총액)
+        quantity: String(executedVolume), // 실제 체결된 수량
         binanceQuantity: String(adjustedQuantity), // 바이낸스 수량 (동일)
         remainingQuantity: String(adjustedQuantity), // 남은 수량 (초기값 = 전체 수량)
         entryPremiumRate: String(signal.premiumRate),
@@ -856,11 +899,40 @@ export class MultiStrategyTradingService {
       
       try {
         upbitResult = await upbitService.placeSellOrder(market, quantity);
-        console.log(`✅ 업비트 매도 성공:`, upbitResult);
+        console.log(`✅ 업비트 매도 성공 (초기 응답):`, upbitResult);
+
+        // 🔍 매도도 매수와 동일하게 주문 상세 조회로 avg_price 확보
+        if (upbitResult.uuid) {
+          console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
+          console.log(`🔍 매도 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+
+          // 🔧 avg_price 필드가 없으면 trades 배열에서 직접 계산
+          if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
+            let totalFunds = 0;
+            let totalVolume = 0;
+
+            for (const trade of orderDetail.trades) {
+              totalFunds += parseFloat(trade.funds || "0");
+              totalVolume += parseFloat(trade.volume || "0");
+            }
+
+            const calculatedAvgPrice = totalVolume > 0 ? totalFunds / totalVolume : 0;
+            console.log(`💡 trades 배열에서 평균가 계산: ${calculatedAvgPrice} (총금액: ${totalFunds}, 총수량: ${totalVolume})`);
+
+            // avg_price 필드를 계산된 값으로 추가
+            orderDetail.avg_price = calculatedAvgPrice;
+          }
+
+          // 상세 조회 결과로 덮어쓰기 (avg_price, executed_volume, paid_fee 포함)
+          upbitResult = orderDetail;
+        }
       } catch (error) {
         upbitError = error;
         console.error(`❌ 업비트 매도 실패:`, error);
-        
+
         // 업비트 매도 실패 시 시스템 알림 생성
         await storage.createSystemAlert({
           type: "error",
@@ -929,8 +1001,9 @@ export class MultiStrategyTradingService {
 
       if (upbitResult && !upbitError) {
         // 업비트 매도 수수료 계산 (중앙화된 로직 사용)
-        const upbitSellQuantity = parseFloat(upbitResult.volume || "0");
-        const upbitSellPrice = parseFloat(upbitResult.price || "0");
+        // 🔧 매도도 avg_price 우선 사용 (매수와 동일)
+        const upbitSellQuantity = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
+        const upbitSellPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
         const upbitPaidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
         const upbitFee = calculateUpbitFee(upbitSellQuantity, upbitSellPrice, upbitPaidFee);
 
