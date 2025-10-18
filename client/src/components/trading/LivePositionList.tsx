@@ -194,8 +194,9 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     const sideLower = String(position.side || position.type || '').toLowerCase();
                     const isShort = sideLower.includes('short') || sideLower.includes('sell');
 
-                    // 바이낸스: DB 값 그대로 사용 (이미 USD 총액)
-                    const binanceEntryTotal = position.binanceEntryPrice || 0; // USD 총액
+                    // 바이낸스: binanceEntryPrice는 단가 (1 BTC 가격)
+                    const binanceEntryUnitPrice = position.binanceEntryPrice || 0; // USD 단가
+                    const binanceEntryTotal = binanceEntryUnitPrice * Math.abs(binanceQuantity); // USD 총액
                     const binanceCurrentTotal = currentBinancePrice * Math.abs(binanceQuantity); // 현재 USD 총액
                     const binDiff = isShort ? (binanceEntryTotal - binanceCurrentTotal) : (binanceCurrentTotal - binanceEntryTotal); // 손익 (USD)
                     const binanceValueDiff = binDiff * usdkrw; // 손익 (KRW)
