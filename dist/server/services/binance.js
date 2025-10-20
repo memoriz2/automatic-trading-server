@@ -517,6 +517,7 @@ export class BinanceService {
                 symbol: symbolWithUsdt,
                 side: 'SELL',
                 type: 'MARKET',
+                positionSide: 'SHORT', // Hedge Mode 지원 (One-Way Mode에서는 무시됨)
                 quantity: qtyString,
                 timestamp: timestamp.toString(),
                 recvWindow: '5000'

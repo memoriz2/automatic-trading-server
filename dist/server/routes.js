@@ -3529,23 +3529,49 @@ export async function registerRoutes(app, server) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 const orderDetail = await upbitService.getOrderDetail(orderResult.uuid);
                 // 🔍 DEBUG: 전체 응답 구조 출력
-                console.log(`🔍 [Upbit orderDetail] 전체 응답:`, JSON.stringify(orderDetail, null, 2));
-                const avgPrice = parseFloat(orderDetail.avg_price || orderDetail.price || "0");
+                console.log(`🔍 [Upbit Buy orderDetail] 전체 응답:`, JSON.stringify(orderDetail, null, 2));
                 const executedVolume = parseFloat(orderDetail.executed_volume || orderDetail.volume || "0");
                 const paidFee = parseFloat(orderDetail.paid_fee || "0");
-                const executedFunds = parseFloat(orderDetail.executed_funds || "0"); // 총 체결 금액
-                // ⚠️ CRITICAL FIX: Upbit avg_price는 소액 주문 시 잘못된 값 반환
-                // executed_funds (총 체결 금액) / executed_volume (체결 수량) = 1 BTC당 가격
-                let perBtcPrice = avgPrice;
-                if (executedFunds > 0 && executedVolume > 0) {
-                    perBtcPrice = executedFunds / executedVolume;
-                    console.log(`🔧 [Price Correction] ${avgPrice.toLocaleString()}원 → ${perBtcPrice.toLocaleString()}원 (총액 ${executedFunds.toLocaleString()}원 ÷ ${executedVolume} BTC)`);
+                // ✅ CRITICAL FIX: trades 배열에서 가중 평균 가격 계산
+                let perBtcPrice = 0;
+                if (orderDetail.trades && orderDetail.trades.length > 0) {
+                    // trades 배열에서 총 체결금액과 총 체결수량 계산
+                    let totalFunds = 0;
+                    let totalVolume = 0;
+                    orderDetail.trades.forEach((trade) => {
+                        const tradeFunds = parseFloat(trade.funds || "0");
+                        const tradeVolume = parseFloat(trade.volume || "0");
+                        totalFunds += tradeFunds;
+                        totalVolume += tradeVolume;
+                        console.log(`  📊 Trade: ${tradeVolume} BTC @ ${parseFloat(trade.price || "0").toLocaleString()}원 = ${tradeFunds.toLocaleString()}원`);
+                    });
+                    if (totalVolume > 0) {
+                        perBtcPrice = totalFunds / totalVolume;
+                        console.log(`✅ [Buy Price Calculated] 총 ${totalFunds.toLocaleString()}원 / ${totalVolume} BTC = ${perBtcPrice.toLocaleString()}원/BTC`);
+                    }
+                }
+                else {
+                    // trades 배열이 없으면 fallback (avg_price, executed_funds 사용)
+                    const avgPrice = parseFloat(orderDetail.avg_price || orderDetail.price || "0");
+                    const executedFunds = parseFloat(orderDetail.executed_funds || "0");
+                    if (executedFunds > 0 && executedVolume > 0) {
+                        perBtcPrice = executedFunds / executedVolume;
+                        console.log(`🔧 [Buy Price Fallback] executed_funds / executed_volume = ${perBtcPrice.toLocaleString()}원`);
+                    }
+                    else if (avgPrice > 0) {
+                        perBtcPrice = avgPrice;
+                        console.log(`🔧 [Buy Price Fallback] avg_price = ${perBtcPrice.toLocaleString()}원`);
+                    }
+                }
+                // 가격 검증: 0이거나 비정상적으로 낮으면 저장하지 않음
+                if (perBtcPrice < 1000) {
+                    console.error(`❌ 비정상적인 가격 감지: ${perBtcPrice}원 - 거래 기록 저장 안 함`);
+                    res.json(orderResult);
+                    return;
                 }
                 console.log(`📊 업비트 주문 상세 정보:`, {
                     uuid: orderResult.uuid,
-                    avgPrice: avgPrice.toLocaleString(),
                     executedVolume,
-                    executedFunds: executedFunds.toLocaleString(),
                     paidFee,
                     perBtcPrice: perBtcPrice.toLocaleString()
                 });
@@ -3911,8 +3937,8 @@ export async function registerRoutes(app, server) {
     app.post("/api/trading/upbit/sell", authenticateSession, async (req, res) => {
         try {
             const userId = req.user.id;
-            const { market, volume, ord_type = 'market' } = req.body;
-            console.log(`🚨 실거래 업비트 매도 주문:`, { userId, market, volume, ord_type });
+            const { market, volume, ord_type = 'market', positionId } = req.body;
+            console.log(`🚨 실거래 업비트 매도 주문:`, { userId, market, volume, ord_type, positionId });
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
                 res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
                 return;
@@ -3941,20 +3967,49 @@ export async function registerRoutes(app, server) {
                 const orderDetail = await upbitService.getOrderDetail(orderResult.uuid);
                 // 🔍 DEBUG: 매도 주문 상세 전체 출력
                 console.log(`🔍 [Upbit Sell orderDetail] 전체 응답:`, JSON.stringify(orderDetail, null, 2));
-                const avgPrice = parseFloat(orderDetail.avg_price || orderDetail.price || "0");
                 const executedVolume = parseFloat(orderDetail.executed_volume || orderDetail.volume || "0");
                 const paidFee = parseFloat(orderDetail.paid_fee || "0");
-                const executedFunds = parseFloat(orderDetail.executed_funds || "0");
-                console.log(`🔍 [Sell Data] avgPrice: ${avgPrice}, executedVolume: ${executedVolume}, paidFee: ${paidFee}, executedFunds: ${executedFunds}`);
-                // ⚠️ CRITICAL FIX: executed_funds / executed_volume = 1 BTC당 가격
-                let perBtcPrice = avgPrice;
-                if (executedFunds > 0 && executedVolume > 0) {
-                    perBtcPrice = executedFunds / executedVolume;
-                    console.log(`🔧 [Sell Price Correction] ${avgPrice.toLocaleString()}원 → ${perBtcPrice.toLocaleString()}원`);
+                // ✅ CRITICAL FIX: trades 배열에서 가중 평균 가격 계산
+                let perBtcPrice = 0;
+                if (orderDetail.trades && orderDetail.trades.length > 0) {
+                    // trades 배열에서 총 체결금액과 총 체결수량 계산
+                    let totalFunds = 0;
+                    let totalVolume = 0;
+                    orderDetail.trades.forEach((trade) => {
+                        const tradeFunds = parseFloat(trade.funds || "0");
+                        const tradeVolume = parseFloat(trade.volume || "0");
+                        totalFunds += tradeFunds;
+                        totalVolume += tradeVolume;
+                        console.log(`  📊 Trade: ${tradeVolume} BTC @ ${parseFloat(trade.price || "0").toLocaleString()}원 = ${tradeFunds.toLocaleString()}원`);
+                    });
+                    if (totalVolume > 0) {
+                        perBtcPrice = totalFunds / totalVolume;
+                        console.log(`✅ [Sell Price Calculated] 총 ${totalFunds.toLocaleString()}원 / ${totalVolume} BTC = ${perBtcPrice.toLocaleString()}원/BTC`);
+                    }
+                }
+                else {
+                    // trades 배열이 없으면 fallback (avg_price, executed_funds 사용)
+                    const avgPrice = parseFloat(orderDetail.avg_price || orderDetail.price || "0");
+                    const executedFunds = parseFloat(orderDetail.executed_funds || "0");
+                    if (executedFunds > 0 && executedVolume > 0) {
+                        perBtcPrice = executedFunds / executedVolume;
+                        console.log(`🔧 [Sell Price Fallback] executed_funds / executed_volume = ${perBtcPrice.toLocaleString()}원`);
+                    }
+                    else if (avgPrice > 0) {
+                        perBtcPrice = avgPrice;
+                        console.log(`🔧 [Sell Price Fallback] avg_price = ${perBtcPrice.toLocaleString()}원`);
+                    }
+                }
+                // 가격 검증: 0이거나 비정상적으로 낮으면 저장하지 않음
+                if (perBtcPrice < 1000) {
+                    console.error(`❌ 비정상적인 가격 감지: ${perBtcPrice}원 - 거래 기록 저장 안 함`);
+                    res.json(orderResult);
+                    return;
                 }
                 if (paidFee > 0) {
                     await storage.createTrade({
                         userId: userId,
+                        positionId: positionId || null, // ✅ positionId 추가
                         exchange: 'upbit',
                         symbol: market.replace('KRW-', ''),
                         side: 'sell',
@@ -3966,7 +4021,20 @@ export async function registerRoutes(app, server) {
                         executedAt: new Date(),
                         isMock: false
                     });
-                    console.log(`✅ 업비트 매도 기록 DB 저장 성공 (price: ${perBtcPrice.toLocaleString()}원)`);
+                    console.log(`✅ 업비트 매도 기록 DB 저장 성공 (price: ${perBtcPrice.toLocaleString()}원, positionId: ${positionId || 'null'})`);
+                    // ✅ positionId가 있으면 position 업데이트 (exit_time, status)
+                    if (positionId) {
+                        try {
+                            await storage.updatePosition(positionId, {
+                                status: 'closed',
+                                exit_time: new Date()
+                            });
+                            console.log(`✅ 포지션 ${positionId} 청산 완료 (exit_time 업데이트)`);
+                        }
+                        catch (posError) {
+                            console.error(`❌ 포지션 ${positionId} 업데이트 실패:`, posError);
+                        }
+                    }
                 }
                 else {
                     console.log(`⚠️ 업비트 매도 수수료 0이므로 거래 기록 저장 안 함`);
@@ -4206,12 +4274,15 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: error.message });
         }
     });
-    // 🔍 테스트용: 업비트 주문 상세 조회 API (인증 없음 - 테스트용)
-    app.get("/api/test/upbit-order/:uuid", async (req, res) => {
+    // 🔍 테스트용: 업비트 주문 상세 조회 API
+    app.get("/api/test/upbit-order/:uuid", authenticateSession, async (req, res) => {
         try {
             const { uuid } = req.params;
-            const userId = 5; // 고정 사용자 ID (테스트용)
-            const services = await ExchangeServiceFactory.initializeByUserId(userId);
+            // admin이면 쿼리 파라미터의 userId 사용, 아니면 자신의 userId 사용
+            const targetUserId = req.user.role === 'admin' && req.query.userId
+                ? parseInt(req.query.userId)
+                : req.user.id;
+            const services = await ExchangeServiceFactory.initializeByUserId(targetUserId);
             if (!services.upbitService) {
                 res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
                 return;
@@ -4223,12 +4294,15 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: error.message });
         }
     });
-    // 🔍 테스트용: 바이낸스 주문 상세 조회 API (인증 없음 - 테스트용)
-    app.get("/api/test/binance-order/:orderId", async (req, res) => {
+    // 🔍 테스트용: 바이낸스 주문 상세 조회 API
+    app.get("/api/test/binance-order/:orderId", authenticateSession, async (req, res) => {
         try {
             const { orderId } = req.params;
-            const userId = 5; // 고정 사용자 ID (테스트용)
-            const services = await ExchangeServiceFactory.initializeByUserId(userId);
+            // admin이면 쿼리 파라미터의 userId 사용, 아니면 자신의 userId 사용
+            const targetUserId = req.user.role === 'admin' && req.query.userId
+                ? parseInt(req.query.userId)
+                : req.user.id;
+            const services = await ExchangeServiceFactory.initializeByUserId(targetUserId);
             if (!services.binanceService) {
                 res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
                 return;

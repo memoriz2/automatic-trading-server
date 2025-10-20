@@ -924,7 +924,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 body: JSON.stringify({
                   market: `KRW-${position.symbol}`,
                   volume: finalSellQuantity,
-                  ord_type: 'market'
+                  ord_type: 'market',
+                  positionId: position.id // ✅ positionId 추가
                 })
               });
               
@@ -1811,7 +1812,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                             body: JSON.stringify({
                               market: `KRW-${position.symbol}`,
                               volume: position.upbitQuantity,
-                              ord_type: 'market'
+                              ord_type: 'market',
+                              positionId: position.id // ✅ positionId 추가
                             })
                           });
                           
