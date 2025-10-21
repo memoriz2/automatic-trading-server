@@ -14,10 +14,13 @@ export class UpbitWebSocketService {
   private ws: WebSocket | null = null;
   private isConnected = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private lastMessageTime: number = Date.now();
   private callbacks: Map<string, (data: UpbitTickerData) => void> = new Map();
 
   constructor() {
     this.connect();
+    this.startHeartbeat();
   }
 
   // WebSocket 연결
@@ -39,15 +42,16 @@ export class UpbitWebSocketService {
 
       this.ws.on('message', (data: WebSocket.Data) => {
         try {
+          this.lastMessageTime = Date.now(); // Heartbeat 업데이트
           const message = JSON.parse(data.toString());
-          
+
           if (message.type === 'ticker') {
             // 가격 캐시에 저장 (KRW- 제거하여 심볼 정규화)
             const symbol = message.code.replace('KRW-', '');
             const price = message.trade_price;
             // console.log(`📊 업비트 웹소켓 수신: ${symbol} = ₩${price.toLocaleString()}`);
             priceCache.setUpbitPrice(symbol, price, 'websocket');
-            
+
             // 등록된 콜백들에 데이터 전송
             this.callbacks.forEach(callback => {
               callback(message);
@@ -64,8 +68,8 @@ export class UpbitWebSocketService {
         this.scheduleReconnect();
       });
 
-      this.ws.on('_error', (_error: Error) => {
-        // console.error('❌ 업비트 WebSocket 오류:', error);
+      this.ws.on('error', (error: Error) => {
+        console.error('❌ 업비트 WebSocket 오류:', error.message);
         this.isConnected = false;
         this.scheduleReconnect();
       });
@@ -99,6 +103,20 @@ export class UpbitWebSocketService {
     // console.log('🔔 업비트 실시간 티커 구독:', codes);
   }
 
+  // Heartbeat 모니터링 시작
+  private startHeartbeat() {
+    this.heartbeatTimer = setInterval(() => {
+      const timeSinceLastMessage = Date.now() - this.lastMessageTime;
+
+      // 60초 동안 메시지가 없으면 재연결
+      if (timeSinceLastMessage > 60000 && this.isConnected) {
+        console.warn('⚠️ 업비트 WebSocket: 60초간 메시지 없음 - 재연결 시도');
+        this.isConnected = false;
+        this.scheduleReconnect();
+      }
+    }, 30000); // 30초마다 확인
+  }
+
   // 자동 재연결
   private scheduleReconnect() {
     if (this.reconnectTimer) {
@@ -106,7 +124,7 @@ export class UpbitWebSocketService {
     }
 
     this.reconnectTimer = setTimeout(() => {
-      // console.log('🔄 업비트 WebSocket 재연결 시도...');
+      console.log('🔄 업비트 WebSocket 재연결 시도...');
       this.connect();
     }, 5000);
   }
@@ -128,6 +146,11 @@ export class UpbitWebSocketService {
       this.reconnectTimer = null;
     }
 
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -135,7 +158,7 @@ export class UpbitWebSocketService {
 
     this.isConnected = false;
     this.callbacks.clear();
-    // console.log('🔌 업비트 WebSocket 연결 해제');
+    console.log('🔌 업비트 WebSocket 연결 해제');
   }
 
   // 연결 상태 확인

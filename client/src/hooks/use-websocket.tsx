@@ -167,12 +167,17 @@ export function useWebSocket() {
             
             // 메시지 수신 시 heartbeat 업데이트
             setLastHeartbeat(new Date());
-            
+
             // WebSocket 메시지 수신
             setLastMessage(message);
-            
+
             // pong 메시지 처리 (로그 없이 처리)
             if (message.type === 'pong') {
+              // ✅ heartbeat timeout clear (응답 받았으므로 재연결 취소)
+              if (heartbeatTimeoutRef.current) {
+                clearTimeout(heartbeatTimeoutRef.current);
+                heartbeatTimeoutRef.current = null;
+              }
               return;
             }
 

@@ -2020,7 +2020,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           const sums = activePositions.reduce(
             (acc, p: any) => {
               const upQty = p.upbitQuantity || 0;
-              const upEntryUnit = upQty > 0 ? (p.upbitPrice / upQty) : (p.upbitPrice || 0);
+              // DB에 저장된 업비트 진입가 사용 (계산하지 않음)
+              const upEntryUnit = p.upbitEntryPrice || p.upbitPrice || 0;
               const upValueDiff = (upNow - upEntryUnit) * upQty;
 
               const sideLower = String(p.side || p.type || '').toLowerCase();

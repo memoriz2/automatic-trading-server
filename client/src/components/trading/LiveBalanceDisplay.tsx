@@ -98,7 +98,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
           <div className="text-right">
             {(() => {
               const total = (upbitPnlSum || 0) + (binancePnlSum || 0);
-              const fmt = (v: number) => `${v >= 0 ? '+' : '−'}₩${Math.floor(Math.abs(v)).toLocaleString()}`;
+              const fmt = (v: number) => `${v >= 0 ? '+' : '−'}₩${Math.round(Math.abs(v)).toLocaleString()}`;
               const cmp = Math.abs(upbitPnlSum || 0) > Math.abs(binancePnlSum || 0) ? '>' : '<';
               return (
                 <p className={`font-bold balance-text ${total >= 0 ? 'text-green-400' : 'text-red-400'}`}>

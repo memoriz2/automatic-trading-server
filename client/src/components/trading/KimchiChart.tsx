@@ -123,15 +123,6 @@ export const KimchiChart: React.FC<KimchiChartProps> = ({ sparkData }) => {
     const ctx = canvas.getContext('2d');
     const chartData = getChartData();
 
-    console.log('🎨 차트 렌더링:', {
-      hasCanvas: !!canvas,
-      hasCtx: !!ctx,
-      dataLength: chartData.length,
-      rawDataLength: sparkData.length,
-      canvasWidth: canvas.clientWidth,
-      canvasHeight: canvas.clientHeight
-    });
-
     if (!ctx) {
       console.log('🎨 차트 ctx 없음');
       return;

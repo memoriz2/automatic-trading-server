@@ -5,9 +5,12 @@ export class BinanceWebSocketService {
     ws = null;
     isConnected = false;
     reconnectInterval = 1000; // 1초
+    heartbeatTimer = null;
+    lastMessageTime = Date.now();
     callbacks = {};
     constructor() {
         this.connect();
+        this.startHeartbeat();
     }
     connect() {
         try {
@@ -25,6 +28,7 @@ export class BinanceWebSocketService {
             });
             this.ws.on('message', (data) => {
                 try {
+                    this.lastMessageTime = Date.now(); // Heartbeat 업데이트
                     const message = JSON.parse(data.toString());
                     if (message.stream && message.data) {
                         const trade = message.data;
@@ -46,8 +50,8 @@ export class BinanceWebSocketService {
                     // console.error('바이낸스 WebSocket 메시지 처리 오류:', error, '원본 데이터:', data.toString());
                 }
             });
-            this.ws.on('_error', (_error) => {
-                // console.error('바이낸스 WebSocket 오류:', error.message);
+            this.ws.on('error', (error) => {
+                console.error('❌ 바이낸스 WebSocket 오류:', error.message);
                 this.scheduleReconnect();
             });
             this.ws.on('close', (_code, _reason) => {
@@ -62,6 +66,18 @@ export class BinanceWebSocketService {
         }
     }
     // 💥 잘못된 가정에 기반한 subscribe 함수는 완전히 제거
+    // Heartbeat 모니터링 시작
+    startHeartbeat() {
+        this.heartbeatTimer = setInterval(() => {
+            const timeSinceLastMessage = Date.now() - this.lastMessageTime;
+            // 60초 동안 메시지가 없으면 재연결
+            if (timeSinceLastMessage > 60000 && this.isConnected) {
+                console.warn('⚠️ 바이낸스 WebSocket: 60초간 메시지 없음 - 재연결 시도');
+                this.isConnected = false;
+                this.scheduleReconnect();
+            }
+        }, 30000); // 30초마다 확인
+    }
     // 자동 재연결
     scheduleReconnect() {
         if (this.ws) {
@@ -70,9 +86,8 @@ export class BinanceWebSocketService {
             this.ws = null;
         }
         this.isConnected = false;
-        // console.log('🔄 바이낸스 WebSocket 재연결 시도...');
+        console.log('🔄 바이낸스 WebSocket 재연결 시도...');
         setTimeout(() => {
-            // console.log('🔄 바이낸스 WebSocket 재연결 시도...');
             this.connect();
         }, this.reconnectInterval);
     }
@@ -86,6 +101,10 @@ export class BinanceWebSocketService {
     }
     // 연결 해제
     disconnect() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
         if (this.ws) {
             this.ws.removeAllListeners();
             this.ws.close();
@@ -93,7 +112,7 @@ export class BinanceWebSocketService {
         }
         this.isConnected = false;
         this.callbacks = {};
-        // console.log('🔌 바이낸스 WebSocket 연결 해제');
+        console.log('🔌 바이낸스 WebSocket 연결 해제');
     }
     // 연결 상태 확인
     getConnectionStatus() {
