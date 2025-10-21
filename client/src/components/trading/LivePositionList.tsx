@@ -186,9 +186,8 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     const upbitQuantity = position.upbitQuantity || 0;
                     const binanceQuantity = position.binanceQuantity || 0;
 
-                    // 업비트: upbitPrice를 진입가로 사용 (DB의 entry_price)
-                    const upbitEntryTotal = position.upbitPrice || 0;
-                    const upEntryUnit = upbitQuantity > 0 ? (upbitEntryTotal / upbitQuantity) : upbitEntryTotal;
+                    // 업비트: DB에 저장된 진입가 사용 (계산하지 않음)
+                    const upEntryUnit = position.upbitEntryPrice || position.upbitPrice || 0;
                     const upValueDiff = (currentUpbitPrice - upEntryUnit) * upbitQuantity;
 
                     const sideLower = String(position.side || position.type || '').toLowerCase();

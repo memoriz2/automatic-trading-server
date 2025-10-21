@@ -1104,14 +1104,6 @@ export async function registerRoutes(app, server) {
             // DB snake_case → Frontend camelCase 매핑
             let mappedPosition = null;
             if (activePosition) {
-                console.log('🔍 [check-active] DB에서 가져온 원본 데이터:', {
-                    binance_mark_price: activePosition.binance_mark_price,
-                    binance_liquidation_price: activePosition.binance_liquidation_price,
-                    binance_size_usdt: activePosition.binance_size_usdt,
-                    binance_margin_usdt: activePosition.binance_margin_usdt,
-                    binance_margin_ratio: activePosition.binance_margin_ratio,
-                    binance_unrealized_pnl: activePosition.binance_unrealized_pnl
-                });
                 mappedPosition = {
                     ...activePosition,
                     upbitPrice: Number(activePosition.entry_price) || 0,
@@ -1134,14 +1126,6 @@ export async function registerRoutes(app, server) {
                     binanceMarginType: activePosition.binance_margin_type || 'cross',
                     binanceUnrealizedPnl: Number(activePosition.binance_unrealized_pnl) || 0
                 };
-                console.log('✅ [check-active] 매핑된 camelCase 데이터:', {
-                    binanceMarkPrice: mappedPosition.binanceMarkPrice,
-                    binanceLiquidationPrice: mappedPosition.binanceLiquidationPrice,
-                    binanceSizeUsdt: mappedPosition.binanceSizeUsdt,
-                    binanceMarginUsdt: mappedPosition.binanceMarginUsdt,
-                    binanceMarginRatio: mappedPosition.binanceMarginRatio,
-                    binanceUnrealizedPnl: mappedPosition.binanceUnrealizedPnl
-                });
             }
             res.json({
                 hasActivePosition: !!activePosition,
@@ -2198,6 +2182,8 @@ export async function registerRoutes(app, server) {
     });
     // WebSocket server setup
     const wss = new WebSocketServer({ server, path: "/ws" });
+    // 🔐 사용자 ID -> WebSocket 연결 매핑 (중복 로그인 방지용)
+    const userWebSocketMap = new Map();
     // 🚀 실시간 김치 프리미엄 데이터를 모든 클라이언트에게 전송
     realtimeKimchiService.onUpdate('websocket-broadcast', (kimchiData) => {
         if (kimchiData.length > 0) {
@@ -2215,15 +2201,26 @@ export async function registerRoutes(app, server) {
             // console.log(`📤 WebSocket 김프율 데이터 전송: ${kimchiData.length}개 심볼`);
         }
     });
-    wss.on("connection", (ws, _req) => {
+    wss.on("connection", (ws) => {
         // 첫 클라이언트 연결 시 KimchiService의 지연 초기화를 트리거
         kimchiService.getLatestKimchiPremiums();
-        // WebSocket 연결 로그 완전 제거
+        // 🔐 WebSocket 인증 (클라이언트가 연결 직후 인증 메시지 전송)
+        let userId = null;
         ws.on("message", (message) => {
             const messageStr = message.toString();
             // WebSocket 메시지 처리 (세션 기반 인증 사용)
             try {
                 const msg = JSON.parse(messageStr);
+                // 🔐 인증 메시지 처리 (클라이언트가 연결 직후 전송)
+                if (msg.type === 'auth' && typeof msg.userId === 'number') {
+                    const authenticatedUserId = msg.userId;
+                    userId = authenticatedUserId;
+                    userWebSocketMap.set(authenticatedUserId, ws);
+                    console.log(`✅✅✅ WebSocket 사용자 인증 성공: User ID ${authenticatedUserId} ✅✅✅`);
+                    console.log(`🔍 현재 연결된 WebSocket 수: ${userWebSocketMap.size}`);
+                    console.log(`🔍 연결된 사용자 ID 목록:`, Array.from(userWebSocketMap.keys()));
+                    return;
+                }
                 // ping 메시지에 pong으로 응답
                 if (msg.type === 'ping') {
                     ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
@@ -2238,15 +2235,40 @@ export async function registerRoutes(app, server) {
             }
         });
         ws.on("close", () => {
-            // const userId = wsUserMap.get(ws); // 이 부분은 더 이상 필요 없으므로 제거
-            // if (userId) {
-            //   console.log(`WebSocket 사용자 연결 해제: User ID ${userId}`);
-            //   wsUserMap.delete(ws);
-            // } else {
-            // WebSocket 연결 해제 로그 제거
-            // }
+            if (userId) {
+                userWebSocketMap.delete(userId);
+                console.log(`🔌 WebSocket 연결 해제: User ID ${userId}`);
+            }
         });
     });
+    // 📤 특정 사용자에게 세션 무효화 메시지 전송하는 함수 export
+    global.notifySessionInvalidated = (userId) => {
+        console.log(`🔍 notifySessionInvalidated 호출됨: User ID ${userId}`);
+        console.log(`🔍 현재 연결된 WebSocket 수: ${userWebSocketMap.size}`);
+        console.log(`🔍 연결된 사용자 ID 목록:`, Array.from(userWebSocketMap.keys()));
+        const ws = userWebSocketMap.get(userId);
+        console.log(`🔍 User ID ${userId}의 WebSocket 찾기 결과:`, ws ? '있음' : '없음');
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const message = {
+                type: 'session-invalidated',
+                message: '다른 디바이스에서 로그인하여 현재 세션이 종료되었습니다.',
+                timestamp: new Date().toISOString()
+            };
+            console.log(`📤 전송할 메시지:`, message);
+            ws.send(JSON.stringify(message));
+            console.log(`✅✅✅ 세션 무효화 알림 전송 완료: User ID ${userId} ✅✅✅`);
+            return true;
+        }
+        else {
+            if (ws) {
+                console.warn(`⚠️ WebSocket 상태가 OPEN이 아님: ${ws.readyState}`);
+            }
+            else {
+                console.warn(`⚠️ User ID ${userId}의 WebSocket 연결을 찾을 수 없음`);
+            }
+            return false;
+        }
+    };
     // 💥💥💥 아래의 중복되고 오래된 실시간 데이터 처리 로직은 모두 제거합니다. 💥💥💥
     // 실시간 김프율 데이터 전송 (WebSocket 기반)
     // const sendKimchiData = async () => {

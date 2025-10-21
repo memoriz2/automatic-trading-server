@@ -66,8 +66,10 @@ export interface SystemAlert {
 }
 
 export interface WebSocketMessage {
-  type: 'kimchi-premium' | 'trading-status' | 'alerts' | 'ping' | 'pong';
+  type: 'kimchi-premium' | 'trading-status' | 'alerts' | 'ping' | 'pong' | 'session-invalidated';
   data?: KimchiPremium | TradingSettings | SystemAlert[] | number | null;
+  message?: string; // 세션 무효화 메시지용
+  timestamp?: string; // 메시지 타임스탬프
 }
 
 // ===== Mock Trading 관련 타입 (기존 Mock 시스템용) =====

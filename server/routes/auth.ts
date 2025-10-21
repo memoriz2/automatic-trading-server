@@ -5,6 +5,7 @@ import { storage } from "../storage.js";
 import { verifyToken } from "../utils/auth.js";
 import { getRedisStore } from "../index.js";
 import { invalidateUserSessions } from "../utils/session-manager.js";
+import { parseDeviceInfo } from "../utils/device-parser.js";
 
 const insertUserSchema = z.object({
   username: z.string(),
@@ -225,14 +226,18 @@ export function registerAuthRoutes(app: Express): void {
         return;
       }
 
-      // 마지막 로그인 시간 업데이트
-      await storage.updateLastLogin(user.id);
+      // 디바이스 정보 파싱
+      const deviceInfo = parseDeviceInfo(req);
+
+      // 마지막 로그인 시간 및 디바이스 정보 업데이트
+      await storage.updateLastLogin(user.id, deviceInfo);
 
       // 🔒 기존 세션 무효화 (중복 로그인 방지)
       const redisStore = getRedisStore();
       const deletedSessions = await invalidateUserSessions(redisStore, user.id);
       if (deletedSessions > 0) {
-        console.log(`🔐 사용자 ${user.username}(ID: ${user.id})의 기존 세션 ${deletedSessions}개 무효화됨 (중복 로그인 방지)`);
+        console.log(`🔐 사용자 ${user.username}(ID: ${user.id})의 기존 세션 ${deletedSessions}개 무효화됨`);
+        console.log(`   └─ 새 로그인: ${deviceInfo.deviceType} ${deviceInfo.browser} (${deviceInfo.ip})`);
       }
 
       // 세션에 사용자 정보 저장

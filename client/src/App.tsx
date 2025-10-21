@@ -17,6 +17,7 @@ import NotFound from "@/pages/not-found";
 import BacktestPage from "@/pages/backtest";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
+import { useWebSocket } from "@/hooks/use-websocket";
 import LegacyAutoTradingPage from "@/pages/legacy-auto-trading";
 import { useEffect } from "react";
 import { Provider } from "react-redux";
@@ -24,6 +25,10 @@ import { store } from "@/store";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+
+  // 🔐 WebSocket 연결 (세션 무효화 알림 수신용)
+  // 모든 페이지에서 WebSocket을 활성화하여 실시간 세션 무효화 메시지를 받을 수 있도록 함
+  useWebSocket();
 
   // 활동 추적기 활성화 (로그인된 사용자만)
   useActivityTracker({
@@ -34,11 +39,7 @@ function Router() {
   // 인증 실패 이벤트 감지 - 인증 상태 클리어
   useEffect(() => {
     const handleAuthFailed = () => {
-      // Redux 상태에서 직접 확인
-      const state = store.getState();
-      if (state.auth.isAuthenticated && state.auth.user) {
-        return;
-      }
+      console.log('🚨 auth-failed 이벤트 수신');
 
       // 세션스토리지에 사용자 정보가 있으면 무시 (로그인 직후)
       const storedUser = sessionStorage.getItem('user');
@@ -51,17 +52,22 @@ function Router() {
         } catch {}
       }
 
-      // 인증 상태 강제 업데이트 - clearUser만 호출하면 자동으로 로그인 페이지로 이동
+      // 세션 스토리지 정리
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('authToken');
       localStorage.removeItem('authToken');
 
-      // Redux 상태 업데이트 - 컴포넌트가 리렌더링되면서 LoginPage가 표시됨
-      window.location.href = '/';
+      // 로그인 페이지로 리다이렉트 (토스트는 useWebSocket에서 이미 표시됨)
+      // 루트 경로로 이동하면 !isAuthenticated 조건에 의해 자동으로 LoginPage 표시됨
+      if (window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
     };
 
     window.addEventListener('auth-failed', handleAuthFailed);
-    return () => window.removeEventListener('auth-failed', handleAuthFailed);
+    return () => {
+      window.removeEventListener('auth-failed', handleAuthFailed);
+    };
   }, []);
 
   // 로딩 중 표시

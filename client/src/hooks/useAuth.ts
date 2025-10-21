@@ -88,26 +88,8 @@ export function useAuth() {
     dispatch(setLoading(true));
     checkSession();
 
-    // 🔒 주기적 세션 검증 (30초마다)
-    // 다른 디바이스에서 로그인하면 기존 세션이 무효화되므로 주기적으로 체크
-    const sessionCheckInterval = setInterval(async () => {
-      const currentUser = sessionStorage.getItem('user');
-      if (!currentUser) {
-        clearInterval(sessionCheckInterval);
-        return;
-      }
-
-      try {
-        // skipDuplicateCheck=true로 강제 실행
-        await checkSession(true);
-      } catch (error) {
-        console.log('⚠️ 주기적 세션 검증 실패:', error);
-      }
-    }, 30000); // 30초
-
-    return () => {
-      clearInterval(sessionCheckInterval);
-    };
+    // 🔔 WebSocket을 통한 실시간 세션 무효화 알림으로 대체
+    // 30초 인터벌 제거: 다른 디바이스에서 로그인 시 WebSocket으로 즉시 로그아웃됨
   }, [checkSession, dispatch]);
 
   const login = (userData: User, token?: string) => {

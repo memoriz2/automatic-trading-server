@@ -73,16 +73,17 @@ export default function LoginPage() {
 
       // 쿠키 기반 인증: 서버가 HttpOnly 쿠키를 설정하므로 토큰 없이 사용자만 갱신
       if (data.user) {
-        console.log('🔑 로그인 성공 - login() 함수 호출 예정', data.user);
+        console.log('🔑 로그인 성공 - login() 함수 호출', data.user);
         login(data.user, undefined as any);
-        
+
         toast({
           title: "로그인 성공",
           description: `${data.user.username}님, 환영합니다!`,
         });
-        
-        // useEffect에서 인증 상태 변경을 감지하여 자동으로 페이지 이동
-        console.log('🔄 로그인 완료 - useEffect에서 페이지 이동 처리 예정');
+
+        // 명시적으로 대시보드로 이동
+        console.log('🔄 대시보드로 이동');
+        setLocation('/');
       } else {
         console.error('❌ 로그인 응답에 사용자 데이터 없음:', data);
       }

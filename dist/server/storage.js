@@ -1672,18 +1672,33 @@ export class DatabaseStorage {
             return false;
         }
     }
-    // 마지막 로그인 시간 업데이트
-    async updateLastLogin(userId) {
+    // 마지막 로그인 시간 및 디바이스 정보 업데이트
+    async updateLastLogin(userId, deviceInfo) {
         try {
-            await this.pool.query(`
-        UPDATE users
-        SET last_login_at = NOW()
-        WHERE id = $1
-      `, [userId]);
-            console.log(`✅ 사용자 ${userId} 마지막 로그인 시간 업데이트 완료`);
+            if (deviceInfo) {
+                await this.pool.query(`
+          UPDATE users
+          SET
+            last_login_at = NOW(),
+            last_login_device_type = $2,
+            last_login_ip = $3,
+            last_login_browser = $4,
+            last_login_os = $5
+          WHERE id = $1
+        `, [userId, deviceInfo.deviceType, deviceInfo.ip, deviceInfo.browser, deviceInfo.os]);
+                console.log(`✅ 사용자 ${userId} 로그인 정보 업데이트: ${deviceInfo.deviceType} (${deviceInfo.ip})`);
+            }
+            else {
+                await this.pool.query(`
+          UPDATE users
+          SET last_login_at = NOW()
+          WHERE id = $1
+        `, [userId]);
+                console.log(`✅ 사용자 ${userId} 마지막 로그인 시간 업데이트 완료`);
+            }
         }
         catch (error) {
-            console.error('마지막 로그인 시간 업데이트 실패:', error);
+            console.error('마지막 로그인 정보 업데이트 실패:', error);
         }
     }
     // 연결 종료

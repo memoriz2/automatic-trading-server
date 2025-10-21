@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { WebSocketMessage } from '@/types/trading';
 import { logger } from '@/utils/logger';
+import { toast } from '@/components/ui/use-toast';
 
 export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);
@@ -105,9 +106,32 @@ export function useWebSocket() {
           setIsConnected(true);
           setConnectionAttempts(0); // 성공 시 카운터 리셋
           setLastHeartbeat(new Date());
-          
+
           logger.websocket.info('✅ WebSocket 연결 성공');
-          
+
+          // 🔐 사용자 ID 인증 메시지 전송 (중복 로그인 방지용)
+          const userStr = sessionStorage.getItem('user');
+          console.log('🔍 WebSocket 연결 성공 - 사용자 인증 시작:', userStr);
+          if (userStr && ws.current?.readyState === WebSocket.OPEN) {
+            try {
+              const user = JSON.parse(userStr);
+              console.log('🔍 파싱된 사용자 정보:', user);
+              if (user.id) {
+                ws.current.send(JSON.stringify({
+                  type: 'auth',
+                  userId: user.id
+                }));
+                console.log('✅ WebSocket 사용자 인증 메시지 전송 완료:', user.id);
+              } else {
+                console.warn('⚠️ 사용자 ID가 없습니다:', user);
+              }
+            } catch (error) {
+              console.error('❌ 사용자 정보 파싱 실패:', error);
+            }
+          } else {
+            console.warn('⚠️ WebSocket 인증 실패: userStr 없음 또는 WebSocket 닫힘');
+          }
+
           // 연결 후 인증 메시지 전송 (URL 토큰이 없는 경우)
           if (!token && localStorage.getItem('authToken')) {
             const authToken = localStorage.getItem('authToken');
@@ -116,7 +140,7 @@ export function useWebSocket() {
                 type: 'auth',
                 token: authToken
               }));
-              console.log('🔐 WebSocket 인증 메시지 전송');
+              console.log('🔐 WebSocket 인증 토큰 전송');
             }
           }
         };
@@ -151,7 +175,32 @@ export function useWebSocket() {
             if (message.type === 'pong') {
               return;
             }
-            
+
+            // 🔔 세션 무효화 메시지 처리 (다른 디바이스에서 로그인)
+            if (message.type === 'session-invalidated') {
+              console.log('🔔 세션 무효화 알림 수신');
+
+              // 🎯 토스트 알림 표시
+              toast({
+                title: '⚠️ 세션 종료',
+                description: '다른 디바이스에서 로그인하여 현재 세션이 종료되었습니다.',
+                variant: 'destructive',
+                duration: 5000
+              });
+
+              // 세션 스토리지 정리
+              sessionStorage.removeItem('user');
+              sessionStorage.removeItem('authToken');
+              localStorage.removeItem('authToken');
+
+              // auth-failed 이벤트 발생 (App.tsx에서 처리)
+              window.dispatchEvent(new CustomEvent('auth-failed', {
+                detail: { message: message.message }
+              }));
+
+              return;
+            }
+
             const handler = messageHandlers.current.get(message.type);
             if (handler) {
               handler(message.data);
