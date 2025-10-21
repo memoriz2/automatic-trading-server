@@ -69,7 +69,7 @@ export const DailyStatsPanel: React.FC<DailyStatsPanelProps> = ({
 
   if (error) {
     return (
-      <div className={`mt-4 pt-4 border-t border-slate-600 ${className}`}>
+      <div className={`col-6 mt-4 pt-4 border-t border-slate-600 ${className}`}>
         <h4 className="text-slate-400 text-sm mb-3">{title}</h4>
         <div className="text-center text-red-400 text-sm">
           통계를 불러올 수 없습니다
@@ -79,7 +79,7 @@ export const DailyStatsPanel: React.FC<DailyStatsPanelProps> = ({
   }
 
   return (
-    <div className={`mt-4 pt-4 border-t border-slate-600 ${className}`}>
+    <div className={`col-6 mt-4 pt-4 border-t border-slate-600 ${className}`}>
       <h4 className="text-slate-400 text-sm mb-3">
         {title} {isLoading && <span className="text-xs">(업데이트 중...)</span>}
       </h4>

@@ -65,6 +65,31 @@ const LegacyAutoTradingPage = () => {
   // 김치 프리미엄 차트 데이터 관리
   const { chartData, isLoading: _chartLoading, addDataPoint } = useKimchiChartData('BTC');
 
+  // 수수료 애니메이션 상태
+  const [previousFee, setPreviousFee] = React.useState(0);
+  const [feeAnimationClass, setFeeAnimationClass] = React.useState('');
+
+  // 수수료 변경 시 애니메이션
+  React.useEffect(() => {
+    if (!dailyStats) return;
+
+    if (previousFee !== dailyStats.totalFees && previousFee > 0) {
+      if (dailyStats.totalFees > previousFee) {
+        setFeeAnimationClass('text-red-400 transition-colors duration-300');
+      } else if (dailyStats.totalFees < previousFee) {
+        setFeeAnimationClass('text-blue-400 transition-colors duration-300');
+      }
+
+      setTimeout(() => {
+        setFeeAnimationClass('text-yellow-400 transition-colors duration-300');
+      }, 300);
+
+      setPreviousFee(dailyStats.totalFees);
+    } else if (previousFee === 0 && dailyStats.totalFees > 0) {
+      setPreviousFee(dailyStats.totalFees);
+    }
+  }, [dailyStats, previousFee]);
+
   // 사용자 ID 통일 및 데이터 마이그레이션
   useEffect(() => {
     if (user?.id) {
@@ -1056,7 +1081,7 @@ const LegacyAutoTradingPage = () => {
           {/* 거래 모드별 다른 UI */}
           {false ? ( // Live 모드에서는 Mock 컴포넌트 사용 안함
             /* Mock 모드: 전략 관리 + 차트 */
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
+          <section className="grid grid-cols-1 lg:grid-cols-4 gap-6" style={{gridColumn: 'span 12'}}>
             <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
                 <StrategyList
                 strategies={strategies} // Mock 모드: 로컬 전략
@@ -1106,58 +1131,34 @@ const LegacyAutoTradingPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
-                  <p className="text-xl font-bold text-blue-400">{dailyStats.totalTrades}</p>
+                  <p className="text-xl font-bold text-blue-400">{dailyStats?.totalTrades || 0}</p>
                   <p className="text-xs text-slate-400">총 거래</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-green-400">{dailyStats.upbitTrades}</p>
+                  <p className="text-xl font-bold text-green-400">{dailyStats?.upbitTrades || 0}</p>
                   <p className="text-xs text-slate-400">업비트 거래</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-orange-400">{dailyStats.binanceTrades}</p>
+                  <p className="text-xl font-bold text-orange-400">{dailyStats?.binanceTrades || 0}</p>
                   <p className="text-xs text-slate-400">바이낸스 거래</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-purple-400">{dailyStats.activePositions}</p>
+                  <p className="text-xl font-bold text-purple-400">{dailyStats?.activePositions || 0}</p>
                   <p className="text-xs text-slate-400">활성 포지션</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="text-center">
-                  <p className="text-lg font-bold text-yellow-400">
-                    ₩{(() => {
-                      // 실시간 수수료 계산 및 표시
-                      const [previousFee, setPreviousFee] = React.useState(dailyStats.totalFees);
-                      const [animationClass, setAnimationClass] = React.useState('');
-                      
-                      React.useEffect(() => {
-                        if (previousFee !== dailyStats.totalFees && previousFee > 0) {
-                          if (dailyStats.totalFees > previousFee) {
-                            setAnimationClass('text-red-400 transition-colors duration-300');
-                          } else if (dailyStats.totalFees < previousFee) {
-                            setAnimationClass('text-blue-400 transition-colors duration-300');
-                          }
-                          
-                          setTimeout(() => {
-                            setAnimationClass('text-yellow-400 transition-colors duration-300');
-                          }, 300);
-                          
-                          setPreviousFee(dailyStats.totalFees);
-                        }
-                      }, [dailyStats.totalFees, previousFee]);
-                      
-                      return (
-                        <span className={animationClass || 'text-yellow-400'}>
-                          {dailyStats.totalFees.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
-                        </span>
-                      );
-                    })()}
+                  <p className="text-lg font-bold">
+                    <span className={feeAnimationClass || 'text-yellow-400'}>
+                      ₩{(dailyStats?.totalFees || 0).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
+                    </span>
                   </p>
                   <p className="text-xs text-slate-400">총 수수료 (실시간)</p>
                 </div>
                 <div className="text-center">
-                  <p className={`text-lg font-bold ${dailyStats.realizedPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {dailyStats.realizedPnl >= 0 ? '+' : ''}₩{dailyStats.realizedPnl.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
+                  <p className={`text-lg font-bold ${(dailyStats?.realizedPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(dailyStats?.realizedPnl || 0) >= 0 ? '+' : ''}₩{(dailyStats?.realizedPnl || 0).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}
                   </p>
                   <p className="text-xs text-slate-400">실현 손익</p>
                 </div>
@@ -1166,7 +1167,7 @@ const LegacyAutoTradingPage = () => {
           </section>
           ) : (
             /* 실거래 모드: DB 조회 기반 전략 표시 */
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-6" style={{gridColumn: 'span 12'}}>
+            <section className="grid grid-cols-1 lg:grid-cols-4 gap-6" style={{gridColumn: 'span 12'}}>
               <div className="lg:col-span-2 bg-card rounded-lg p-6 border border-border">
                 {/* 전략 로딩 에러 표시 */}
                 {strategiesError && (
@@ -1228,10 +1229,13 @@ const LegacyAutoTradingPage = () => {
               />
               </div>
 
-              <div className="space-y-6">
-                <DailyStatsPanel 
-                  userId={user?.id} 
-                  title="오늘의 실거래 통계 (DB 기반)"
+              <div className="lg:col-span-2 space-y-6">
+                <MarketSnapshot
+                  kimp={kimp}
+                  balances={balances}
+                  isLoadingBalances={isConnecting}
+                  positions={currentPositions}
+                  strategies={strategies}
                 />
               </div>
             </section>
@@ -1239,11 +1243,11 @@ const LegacyAutoTradingPage = () => {
 
           {/* 거래 시스템 섹션 */}
           <section className="card col-12">
-            
+
             {realTimeDataStatus ? realTimeDataStatus : (
             (liveConnected || window.location.hostname === 'localhost') ? (
               /* 실시간 거래 시스템 */
-              <LiveTradingSystem 
+              <LiveTradingSystem
                 strategies={realStrategies} // DB 기반 전략
                 currentKimchiData={{
                   kimp: Number(kimp?.kimp) || 0.5,
@@ -1275,12 +1279,9 @@ const LegacyAutoTradingPage = () => {
           )}
           </section>
 
-          <MarketSnapshot 
-            kimp={kimp} 
-            balances={balances} 
-            isLoadingBalances={isConnecting} 
-            positions={currentPositions}
-            strategies={strategies}
+          <DailyStatsPanel
+            userId={user?.id}
+            title="오늘의 실거래 통계 (DB 기반)"
           />
 
           {/* 김치프리미엄 차트 */}
@@ -1298,7 +1299,7 @@ const LegacyAutoTradingPage = () => {
           aria-describedby="radix-:r2:"
           aria-labelledby="radix-:r1:"
           data-state="open"
-          className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border p-6 shadow-lg rounded-lg"
+          className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border p-6 shadow-lg rounded-lg flex flex-col"
           style={{
             position: 'fixed',
             left: '50%',
@@ -1306,6 +1307,7 @@ const LegacyAutoTradingPage = () => {
             transform: 'translate(-50%, -50%)',
             width: '90%',
             maxWidth: '500px',
+            maxHeight: '90vh',
             backgroundColor: '#0f1729',
             border: '1px solid #1e293b',
             borderRadius: '12px',
@@ -1319,7 +1321,7 @@ const LegacyAutoTradingPage = () => {
           tabIndex={-1}
         >
           {/* 모달 헤더 */}
-          <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+          <div className="flex flex-col space-y-1.5 text-center sm:text-left flex-shrink-0">
             <h2
               id="radix-:r1:"
               className="text-lg font-semibold leading-none tracking-tight"
@@ -1334,10 +1336,12 @@ const LegacyAutoTradingPage = () => {
             </p>
           </div>
 
-          {/* 폼 */}
-          <form 
-            className="space-y-4" 
-            style={{color: '#e2e8f0'}}
+          {/* 스크롤 가능한 폼 컨테이너 */}
+          <div className="overflow-y-auto flex-1 my-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#475569 #1e293b' }}>
+            {/* 폼 */}
+            <form
+              className="space-y-4"
+              style={{color: '#e2e8f0'}}
             onSubmit={async (e) => {
               e.preventDefault();
               
@@ -1930,12 +1934,13 @@ const LegacyAutoTradingPage = () => {
                 취소
               </button>
             </div>
-          </form>
+            </form>
+          </div>
 
           {/* 닫기 버튼 */}
-          <button 
-            type="button" 
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground" 
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
             onClick={() => setShowCreateModal(false)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x h-4 w-4">
