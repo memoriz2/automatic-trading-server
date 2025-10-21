@@ -71,6 +71,10 @@ app.use(cookieParser());
 const SESSION_TTL_MS = process.env.SESSION_TTL_MS ? parseInt(process.env.SESSION_TTL_MS, 10) : 1000 * 60 * 60 * 24; // 24 hours default
 // Redis store를 전역에서 접근 가능하도록 선언
 let globalRedisStore = null;
+// Redis store getter 함수 export
+export function getRedisStore() {
+    return globalRedisStore;
+}
 // Initialize Redis client and session setup
 async function setupSession() {
     let redisStore = null;

@@ -3,6 +3,8 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { storage } from "../storage.js";
 import { verifyToken } from "../utils/auth.js";
+import { getRedisStore } from "../index.js";
+import { invalidateUserSessions } from "../utils/session-manager.js";
 
 const insertUserSchema = z.object({
   username: z.string(),
@@ -225,6 +227,13 @@ export function registerAuthRoutes(app: Express): void {
 
       // 마지막 로그인 시간 업데이트
       await storage.updateLastLogin(user.id);
+
+      // 🔒 기존 세션 무효화 (중복 로그인 방지)
+      const redisStore = getRedisStore();
+      const deletedSessions = await invalidateUserSessions(redisStore, user.id);
+      if (deletedSessions > 0) {
+        console.log(`🔐 사용자 ${user.username}(ID: ${user.id})의 기존 세션 ${deletedSessions}개 무효화됨 (중복 로그인 방지)`);
+      }
 
       // 세션에 사용자 정보 저장
       (req as any).session.user = {

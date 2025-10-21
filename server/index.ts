@@ -86,6 +86,11 @@ const SESSION_TTL_MS = process.env.SESSION_TTL_MS ? parseInt(process.env.SESSION
 // Redis store를 전역에서 접근 가능하도록 선언
 let globalRedisStore: any = null;
 
+// Redis store getter 함수 export
+export function getRedisStore() {
+  return globalRedisStore;
+}
+
 // Initialize Redis client and session setup
 async function setupSession() {
   let redisStore = null;
