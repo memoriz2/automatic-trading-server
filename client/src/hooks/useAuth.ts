@@ -18,9 +18,9 @@ export function useAuth() {
   const { user, isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
   const mounted = useRef(false);
 
-  const checkSession = useCallback(async () => {
-    // 이미 체크 중이거나 완료되었으면 스킵
-    if (isCheckingSession || hasCheckedSession) {
+  const checkSession = useCallback(async (skipDuplicateCheck = false) => {
+    // 이미 체크 중이거나 완료되었으면 스킵 (주기적 검증 시에는 강제 실행)
+    if (!skipDuplicateCheck && (isCheckingSession || hasCheckedSession)) {
       console.log('⏭️ useAuth: 세션 확인 스킵 (이미 실행 중 또는 완료)');
       dispatch(setLoading(false));
       return;
@@ -87,6 +87,27 @@ export function useAuth() {
 
     dispatch(setLoading(true));
     checkSession();
+
+    // 🔒 주기적 세션 검증 (30초마다)
+    // 다른 디바이스에서 로그인하면 기존 세션이 무효화되므로 주기적으로 체크
+    const sessionCheckInterval = setInterval(async () => {
+      const currentUser = sessionStorage.getItem('user');
+      if (!currentUser) {
+        clearInterval(sessionCheckInterval);
+        return;
+      }
+
+      try {
+        // skipDuplicateCheck=true로 강제 실행
+        await checkSession(true);
+      } catch (error) {
+        console.log('⚠️ 주기적 세션 검증 실패:', error);
+      }
+    }, 30000); // 30초
+
+    return () => {
+      clearInterval(sessionCheckInterval);
+    };
   }, [checkSession, dispatch]);
 
   const login = (userData: User, token?: string) => {
