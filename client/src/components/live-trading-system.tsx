@@ -877,29 +877,9 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         try {
           const liquidationResults = [];
 
-          // 1. 실시간 거래소 잔고 조회 (업비트 + 바이낸스)
-          let actualUpbitBalance = 0;
-          let actualBinanceBalance = 0;
-          try {
-            // 실시간 거래소 잔고 조회
-            const balanceResponse = await fetch('/api/realtime-balances', {
-              method: 'GET',
-              credentials: 'include'
-            });
-
-            if (balanceResponse.ok) {
-              const balanceData = await balanceResponse.json();
-
-              // upbitBtc 필드에서 BTC 잔고 추출
-              actualUpbitBalance = parseFloat(balanceData.upbitBtc || '0');
-              // binanceBtc 필드에서 BTC 포지션 추출 (숏은 음수)
-              actualBinanceBalance = Math.abs(parseFloat(balanceData.binanceBtc || '0'));
-            } else {
-              console.error('❌ 잔고 조회 실패');
-            }
-          } catch (error) {
-            console.error('❌ 실시간 잔고 조회 오류:', error);
-          }
+          // 1. 포지션별 수량 사용 (전체 잔고가 아닌 해당 포지션의 수량만 청산)
+          const actualUpbitBalance = position.upbitQuantity || 0;
+          const actualBinanceBalance = position.binanceQuantity || 0;
 
           // 잔고가 모두 0이면 청산 불필요
           if (actualUpbitBalance <= 0 && actualBinanceBalance <= 0) {
