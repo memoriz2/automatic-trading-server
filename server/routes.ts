@@ -587,16 +587,16 @@ export async function registerRoutes(
       // 🚀 SQL에서 직접 한국시간 오전 9시 기준 오늘 데이터만 조회 (storage 함수에서 처리)
       const todayTrades = await storage.getTodayTradesByUserId(String(userId));
       const todayPositions = await storage.getTodayPositionsByUserId(userId);
-      
-      // 🔧 실제 체결된 거래만 필터링 (order_type = 'LIVE')
-      const liveTrades = todayTrades.filter(t => t.order_type === 'LIVE');
 
-      // console.log(`📊 [daily-stats] 오늘 통계:`, {
-      //   전체거래기록: todayTrades.length,
-      //   실제거래: liveTrades.length,
-      //   오늘포지션: todayPositions.length,
-      //   오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
-      // });
+      // trades 테이블의 모든 거래는 실제 체결된 거래 (order_type 컬럼 없음)
+      const liveTrades = todayTrades;
+
+      console.log(`📊 [daily-stats] 오늘 통계:`, {
+        전체거래기록: todayTrades.length,
+        실제거래: liveTrades.length,
+        오늘포지션: todayPositions.length,
+        오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
+      });
 
       // 🔧 진입/청산 거래 정확한 분류 (실제 체결된 거래만)
       const entryTrades = liveTrades.filter(t =>
@@ -623,26 +623,25 @@ export async function registerRoutes(
         upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
         binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
         total_fees: (() => {
-          // 완료된 거래 수수료 (실제 체결된 거래만)
+          // 실시간 환율 가져오기 (완료된 거래 수수료 계산에도 사용)
+          const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
+          const btcData = realtimeData.find(d => d.symbol === 'BTC');
+          const currentUsdKrw = btcData?.usdKrwRate || 1390; // 실시간 환율
+
+          // 완료된 거래 수수료 (실제 체결된 거래만) - 실시간 환율 사용
           const completedFees = liveTrades.reduce((sum, trade) => {
             const fee = Number(trade.fee || 0);
-            return sum + (trade.exchange === 'upbit' ? fee : fee * 1390); // USDT → KRW 변환
+            return sum + (trade.exchange === 'upbit' ? fee : fee * currentUsdKrw); // 실시간 환율로 USDT → KRW 변환
           }, 0);
-          
+
           // 🔄 오늘 활성 포지션의 실시간 예상 매도 수수료 추가 (수정)
           let activePositionFees = 0;
           const todayActivePositions = todayPositions.filter(p => p.status === 'open');
-          
-          
+
+
           if (todayActivePositions.length > 0) {
-            // 실시간 김치 데이터 한 번만 조회
-            const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
-            const btcData = realtimeData.find(d => d.symbol === 'BTC');
-            
-            
             const currentUpbitPrice = btcData?.upbitPrice || 160000000; // 기본값
             const currentBinancePrice = btcData?.binanceFuturesPrice || 115000; // 기본값
-            const currentUsdKrw = btcData?.usdKrwRate || 1390; // 기본값
             
             // 모든 활성 포지션에 대해 수수료 계산 (캐시된 가격 사용)
             activePositionFees = todayActivePositions.reduce((sum, position, _index) => {

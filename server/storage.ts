@@ -1645,21 +1645,18 @@ export class DatabaseStorage {
     try {
       const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
 
-      // 🔧 한국시간 기준 오늘 09:00 계산
-      // DB timezone이 Asia/Seoul이므로 NOW()는 한국시간
-      // 현재 시간이 9시 이전이면 어제 9시부터, 9시 이후면 오늘 9시부터
+      // 🔧 한국시간 기준 오늘 09:00 계산 (DB는 UTC 사용)
+      // 한국시간 09:00 = UTC 00:00
+      // 한국시간으로 현재가 09:00 이후면 오늘 00:00부터, 09:00 이전이면 어제 00:00부터
       const result = await this.pool.query(`
         SELECT * FROM trades
         WHERE user_id = $1
-        AND executed_at >= CASE
-          WHEN EXTRACT(HOUR FROM NOW()) < 9
-          THEN DATE_TRUNC('day', NOW()) - INTERVAL '15 hours'
-          ELSE DATE_TRUNC('day', NOW()) + INTERVAL '9 hours'
-        END
+        AND executed_at >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '9 hours'
+        AND executed_at < (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '33 hours'
         ORDER BY executed_at DESC
       `, [userIdNum]);
 
-      // console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
+      console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
       return result.rows;
     } catch (error) {
       console.error('❌ [getTodayTradesByUserId] SQL 오류:', error);
@@ -1670,21 +1667,17 @@ export class DatabaseStorage {
   // 오늘 포지션만 조회 (한국시간 오전 9시 기준)
   async getTodayPositionsByUserId(userId: number): Promise<any[]> {
     try {
-      // 🔧 한국시간 기준 오늘 09:00 계산
-      // DB timezone이 Asia/Seoul이므로 NOW()는 한국시간
-      // 현재 시간이 9시 이전이면 어제 9시부터, 9시 이후면 오늘 9시부터
+      // 🔧 한국시간 기준 오늘 09:00 계산 (DB는 UTC 사용)
+      // 한국시간 09:00 = UTC 00:00
       const result = await this.pool.query(`
         SELECT * FROM positions
         WHERE user_id = $1
-        AND entry_time >= CASE
-          WHEN EXTRACT(HOUR FROM NOW()) < 9
-          THEN DATE_TRUNC('day', NOW()) - INTERVAL '15 hours'
-          ELSE DATE_TRUNC('day', NOW()) + INTERVAL '9 hours'
-        END
+        AND entry_time >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '9 hours'
+        AND entry_time < (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '33 hours'
         ORDER BY entry_time DESC
       `, [userId]);
 
-      // console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
+      console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
       return result.rows;
     } catch (error) {
       console.error('❌ [getTodayPositionsByUserId] SQL 오류:', error);
@@ -1698,16 +1691,13 @@ export class DatabaseStorage {
       const result = await this.pool.query(`
         SELECT COUNT(*) as count FROM positions
         WHERE user_id = $1
-        AND exit_time >= CASE
-          WHEN EXTRACT(HOUR FROM NOW()) < 9
-          THEN DATE_TRUNC('day', NOW()) - INTERVAL '15 hours'
-          ELSE DATE_TRUNC('day', NOW()) + INTERVAL '9 hours'
-        END
+        AND exit_time >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '9 hours'
+        AND exit_time < (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '33 hours'
         AND status = 'closed'
       `, [userId]);
 
       const count = parseInt(result.rows[0]?.count || '0');
-      // console.log(`✅ [getTodayExitedPositionsCount] 사용자 ${userId} 오늘(9시 기준) 청산: ${count}개`);
+      console.log(`✅ [getTodayExitedPositionsCount] 사용자 ${userId} 오늘(9시 기준) 청산: ${count}개`);
       return count;
     } catch (error) {
       console.error('❌ [getTodayExitedPositionsCount] SQL 오류:', error);
