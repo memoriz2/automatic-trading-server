@@ -3670,8 +3670,8 @@ export async function registerRoutes(app, server) {
     app.post("/api/trading/binance/close-short", authenticateSession, async (req, res) => {
         try {
             const userId = req.user.id;
-            const { symbol, quantity, strategyId } = req.body;
-            console.log(`🔄 바이낸스 숏 포지션 청산 요청:`, { userId, symbol, quantity, strategyId });
+            const { symbol, quantity, strategyId, positionId } = req.body;
+            console.log(`🔄 바이낸스 숏 포지션 청산 요청:`, { userId, symbol, quantity, strategyId, positionId });
             if (!TRADING_CONFIG.isLiveTradingEnabled) {
                 res.status(400).json({ error: "실거래 모드가 비활성화되어 있습니다" });
                 return;
@@ -3687,6 +3687,7 @@ export async function registerRoutes(app, server) {
             const closeResult = await binanceService.closeShortPosition(symbol.replace('USDT', ''), parseFloat(quantity));
             console.log(`✅ 바이낸스 숏 포지션 청산 성공:`, closeResult);
             // 청산 거래 기록 저장
+            let savedTrade = null;
             try {
                 // 바이낸스 주문 상세 조회
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -3700,15 +3701,19 @@ export async function registerRoutes(app, server) {
                     executedQty,
                     commission
                 });
-                // 활성 포지션 찾기
+                // 활성 포지션 찾기 (positionId 우선, 없으면 strategyId로 찾기)
                 const symbolOnly = symbol.replace('USDT', '');
-                const activePosition = strategyId ?
-                    await storage.getActivePositionByStrategy(strategyId, symbolOnly) : null;
+                let finalPositionId = positionId || null;
+                // positionId가 없고 strategyId가 있으면 포지션 찾기
+                if (!finalPositionId && strategyId) {
+                    const activePosition = await storage.getActivePositionByStrategy(strategyId, symbolOnly);
+                    finalPositionId = activePosition?.id || null;
+                }
                 // trades 테이블에 저장 (fee > 0인 경우만)
                 if (commission > 0) {
-                    await storage.createTrade({
+                    savedTrade = await storage.createTrade({
                         userId: userId,
-                        positionId: activePosition?.id || null,
+                        positionId: finalPositionId,
                         strategyId: strategyId || null,
                         exchange: 'binance',
                         symbol: symbolOnly,
@@ -3721,7 +3726,7 @@ export async function registerRoutes(app, server) {
                         executedAt: new Date(),
                         isMock: false
                     });
-                    console.log(`✅ 바이낸스 청산 거래 기록 DB 저장 성공 (fee: ${commission})`);
+                    console.log(`✅ 바이낸스 청산 거래 기록 DB 저장 성공 (positionId: ${finalPositionId}, fee: ${commission})`);
                 }
                 else {
                     console.log(`⚠️ 바이낸스 청산 수수료 0이므로 거래 기록 저장 안 함`);
@@ -3759,7 +3764,8 @@ export async function registerRoutes(app, server) {
             }
             res.json({
                 message: "숏 포지션 청산 완료",
-                result: closeResult
+                result: closeResult,
+                trade: savedTrade // 저장된 거래 정보 추가
             });
         }
         catch (error) {
@@ -3983,6 +3989,7 @@ export async function registerRoutes(app, server) {
             const orderResult = await upbitService.placeSellOrder(market, sellVolume);
             console.log(`✅ 업비트 매도 주문 성공:`, orderResult);
             // 성공한 거래 기록 저장
+            let savedTrade = null;
             try {
                 // 주문 상세 조회하여 실제 체결 정보 가져오기
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -4029,7 +4036,7 @@ export async function registerRoutes(app, server) {
                     return;
                 }
                 if (paidFee > 0) {
-                    await storage.createTrade({
+                    savedTrade = await storage.createTrade({
                         userId: userId,
                         positionId: positionId || null, // ✅ positionId 추가
                         exchange: 'upbit',
@@ -4065,7 +4072,11 @@ export async function registerRoutes(app, server) {
             catch (dbError) {
                 console.error(`❌ 업비트 매도 기록 저장 실패:`, dbError);
             }
-            res.json(orderResult);
+            // 거래 정보 포함하여 응답
+            res.json({
+                ...orderResult,
+                trade: savedTrade // 저장된 거래 정보 추가
+            });
         }
         catch (error) {
             console.error(`❌ 업비트 매도 주문 실패:`, error);

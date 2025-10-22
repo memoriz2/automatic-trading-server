@@ -1353,12 +1353,14 @@ export class DatabaseStorage {
             const result = await this.pool.query(`
         SELECT
           t.*,
-          ts.name as strategy_name,
+          COALESCE(ts_direct.name, ts_position.name) as strategy_name,
+          COALESCE(t.strategy_id, p.strategy_id) as final_strategy_id,
           p.type as position_type,
           p.id as position_db_id
         FROM trades t
-        LEFT JOIN trading_strategies ts ON t.strategy_id = ts.id
+        LEFT JOIN trading_strategies ts_direct ON t.strategy_id = ts_direct.id
         LEFT JOIN positions p ON t.position_id = p.id
+        LEFT JOIN trading_strategies ts_position ON p.strategy_id = ts_position.id
         WHERE t.user_id = $1
         ORDER BY t.executed_at DESC
         LIMIT $2
@@ -1374,7 +1376,7 @@ export class DatabaseStorage {
                 }
                 return {
                     ...row,
-                    strategyId: row.strategy_id,
+                    strategyId: row.final_strategy_id, // trades.strategy_id 우선, 없으면 positions.strategy_id
                     strategyName,
                     positionId: row.position_id
                 };
