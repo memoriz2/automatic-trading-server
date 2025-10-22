@@ -925,7 +925,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                   market: `KRW-${position.symbol}`,
                   volume: finalSellQuantity,
                   ord_type: 'market',
-                  positionId: position.id.startsWith('db-') ? parseInt(position.id.replace('db-', '')) : position.id // ✅ DB ID 숫자로 변환
+                  positionId: typeof position.id === 'string' && position.id.startsWith('db-') ? parseInt(position.id.replace('db-', '')) : position.id // ✅ DB ID 숫자로 변환
                 })
               });
               
@@ -985,7 +985,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 body: JSON.stringify({
                   symbol: `${position.symbol}USDT`,
                   quantity: finalBinanceQuantity,
-                  positionId: position.id.startsWith('db-') ? parseInt(position.id.replace('db-', '')) : position.id // ✅ DB ID 숫자로 변환
+                  positionId: typeof position.id === 'string' && position.id.startsWith('db-') ? parseInt(position.id.replace('db-', '')) : position.id // ✅ DB ID 숫자로 변환
                 })
               });
               
@@ -1814,7 +1814,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                               market: `KRW-${position.symbol}`,
                               volume: position.upbitQuantity,
                               ord_type: 'market',
-                              positionId: position.id.startsWith('db-') ? parseInt(position.id.replace('db-', '')) : position.id // ✅ DB ID 숫자로 변환
+                              positionId: typeof position.id === 'string' && position.id.startsWith('db-') ? parseInt(position.id.replace('db-', '')) : position.id // ✅ DB ID 숫자로 변환
                             })
                           });
                           
