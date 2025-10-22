@@ -615,8 +615,10 @@ export class DatabaseStorage {
         const updates = {};
         for (const row of entryResult.rows) {
             if (row.exchange === 'upbit' && row.side === 'buy') {
-                updates.entryPrice = parseFloat(row.avg_price);
-                updates.quantity = parseFloat(row.total_quantity);
+                updates.upbitEntryPrice = parseFloat(row.avg_price);
+                updates.upbitQuantity = parseFloat(row.total_quantity);
+                updates.entryPrice = parseFloat(row.avg_price); // entry_price도 업비트 진입가로 설정
+                updates.quantity = parseFloat(row.total_quantity); // quantity도 업비트 수량으로 설정
             }
             else if (row.exchange === 'binance' && row.side === 'short') {
                 updates.binanceEntryPrice = parseFloat(row.avg_price);

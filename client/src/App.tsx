@@ -9,7 +9,6 @@ import AutoTrading from "@/pages/auto-trading";
 import UltraTrading from "@/pages/ultra-trading";
 import Trading from "@/pages/trading";
 import History from "@/pages/history";
-import TradeHistory from "@/pages/trade-history";
 import Settings from "@/pages/settings";
 import LoginPage from "@/pages/login";
 import AdminPage from "@/pages/admin";
@@ -101,7 +100,6 @@ function Router() {
           <Route path="/ultra-trading" component={UltraTrading} />
           <Route path="/trading" component={Trading} />
           <Route path="/history" component={History} />
-          <Route path="/trade-history" component={TradeHistory} />
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminPage} />
           <Route path="/backtest" component={BacktestPage} />

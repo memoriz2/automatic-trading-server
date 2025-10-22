@@ -483,23 +483,15 @@ export async function registerRoutes(app, server) {
                 const allPositions = await storage.getAllPositions(parseInt(userId));
                 const openPositions = allPositions.filter((pos) => pos.status === 'open' && pos.symbol === 'BTC');
                 for (const position of openPositions) {
-                    let updated = false;
                     // 1. 바이낸스 포지션이 0인데 DB에 open 상태 포지션이 있으면 닫기
                     if (binanceBtc === 0 && position.side === 'short' && position.binance_order_id) {
                         console.log(`🔄 [auto-sync] 바이낸스 포지션 0이므로 포지션 ID ${position.id} 자동 닫기`);
                         await storage.closePosition(position.id);
                         console.log(`✅ [auto-sync] 포지션 ID ${position.id} 상태를 closed로 변경 완료`);
-                        updated = true;
                     }
-                    // 2. 업비트 실제 잔고와 DB quantity가 다르면 업데이트 (차이가 0.00001 이상인 경우만)
-                    if (!updated && Math.abs(upbitBtc - parseFloat(position.quantity || '0')) > 0.00001) {
-                        console.log(`🔄 [auto-sync] 포지션 ID ${position.id} 수량 동기화: DB(${position.quantity}) → 실제(${upbitBtc})`);
-                        await storage.updatePosition(position.id, {
-                            quantity: upbitBtc
-                        });
-                        console.log(`✅ [auto-sync] 포지션 ID ${position.id} 수량 업데이트 완료`);
-                        updated = true;
-                    }
+                    // 2. 업비트 실제 잔고와 DB quantity 동기화 로직 제거
+                    // (updatePositionFromTrades에서 거래 기록 기반으로 정확하게 업데이트하므로 불필요)
+                    // 여러 포지션이 있을 때 전체 잔고를 각 포지션에 할당하는 것은 잘못됨
                 }
                 const syncCount = openPositions.length;
                 if (syncCount > 0) {
@@ -3625,13 +3617,12 @@ export async function registerRoutes(app, server) {
                         upbitOrderId: orderResult.uuid
                     };
                     if (perBtcPrice > 0) { // ✅ FIX: avgPrice 대신 perBtcPrice 사용
-                        updateData.entryPrice = perBtcPrice;
+                        updateData.upbitEntryPrice = perBtcPrice;
                         console.log(`📍 업비트 진입가: ${perBtcPrice.toLocaleString()}원 (1 BTC당)`);
                     }
                     if (executedVolume > 0) {
-                        updateData.quantity = executedVolume;
-                        updateData.remainingQuantity = executedVolume;
-                        console.log(`📦 체결 수량: ${executedVolume} BTC`);
+                        updateData.upbitQuantity = executedVolume;
+                        console.log(`📦 업비트 체결 수량: ${executedVolume} BTC`);
                     }
                     await storage.updatePosition(activePosition.id, updateData);
                     console.log(`✅ 포지션 ${activePosition.id} 업데이트 완료:`, updateData);
