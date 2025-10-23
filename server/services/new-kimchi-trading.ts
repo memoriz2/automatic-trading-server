@@ -146,6 +146,9 @@ export class MultiStrategyTradingService {
         const userStrategyMap = this.userStrategies.get(userId);
         if (!userStrategyMap) continue;
 
+        // 📊 모든 전략의 신호를 먼저 수집 (배치 처리)
+        const signals: StrategySignal[] = [];
+
         for (const [_strategyId, strategy] of Array.from(userStrategyMap)) {
           // BTC 데이터만 처리
           const btcData = kimchiData.find((d) => d.symbol === "BTC");
@@ -166,12 +169,19 @@ export class MultiStrategyTradingService {
           );
 
           if (signal) {
-            await this.executeStrategySignal(userId, signal);
-
-            // 🔄 진입/청산 후 즉시 활성 포지션 재조회 (다음 전략이 이미 닫힌 포지션을 다시 청산하지 않도록)
-            activePositions = await storage.getActivePositions(parseInt(userId));
-            console.log(`🔄 신호 실행 후 활성 포지션 재조회: ${activePositions.length}개`);
+            signals.push(signal);
           }
+        }
+
+        // 🚀 수집한 신호들을 한 번에 실행
+        for (const signal of signals) {
+          await this.executeStrategySignal(userId, signal);
+        }
+
+        // 🔄 신호가 있었다면 마지막에 1번만 재조회
+        if (signals.length > 0) {
+          activePositions = await storage.getActivePositions(parseInt(userId));
+          console.log(`🔄 ${signals.length}개 신호 실행 후 활성 포지션 재조회: ${activePositions.length}개`);
         }
 
         // 기존 포지션 관리 (최신 활성 포지션 사용)
