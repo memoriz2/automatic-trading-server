@@ -597,13 +597,12 @@ export async function registerRoutes(app, server) {
                     if (todayExitedPositions.length === 0) {
                         return 0;
                     }
-                    // 실시간 환율
-                    const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
-                    const btcData = realtimeData.find(d => d.symbol === 'BTC');
-                    const currentUsdKrw = btcData?.usdKrwRate || 1390;
                     // 각 포지션별로 손익 계산
                     let totalPnl = 0;
                     for (const position of todayExitedPositions) {
+                        // 해당 포지션의 진입/청산 환율
+                        const entryUsdKrw = Number(position.entry_usd_krw) || 1390;
+                        const exitUsdKrw = Number(position.exit_usd_krw) || 1390;
                         // 해당 포지션의 모든 거래 조회
                         const positionTrades = todayTrades.filter(t => t.position_id === position.id);
                         // 업비트 거래
@@ -618,18 +617,21 @@ export async function registerRoutes(app, server) {
                                 (Number(upbitBuy.price) * Number(upbitBuy.quantity)) -
                                 Number(upbitSell.fee || 0) - Number(upbitBuy.fee || 0)
                             : 0;
-                        // 바이낸스 손익 (USD → KRW)
-                        const binancePnl = binanceSell && binanceBuy
-                            ? ((Number(binanceSell.price) * Number(binanceSell.quantity)) -
-                                (Number(binanceBuy.price) * Number(binanceBuy.quantity)) -
-                                Number(binanceSell.fee || 0) - Number(binanceBuy.fee || 0)) * currentUsdKrw
-                            : 0;
+                        // 바이낸스 손익 (USD → KRW, 진입/청산 환율 각각 적용)
+                        let binancePnl = 0;
+                        if (binanceSell && binanceBuy) {
+                            // 진입 금액 (USD) × 진입 환율 = KRW
+                            const entryAmountKrw = (Number(binanceSell.price) * Number(binanceSell.quantity) + Number(binanceSell.fee || 0)) * entryUsdKrw;
+                            // 청산 금액 (USD) × 청산 환율 = KRW
+                            const exitAmountKrw = (Number(binanceBuy.price) * Number(binanceBuy.quantity) + Number(binanceBuy.fee || 0)) * exitUsdKrw;
+                            // 숏 포지션이므로: 진입 금액 - 청산 금액
+                            binancePnl = entryAmountKrw - exitAmountKrw;
+                        }
                         totalPnl += upbitPnl + binancePnl;
                     }
-                    logDebug('오늘 실현 수익 계산 (trades 기반)', {
+                    logDebug('오늘 실현 수익 계산 (trades 기반, 환율 반영)', {
                         청산포지션수: todayExitedPositions.length,
-                        총실현수익: Math.round(totalPnl),
-                        환율: currentUsdKrw
+                        총실현수익: Math.round(totalPnl)
                     });
                     return totalPnl;
                 })(),

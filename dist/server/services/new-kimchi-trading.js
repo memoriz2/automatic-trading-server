@@ -825,10 +825,16 @@ export class MultiStrategyTradingService {
                 });
                 throw new Error(`완전 청산 실패: 업비트(${upbitError.message}), 바이낸스(${binanceError.message})`);
             }
-            // 3. 포지션 상태 업데이트 - status를 'closed'로 변경하여 재청산 방지
+            // 3. 청산 시점 환율 조회 (필수)
+            const { UpbitAdapter } = await import('../adapters/UpbitAdapter.js');
+            const upbitAdapter = new UpbitAdapter();
+            const exitUsdKrw = await upbitAdapter.getCurrentPrice('USDT');
+            console.log(`💱 청산 시점 환율: ${exitUsdKrw.toFixed(2)} KRW/USD`);
+            // 4. 포지션 상태 업데이트 - status를 'closed'로 변경하여 재청산 방지
             await storage.updatePosition(position.id, {
                 status: 'closed',
                 currentPremiumRate: signal.premiumRate,
+                exitUsdKrw: exitUsdKrw, // 청산 시점 환율 저장
             });
             // 4. 거래 기록 생성 (성공한 것만, 수수료 포함)
             const tradePromises = [];
