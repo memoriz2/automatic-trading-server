@@ -592,21 +592,46 @@ export async function registerRoutes(app, server) {
                     return 0;
                 })(),
                 total_profit_krw: (() => {
-                    // 오늘 청산한 포지션의 realized_pnl 합계 (DB에 저장된 정확한 값)
+                    // trades 테이블에서 실제 거래 기록 기반으로 수익 계산
                     const todayExitedPositions = todayPositions.filter(p => p.status === 'closed' && p.exit_time);
-                    const totalRealizedPnl = todayExitedPositions.reduce((sum, p) => {
-                        return sum + Number(p.realized_pnl || 0);
-                    }, 0);
-                    logDebug('오늘 실현 수익 계산', {
+                    if (todayExitedPositions.length === 0) {
+                        return 0;
+                    }
+                    // 실시간 환율
+                    const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
+                    const btcData = realtimeData.find(d => d.symbol === 'BTC');
+                    const currentUsdKrw = btcData?.usdKrwRate || 1390;
+                    // 각 포지션별로 손익 계산
+                    let totalPnl = 0;
+                    for (const position of todayExitedPositions) {
+                        // 해당 포지션의 모든 거래 조회
+                        const positionTrades = todayTrades.filter(t => t.position_id === position.id);
+                        // 업비트 거래
+                        const upbitBuy = positionTrades.find(t => t.exchange === 'upbit' && t.side === 'buy');
+                        const upbitSell = positionTrades.find(t => t.exchange === 'upbit' && t.side === 'sell');
+                        // 바이낸스 거래
+                        const binanceSell = positionTrades.find(t => t.exchange === 'binance' && t.side === 'sell'); // 숏 진입
+                        const binanceBuy = positionTrades.find(t => t.exchange === 'binance' && t.side === 'buy'); // 숏 청산
+                        // 업비트 손익 (KRW)
+                        const upbitPnl = upbitSell && upbitBuy
+                            ? (Number(upbitSell.price) * Number(upbitSell.quantity)) -
+                                (Number(upbitBuy.price) * Number(upbitBuy.quantity)) -
+                                Number(upbitSell.fee || 0) - Number(upbitBuy.fee || 0)
+                            : 0;
+                        // 바이낸스 손익 (USD → KRW)
+                        const binancePnl = binanceSell && binanceBuy
+                            ? ((Number(binanceSell.price) * Number(binanceSell.quantity)) -
+                                (Number(binanceBuy.price) * Number(binanceBuy.quantity)) -
+                                Number(binanceSell.fee || 0) - Number(binanceBuy.fee || 0)) * currentUsdKrw
+                            : 0;
+                        totalPnl += upbitPnl + binancePnl;
+                    }
+                    logDebug('오늘 실현 수익 계산 (trades 기반)', {
                         청산포지션수: todayExitedPositions.length,
-                        총실현수익: totalRealizedPnl,
-                        포지션상세: todayExitedPositions.slice(0, 3).map(p => ({
-                            id: p.id,
-                            realized_pnl: p.realized_pnl,
-                            exit_time: p.exit_time
-                        }))
+                        총실현수익: Math.round(totalPnl),
+                        환율: currentUsdKrw
                     });
-                    return totalRealizedPnl;
+                    return totalPnl;
                 })(),
                 loops: (() => {
                     // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
