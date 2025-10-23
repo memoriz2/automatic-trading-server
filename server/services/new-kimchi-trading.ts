@@ -21,6 +21,9 @@ export class MultiStrategyTradingService {
   private activeStrategies: Map<number, TradingStrategy> = new Map();
   private userStrategies: Map<string, Map<number, TradingStrategy>> = new Map();
 
+  // 웹소켓 이벤트 쓰로틀링을 위한 마지막 체크 시간
+  private lastCheckTimes: Map<string, number> = new Map();
+
   constructor() {
     this.simpleKimchiService = new SimpleKimchiService();
   }
@@ -130,79 +133,137 @@ export class MultiStrategyTradingService {
     }
   }
 
-  private async multiStrategyTradingLoop(userId: string): Promise<void> {
-    while (this.userTradingStates.get(userId)) {
-      try {
-        // BTC 김프율만 확인 (단일 포지션)
-        const symbols = ["BTC"];
-        const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi(
-          symbols, userId
+  /**
+   * 신호 확인 및 실행 (웹소켓 이벤트 또는 폴백용)
+   * 쓰로틀링: 1초 이내 중복 실행 방지
+   */
+  private async checkAndExecuteSignals(userId: string): Promise<void> {
+    // 🛡️ 쓰로틀링: 1초 이내 중복 실행 방지
+    const lastCheckTime = this.lastCheckTimes.get(userId) || 0;
+    const now = Date.now();
+    if (now - lastCheckTime < 1000) {
+      return; // 1초 쿨다운
+    }
+    this.lastCheckTimes.set(userId, now);
+
+    try {
+      // BTC 김프율만 확인 (단일 포지션)
+      const symbols = ["BTC"];
+      const kimchiData = await this.simpleKimchiService.calculateSimpleKimchi(
+        symbols, userId
+      );
+
+      // 활성 포지션 조회
+      let activePositions = await storage.getActivePositions(parseInt(userId));
+
+      // BTC 단일 전략 신호 분석 (사용자별 전략 사용)
+      const userStrategyMap = this.userStrategies.get(userId);
+      if (!userStrategyMap) return;
+
+      // 📊 모든 전략의 신호를 먼저 수집 (배치 처리)
+      const signals: StrategySignal[] = [];
+
+      for (const [_strategyId, strategy] of Array.from(userStrategyMap)) {
+        // BTC 데이터만 처리
+        const btcData = kimchiData.find((d) => d.symbol === "BTC");
+        if (!btcData) continue;
+
+        // 현재 김프율 저장
+        this.lastKimchiRates.set("BTC", btcData.premiumRate);
+
+        // 🔍 해당 전략의 활성 포지션만 필터링하여 신호 분석
+        const strategyActivePositions = activePositions.filter(
+          (p: any) => p.strategy_id === strategy.id && p.status === "open"
         );
 
-        // 활성 포지션 조회 (루프 시작 시 한 번만 조회)
-        let activePositions = await storage.getActivePositions(parseInt(userId));
+        const signal = await this.analyzeStrategySignal(
+          btcData,
+          strategy,
+          strategyActivePositions
+        );
 
-        // BTC 단일 전략 신호 분석 (사용자별 전략 사용)
-        const userStrategyMap = this.userStrategies.get(userId);
-        if (!userStrategyMap) continue;
-
-        // 📊 모든 전략의 신호를 먼저 수집 (배치 처리)
-        const signals: StrategySignal[] = [];
-
-        for (const [_strategyId, strategy] of Array.from(userStrategyMap)) {
-          // BTC 데이터만 처리
-          const btcData = kimchiData.find((d) => d.symbol === "BTC");
-          if (!btcData) continue;
-
-          // 현재 김프율 저장
-          this.lastKimchiRates.set("BTC", btcData.premiumRate);
-
-          // 🔍 해당 전략의 활성 포지션만 필터링하여 신호 분석
-          const strategyActivePositions = activePositions.filter(
-            (p: any) => p.strategy_id === strategy.id && p.status === "open"
-          );
-
-          const signal = await this.analyzeStrategySignal(
-            btcData,
-            strategy,
-            strategyActivePositions
-          );
-
-          if (signal) {
-            signals.push(signal);
-          }
+        if (signal) {
+          signals.push(signal);
         }
+      }
 
-        // 🚀 수집한 신호들을 한 번에 실행
-        for (const signal of signals) {
-          await this.executeStrategySignal(userId, signal);
-        }
+      // 🚀 수집한 신호들을 한 번에 실행
+      for (const signal of signals) {
+        await this.executeStrategySignal(userId, signal);
+      }
 
-        // 🔄 신호가 있었다면 마지막에 1번만 재조회
-        if (signals.length > 0) {
-          activePositions = await storage.getActivePositions(parseInt(userId));
-          console.log(`🔄 ${signals.length}개 신호 실행 후 활성 포지션 재조회: ${activePositions.length}개`);
-        }
+      // 🔄 신호가 있었다면 마지막에 1번만 재조회
+      if (signals.length > 0) {
+        activePositions = await storage.getActivePositions(parseInt(userId));
+        console.log(`🔄 ${signals.length}개 신호 실행 후 활성 포지션 재조회: ${activePositions.length}개`);
+      }
 
-        // 기존 포지션 관리 (최신 활성 포지션 사용)
-        await this.manageMultiStrategyPositions(userId, activePositions);
+      // 기존 포지션 관리 (최신 활성 포지션 사용)
+      await this.manageMultiStrategyPositions(userId, activePositions);
+    } catch (error) {
+      console.error(`❌ [checkAndExecuteSignals] 사용자 ${userId} 오류:`, error);
+      await storage.createSystemAlert({
+        type: "error",
+        title: "신호 확인 오류",
+        message: `신호 확인 중 오류가 발생했습니다: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+    }
+  }
 
-        // 5초 대기
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-      } catch (error) {
-        console.error("Multi-strategy trading loop error:", error);
-        await storage.createSystemAlert({
-          type: "error",
-          title: "다중 전략 자동매매 오류",
-          message: `자동매매 중 오류가 발생했습니다: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        });
+  /**
+   * 웹소켓 이벤트 기반 자동매매 시작
+   */
+  private async startEventDrivenTrading(userId: string): Promise<void> {
+    console.log(`🎯 [사용자 ${userId}] 웹소켓 이벤트 기반 자동매매 시작`);
 
-        // 오류 시 잠시 대기
-        await new Promise((resolve) => setTimeout(resolve, 10000));
+    // 웹소켓 서비스 동적 import
+    const { binanceWebSocket } = await import('./binance-websocket.js');
+    const { upbitWebSocket } = await import('./upbit-websocket.js');
+
+    // 🎯 바이낸스 가격 변화 시 자동 실행
+    const binanceCallbackId = `trading-binance-${userId}`;
+    binanceWebSocket.onData(binanceCallbackId, async (data: any) => {
+      if (data.s !== 'BTCUSDT') return; // BTC만 처리
+
+      // console.log(`💰 [사용자 ${userId}] 바이낸스 BTC 가격 변화: $${data.p}`);
+      await this.checkAndExecuteSignals(userId);
+    });
+
+    // 🎯 업비트 가격 변화 시 자동 실행
+    const upbitCallbackId = `trading-upbit-${userId}`;
+    upbitWebSocket.onData(upbitCallbackId, async (data: any) => {
+      if (data.cd !== 'KRW-BTC') return; // BTC만 처리
+
+      // console.log(`💰 [사용자 ${userId}] 업비트 BTC 가격 변화: ₩${data.trade_price?.toLocaleString()}`);
+      await this.checkAndExecuteSignals(userId);
+    });
+
+    // 🔔 웹소켓 구독 (이미 구독되어 있을 수 있으므로 중복 구독 방지는 웹소켓 서비스에서 처리)
+    upbitWebSocket.subscribe(['KRW-BTC']);
+
+    console.log(`✅ [사용자 ${userId}] 웹소켓 이벤트 핸들러 등록 완료`);
+
+    // 🔄 폴백: 30초마다 한 번씩 강제 체크 (웹소켓 실패 대비)
+    while (this.userTradingStates.get(userId)) {
+      await new Promise((resolve) => setTimeout(resolve, 30000)); // 30초 대기
+
+      if (this.userTradingStates.get(userId)) {
+        console.log(`🔄 [사용자 ${userId}] 폴백 체크 (30초마다)`);
+        await this.checkAndExecuteSignals(userId);
       }
     }
+
+    // 정리: 콜백 제거
+    binanceWebSocket.removeCallback(binanceCallbackId);
+    upbitWebSocket.removeCallback(upbitCallbackId);
+    console.log(`🛑 [사용자 ${userId}] 웹소켓 이벤트 핸들러 제거 완료`);
+  }
+
+  private async multiStrategyTradingLoop(userId: string): Promise<void> {
+    // 웹소켓 이벤트 기반으로 전환
+    await this.startEventDrivenTrading(userId);
   }
 
   // 전략 신호 실행

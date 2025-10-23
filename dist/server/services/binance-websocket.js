@@ -122,3 +122,5 @@ export class BinanceWebSocketService {
         };
     }
 }
+// 싱글톤 인스턴스 export
+export const binanceWebSocket = new BinanceWebSocketService();

@@ -137,3 +137,5 @@ export class UpbitWebSocketService {
         };
     }
 }
+// 싱글톤 인스턴스 export
+export const upbitWebSocket = new UpbitWebSocketService();
