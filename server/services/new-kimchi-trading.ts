@@ -548,7 +548,7 @@ export class MultiStrategyTradingService {
         // 바이낸스 수수료 계산 (API에서 받은 값 우선 사용)
         const binanceFee = calculateBinanceFee(totalQty, binancePrice, binancePaidFee);
 
-        // 바이낸스 거래 즉시 DB 저장 (총액으로 저장)
+        // 바이낸스 거래 즉시 DB 저장 (단가로 저장)
         try {
           await storage.createTrade({
             userId: parseInt(userId),
@@ -558,11 +558,11 @@ export class MultiStrategyTradingService {
             side: "sell",
             exchange: "binance",
             quantity: String(totalQty), // 총 체결수량 (trades 배열 집계)
-            price: String(binanceTotalFunds), // 총 체결금액 (USD, trades 배열 집계)
+            price: String(binancePrice), // USD 단가 (총액 / 수량)
             fee: binanceFee, // USDT 단위 수수료
             exchangeOrderId: binanceResult.orderId,
           });
-          console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료 (총액: $${binanceTotalFunds.toFixed(2)}, 수량: ${totalQty} BTC, 수수료: $${binanceFee.toFixed(4)})`);
+          console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료 (단가: $${binancePrice.toFixed(2)}, 총액: $${binanceTotalFunds.toFixed(2)}, 수량: ${totalQty} BTC, 수수료: $${binanceFee.toFixed(4)})`);
         } catch (dbError) {
           console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);
         }
@@ -770,9 +770,9 @@ export class MultiStrategyTradingService {
         type: "HEDGE",
         side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
         status: "open",
-        // 업비트 진입가는 항상 총액(KRW)으로 저장 (upbitEntryPrice는 이미 총액)
-        entryPrice: String(Math.round(Number(upbitEntryPrice) || 0)),
-        binanceEntryPrice: String(binanceTotalFunds), // ← 바이낸스 진입가 (USD 총액)
+        // 업비트 진입가는 단가(KRW/BTC)로 저장
+        entryPrice: String(executedVolume > 0 ? Math.round(upbitEntryPrice / executedVolume) : 0),
+        binanceEntryPrice: String(currentPrice), // ← 바이낸스 진입가 (USD 단가)
         quantity: String(executedVolume), // 실제 체결된 수량
         binanceQuantity: String(adjustedQuantity), // 바이낸스 수량 (동일)
         remainingQuantity: String(adjustedQuantity), // 남은 수량 (초기값 = 전체 수량)

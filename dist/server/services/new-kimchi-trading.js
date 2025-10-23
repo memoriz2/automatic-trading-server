@@ -120,7 +120,7 @@ export class MultiStrategyTradingService {
                     // 현재 김프율 저장
                     this.lastKimchiRates.set("BTC", btcData.premiumRate);
                     // 🔍 해당 전략의 활성 포지션만 필터링하여 신호 분석
-                    const strategyActivePositions = activePositions.filter((p) => p.strategyId === strategy.id && p.status === "open");
+                    const strategyActivePositions = activePositions.filter((p) => p.strategy_id === strategy.id && p.status === "open");
                     const signal = await this.analyzeStrategySignal(btcData, strategy, strategyActivePositions);
                     if (signal) {
                         await this.executeStrategySignal(userId, signal);
@@ -170,7 +170,7 @@ export class MultiStrategyTradingService {
         const premiumRate = kimchiData.premiumRate;
         // const symbol = "BTC"; // BTC 고정 - 현재 사용하지 않음
         // BTC 활성 포지션 확인 (해당 전략의 포지션만)
-        const existingPosition = activePositions.find((p) => p.symbol === "BTC" && p.status === "open" && p.strategyId === strategy.id);
+        const existingPosition = activePositions.find((p) => p.symbol === "BTC" && p.status === "open" && p.strategy_id === strategy.id);
         // 사용자 설정 값
         const entryRate = Number(strategy.entry_rate);
         const exitRate = Number(strategy.exit_rate);
@@ -266,20 +266,15 @@ export class MultiStrategyTradingService {
         // 🔍 진입 전 잔고 확인
         const balanceCheck = await this.checkBalanceBeforeEntry(userId, upbitEntryAmount, investmentBtcAmount);
         if (!balanceCheck.sufficient) {
-            console.log(`❌ 잔고 부족으로 전략 비활성화: ${balanceCheck.message}`);
-            // 전략 비활성화
-            await storage.updateTradingStrategy(signal.strategyId, { is_active: false });
-            // 사용자별 전략 맵에서도 제거
-            const userStrategyMap = this.userStrategies.get(userId);
-            if (userStrategyMap) {
-                userStrategyMap.delete(signal.strategyId);
-            }
+            console.log(`❌ 잔고 부족으로 진입 스킵: ${balanceCheck.message}`);
+            // ⚠️ 전략은 비활성화하지 않음 (사용자가 직접 관리)
+            // 단순히 경고만 하고 진입은 스킵
             await storage.createSystemAlert({
                 type: "warning",
-                title: "잔고 부족으로 전략 비활성화",
-                message: `${strategy.name} 비활성화: ${balanceCheck.message}`,
+                title: "잔고 부족으로 진입 스킵",
+                message: `${strategy.name} 진입 스킵: ${balanceCheck.message}`,
             });
-            console.log(`🔒 전략 "${strategy.name}" (ID: ${signal.strategyId}) 비활성화 완료`);
+            console.log(`⏭️ 전략 "${strategy.name}" (ID: ${signal.strategyId}) 잔고 부족으로 진입 스킵`);
             return; // 진입 취소
         }
         log.info('잔고 확인 완료');
@@ -393,7 +388,7 @@ export class MultiStrategyTradingService {
                 console.log(`💰 바이낸스 실제 수수료 (trades 배열 집계): ${binancePaidFee} USDT`);
                 // 바이낸스 수수료 계산 (API에서 받은 값 우선 사용)
                 const binanceFee = calculateBinanceFee(totalQty, binancePrice, binancePaidFee);
-                // 바이낸스 거래 즉시 DB 저장 (총액으로 저장)
+                // 바이낸스 거래 즉시 DB 저장 (단가로 저장)
                 try {
                     await storage.createTrade({
                         userId: parseInt(userId),
@@ -403,11 +398,11 @@ export class MultiStrategyTradingService {
                         side: "sell",
                         exchange: "binance",
                         quantity: String(totalQty), // 총 체결수량 (trades 배열 집계)
-                        price: String(binanceTotalFunds), // 총 체결금액 (USD, trades 배열 집계)
+                        price: String(binancePrice), // USD 단가 (총액 / 수량)
                         fee: binanceFee, // USDT 단위 수수료
                         exchangeOrderId: binanceResult.orderId,
                     });
-                    console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료 (총액: $${binanceTotalFunds.toFixed(2)}, 수량: ${totalQty} BTC, 수수료: $${binanceFee.toFixed(4)})`);
+                    console.log(`✅ 바이낸스 숏 거래 기록 즉시 저장 완료 (단가: $${binancePrice.toFixed(2)}, 총액: $${binanceTotalFunds.toFixed(2)}, 수량: ${totalQty} BTC, 수수료: $${binanceFee.toFixed(4)})`);
                 }
                 catch (dbError) {
                     console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);
@@ -582,9 +577,9 @@ export class MultiStrategyTradingService {
                 type: "HEDGE",
                 side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
                 status: "open",
-                // 업비트 진입가는 항상 총액(KRW)으로 저장 (upbitEntryPrice는 이미 총액)
-                entryPrice: String(Math.round(Number(upbitEntryPrice) || 0)),
-                binanceEntryPrice: String(binanceTotalFunds), // ← 바이낸스 진입가 (USD 총액)
+                // 업비트 진입가는 단가(KRW/BTC)로 저장
+                entryPrice: String(executedVolume > 0 ? Math.round(upbitEntryPrice / executedVolume) : 0),
+                binanceEntryPrice: String(currentPrice), // ← 바이낸스 진입가 (USD 단가)
                 quantity: String(executedVolume), // 실제 체결된 수량
                 binanceQuantity: String(adjustedQuantity), // 바이낸스 수량 (동일)
                 remainingQuantity: String(adjustedQuantity), // 남은 수량 (초기값 = 전체 수량)
@@ -670,7 +665,7 @@ export class MultiStrategyTradingService {
     // 전략 청산: 업비트 매도 + 바이낸스 포지션 청산
     async executeStrategyExit(userId, signal) {
         const positions = await storage.getActivePositions(parseInt(userId));
-        const position = positions.find((p) => p.symbol === signal.symbol && p.status === "open" && p.strategyId === signal.strategyId);
+        const position = positions.find((p) => p.symbol === signal.symbol && p.status === "open" && p.strategy_id === signal.strategyId);
         if (!position) {
             console.log(`청산할 ${signal.symbol} 활성 포지션을 찾을 수 없습니다.`);
             return;
