@@ -19,11 +19,15 @@ export class AutoTradingManager {
    * 서버 시작 시 활성화된 자동매매 재개
    */
   async start(): Promise<void> {
+    console.log('🔵 [AutoTradingManager] start() 메서드 진입');
+    console.log('🔵 [AutoTradingManager] isInitialized:', this.isInitialized);
+
     if (this.isInitialized) {
       console.log('⚠️ 자동매매 관리자가 이미 실행 중입니다');
       return;
     }
 
+    console.log('🔵 [AutoTradingManager] isInitialized 체크 통과');
     this.isInitialized = true;
     console.log('🚀 백그라운드 자동매매 시작 중...');
 
@@ -74,7 +78,7 @@ export class AutoTradingManager {
 
       // 사용자의 활성 전략 확인
       const strategies = await storage.getTradingStrategies(parseInt(userId));
-      const activeStrategies = strategies.filter((s: any) => s.isActive);
+      const activeStrategies = strategies.filter((s: any) => s.is_active);
 
       if (activeStrategies.length === 0) {
         console.log(`⚠️ 사용자 ${userId}의 활성 전략이 없습니다`);

@@ -1237,23 +1237,23 @@ export class DatabaseStorage {
     async createTradingSettings(data) {
         return this.updateTradingSettings(data.userId, data);
     }
-    // 활성화된 자동매매 사용자 조회
+    // 활성 전략이 있는 사용자 조회 (백그라운드 자동매매용)
     async getActiveAutoTradingUsers() {
         try {
             const result = await this.pool.query(`
-        SELECT
-          ts.*,
+        SELECT DISTINCT
+          u.id as user_id,
           u.username,
           u.email
-        FROM trading_settings ts
-        INNER JOIN users u ON ts.user_id = u.id
-        WHERE ts.is_auto_trading = true
+        FROM users u
+        INNER JOIN trading_strategies ts ON ts.user_id = u.id
+        WHERE ts.is_active = true
         AND u.approval_status = 'approved'
       `);
             return result.rows;
         }
         catch (error) {
-            console.error('활성화된 자동매매 사용자 조회 실패:', error);
+            console.error('활성 전략 사용자 조회 실패:', error);
             return [];
         }
     }
@@ -1393,14 +1393,13 @@ export class DatabaseStorage {
     async getTodayTradesByUserId(userId) {
         try {
             const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
-            // 🔧 한국시간 기준 오늘 09:00 계산 (DB는 UTC 사용)
-            // 한국시간 09:00 = UTC 00:00
-            // 한국시간으로 현재가 09:00 이후면 오늘 00:00부터, 09:00 이전이면 어제 00:00부터
+            // 🔧 한국시간 기준 오늘 09:00 계산
+            // executed_at은 타임존 없이 KST로 저장되어 있음
             const result = await this.pool.query(`
         SELECT * FROM trades
         WHERE user_id = $1
-        AND executed_at >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '9 hours'
-        AND executed_at < (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '33 hours'
+        AND executed_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+        AND executed_at < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '33 hours'
         ORDER BY executed_at DESC
       `, [userIdNum]);
             console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
@@ -1414,13 +1413,13 @@ export class DatabaseStorage {
     // 오늘 포지션만 조회 (한국시간 오전 9시 기준)
     async getTodayPositionsByUserId(userId) {
         try {
-            // 🔧 한국시간 기준 오늘 09:00 계산 (DB는 UTC 사용)
-            // 한국시간 09:00 = UTC 00:00
+            // 🔧 한국시간 기준 오늘 09:00 계산
+            // entry_time은 타임존 없이 KST로 저장되어 있음
             const result = await this.pool.query(`
         SELECT * FROM positions
         WHERE user_id = $1
-        AND entry_time >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '9 hours'
-        AND entry_time < (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '33 hours'
+        AND entry_time >= (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+        AND entry_time < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '33 hours'
         ORDER BY entry_time DESC
       `, [userId]);
             console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
@@ -1434,11 +1433,13 @@ export class DatabaseStorage {
     // 오늘 청산된 포지션 수 (exit_time 기준, 한국시간 오전 9시 기준)
     async getTodayExitedPositionsCount(userId) {
         try {
+            // 🔧 한국시간 기준 오늘 09:00 계산
+            // exit_time은 타임존 없이 KST로 저장되어 있음
             const result = await this.pool.query(`
         SELECT COUNT(*) as count FROM positions
         WHERE user_id = $1
-        AND exit_time >= (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '9 hours'
-        AND exit_time < (NOW() AT TIME ZONE 'UTC' - INTERVAL '9 hours')::date + INTERVAL '33 hours'
+        AND exit_time >= (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+        AND exit_time < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '33 hours'
         AND status = 'closed'
       `, [userId]);
             const count = parseInt(result.rows[0]?.count || '0');

@@ -325,17 +325,19 @@ app.get("/healthz", (_req: Request, res: Response) => {
     kimchiPremiumCollector.start();
 
     // 백그라운드 자동매매 시작 (비동기)
+    console.log('🔵 autoTradingManager.start() 호출 중...');
     autoTradingManager.start().catch(err => {
       console.error('❌ 자동매매 관리자 시작 실패:', err);
     });
+    console.log('🔵 autoTradingManager.start() 호출 완료');
 
-    // 🔥 자동매매 상태 복원 (서버 재시작 시)
-    try {
-      const { multiStrategyTradingService } = await import('./services/new-kimchi-trading.js');
-      await multiStrategyTradingService.restoreAutoTradingStates();
-    } catch (err) {
-      console.error('❌ 자동매매 상태 복원 실패:', err);
-    }
+    // 🔥 자동매매 상태 복원 제거 (autoTradingManager가 처리함)
+    // try {
+    //   const { multiStrategyTradingService } = await import('./services/new-kimchi-trading.js');
+    //   await multiStrategyTradingService.restoreAutoTradingStates();
+    // } catch (err) {
+    //   console.error('❌ 자동매매 상태 복원 실패:', err);
+    // }
   });
 
   // ✅ 서버 에러 핸들링 추가

@@ -34,8 +34,8 @@ export class MultiStrategyTradingService {
   }> {
     const userIdNum = parseInt(userId);
     const exchanges = await storage.getExchangesByUserId(userIdNum);
-    const upbitExchange = exchanges.find(e => e.exchange === 'upbit' && e.isActive);
-    const binanceExchange = exchanges.find(e => e.exchange === 'binance' && e.isActive);
+    const upbitExchange = exchanges.find((e: any) => e.exchange === 'upbit' && e.is_active);
+    const binanceExchange = exchanges.find((e: any) => e.exchange === 'binance' && e.is_active);
 
     const services = await ExchangeServiceFactory.initializeByUserId(userIdNum);
 
@@ -77,7 +77,7 @@ export class MultiStrategyTradingService {
 
     // 활성 전략들 로드
     const strategies = await storage.getTradingStrategies(parseInt(userId));
-    const activeStrategies = strategies.filter((s: any) => s.isActive);
+    const activeStrategies = strategies.filter((s: any) => s.is_active);
 
     if (activeStrategies.length === 0) {
       throw new Error("No active trading strategies found");
@@ -156,7 +156,7 @@ export class MultiStrategyTradingService {
 
           // 🔍 해당 전략의 활성 포지션만 필터링하여 신호 분석
           const strategyActivePositions = activePositions.filter(
-            (p: any) => p.strategyId === strategy.id && p.status === "open"
+            (p: any) => p.strategy_id === strategy.id && p.status === "open"
           );
 
           const signal = await this.analyzeStrategySignal(
@@ -229,13 +229,13 @@ export class MultiStrategyTradingService {
 
     // BTC 활성 포지션 확인 (해당 전략의 포지션만)
     const existingPosition = activePositions.find(
-      (p: any) => p.symbol === "BTC" && p.status === "open" && p.strategyId === strategy.id
+      (p: any) => p.symbol === "BTC" && p.status === "open" && p.strategy_id === strategy.id
     );
 
     // 사용자 설정 값
-    const entryRate = Number(strategy.entryRate);
-    const exitRate = Number(strategy.exitRate);
-    const tolerance = Number(strategy.toleranceRate);
+    const entryRate = Number((strategy as any).entry_rate);
+    const exitRate = Number((strategy as any).exit_rate);
+    const tolerance = Number((strategy as any).tolerance_rate || (strategy as any).tolerance);
 
     console.log(
       `🔍 [서버] BTC 자동매매 체크 - 전략 #${strategy.id}: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`
@@ -249,14 +249,17 @@ export class MultiStrategyTradingService {
       const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
 
       if (recentPosition) {
-        const lastEntryTime = recentPosition.entryTime.getTime();
-        const elapsed = Date.now() - lastEntryTime;
+        const entryTime = recentPosition.entry_time || recentPosition.entryTime;
+        if (entryTime) {
+          const lastEntryTime = new Date(entryTime).getTime();
+          const elapsed = Date.now() - lastEntryTime;
 
-        if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
-          const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-          log.debug('DB 기반 진입 쿨다운 진행중', { remainSec, strategyId: strategy.id });
-          log.debug('최근 진입 시간', { lastEntry: recentPosition.entryTime.toISOString() });
-          return null;
+          if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
+            const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+            log.debug('DB 기반 진입 쿨다운 진행중', { remainSec, strategyId: strategy.id });
+            log.debug('최근 진입 시간', { lastEntry: new Date(entryTime).toISOString() });
+            return null;
+          }
         }
       }
 
@@ -344,8 +347,8 @@ export class MultiStrategyTradingService {
       throw new Error(`전략을 찾을 수 없습니다: ${signal.strategyId}`);
     }
 
-    const investmentBtcAmount = Number(strategy.investmentAmount); // BTC 수량
-    const binanceLeverage = strategy.leverage;
+    const investmentBtcAmount = Number((strategy as any).investment_amount); // BTC 수량
+    const binanceLeverage = (strategy as any).leverage;
     
     // BTC 수량을 원화 금액으로 변환 (업비트 시장가 매수용)
     // 현재 업비트 BTC 가격을 실시간으로 조회
@@ -372,32 +375,26 @@ export class MultiStrategyTradingService {
     // 🔍 진입 전 잔고 확인
     const balanceCheck = await this.checkBalanceBeforeEntry(userId, upbitEntryAmount, investmentBtcAmount);
     if (!balanceCheck.sufficient) {
-      console.log(`❌ 잔고 부족으로 전략 비활성화: ${balanceCheck.message}`);
-      
-      // 전략 비활성화
-      await storage.updateTradingStrategy(signal.strategyId, { isActive: false });
-      
-      // 사용자별 전략 맵에서도 제거
-      const userStrategyMap = this.userStrategies.get(userId);
-      if (userStrategyMap) {
-        userStrategyMap.delete(signal.strategyId);
-      }
-      
+      console.log(`❌ 잔고 부족으로 진입 스킵: ${balanceCheck.message}`);
+
+      // ⚠️ 전략은 비활성화하지 않음 (사용자가 직접 관리)
+      // 단순히 경고만 하고 진입은 스킵
+
       await storage.createSystemAlert({
         type: "warning",
-        title: "잔고 부족으로 전략 비활성화",
-        message: `${strategy.name} 비활성화: ${balanceCheck.message}`,
+        title: "잔고 부족으로 진입 스킵",
+        message: `${strategy.name} 진입 스킵: ${balanceCheck.message}`,
       });
-      
-      console.log(`🔒 전략 "${strategy.name}" (ID: ${signal.strategyId}) 비활성화 완료`);
+
+      console.log(`⏭️ 전략 "${strategy.name}" (ID: ${signal.strategyId}) 잔고 부족으로 진입 스킵`);
       return; // 진입 취소
     }
     
     log.info('잔고 확인 완료');
 
     // 🚨 진입 조건 2차 검증 (단순 로직)
-    const entryRate = Number(strategy.entryRate);
-    const tolerance = Number(strategy.toleranceRate);
+    const entryRate = Number((strategy as any).entry_rate);
+    const tolerance = Number((strategy as any).tolerance_rate || (strategy as any).tolerance);
 
     console.log(
       `🔍 진입 조건 2차 검증: 현재김프=${signal.premiumRate}%, 설정진입율=${entryRate}%, 허용오차=${tolerance}%`
@@ -487,21 +484,32 @@ export class MultiStrategyTradingService {
           }x`
         );
 
-        await binanceService.setLeverage(symbol, strategy.leverage || 3);
+        await binanceService.setLeverage(symbol, (strategy as any).leverage || 3);
         binanceResult = await binanceService.placeFuturesShortOrder(
           symbol,
           adjustedQuantity
         );
         console.log(`바이낸스 숏 결과:`, binanceResult);
 
+        // 🔧 주문 체결 대기 후 상세 정보 조회
+        console.log(`⏳ 바이낸스 주문 체결 대기 중... (2초)`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // 주문 상세 조회
+        const orderDetail = await binanceService.getFuturesOrderDetail(symbol, binanceResult.orderId);
+        console.log(`📊 바이낸스 주문 상세:`, orderDetail);
+
         // 🔧 바이낸스 체결 정보 집계 (1:n 거래 대비)
         let totalQuoteQty = 0;  // 총 체결금액 (USD)
         let totalQty = 0;        // 총 체결수량 (BTC)
         let totalCommission = 0; // 총 수수료 (USDT)
 
+        // 주문 상세에서 정보 추출
+        const detailResult = orderDetail || binanceResult;
+
         // trades 배열에서 총 체결금액과 총 체결수량 계산
-        if (binanceResult.trades && Array.isArray(binanceResult.trades) && binanceResult.trades.length > 0) {
-          for (const trade of binanceResult.trades) {
+        if (detailResult.trades && Array.isArray(detailResult.trades) && detailResult.trades.length > 0) {
+          for (const trade of detailResult.trades) {
             totalQuoteQty += parseFloat(trade.quoteQty || "0");     // 총 체결금액 (USD)
             totalQty += parseFloat(trade.qty || "0");               // 총 체결수량 (BTC)
             totalCommission += parseFloat(trade.commission || "0"); // 총 수수료 (USDT)
@@ -509,13 +517,13 @@ export class MultiStrategyTradingService {
           console.log(`💡 바이낸스 trades 배열 집계: 총금액=$${totalQuoteQty.toFixed(2)}, 총수량=${totalQty} BTC, 총수수료=$${totalCommission.toFixed(6)}`);
         } else {
           // trades 배열이 없으면 최상위 필드 사용 (fallback)
-          totalQty = parseFloat(binanceResult.executedQty || binanceResult.origQty || String(adjustedQuantity));
-          totalQuoteQty = parseFloat(binanceResult.cumQuote || "0");
-          totalCommission = parseFloat(binanceResult.commission || "0");
+          totalQty = parseFloat(detailResult.executedQty || detailResult.origQty || String(adjustedQuantity));
+          totalQuoteQty = parseFloat(detailResult.cumQuote || "0");
+          totalCommission = parseFloat(detailResult.commission || "0");
 
           // cumQuote가 없으면 avgPrice로 계산
           if (totalQuoteQty === 0) {
-            const avgPrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
+            const avgPrice = parseFloat(detailResult.avgPrice || detailResult.price || "0");
             totalQuoteQty = avgPrice * totalQty;
           }
 
@@ -523,7 +531,7 @@ export class MultiStrategyTradingService {
         }
 
         // 평균 체결가 계산 (단가)
-        const binancePrice = totalQty > 0 ? totalQuoteQty / totalQty : parseFloat(binanceResult.avgPrice || "0");
+        const binancePrice = totalQty > 0 ? totalQuoteQty / totalQty : parseFloat(detailResult.avgPrice || "0");
 
         if (!binancePrice || binancePrice === 0) {
           console.warn(`⚠️ 바이낸스 체결가가 0입니다. trades 테이블에서 자동 수정됩니다: ${binancePrice}`);
@@ -862,7 +870,7 @@ export class MultiStrategyTradingService {
   ): Promise<void> {
     const positions = await storage.getActivePositions(parseInt(userId));
     const position = positions.find(
-      (p: any) => p.symbol === signal.symbol && p.status === "open" && p.strategyId === signal.strategyId
+      (p: any) => p.symbol === signal.symbol && p.status === "open" && p.strategy_id === signal.strategyId
     );
 
     if (!position) {
@@ -1191,7 +1199,7 @@ export class MultiStrategyTradingService {
 
           // 활성 전략 확인
           const strategies = await storage.getTradingStrategies(parseInt(userId));
-          const activeStrategies = strategies.filter((s: any) => s.isActive);
+          const activeStrategies = strategies.filter((s: any) => s.is_active);
 
           if (activeStrategies.length === 0) {
             console.log(`⚠️ 사용자 ${userId}는 활성 전략이 없습니다.`);
