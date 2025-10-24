@@ -633,7 +633,7 @@ export class MultiStrategyTradingService {
                 userId: parseInt(userId),
                 strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
                 symbol,
-                type: "HEDGE",
+                type: "BACK", // 백그라운드 자동매매
                 side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
                 status: "open",
                 // 업비트 진입가는 단가(KRW/BTC)로 저장
@@ -650,6 +650,7 @@ export class MultiStrategyTradingService {
                 entryTime: entryTimeKST, // ← KST 시간으로 명시적 설정
                 upbitOrderId: upbitResult.uuid,
                 binanceOrderId: String(binanceResult.orderId),
+                entryUsdKrw: usdtKrwRateForFee, // 진입 시점 환율 저장
                 // 바이낸스 선물 상세 정보 즉시 저장
                 ...binanceDetails
             });
