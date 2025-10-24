@@ -737,16 +737,17 @@ export class MultiStrategyTradingService {
                 throw new Error("API 키가 설정되지 않았습니다.");
             }
             const { upbitService, binanceService } = services;
-            // DB에 저장된 실제 수량 사용 (API 조회로 업데이트된 수량)
-            const quantity = Number(position.upbitQuantity || position.quantity);
-            console.log(`📊 청산 수량: DB 저장된 실제 수량 ${quantity} BTC (upbitQuantity: ${position.upbitQuantity}, quantity: ${position.quantity})`);
+            // 각 거래소별 수량 사용 (업비트와 바이낸스 수량이 다를 수 있음)
+            const upbitQuantity = Number(position.upbitQuantity || position.quantity);
+            const binanceQuantity = Number(position.binanceQuantity || position.quantity);
+            console.log(`📊 청산 수량: 업비트 ${upbitQuantity} BTC, 바이낸스 ${binanceQuantity} BTC`);
             // 1. 업비트에서 현물 매도 (에러 처리 강화)
             const market = `KRW-${signal.symbol}`;
-            console.log(`업비트 현물 매도: ${market}, 수량: ${quantity}`);
+            console.log(`업비트 현물 매도: ${market}, 수량: ${upbitQuantity}`);
             let upbitResult = null;
             let upbitError = null;
             try {
-                upbitResult = await upbitService.placeSellOrder(market, quantity);
+                upbitResult = await upbitService.placeSellOrder(market, upbitQuantity);
                 console.log(`✅ 업비트 매도 성공 (초기 응답):`, upbitResult);
                 // 🔍 매도도 매수와 동일하게 주문 상세 조회로 avg_price 확보
                 if (upbitResult.uuid) {
@@ -782,11 +783,11 @@ export class MultiStrategyTradingService {
                 });
             }
             // 2. 바이낸스 선물 포지션 청산 (업비트 실패와 무관하게 실행)
-            console.log(`바이낸스 선물 청산: ${signal.symbol}, 수량: ${quantity}`);
+            console.log(`바이낸스 선물 청산: ${signal.symbol}, 수량: ${binanceQuantity}`);
             let binanceResult = null;
             let binanceError = null;
             try {
-                binanceResult = await binanceService.closeFuturesPosition(signal.symbol, quantity);
+                binanceResult = await binanceService.closeFuturesPosition(signal.symbol, binanceQuantity);
                 console.log(`✅ 바이낸스 청산 성공:`, binanceResult);
             }
             catch (error) {
