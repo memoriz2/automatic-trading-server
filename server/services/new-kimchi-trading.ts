@@ -839,7 +839,7 @@ export class MultiStrategyTradingService {
         strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
         symbol,
         type: "BACK", // 백그라운드 자동매매
-        side: "sell", // Binance 선물 숏(헤지) 기준. 필요 시 로직과 맞게 조정
+        side: "short", // 바이낸스 선물 숏 포지션
         status: "open",
         // 업비트 진입가는 단가(KRW/BTC)로 저장
         entryPrice: String(executedVolume > 0 ? Math.round(upbitEntryPrice / executedVolume) : 0),
