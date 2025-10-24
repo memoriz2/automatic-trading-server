@@ -438,7 +438,9 @@ export class DatabaseStorage {
                 data.binanceMarginUsdt || 0,
                 data.binanceMarginRatio || 0,
                 data.binanceMarginType || 'cross',
-                data.binanceUnrealizedPnl || 0
+                data.binanceUnrealizedPnl || 0,
+                // 진입 시점 환율
+                data.entryUsdKrw || data.entry_usd_krw || 0
             ];
             console.log(`\n🔍 [DEBUG] SQL 파라미터 ($20 ~ $26 = 바이낸스 상세 정보):`);
             console.log(`  $20 (binance_mark_price): ${sqlParams[19]}`);
@@ -457,13 +459,14 @@ export class DatabaseStorage {
           unrealized_pnl, total_fees, force_entry_settings_id, upbit_order_id, binance_order_id,
           binance_mark_price, binance_liquidation_price, binance_size_usdt, binance_margin_usdt,
           binance_margin_ratio, binance_margin_type, binance_unrealized_pnl,
+          entry_usd_krw,
           created_at, updated_at, entry_time
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11, $12,
           $13, $14, $15, $16, $17, $18,
           $19, $20, $21, $22, $23, $24,
-          $25, $26, NOW(), NOW(), NOW()
+          $25, $26, $27, NOW(), NOW(), NOW()
         )
         RETURNING *
       `, sqlParams);

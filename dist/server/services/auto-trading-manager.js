@@ -92,7 +92,7 @@ export class AutoTradingManager {
      * 주기적 상태 모니터링
      */
     startMonitoring() {
-        // 5분마다 상태 체크
+        // 30초마다 상태 체크 (DB 직접 수정 시에도 빠르게 반영)
         this.monitoringInterval = setInterval(async () => {
             try {
                 console.log(`📊 자동매매 모니터링: ${this.runningUsers.size}명 실행 중`);
@@ -129,7 +129,7 @@ export class AutoTradingManager {
             catch (error) {
                 console.error('❌ 모니터링 중 오류:', error);
             }
-        }, 5 * 60 * 1000); // 5분
+        }, 30 * 1000); // 30초 (DB 직접 수정 시에도 빠르게 반영)
     }
     /**
      * 자동매매 관리자 중지
