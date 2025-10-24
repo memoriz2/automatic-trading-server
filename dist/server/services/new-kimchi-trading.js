@@ -830,9 +830,15 @@ export class MultiStrategyTradingService {
             const upbitAdapter = new UpbitAdapter();
             const exitUsdKrw = await upbitAdapter.getCurrentPrice('USDT');
             console.log(`💱 청산 시점 환율: ${exitUsdKrw.toFixed(2)} KRW/USD`);
-            // 4. 포지션 상태 업데이트 - status를 'closed'로 변경하여 재청산 방지
+            // 4. 포지션 상태 업데이트
+            // 부분 청산인 경우 포지션을 닫지 않음
+            const isBothSucceeded = !upbitError && !binanceError;
+            const positionStatus = isBothSucceeded ? 'closed' : 'open';
+            if (!isBothSucceeded) {
+                console.warn(`⚠️ 부분 청산 발생 - 포지션 ${position.id}를 'open' 상태 유지`);
+            }
             await storage.updatePosition(position.id, {
-                status: 'closed',
+                status: positionStatus,
                 currentPremiumRate: signal.premiumRate,
                 exitUsdKrw: exitUsdKrw, // 청산 시점 환율 저장
             });
