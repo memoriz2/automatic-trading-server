@@ -3,9 +3,10 @@ export default {
   apps: [{
     name: 'trading-server',
     script: './dist/server/index.js',
-    instances: 1,
-    exec_mode: 'fork',
-    cron_restart: '0 12 * * *', // 매일 정오 12시에 자동 재시작
+    instances: 2, // 무중단 reload를 위해 2개 이상 필요
+    exec_mode: 'cluster',
+    // cron_restart는 restart만 지원하므로 제거
+    // 무중단 reload는 시스템 cron에서 'pm2 reload trading-server' 사용
     env: {
       NODE_ENV: 'production',
       PORT: 5000,
