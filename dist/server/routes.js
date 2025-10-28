@@ -532,19 +532,20 @@ export async function registerRoutes(app, server) {
                 t.side === 'short' // 바이낸스 숏 (숏 진입)
             );
             const exitTrades = liveTrades.filter(t => t.side === 'sell' || // 업비트 매도 (롱 청산)
-                t.side === 'cover' // 바이낸스 커버 (숏 청산) - 아직 없음
+                t.side === 'cover' // 바이낸스 커버 (숏 청산)
             );
             // 실제 포지션 생성/청산 횟수
-            // 청산 횟수는 exit_time 기준으로 계산
+            // 진입 횟수: 오늘 진입한 포지션 수 (entry_time 기준)
+            // 청산 횟수: 오늘 청산한 포지션 수 (exit_time 기준)
             const todayExits = await storage.getTodayExitedPositionsCount(userId);
             // 통계 계산 (의미있는 거래만)
             const meaningfulTrades = entryTrades.length + exitTrades.length;
             const stats = {
                 total_orders: meaningfulTrades, // 진입+청산 거래만
-                entries: entryTrades.length, // 거래 기반 진입 수 (더 직관적)
+                entries: todayPositions.length, // 포지션 기반 진입 수 (오늘 진입한 포지션)
                 exits: todayExits, // 포지션 기반 청산 수 (exit_time 기준)
-                upbit_orders: entryTrades.filter(t => t.exchange === 'upbit').length,
-                binance_orders: exitTrades.filter(t => t.exchange === 'binance').length,
+                upbit_orders: liveTrades.filter(t => t.exchange === 'upbit').length,
+                binance_orders: liveTrades.filter(t => t.exchange === 'binance').length,
                 total_fees: (() => {
                     // 실시간 환율 가져오기 (완료된 거래 수수료 계산에도 사용)
                     const realtimeData = realtimeKimchiService.getCurrentKimchiPremium();
