@@ -589,27 +589,13 @@ export async function registerRoutes(
         오늘활성포지션: todayPositions.filter(p => p.status === 'open').length
       });
 
-      // 🔧 진입/청산 거래 정확한 분류 (실제 체결된 거래만)
-      const entryTrades = liveTrades.filter(t =>
-        t.side === 'buy' ||     // 업비트 매수 (롱 진입)
-        t.side === 'short'      // 바이낸스 숏 (숏 진입)
-      );
-      const exitTrades = liveTrades.filter(t =>
-        t.side === 'sell' ||    // 업비트 매도 (롱 청산)
-        t.side === 'cover'      // 바이낸스 커버 (숏 청산)
-      );
-
-
       // 실제 포지션 생성/청산 횟수
       // 진입 횟수: 오늘 진입한 포지션 수 (entry_time 기준)
       // 청산 횟수: 오늘 청산한 포지션 수 (exit_time 기준)
       const todayExits = await storage.getTodayExitedPositionsCount(userId);
 
-      // 통계 계산 (의미있는 거래만)
-      const meaningfulTrades = entryTrades.length + exitTrades.length;
-
       const stats = {
-        total_orders: meaningfulTrades, // 진입+청산 거래만
+        total_orders: todayPositions.length + todayExits, // 진입 포지션 + 청산 포지션
         entries: todayPositions.length, // 포지션 기반 진입 수 (오늘 진입한 포지션)
         exits: todayExits, // 포지션 기반 청산 수 (exit_time 기준)
         upbit_orders: liveTrades.filter(t => t.exchange === 'upbit').length,
