@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, Lock, User, AlertCircle } from 'lucide-react';
+import { Lock, User, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
@@ -143,10 +143,9 @@ export default function LoginPage() {
         {/* 로고 및 제목 */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-xl mb-4">
-            <Shield className="h-8 w-8 text-white" />
+            <img src="/logo.png" alt="에이펙스아비트라지" className="h-12 w-12 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">에이펙스아비트라지㈜</h1>
-          <p className="text-slate-400">보안 강화된 자동매매 시스템</p>
         </div>
 
         {/* 보안 알림 */}
