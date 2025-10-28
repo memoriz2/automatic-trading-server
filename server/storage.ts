@@ -1650,14 +1650,23 @@ export class DatabaseStorage {
     try {
       const userIdNum = typeof userId === 'string' ? parseInt(userId) : userId;
 
-      // 🔧 한국시간 기준 오늘 09:00 계산
-      // executed_at은 타임존 없이 KST로 저장되어 있음
+      // 🔧 한국시간 기준 거래일 09:00 ~ 다음날 08:59 계산
+      // 현재 시각이 09:00 이전이면 어제 09:00 ~ 오늘 09:00
+      // 현재 시각이 09:00 이후면 오늘 09:00 ~ 내일 09:00
       const result = await this.pool.query(`
-        SELECT * FROM trades
-        WHERE user_id = $1
-        AND executed_at >= (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
-        AND executed_at < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '33 hours'
-        ORDER BY executed_at DESC
+        WITH trading_day AS (
+          SELECT
+            CASE
+              WHEN EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Seoul')) < 9
+              THEN ((NOW() AT TIME ZONE 'Asia/Seoul')::date - INTERVAL '1 day') + INTERVAL '9 hours'
+              ELSE (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+            END AS start_time
+        )
+        SELECT t.* FROM trades t, trading_day
+        WHERE t.user_id = $1
+        AND t.executed_at >= trading_day.start_time
+        AND t.executed_at < trading_day.start_time + INTERVAL '24 hours'
+        ORDER BY t.executed_at DESC
       `, [userIdNum]);
 
       console.log(`✅ [getTodayTradesByUserId] 사용자 ${userIdNum} 오늘(9시 기준) 거래: ${result.rows.length}개`);
@@ -1671,14 +1680,21 @@ export class DatabaseStorage {
   // 오늘 포지션만 조회 (한국시간 오전 9시 기준)
   async getTodayPositionsByUserId(userId: number): Promise<any[]> {
     try {
-      // 🔧 한국시간 기준 오늘 09:00 계산
-      // entry_time은 타임존 없이 KST로 저장되어 있음
+      // 🔧 한국시간 기준 거래일 09:00 ~ 다음날 08:59 계산
       const result = await this.pool.query(`
-        SELECT * FROM positions
-        WHERE user_id = $1
-        AND entry_time >= (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
-        AND entry_time < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '33 hours'
-        ORDER BY entry_time DESC
+        WITH trading_day AS (
+          SELECT
+            CASE
+              WHEN EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Seoul')) < 9
+              THEN ((NOW() AT TIME ZONE 'Asia/Seoul')::date - INTERVAL '1 day') + INTERVAL '9 hours'
+              ELSE (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+            END AS start_time
+        )
+        SELECT p.* FROM positions p, trading_day
+        WHERE p.user_id = $1
+        AND p.entry_time >= trading_day.start_time
+        AND p.entry_time < trading_day.start_time + INTERVAL '24 hours'
+        ORDER BY p.entry_time DESC
       `, [userId]);
 
       console.log(`✅ [getTodayPositionsByUserId] 사용자 ${userId} 오늘(9시 기준) 포지션: ${result.rows.length}개`);
@@ -1692,13 +1708,20 @@ export class DatabaseStorage {
   // 오늘 청산된 포지션 수 (exit_time 기준, 한국시간 오전 9시 기준)
   async getTodayExitedPositionsCount(userId: number): Promise<number> {
     try {
-      // 🔧 한국시간 기준 오늘 09:00 계산
-      // exit_time은 타임존 없이 KST로 저장되어 있음
+      // 🔧 한국시간 기준 거래일 09:00 ~ 다음날 08:59 계산
       const result = await this.pool.query(`
-        SELECT COUNT(*) as count FROM positions
+        WITH trading_day AS (
+          SELECT
+            CASE
+              WHEN EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Seoul')) < 9
+              THEN ((NOW() AT TIME ZONE 'Asia/Seoul')::date - INTERVAL '1 day') + INTERVAL '9 hours'
+              ELSE (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+            END AS start_time
+        )
+        SELECT COUNT(*) as count FROM positions, trading_day
         WHERE user_id = $1
-        AND exit_time >= (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
-        AND exit_time < (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '33 hours'
+        AND exit_time >= trading_day.start_time
+        AND exit_time < trading_day.start_time + INTERVAL '24 hours'
         AND status = 'closed'
       `, [userId]);
 

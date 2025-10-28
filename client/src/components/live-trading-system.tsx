@@ -1556,40 +1556,31 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
     // 현재 김치 데이터에서 가격 정보 추출
     const currentUsdKrw = currentKimchiData?.usdkrw || 1390;
 
-    // 오전 9시 기준 거래일 계산
+    // 🔧 오전 9시 기준 거래일 계산 (09:00 ~ 다음날 08:59)
     const now = new Date();
-    const today = new Date();
+    const tradingDayStart = new Date();
     if (now.getHours() < 9) {
-      // 오전 9시 이전이면 전날 거래일
-      today.setDate(today.getDate() - 1);
+      // 오전 9시 이전이면 어제 오전 9시가 시작점
+      tradingDayStart.setDate(tradingDayStart.getDate() - 1);
     }
-    today.setHours(9, 0, 0, 0);
+    tradingDayStart.setHours(9, 0, 0, 0);
+
+    const tradingDayEnd = new Date(tradingDayStart);
+    tradingDayEnd.setTime(tradingDayEnd.getTime() + 24 * 60 * 60 * 1000); // +24시간
 
     const todayTrades = liveTrades.filter(trade => {
       const tradeDate = new Date(trade.timestamp);
-      if (tradeDate.getHours() < 9) {
-        tradeDate.setDate(tradeDate.getDate() - 1);
-      }
-      tradeDate.setHours(9, 0, 0, 0);
-      return tradeDate.getTime() === today.getTime();
+      return tradeDate >= tradingDayStart && tradeDate < tradingDayEnd;
     });
 
     // 오늘 진입한 포지션 (진입 시간 기준)
     const todayEntryPositions = livePositions.filter(position => {
       const entryDate = new Date(position.entryTime);
-      if (entryDate.getHours() < 9) {
-        entryDate.setDate(entryDate.getDate() - 1);
-      }
-      entryDate.setHours(9, 0, 0, 0);
-      return entryDate.getTime() === today.getTime();
+      return entryDate >= tradingDayStart && entryDate < tradingDayEnd;
     });
 
     // 오늘 청산한 포지션 (청산 시간 기준) - 총 수익금 계산용
     const todayExitPositions = livePositions.filter(position => {
-      // 디버깅: 최근 5개의 closed 포지션 체크
-      if (position.status === 'closed' && Number(position.id) >= 940) {
-      }
-
       if (position.status !== 'closed' || !position.exitTime) return false;
 
       const exitDate = new Date(position.exitTime);
@@ -1600,18 +1591,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         return false;
       }
 
-      if (exitDate.getHours() < 9) {
-        exitDate.setDate(exitDate.getDate() - 1);
-      }
-      exitDate.setHours(9, 0, 0, 0);
-
-      const isToday = exitDate.getTime() === today.getTime();
-
-      // 디버깅: 최근 5개만 로그
-      if (Number(position.id) >= 940) {
-      }
-
-      return isToday;
+      return exitDate >= tradingDayStart && exitDate < tradingDayEnd;
     });
 
     // 거래 통계
