@@ -1107,6 +1107,7 @@ export class MultiStrategyTradingService {
           storage.createTrade({
             userId: parseInt(userId),
             positionId: position.id,
+            strategyId: position.strategy_id, // 전략 ID 추가
             symbol: signal.symbol,
             side: "sell",
             exchange: "upbit",
@@ -1128,6 +1129,7 @@ export class MultiStrategyTradingService {
           storage.createTrade({
             userId: parseInt(userId),
             positionId: position.id,
+            strategyId: position.strategy_id, // 전략 ID 추가
             symbol: signal.symbol,
             side: "buy",
             exchange: "binance",
