@@ -5,6 +5,7 @@ export default {
     script: './dist/server/index.js',
     instances: 1,
     exec_mode: 'fork',
+    cron_restart: '0 12 * * *', // 매일 정오 12시에 자동 재시작
     env: {
       NODE_ENV: 'production',
       PORT: 5000,
