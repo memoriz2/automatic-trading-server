@@ -11,6 +11,9 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        emerald: {
+          600: "#C8C8C8",
+        },
         background: "var(--background)",
         foreground: "var(--foreground)",
         card: {
