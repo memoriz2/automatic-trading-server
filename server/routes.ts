@@ -594,6 +594,9 @@ export async function registerRoutes(
       // 청산 횟수: 오늘 청산한 포지션 수 (exit_time 기준)
       const todayExits = await storage.getTodayExitedPositionsCount(userId);
 
+      // 오늘 실현 수익금 (DB의 realized_pnl 합계)
+      const todayRealizedProfit = await storage.getTodayRealizedProfit(userId);
+
       const stats = {
         total_orders: todayPositions.length + todayExits, // 진입 포지션 + 청산 포지션
         entries: todayPositions.length, // 포지션 기반 진입 수 (오늘 진입한 포지션)
@@ -659,94 +662,7 @@ export async function registerRoutes(
           
           return 0;
         })(),
-        total_profit_krw: (() => {
-          // trades 테이블에서 실제 거래 기록 기반으로 수익 계산
-          const todayExitedPositions = todayPositions.filter(p =>
-            p.status === 'closed' && p.exit_time
-          );
-
-          if (todayExitedPositions.length === 0) {
-            return 0;
-          }
-
-          // 각 포지션별로 손익 계산
-          let totalPnl = 0;
-
-          for (const position of todayExitedPositions) {
-            // 해당 포지션의 모든 거래 조회
-            const positionTrades = todayTrades.filter(t => t.position_id === position.id);
-
-            // 해당 포지션의 진입/청산 환율
-            let entryUsdKrw = Number(position.entry_usd_krw);
-            let exitUsdKrw = Number(position.exit_usd_krw);
-
-            // 환율이 0이면 trades 데이터로 추정 (price는 이미 단가)
-            if (!entryUsdKrw || entryUsdKrw === 0) {
-              // 진입 시점: 업비트 단가(KRW/BTC) / 바이낸스 단가(USD/BTC) = 환율(KRW/USD)
-              const upbitBuyTrade = positionTrades.find(t => t.exchange === 'upbit' && t.side === 'buy');
-              const binanceShortTrade = positionTrades.find(t => t.exchange === 'binance' && (t.side === 'sell' || t.side === 'short'));
-
-              if (upbitBuyTrade && binanceShortTrade) {
-                const upbitPricePerBtc = Number(upbitBuyTrade.price); // KRW/BTC
-                const binancePricePerBtc = Number(binanceShortTrade.price); // USD/BTC
-                entryUsdKrw = upbitPricePerBtc / binancePricePerBtc; // KRW/USD
-              }
-            }
-
-            if (!exitUsdKrw || exitUsdKrw === 0) {
-              // 청산 시점: 업비트 단가(KRW/BTC) / 바이낸스 단가(USD/BTC) = 환율(KRW/USD)
-              const upbitSellTrade = positionTrades.find(t => t.exchange === 'upbit' && t.side === 'sell');
-              const binanceCoverTrade = positionTrades.find(t => t.exchange === 'binance' && (t.side === 'buy' || t.side === 'cover'));
-
-              if (upbitSellTrade && binanceCoverTrade) {
-                const upbitPricePerBtc = Number(upbitSellTrade.price); // KRW/BTC
-                const binancePricePerBtc = Number(binanceCoverTrade.price); // USD/BTC
-                exitUsdKrw = upbitPricePerBtc / binancePricePerBtc; // KRW/USD
-              }
-            }
-
-            // 업비트 거래
-            const upbitBuy = positionTrades.find(t => t.exchange === 'upbit' && t.side === 'buy');
-            const upbitSell = positionTrades.find(t => t.exchange === 'upbit' && t.side === 'sell');
-
-            // 바이낸스 거래 (side 값: 'short', 'sell', 'cover', 'buy' 모두 허용)
-            const binanceSell = positionTrades.find(t =>
-              t.exchange === 'binance' && (t.side === 'sell' || t.side === 'short')
-            ); // 숏 진입
-            const binanceBuy = positionTrades.find(t =>
-              t.exchange === 'binance' && (t.side === 'buy' || t.side === 'cover')
-            ); // 숏 청산
-
-            // 업비트 손익 (KRW)
-            const upbitPnl = upbitSell && upbitBuy
-              ? (Number(upbitSell.price) * Number(upbitSell.quantity)) -
-                (Number(upbitBuy.price) * Number(upbitBuy.quantity)) -
-                Number(upbitSell.fee || 0) - Number(upbitBuy.fee || 0)
-              : 0;
-
-            // 바이낸스 손익 (USD → KRW, 진입/청산 환율 각각 적용)
-            let binancePnl = 0;
-            if (binanceSell && binanceBuy) {
-              // 진입 금액 (USD) × 진입 환율 = KRW
-              const entryAmountKrw = (Number(binanceSell.price) * Number(binanceSell.quantity) + Number(binanceSell.fee || 0)) * entryUsdKrw;
-
-              // 청산 금액 (USD) × 청산 환율 = KRW
-              const exitAmountKrw = (Number(binanceBuy.price) * Number(binanceBuy.quantity) + Number(binanceBuy.fee || 0)) * exitUsdKrw;
-
-              // 숏 포지션이므로: 진입 금액 - 청산 금액
-              binancePnl = entryAmountKrw - exitAmountKrw;
-            }
-
-            totalPnl += upbitPnl + binancePnl;
-          }
-
-          logDebug('오늘 실현 수익 계산 (trades 기반, 환율 반영)', {
-            청산포지션수: todayExitedPositions.length,
-            총실현수익: Math.round(totalPnl)
-          });
-
-          return totalPnl;
-        })(),
+        total_profit_krw: todayRealizedProfit, // DB의 realized_pnl 합계 (exit_time 기준)
         loops: todayExits, // 루프수 = 오늘 청산한 포지션 수 (exit_time 기준)
         errors: 0
       };

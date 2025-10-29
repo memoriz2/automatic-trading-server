@@ -1734,6 +1734,34 @@ export class DatabaseStorage {
     }
   }
 
+  // 오늘 청산된 포지션들의 총 수익금 (realized_pnl 기준, 한국시간 오전 9시 기준)
+  async getTodayRealizedProfit(userId: number): Promise<number> {
+    try {
+      const result = await this.pool.query(`
+        WITH trading_day AS (
+          SELECT
+            CASE
+              WHEN EXTRACT(HOUR FROM (NOW() AT TIME ZONE 'Asia/Seoul')) < 9
+              THEN ((NOW() AT TIME ZONE 'Asia/Seoul')::date - INTERVAL '1 day') + INTERVAL '9 hours'
+              ELSE (NOW() AT TIME ZONE 'Asia/Seoul')::date + INTERVAL '9 hours'
+            END AS start_time
+        )
+        SELECT COALESCE(SUM(realized_pnl), 0) as total_profit FROM positions, trading_day
+        WHERE user_id = $1
+        AND (exit_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') >= trading_day.start_time
+        AND (exit_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') < trading_day.start_time + INTERVAL '24 hours'
+        AND status = 'closed'
+      `, [userId]);
+
+      const profit = parseFloat(result.rows[0]?.total_profit || '0');
+      console.log(`✅ [getTodayRealizedProfit] 사용자 ${userId} 오늘(9시 기준) 실현수익: ₩${Math.round(profit).toLocaleString()}`);
+      return profit;
+    } catch (error) {
+      console.error('❌ [getTodayRealizedProfit] SQL 오류:', error);
+      return 0;
+    }
+  }
+
   async getSystemAlerts(limit: number = 100): Promise<any[]> {
     try {
       const result = await this.pool.query(
