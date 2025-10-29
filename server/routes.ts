@@ -4792,100 +4792,99 @@ export async function registerRoutes(
       console.log(`✅ 바이낸스 숏 주문 성공:`, orderResult);
 
       // 포지션 생성 먼저 (재진입 방지 및 거래 기록 저장을 위해)
+      // 강제진입(strategyId=null)일 때도 포지션 생성
       let createdPosition: any = null;
-      if (strategyId) {
+      try {
+        // 디바이스 정보 추출
+        const { extractDeviceInfo } = await import('./utils/device-info.js');
+        const deviceInfo = extractDeviceInfo(req);
+
+        // 현재 김치프리미엄 계산
+        let currentPremiumRate = 0;
         try {
-          // 디바이스 정보 추출
-          const { extractDeviceInfo } = await import('./utils/device-info.js');
-          const deviceInfo = extractDeviceInfo(req);
-          
-          // 현재 김치프리미엄 계산
-          let currentPremiumRate = 0;
-          try {
-            const kimchiData = await simpleKimchiService.calculateSimpleKimchi(['BTC'], String(userId));
-            const btcData = kimchiData.find(d => d.symbol === 'BTC');
-            currentPremiumRate = btcData?.premiumRate || 0;
-            console.log(`📊 포지션 생성 시 김프율: ${currentPremiumRate.toFixed(3)}%`);
-          } catch (kimchiError) {
-            console.warn('⚠️ 김프율 계산 실패, 기본값 0 사용:', kimchiError);
-          }
-          
-          // 🔍 바이낸스 포지션 상세 정보 즉시 조회
-          let binanceDetails: any = {};
-          try {
-            // 1초 대기: 바이낸스 주문이 완전히 체결될 시간 확보
-            console.log(`⏳ [수동거래] 바이낸스 포지션 체결 대기 중... (1초)`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            const binancePositions = await binanceService.getFuturesPositions();
-            console.log(`🔍 [수동거래-DEBUG] 전체 바이낸스 포지션 개수: ${binancePositions.length}개`);
-
-            const searchSymbol = symbol; // 이미 'BTCUSDT' 형태
-            console.log(`🔍 [수동거래-DEBUG] 검색할 심볼: ${searchSymbol}`);
-
-            const binancePos = binancePositions.find((pos: any) => pos.symbol === searchSymbol);
-
-            if (binancePos) {
-              console.log(`✅ [수동거래-DEBUG] 바이낸스 포지션 찾음!`);
-              console.log(`🔍 [수동거래-DEBUG] 원본 바이낸스 포지션 데이터:`, JSON.stringify(binancePos, null, 2));
-
-              binanceDetails = {
-                binanceMarkPrice: binancePos.markPrice,
-                binanceLiquidationPrice: binancePos.liquidationPrice,
-                binanceSizeUsdt: binancePos.sizeUsdt,
-                binanceMarginUsdt: binancePos.marginUsdt,
-                binanceMarginRatio: binancePos.marginRatio,
-                binanceMarginType: binancePos.marginType,
-                binanceUnrealizedPnl: binancePos.unRealizedProfit
-              };
-
-              console.log(`✅ [수동거래-DEBUG] binanceDetails 객체 생성 완료:`, JSON.stringify(binanceDetails, null, 2));
-            } else {
-              console.error(`❌ [수동거래-DEBUG] 바이낸스 포지션을 찾을 수 없습니다!`);
-              console.error(`❌ [수동거래-DEBUG] 검색한 심볼: ${searchSymbol}`);
-              console.error(`❌ [수동거래-DEBUG] 사용 가능한 심볼들:`, binancePositions.map((p: any) => p.symbol));
-            }
-          } catch (binanceError) {
-            console.warn(`⚠️ [수동거래] 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
-          }
-
-          console.log(`🔍 [수동거래-DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
-
-          const positionData = {
-            userId: userId,
-            strategyId: strategyId,
-            symbol: symbol.replace('USDT', ''),
-            type: 'futures_short',
-            side: 'short' as 'short',
-            status: 'open' as 'open',
-            entryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
-            quantity: parseFloat(orderResult.origQty || quantity),
-            upbitQuantity: 0, // 업비트 수량 (선물만 사용 시 0)
-            upbitEntryPrice: 0, // 업비트 진입가 (선물만 사용 시 0)
-            binanceQuantity: parseFloat(orderResult.origQty || quantity),
-            binanceEntryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
-            binanceLeverage: leverage,
-            binanceOrderId: orderResult.orderId,
-            entryPremiumRate: currentPremiumRate, // 실제 김치프리미엄 저장
-            unrealizedPnl: 0, // 초기 미실현손익 0
-            totalFees: parseFloat(orderResult.commission || '0'),
-            entryTime: new Date(),
-            ip: deviceInfo.ip,
-            deviceType: deviceInfo.deviceType,
-            // 바이낸스 선물 상세 정보 즉시 저장
-            ...binanceDetails
-          };
-
-          createdPosition = await positionsRepo.create(positionData);
-          console.log(`✅ 포지션 생성 완료: ID=${createdPosition.id}`);
-
-          // remaining_quantity 초기화
-          await positionsRepo.updateRemainingQuantity(createdPosition.id, positionData.binanceQuantity);
-
-        } catch (positionError: any) {
-          console.error(`❌ 포지션 생성 실패:`, positionError);
-          // 포지션 생성 실패는 주문은 성공했으므로 에러로 처리하지 않음
+          const kimchiData = await simpleKimchiService.calculateSimpleKimchi(['BTC'], String(userId));
+          const btcData = kimchiData.find(d => d.symbol === 'BTC');
+          currentPremiumRate = btcData?.premiumRate || 0;
+          console.log(`📊 포지션 생성 시 김프율: ${currentPremiumRate.toFixed(3)}%`);
+        } catch (kimchiError) {
+          console.warn('⚠️ 김프율 계산 실패, 기본값 0 사용:', kimchiError);
         }
+
+        // 🔍 바이낸스 포지션 상세 정보 즉시 조회
+        let binanceDetails: any = {};
+        try {
+          // 1초 대기: 바이낸스 주문이 완전히 체결될 시간 확보
+          console.log(`⏳ [수동거래] 바이낸스 포지션 체결 대기 중... (1초)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          const binancePositions = await binanceService.getFuturesPositions();
+          console.log(`🔍 [수동거래-DEBUG] 전체 바이낸스 포지션 개수: ${binancePositions.length}개`);
+
+          const searchSymbol = symbol; // 이미 'BTCUSDT' 형태
+          console.log(`🔍 [수동거래-DEBUG] 검색할 심볼: ${searchSymbol}`);
+
+          const binancePos = binancePositions.find((pos: any) => pos.symbol === searchSymbol);
+
+          if (binancePos) {
+            console.log(`✅ [수동거래-DEBUG] 바이낸스 포지션 찾음!`);
+            console.log(`🔍 [수동거래-DEBUG] 원본 바이낸스 포지션 데이터:`, JSON.stringify(binancePos, null, 2));
+
+            binanceDetails = {
+              binanceMarkPrice: binancePos.markPrice,
+              binanceLiquidationPrice: binancePos.liquidationPrice,
+              binanceSizeUsdt: binancePos.sizeUsdt,
+              binanceMarginUsdt: binancePos.marginUsdt,
+              binanceMarginRatio: binancePos.marginRatio,
+              binanceMarginType: binancePos.marginType,
+              binanceUnrealizedPnl: binancePos.unRealizedProfit
+            };
+
+            console.log(`✅ [수동거래-DEBUG] binanceDetails 객체 생성 완료:`, JSON.stringify(binanceDetails, null, 2));
+          } else {
+            console.error(`❌ [수동거래-DEBUG] 바이낸스 포지션을 찾을 수 없습니다!`);
+            console.error(`❌ [수동거래-DEBUG] 검색한 심볼: ${searchSymbol}`);
+            console.error(`❌ [수동거래-DEBUG] 사용 가능한 심볼들:`, binancePositions.map((p: any) => p.symbol));
+          }
+        } catch (binanceError) {
+          console.warn(`⚠️ [수동거래] 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
+        }
+
+        console.log(`🔍 [수동거래-DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
+
+        const positionData = {
+          userId: userId,
+          strategyId: strategyId || null, // 강제진입은 null
+          symbol: symbol.replace('USDT', ''),
+          type: strategyId ? 'futures_short' : 'force_entry', // 강제진입 구분
+          side: 'short' as 'short',
+          status: 'open' as 'open',
+          entryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
+          quantity: parseFloat(orderResult.origQty || quantity),
+          upbitQuantity: 0, // 업비트 수량 (선물만 사용 시 0)
+          upbitEntryPrice: 0, // 업비트 진입가 (선물만 사용 시 0)
+          binanceQuantity: parseFloat(orderResult.origQty || quantity),
+          binanceEntryPrice: parseFloat(orderResult.price || orderResult.avgPrice || '0'),
+          binanceLeverage: leverage,
+          binanceOrderId: orderResult.orderId,
+          entryPremiumRate: currentPremiumRate, // 실제 김치프리미엄 저장
+          unrealizedPnl: 0, // 초기 미실현손익 0
+          totalFees: parseFloat(orderResult.commission || '0'),
+          entryTime: new Date(),
+          ip: deviceInfo.ip,
+          deviceType: deviceInfo.deviceType,
+          // 바이낸스 선물 상세 정보 즉시 저장
+          ...binanceDetails
+        };
+
+        createdPosition = await positionsRepo.create(positionData);
+        console.log(`✅ 포지션 생성 완료: ID=${createdPosition.id}`);
+
+        // remaining_quantity 초기화
+        await positionsRepo.updateRemainingQuantity(createdPosition.id, positionData.binanceQuantity);
+
+      } catch (positionError: any) {
+        console.error(`❌ 포지션 생성 실패:`, positionError);
+        // 포지션 생성 실패는 주문은 성공했으므로 에러로 처리하지 않음
       }
 
       // 성공한 거래 기록 저장 (포지션 생성 후)
