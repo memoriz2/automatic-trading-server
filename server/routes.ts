@@ -4122,9 +4122,71 @@ export async function registerRoutes(
       
       // 성공한 거래 기록 저장
       try {
-        // 해당 전략의 활성 포지션 찾기
-        const activePosition = strategyId ?
-          await storage.getActivePositionByStrategy(strategyId, market.replace('KRW-', '')) : null;
+        // 활성 포지션 찾기
+        let activePosition = null;
+        const symbol = market.replace('KRW-', '');
+
+        if (strategyId) {
+          // 전략 주문: strategyId로 포지션 찾기
+          activePosition = await storage.getActivePositionByStrategy(strategyId, symbol);
+        } else {
+          // 강제진입: 사용자의 가장 최근 open 포지션 찾기
+          const activePositions = await storage.getActivePositions(userId);
+          activePosition = activePositions.find((p: any) =>
+            p.symbol === symbol && p.status === 'open'
+          );
+
+          if (activePosition) {
+            console.log(`✅ [Upbit Buy] 기존 포지션 찾음: ID=${activePosition.id}`);
+          } else {
+            // 포지션이 없으면 새로 생성 (강제진입)
+            console.log(`📍 [Upbit Buy] 기존 포지션 없음 - 새 포지션 생성`);
+            try {
+              // 디바이스 정보 추출
+              const { extractDeviceInfo } = await import('./utils/device-info.js');
+              const deviceInfo = extractDeviceInfo(req);
+
+              // 현재 김치프리미엄 계산
+              let currentPremiumRate = 0;
+              try {
+                const kimchiData = await simpleKimchiService.calculateSimpleKimchi([symbol], String(userId));
+                const symbolData = kimchiData.find(d => d.symbol === symbol);
+                currentPremiumRate = symbolData?.premiumRate || 0;
+                console.log(`📊 포지션 생성 시 김프율: ${currentPremiumRate.toFixed(3)}%`);
+              } catch (kimchiError) {
+                console.warn('⚠️ 김프율 계산 실패, 기본값 0 사용:', kimchiError);
+              }
+
+              const positionData = {
+                userId: userId,
+                strategyId: undefined, // 강제진입은 undefined
+                symbol: symbol,
+                type: 'force_entry', // 강제진입 구분
+                side: 'long' as 'long', // 업비트 매수 = 롱 포지션
+                status: 'open' as 'open',
+                entryPrice: 0, // 업비트 진입가로 나중에 업데이트
+                quantity: 0, // 업비트 수량으로 나중에 업데이트
+                upbitQuantity: 0,
+                upbitEntryPrice: 0,
+                binanceQuantity: 0,
+                binanceEntryPrice: 0,
+                binanceLeverage: 0,
+                upbitOrderId: orderResult.uuid,
+                entryPremiumRate: currentPremiumRate,
+                unrealizedPnl: 0,
+                totalFees: 0,
+                entryTime: new Date(),
+                ip: deviceInfo.ip,
+                deviceType: deviceInfo.deviceType,
+              };
+
+              activePosition = await positionsRepo.create(positionData);
+              console.log(`✅ [Upbit Buy] 새 포지션 생성 완료: ID=${activePosition.id}`);
+            } catch (positionError: any) {
+              console.error(`❌ [Upbit Buy] 포지션 생성 실패:`, positionError);
+            }
+          }
+        }
 
         // 업비트 주문 상세 조회하여 실제 체결가/수수료 가져오기
         await new Promise(resolve => setTimeout(resolve, 1000));
