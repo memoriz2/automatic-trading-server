@@ -648,11 +648,7 @@ export async function registerRoutes(app, server) {
                     });
                     return totalPnl;
                 })(),
-                loops: (() => {
-                    // 루프수 = 오늘 완료된 포지션 수 (진입 → 청산 완료된 사이클)
-                    const completedPositions = todayPositions.filter(p => p.status === 'closed');
-                    return completedPositions.length;
-                })(),
+                loops: todayExits, // 루프수 = 오늘 청산한 포지션 수 (exit_time 기준)
                 errors: 0
             };
             res.json(stats);

@@ -1720,8 +1720,8 @@ export class DatabaseStorage {
         )
         SELECT COUNT(*) as count FROM positions, trading_day
         WHERE user_id = $1
-        AND exit_time >= trading_day.start_time
-        AND exit_time < trading_day.start_time + INTERVAL '24 hours'
+        AND (exit_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') >= trading_day.start_time
+        AND (exit_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') < trading_day.start_time + INTERVAL '24 hours'
         AND status = 'closed'
       `, [userId]);
 
