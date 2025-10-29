@@ -183,7 +183,35 @@ export class TradingManager {
         usdtKrwRate: fees.usdtKrwRate
       });
 
-      // 4. DB에 실거래 포지션 저장 (실제 체결가와 수량 사용)
+      // 5. 바이낸스 포지션 상세 정보 조회
+      let binanceDetails: any = {};
+      try {
+        console.log(`⏳ 바이낸스 포지션 체결 대기 중... (1초)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const binancePositions = await services.binance.getFuturesPositions();
+        const searchSymbol = `${params.symbol}USDT`; // BTC -> BTCUSDT
+        const binancePos = binancePositions.find((pos: any) => pos.symbol === searchSymbol);
+
+        if (binancePos) {
+          binanceDetails = {
+            binanceMarkPrice: binancePos.markPrice,
+            binanceLiquidationPrice: binancePos.liquidationPrice,
+            binanceSizeUsdt: binancePos.sizeUsdt,
+            binanceMarginUsdt: binancePos.marginUsdt,
+            binanceMarginRatio: binancePos.marginRatio,
+            binanceMarginType: binancePos.marginType,
+            binanceUnrealizedPnl: binancePos.unRealizedProfit
+          };
+          console.log(`✅ 바이낸스 포지션 상세 정보 조회 완료:`, binanceDetails);
+        } else {
+          console.warn(`⚠️ 바이낸스 포지션을 찾을 수 없습니다: ${searchSymbol}`);
+        }
+      } catch (binanceError) {
+        console.warn(`⚠️ 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
+      }
+
+      // 6. DB에 실거래 포지션 저장 (실제 체결가와 수량 사용)
       const realPosition = {
         userId,
         symbol: params.symbol,
@@ -205,7 +233,8 @@ export class TradingManager {
         binanceLeverage: params.leverage, // 바이낸스 레버리지
         upbitOrderId: upbitOrder.uuid,
         binanceOrderId: binanceOrder.orderId.toString(),
-        forceEntrySettingsId: forceEntrySettingsId // 강제진입 설정 ID 추가
+        forceEntrySettingsId: forceEntrySettingsId, // 강제진입 설정 ID 추가
+        ...binanceDetails // 바이낸스 선물 상세 정보 추가
       };
 
       // 진입가 경고 (0이면 백그라운드에서 수정 예정)

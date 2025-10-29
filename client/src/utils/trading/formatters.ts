@@ -33,15 +33,15 @@ export const formatCompact = (n: number, digits = 1): string => {
 export const floorQty = (q: number | string | undefined | null) => 
   Math.floor((Number(q) || 0) / 0.001) * 0.001;
 
-// BTC 포맷팅 (소수점 3자리 고정 표시)
+// BTC 포맷팅 (소수점 8자리 고정 표시)
 export const formatBTC = (value: number): string => {
-  if (value === 0) return '0.000';
+  if (value === 0) return '0.00000000';
 
-  // 소수점 3자리까지 절삭 (반올림 아님)
-  const truncated = Math.floor(value * 1000) / 1000;
+  // 소수점 8자리까지 절삭 (반올림 아님)
+  const truncated = Math.floor(value * 100000000) / 100000000;
 
-  // 소수점 3자리로 고정 표시
-  return truncated.toFixed(3);
+  // 소수점 8자리로 고정 표시
+  return truncated.toFixed(8);
 };
 
 // BTC 포맷팅 - 업비트용 (소수점 8자리)
