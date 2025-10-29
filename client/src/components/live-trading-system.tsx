@@ -823,24 +823,32 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       }
       
       const result = await response.json();
-      const dbPositionId = result.position.id;
       const strategyName = result.strategyName; // "강제진입207" 형식
 
-      // 2. DB ID를 사용한 강제진입 전략 생성
-      const forceStrategy = {
-        id: `force-entry-${dbPositionId}`,
-        name: strategyName, // "강제진입207" 형식
-        entryCondition: String(currentKimp),
-        takeProfitCondition: String(Math.max(0.1, currentKimp + 0.5)),
-        tolerance: '0.001',
-        investmentAmount: forceSettings.investmentAmount,
-        leverage: forceSettings.leverage,
-        isActive: true
-      };
-      
-      // 3. 실제 거래 진입 (DB ID 포함)
-      liveEntry(forceStrategy, currentKimp);
-      
+      // 2. 거래 완료 후 잔고 새로고침
+      try {
+        setBalanceLoading?.(true);
+
+        await Promise.all([
+          fetch('/api/v2/balance/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ forceRefresh: true })
+          }),
+          refreshRealTimeBalances?.()
+        ]);
+
+        // DB 거래 기록도 새로고침
+        dispatch(incrementTradeRefreshTrigger());
+      } catch (refreshError) {
+        console.error('❌ 잔고 새로고침 실패:', refreshError);
+      } finally {
+        setTimeout(() => {
+          setBalanceLoading?.(false);
+        }, 1500);
+      }
+
       toast({
         title: '🧪 강제진입 완료',
         description: `${strategyName} 포지션이 생성되었습니다.`,
@@ -854,7 +862,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
         variant: 'destructive'
       });
     }
-  }, [currentKimchiData, liveEntry, toast]);
+  }, [currentKimchiData, toast, setBalanceLoading, refreshRealTimeBalances, dispatch]);
 
   // 청산 (원자적 처리)
   const liveExit = useCallback(async (position: LivePosition, _premiumRate: number, ratio: number = 1.0) => {
