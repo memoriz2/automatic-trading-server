@@ -99,11 +99,32 @@ export class TradingManager {
       const upbitOrderDetail = await services.upbit.getOrderDetail(upbitOrder.uuid);
       console.log(`📊 업비트 주문 상세:`, upbitOrderDetail);
 
-      // 업비트 실제 체결가와 체결 수량
-      if (upbitOrderDetail.avg_price) {
+      // 업비트 실제 체결가 계산 (trades 배열에서 가중 평균)
+      if (upbitOrderDetail.trades && upbitOrderDetail.trades.length > 0) {
+        // trades 배열에서 총 체결금액과 총 체결수량 계산
+        let totalFunds = 0;
+        let totalVolume = 0;
+
+        upbitOrderDetail.trades.forEach((trade: any) => {
+          const tradeFunds = parseFloat(trade.funds || "0");
+          const tradeVolume = parseFloat(trade.volume || "0");
+          totalFunds += tradeFunds;
+          totalVolume += tradeVolume;
+        });
+
+        if (totalVolume > 0) {
+          actualUpbitPrice = totalFunds / totalVolume;
+          console.log(`✅ [업비트 가격 계산] 총 ${totalFunds.toLocaleString()}원 / ${totalVolume} BTC = ${actualUpbitPrice.toLocaleString()}원/BTC`);
+        } else {
+          console.warn('⚠️ 업비트 체결 수량이 0입니다.');
+          actualUpbitPrice = 0;
+        }
+      } else if (upbitOrderDetail.avg_price) {
         actualUpbitPrice = parseFloat(upbitOrderDetail.avg_price);
+        console.log(`⚠️ [업비트 가격] trades 배열 없음, avg_price 사용: ${actualUpbitPrice.toLocaleString()}원/BTC`);
       } else if (upbitOrderDetail.price) {
         actualUpbitPrice = parseFloat(upbitOrderDetail.price);
+        console.log(`⚠️ [업비트 가격] trades/avg_price 없음, price 사용: ${actualUpbitPrice.toLocaleString()}원/BTC`);
       } else {
         console.warn('⚠️ 업비트 체결가 정보를 가져올 수 없습니다. 0으로 저장 후 자동 수정됩니다.');
         actualUpbitPrice = 0;
