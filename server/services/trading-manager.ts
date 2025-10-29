@@ -247,7 +247,7 @@ export class TradingManager {
           strategyId: null, // 강제진입은 전략 없음
           tradeLogId: null,
           symbol: params.symbol,
-          side: 'sell', // 숏은 sell로 기록
+          side: 'short', // 바이낸스 선물 숏 진입
           exchange: 'binance',
           quantity: actualUpbitQuantity, // 동일한 수량
           price: actualBinancePrice,
