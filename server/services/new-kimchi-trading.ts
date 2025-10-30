@@ -1293,15 +1293,28 @@ export class MultiStrategyTradingService {
         const entryPremium = Number(position.entryPremiumRate || 0);
         const currentPremium = currentData.premiumRate;
 
-        // 모든 포지션에 대해 수익률 계산 및 업데이트
-        const profitRate = currentPremium - entryPremium;
-
-        // 실제 수익 계산 (김프율 차이 × 수량 × 현재가격)
+        // 차익거래 수익 계산: 업비트 손익 + 바이낸스 손익
         const quantity = Number(position.quantity || 0);
-        const currentPrice = currentData.upbitPrice;
-        const estimatedPnl = profitRate * 0.01 * quantity * currentPrice; // 김프율 차이를 실제 수익으로 변환
+        const upbitEntryPrice = Number(position.entryPrice || 0); // KRW/BTC 단가
+        const upbitCurrentPrice = currentData.upbitPrice; // KRW/BTC 현재가
 
-        console.log(`📊 포지션 ${position.id} 수익 계산: 진입=${entryPremium.toFixed(3)}% → 현재=${currentPremium.toFixed(3)}% (차이=${profitRate.toFixed(3)}%) → 예상수익=${estimatedPnl.toFixed(0)}원`);
+        const binanceEntryPrice = Number(position.binanceEntryPrice || 0); // USD/BTC 단가
+        const binanceCurrentPrice = currentData.binanceFuturesPrice || 0; // USD/BTC 현재가
+        const entryUsdKrw = Number((position as any).entryUsdKrw || (position as any).entry_usd_krw || 1400); // 진입 시점 환율
+
+        // 업비트 손익 (매수 포지션): 가격 하락 시 손실
+        const upbitPnl = (upbitCurrentPrice - upbitEntryPrice) * quantity;
+
+        // 바이낸스 손익 (숏 포지션): 가격 하락 시 이익, KRW로 환산
+        const binancePnl = (binanceEntryPrice - binanceCurrentPrice) * quantity * entryUsdKrw;
+
+        // 총 손익 (수수료 제외)
+        const estimatedPnl = upbitPnl + binancePnl;
+
+        console.log(`📊 포지션 ${position.id} 수익 계산:
+  업비트: 진입₩${upbitEntryPrice.toLocaleString()} → 현재₩${upbitCurrentPrice.toLocaleString()} = ${upbitPnl > 0 ? '+' : ''}₩${upbitPnl.toFixed(0)}
+  바이낸스: 진입$${binanceEntryPrice.toFixed(2)} → 현재$${binanceCurrentPrice.toFixed(2)} = ${binancePnl > 0 ? '+' : ''}₩${binancePnl.toFixed(0)}
+  총 예상수익: ${estimatedPnl > 0 ? '+' : ''}₩${estimatedPnl.toFixed(0)} (김프: ${entryPremium.toFixed(2)}% → ${currentPremium.toFixed(2)}%)`);
 
         // 바이낸스 선물 포지션 상세 정보 조회
         const binanceExtras: any = {};
