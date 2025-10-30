@@ -321,6 +321,35 @@ export class MultiStrategyTradingService {
 
     // 진입 조건 체크 (해당 전략의 포지션이 없을 때만)
     if (!existingPosition) {
+      // 🔧 포지션이 없는데 거래 기록이 있으면 먼저 복구 시도
+      const strategyUserId = (strategy as any).user_id || (strategy as any).userId;
+      try {
+        const orphanTradesCheck = await storage.pool.query(`
+          SELECT COUNT(*) as count
+          FROM trades
+          WHERE user_id = $1
+            AND strategy_id = $2
+            AND position_id IS NULL
+            AND executed_at > NOW() - INTERVAL '10 minutes'
+            AND side IN ('buy', 'short')
+        `, [strategyUserId, strategy.id]);
+
+        const orphanCount = parseInt(orphanTradesCheck.rows[0]?.count || '0');
+        if (orphanCount > 0) {
+          console.log(`🔧 [포지션 복구] 전략 ${strategy.id}에 대한 ${orphanCount}개의 고아 거래 발견, 복구 시도...`);
+          await this.recoverMissingPositions(strategyUserId);
+
+          // 복구 후 다시 포지션 확인
+          const recoveredPosition = await storage.getActivePositionByStrategy(strategy.id, 'BTC');
+          if (recoveredPosition) {
+            console.log(`✅ [포지션 복구] 포지션 ${recoveredPosition.id} 복구 완료, 진입 스킵`);
+            return null;
+          }
+        }
+      } catch (recoveryError) {
+        console.error('❌ [포지션 복구] 체크 실패:', recoveryError);
+      }
+
       // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
       const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
 
@@ -332,11 +361,36 @@ export class MultiStrategyTradingService {
 
           if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
             const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-            log.debug('DB 기반 진입 쿨다운 진행중', { remainSec, strategyId: strategy.id });
+            log.debug('DB 기반 진입 쿨다운 진행중 (positions)', { remainSec, strategyId: strategy.id });
             log.debug('최근 진입 시간', { lastEntry: new Date(entryTime).toISOString() });
             return null;
           }
         }
+      }
+
+      // 🔒 추가 안전장치: trades 테이블에서도 쿨다운 체크 (포지션 생성 실패 대비)
+      try {
+        const recentTradeResult = await storage.pool.query(`
+          SELECT MAX(executed_at) as last_trade_time
+          FROM trades
+          WHERE user_id = $1
+            AND strategy_id = $2
+            AND side IN ('buy', 'short')
+            AND executed_at > NOW() - INTERVAL '10 minutes'
+        `, [strategyUserId, strategy.id]);
+
+        if (recentTradeResult.rows[0]?.last_trade_time) {
+          const lastTradeTime = new Date(recentTradeResult.rows[0].last_trade_time).getTime();
+          const elapsed = Date.now() - lastTradeTime;
+
+          if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
+            const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+            console.log(`🔒 [쿨다운] trades 기반 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+            return null;
+          }
+        }
+      } catch (tradeCheckError) {
+        console.error('❌ trades 쿨다운 체크 실패:', tradeCheckError);
       }
 
       // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
