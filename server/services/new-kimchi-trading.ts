@@ -24,6 +24,9 @@ export class MultiStrategyTradingService {
   // 웹소켓 이벤트 쓰로틀링을 위한 마지막 체크 시간
   private lastCheckTimes: Map<string, number> = new Map();
 
+  // 🔒 진입 Lock: 동시에 여러 진입 시도 방지 (strategyId -> 진행중 여부)
+  private entryLocks: Map<number, boolean> = new Map();
+
   constructor() {
     this.simpleKimchiService = new SimpleKimchiService();
   }
@@ -561,6 +564,16 @@ export class MultiStrategyTradingService {
       throw new Error(errorMsg);
     }
 
+    // 🔒 진입 Lock 체크: 이미 진행 중이면 스킵
+    if (this.entryLocks.get(strategy.id)) {
+      console.log(`🔒 [전략 ${strategy.id}] 이미 진입 진행 중, 스킵`);
+      throw new Error('이미 진입 진행 중');
+    }
+
+    // Lock 설정
+    this.entryLocks.set(strategy.id, true);
+    console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 획득`);
+
     // 🚨 잔고 검증 추가
     try {
       // 직접 스토리지에서 잔고 확인 (더 안전)
@@ -1052,6 +1065,10 @@ export class MultiStrategyTradingService {
     } catch (error) {
       console.error(`새로운 김프 진입 실패 (${symbol}):`, error);
       throw error;
+    } finally {
+      // 🔓 Lock 해제 (성공/실패 관계없이)
+      this.entryLocks.delete(strategy.id);
+      console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 해제`);
     }
   }
 
