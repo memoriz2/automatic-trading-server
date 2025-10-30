@@ -4878,16 +4878,21 @@ export async function registerRoutes(
       }
 
       // 업비트 API 직접 호출로 잔고 조회
-      const axios = require('axios');
-      const { v4: uuidv4 } = require('uuid');
-      const sign = require('jsonwebtoken').sign;
+      // @ts-ignore
+      const axios = (await import('axios')).default;
+      const { v4: uuidv4 } = await import('uuid');
+      // @ts-ignore
+      const jwt = await import('jsonwebtoken');
+
+      const apiKey = (upbitExchange as any).api_key || (upbitExchange as any).apiKey;
+      const apiSecret = (upbitExchange as any).api_secret || (upbitExchange as any).apiSecret;
 
       const payload = {
-        access_key: (upbitExchange as any).apiKey,
+        access_key: apiKey,
         nonce: uuidv4(),
       };
 
-      const token = sign(payload, (upbitExchange as any).apiSecret);
+      const token = jwt.sign(payload, apiSecret);
       const accountResponse = await axios.get('https://api.upbit.com/v1/accounts', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -4973,16 +4978,21 @@ export async function registerRoutes(
 
           if (upbitExchange) {
             // 업비트 API 직접 호출로 잔고 조회
-            const axios = require('axios');
-            const { v4: uuidv4 } = require('uuid');
-            const sign = require('jsonwebtoken').sign;
+            // @ts-ignore
+            const axios = (await import('axios')).default;
+            const { v4: uuidv4 } = await import('uuid');
+            // @ts-ignore
+            const jwt = await import('jsonwebtoken');
+
+            const apiKey = (upbitExchange as any).api_key || (upbitExchange as any).apiKey;
+            const apiSecret = (upbitExchange as any).api_secret || (upbitExchange as any).apiSecret;
 
             const payload = {
-              access_key: (upbitExchange as any).apiKey,
+              access_key: apiKey,
               nonce: uuidv4(),
             };
 
-            const token = sign(payload, (upbitExchange as any).apiSecret);
+            const token = jwt.sign(payload, apiSecret);
             const accountResponse = await axios.get('https://api.upbit.com/v1/accounts', {
               headers: { Authorization: `Bearer ${token}` }
             });
