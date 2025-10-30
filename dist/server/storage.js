@@ -392,16 +392,8 @@ export class DatabaseStorage {
             console.log(`  - binanceMarginType: ${data.binanceMarginType} (타입: ${typeof data.binanceMarginType})`);
             console.log(`  - binanceUnrealizedPnl: ${data.binanceUnrealizedPnl} (타입: ${typeof data.binanceUnrealizedPnl})`);
             // 🔍 DEBUG: SQL에 전달될 실제 값들 출력
-            // 입력 값 정규화: 업비트 entryPrice는 총액(KRW), 바이낸스 binanceEntryPrice는 USD 단가
-            const normalizedEntryPrice = (() => {
-                const price = Number(data.entryPrice) || 0;
-                const qty = Number(data.quantity) || 0;
-                // 단가가 들어왔다면 총액으로 환원
-                if (qty > 0 && price > 0 && price < 10000000) {
-                    return price * qty;
-                }
-                return price;
-            })();
+            // 입력 값 정규화: 업비트 entryPrice는 항상 단가(KRW/BTC)로 저장
+            const normalizedEntryPrice = Number(data.entryPrice) || 0;
             const normalizedBinanceEntryPrice = (() => {
                 const price = Number(data.binanceEntryPrice) || 0;
                 const usdkrw = Number(data.entryUsdKrw || data.entry_usd_krw) || 0;
