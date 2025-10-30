@@ -738,15 +738,40 @@ export class MultiStrategyTradingService {
         // 업비트 체결 결과 확인 (변수는 이미 외부 스코프에 선언됨)
         paidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
 
-        // 🔧 시장가 주문은 즉시 체결되므로 1초 대기 후 주문 상세 조회
+        // 🔧 시장가 주문은 즉시 체결되므로 재시도하며 주문 상세 조회
         if (upbitResult.uuid) {
-          try {
-            console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+          let orderDetail: any = null;
+          let detailSuccess = false;
 
-            const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
-            console.log(`🔍 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+          // 최대 5번 재시도 (1초, 2초, 3초, 4초, 5초 대기)
+          for (let retry = 1; retry <= 5; retry++) {
+            try {
+              console.log(`⏳ [시도 ${retry}/5] 체결 확인을 위해 ${retry}초 대기 후 주문 상세 조회...`);
+              await new Promise(resolve => setTimeout(resolve, retry * 1000));
 
+              orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
+              console.log(`🔍 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+
+              // paid_fee가 있는지 확인
+              const hasPaidFee = orderDetail.paid_fee && parseFloat(orderDetail.paid_fee) > 0;
+              const hasTrades = orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0;
+
+              if (hasPaidFee || hasTrades) {
+                console.log(`✅ [시도 ${retry}/5] 주문 상세 조회 성공 (paid_fee: ${orderDetail.paid_fee})`);
+                detailSuccess = true;
+                break;
+              } else {
+                console.warn(`⚠️ [시도 ${retry}/5] paid_fee가 없음, 재시도...`);
+              }
+            } catch (detailError) {
+              console.error(`❌ [시도 ${retry}/5] 업비트 주문 상세 조회 실패:`, detailError);
+              if (retry === 5) {
+                console.error(`🚨 5번 재시도 모두 실패 - 초기 응답 데이터 사용`);
+              }
+            }
+          }
+
+          if (detailSuccess && orderDetail) {
             paidFee = orderDetail.paid_fee ? parseFloat(orderDetail.paid_fee) : undefined;
 
             // 🔧 trades 배열에서 총 체결금액과 총 체결수량 계산
@@ -762,14 +787,11 @@ export class MultiStrategyTradingService {
               totalFunds = parseFloat(orderDetail.price || "0");
               console.warn(`⚠️ trades 배열 없음, 기본 필드 사용: volume=${executedVolume}, price=${totalFunds}`);
             }
-          } catch (detailError) {
-            // 🚨 CRITICAL: 주문 상세 조회 실패해도 초기 응답 데이터 사용
-            console.error(`❌ 업비트 주문 상세 조회 실패 (주문은 성공):`, detailError);
+          } else {
+            // 🚨 재시도 모두 실패 - 초기 응답 데이터 사용
             console.log(`⚠️ 초기 응답 데이터로 fallback - executed_volume: ${upbitResult.executed_volume}, price: ${upbitResult.price}`);
-
             executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
             totalFunds = parseFloat(upbitResult.price || "0");
-
             // paidFee는 이미 line 739에서 초기 응답에서 가져왔으므로 유지
           }
         }
@@ -1080,15 +1102,40 @@ export class MultiStrategyTradingService {
         upbitResult = await upbitService.placeSellOrder(market, upbitQuantity);
         console.log(`✅ 업비트 매도 성공 (초기 응답):`, upbitResult);
 
-        // 🔍 매도도 매수와 동일하게 주문 상세 조회로 avg_price 확보
+        // 🔍 매도도 매수와 동일하게 재시도하며 주문 상세 조회
         if (upbitResult.uuid) {
-          try {
-            console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+          let orderDetail: any = null;
+          let detailSuccess = false;
 
-            const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
-            console.log(`🔍 매도 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+          // 최대 5번 재시도 (1초, 2초, 3초, 4초, 5초 대기)
+          for (let retry = 1; retry <= 5; retry++) {
+            try {
+              console.log(`⏳ [매도 시도 ${retry}/5] 체결 확인을 위해 ${retry}초 대기 후 주문 상세 조회...`);
+              await new Promise(resolve => setTimeout(resolve, retry * 1000));
 
+              orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
+              console.log(`🔍 매도 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+
+              // paid_fee가 있는지 확인
+              const hasPaidFee = orderDetail.paid_fee && parseFloat(orderDetail.paid_fee) > 0;
+              const hasTrades = orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0;
+
+              if (hasPaidFee || hasTrades) {
+                console.log(`✅ [매도 시도 ${retry}/5] 주문 상세 조회 성공 (paid_fee: ${orderDetail.paid_fee})`);
+                detailSuccess = true;
+                break;
+              } else {
+                console.warn(`⚠️ [매도 시도 ${retry}/5] paid_fee가 없음, 재시도...`);
+              }
+            } catch (detailError) {
+              console.error(`❌ [매도 시도 ${retry}/5] 업비트 주문 상세 조회 실패:`, detailError);
+              if (retry === 5) {
+                console.error(`🚨 5번 재시도 모두 실패 - 초기 응답 데이터 사용`);
+              }
+            }
+          }
+
+          if (detailSuccess && orderDetail) {
             // 🔧 avg_price 필드가 없으면 trades 배열에서 직접 계산
             if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
               let totalFunds = 0;
@@ -1108,9 +1155,8 @@ export class MultiStrategyTradingService {
 
             // 상세 조회 결과로 덮어쓰기 (avg_price, executed_volume, paid_fee 포함)
             upbitResult = orderDetail;
-          } catch (detailError) {
-            // 🚨 CRITICAL: 매도 주문 상세 조회 실패해도 초기 응답 데이터 사용
-            console.error(`❌ 업비트 매도 주문 상세 조회 실패 (주문은 성공):`, detailError);
+          } else {
+            // 🚨 재시도 모두 실패 - 초기 응답 데이터 사용
             console.log(`⚠️ 초기 응답 데이터 사용: upbitResult 유지`);
             // upbitResult는 이미 초기 응답으로 설정되어 있으므로 그대로 사용
           }
