@@ -4335,6 +4335,86 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: error.message });
         }
     });
+    // 긴급 전체 청산 API: 업비트 + 바이낸스 동시 청산
+    app.post("/api/emergency/liquidate-all", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const services = await ExchangeServiceFactory.initializeByUserId(userId);
+            const results = {
+                upbit: { success: false, message: '', amount: 0 },
+                binance: { success: false, message: '', amount: 0 }
+            };
+            // 1. 업비트 BTC 매도
+            if (services.upbitService) {
+                try {
+                    const exchanges = await storage.getExchangesByUserId(userId);
+                    const upbitExchange = exchanges.find((e) => e.exchange === 'upbit');
+                    if (upbitExchange) {
+                        // @ts-ignore
+                        const ccxt = await import('ccxt');
+                        const upbit = new ccxt.upbit({
+                            apiKey: upbitExchange.apiKey,
+                            secret: upbitExchange.apiSecret
+                        });
+                        const balances = await upbit.fetchBalance();
+                        const btcBalance = balances.BTC?.free || 0;
+                        if (btcBalance > 0.00001) {
+                            const result = await services.upbitService.placeSellOrder('KRW-BTC', btcBalance, 'market');
+                            results.upbit = {
+                                success: true,
+                                message: `업비트 BTC ${btcBalance} 청산 완료`,
+                                amount: btcBalance,
+                                order: result
+                            };
+                        }
+                        else {
+                            results.upbit = { success: true, message: '청산할 BTC가 없습니다', amount: 0 };
+                        }
+                    }
+                }
+                catch (upbitError) {
+                    console.error('❌ 업비트 청산 실패:', upbitError);
+                    results.upbit = { success: false, message: upbitError.message, amount: 0 };
+                }
+            }
+            // 2. 바이낸스 선물 포지션 청산
+            if (services.binanceService) {
+                try {
+                    const positions = await services.binanceService.getFuturesPositions();
+                    const btcPosition = positions.find((p) => p.symbol === 'BTCUSDT');
+                    if (btcPosition && Math.abs(parseFloat(btcPosition.positionAmt)) > 0.0001) {
+                        const positionAmt = parseFloat(btcPosition.positionAmt);
+                        const isShort = positionAmt < 0;
+                        const result = isShort
+                            ? await services.binanceService.closeFuturesPosition('BTC', Math.abs(positionAmt))
+                            : await services.binanceService.placeFuturesShortOrder('BTC', Math.abs(positionAmt));
+                        results.binance = {
+                            success: true,
+                            message: `바이낸스 BTC ${Math.abs(positionAmt)} ${isShort ? '숏' : '롱'} 청산 완료`,
+                            amount: Math.abs(positionAmt),
+                            order: result
+                        };
+                    }
+                    else {
+                        results.binance = { success: true, message: '청산할 포지션이 없습니다', amount: 0 };
+                    }
+                }
+                catch (binanceError) {
+                    console.error('❌ 바이낸스 청산 실패:', binanceError);
+                    results.binance = { success: false, message: binanceError.message, amount: 0 };
+                }
+            }
+            res.json({
+                success: results.upbit.success || results.binance.success,
+                message: '전체 청산 완료',
+                results
+            });
+        }
+        catch (error) {
+            console.error('❌ 전체 청산 실패:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
     // 분리된 라우터들 등록
     registerAuthRoutes(app);
     registerTradingRoutes(app);
