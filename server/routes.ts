@@ -4878,11 +4878,8 @@ export async function registerRoutes(
       }
 
       // 업비트 API 직접 호출로 잔고 조회
-      // @ts-ignore
-      const axios = (await import('axios')).default;
+      const crypto = await import('crypto');
       const { v4: uuidv4 } = await import('uuid');
-      // @ts-ignore
-      const jwt = await import('jsonwebtoken');
 
       const apiKey = (upbitExchange as any).api_key || (upbitExchange as any).apiKey;
       const apiSecret = (upbitExchange as any).api_secret || (upbitExchange as any).apiSecret;
@@ -4892,12 +4889,21 @@ export async function registerRoutes(
         nonce: uuidv4(),
       };
 
-      const token = jwt.sign(payload, apiSecret);
-      const accountResponse = await axios.get('https://api.upbit.com/v1/accounts', {
+      // JWT 직접 생성 (jsonwebtoken 없이)
+      const header = { alg: 'HS256', typ: 'JWT' };
+      const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+      const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const signature = crypto.createHmac('sha256', apiSecret)
+        .update(`${encodedHeader}.${encodedPayload}`)
+        .digest('base64url');
+      const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+      const accountResponse = await fetch('https://api.upbit.com/v1/accounts', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      const accountData = await accountResponse.json();
 
-      const btcAccount = accountResponse.data.find((acc: any) => acc.currency === 'BTC');
+      const btcAccount = accountData.find((acc: any) => acc.currency === 'BTC');
       const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
 
       if (btcBalance <= 0.00001) {
@@ -4978,11 +4984,8 @@ export async function registerRoutes(
 
           if (upbitExchange) {
             // 업비트 API 직접 호출로 잔고 조회
-            // @ts-ignore
-            const axios = (await import('axios')).default;
+            const crypto = await import('crypto');
             const { v4: uuidv4 } = await import('uuid');
-            // @ts-ignore
-            const jwt = await import('jsonwebtoken');
 
             const apiKey = (upbitExchange as any).api_key || (upbitExchange as any).apiKey;
             const apiSecret = (upbitExchange as any).api_secret || (upbitExchange as any).apiSecret;
@@ -4992,12 +4995,21 @@ export async function registerRoutes(
               nonce: uuidv4(),
             };
 
-            const token = jwt.sign(payload, apiSecret);
-            const accountResponse = await axios.get('https://api.upbit.com/v1/accounts', {
+            // JWT 직접 생성 (jsonwebtoken 없이)
+            const header = { alg: 'HS256', typ: 'JWT' };
+            const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+            const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+            const signature = crypto.createHmac('sha256', apiSecret)
+              .update(`${encodedHeader}.${encodedPayload}`)
+              .digest('base64url');
+            const token = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+            const accountResponse = await fetch('https://api.upbit.com/v1/accounts', {
               headers: { Authorization: `Bearer ${token}` }
             });
+            const accountData = await accountResponse.json();
 
-            const btcAccount = accountResponse.data.find((acc: any) => acc.currency === 'BTC');
+            const btcAccount = accountData.find((acc: any) => acc.currency === 'BTC');
             const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
 
             if (btcBalance > 0.00001) {
