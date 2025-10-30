@@ -4868,7 +4868,7 @@ export async function registerRoutes(
         return;
       }
 
-      // 업비트 잔고 조회
+      // 업비트 거래소 정보 조회
       const exchanges = await storage.getExchangesByUserId(userId);
       const upbitExchange = exchanges.find((e: any) => e.exchange === 'upbit');
 
@@ -4877,15 +4877,23 @@ export async function registerRoutes(
         return;
       }
 
-      // @ts-ignore
-      const ccxt = await import('ccxt');
-      const upbit = new (ccxt as any).upbit({
-        apiKey: (upbitExchange as any).apiKey,
-        secret: (upbitExchange as any).apiSecret
+      // 업비트 API 직접 호출로 잔고 조회
+      const axios = require('axios');
+      const { v4: uuidv4 } = require('uuid');
+      const sign = require('jsonwebtoken').sign;
+
+      const payload = {
+        access_key: (upbitExchange as any).apiKey,
+        nonce: uuidv4(),
+      };
+
+      const token = sign(payload, (upbitExchange as any).apiSecret);
+      const accountResponse = await axios.get('https://api.upbit.com/v1/accounts', {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      const balances = await upbit.fetchBalance();
-      const btcBalance = balances.BTC?.free || 0;
+      const btcAccount = accountResponse.data.find((acc: any) => acc.currency === 'BTC');
+      const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
 
       if (btcBalance <= 0.00001) {
         res.json({ success: true, message: '청산할 BTC가 없습니다', amount: 0 });
@@ -4964,15 +4972,23 @@ export async function registerRoutes(
           const upbitExchange = exchanges.find((e: any) => e.exchange === 'upbit');
 
           if (upbitExchange) {
-            // @ts-ignore
-            const ccxt = await import('ccxt');
-            const upbit = new (ccxt as any).upbit({
-              apiKey: (upbitExchange as any).apiKey,
-              secret: (upbitExchange as any).apiSecret
+            // 업비트 API 직접 호출로 잔고 조회
+            const axios = require('axios');
+            const { v4: uuidv4 } = require('uuid');
+            const sign = require('jsonwebtoken').sign;
+
+            const payload = {
+              access_key: (upbitExchange as any).apiKey,
+              nonce: uuidv4(),
+            };
+
+            const token = sign(payload, (upbitExchange as any).apiSecret);
+            const accountResponse = await axios.get('https://api.upbit.com/v1/accounts', {
+              headers: { Authorization: `Bearer ${token}` }
             });
 
-            const balances = await upbit.fetchBalance();
-            const btcBalance = balances.BTC?.free || 0;
+            const btcAccount = accountResponse.data.find((acc: any) => acc.currency === 'BTC');
+            const btcBalance = btcAccount ? parseFloat(btcAccount.balance) : 0;
 
             if (btcBalance > 0.00001) {
               const result = await services.upbitService.placeSellOrder('KRW-BTC', btcBalance, 'market');
