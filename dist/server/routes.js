@@ -4259,6 +4259,82 @@ export async function registerRoutes(app, server) {
             res.status(500).json({ error: error.message });
         }
     });
+    // 긴급 청산 API: 업비트 BTC 전량 매도
+    app.post("/api/emergency/liquidate-upbit", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const services = await ExchangeServiceFactory.initializeByUserId(userId);
+            if (!services.upbitService) {
+                res.status(400).json({ error: "업비트 API 키가 설정되지 않았습니다" });
+                return;
+            }
+            // 업비트 잔고 조회
+            const exchanges = await storage.getExchangesByUserId(userId);
+            const upbitExchange = exchanges.find((e) => e.exchange === 'upbit');
+            if (!upbitExchange) {
+                res.status(400).json({ error: "업비트 거래소 정보가 없습니다" });
+                return;
+            }
+            // @ts-ignore
+            const ccxt = await import('ccxt');
+            const upbit = new ccxt.upbit({
+                apiKey: upbitExchange.apiKey,
+                secret: upbitExchange.apiSecret
+            });
+            const balances = await upbit.fetchBalance();
+            const btcBalance = balances.BTC?.free || 0;
+            if (btcBalance <= 0.00001) {
+                res.json({ success: true, message: '청산할 BTC가 없습니다', amount: 0 });
+                return;
+            }
+            // 시장가 매도
+            const result = await services.upbitService.placeSellOrder('KRW-BTC', btcBalance, 'market');
+            res.json({
+                success: true,
+                message: `업비트 BTC ${btcBalance} 청산 완료`,
+                amount: btcBalance,
+                order: result
+            });
+        }
+        catch (error) {
+            console.error('❌ 업비트 긴급 청산 실패:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // 긴급 청산 API: 바이낸스 BTC 선물 포지션 전량 청산
+    app.post("/api/emergency/liquidate-binance", authenticateSession, async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const services = await ExchangeServiceFactory.initializeByUserId(userId);
+            if (!services.binanceService) {
+                res.status(400).json({ error: "바이낸스 API 키가 설정되지 않았습니다" });
+                return;
+            }
+            // 바이낸스 BTC 선물 포지션 조회
+            const positions = await services.binanceService.getFuturesPositions();
+            const btcPosition = positions.find((p) => p.symbol === 'BTCUSDT');
+            if (!btcPosition || Math.abs(parseFloat(btcPosition.positionAmt)) <= 0.0001) {
+                res.json({ success: true, message: '청산할 포지션이 없습니다', amount: 0 });
+                return;
+            }
+            const positionAmt = parseFloat(btcPosition.positionAmt);
+            const isShort = positionAmt < 0;
+            // 포지션 청산 (숏이면 롱으로 반대매매, 롱이면 숏으로 반대매매)
+            const result = isShort
+                ? await services.binanceService.closeFuturesPosition('BTC', Math.abs(positionAmt))
+                : await services.binanceService.placeFuturesShortOrder('BTC', Math.abs(positionAmt));
+            res.json({
+                success: true,
+                message: `바이낸스 BTC ${Math.abs(positionAmt)} ${isShort ? '숏' : '롱'} 청산 완료`,
+                amount: Math.abs(positionAmt),
+                order: result
+            });
+        }
+        catch (error) {
+            console.error('❌ 바이낸스 긴급 청산 실패:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
     // 분리된 라우터들 등록
     registerAuthRoutes(app);
     registerTradingRoutes(app);
