@@ -902,6 +902,10 @@ export class MultiStrategyTradingService {
 
         console.log(`🔍 [DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
 
+        // 업비트 진입가 계산: 바이낸스 USD 단가 × 환율 (더 정확함)
+        const upbitEntryPricePerBtc = Math.round(currentPrice * usdtKrwRateForFee);
+        console.log(`💰 진입가 계산: $${currentPrice} × ${usdtKrwRateForFee}원 = ₩${upbitEntryPricePerBtc.toLocaleString()}/BTC`);
+
         position = await storage.createPosition({
         userId: parseInt(userId),
         strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
@@ -909,8 +913,8 @@ export class MultiStrategyTradingService {
         type: "BACK", // 백그라운드 자동매매
         side: "short", // 바이낸스 선물 숏 포지션
         status: "open",
-        // 업비트 진입가는 단가(KRW/BTC)로 저장
-        entryPrice: String(executedVolume > 0 ? Math.round(upbitEntryPrice / executedVolume) : 0),
+        // 업비트 진입가는 바이낸스 USD 단가 × 환율로 계산 (BTC 기준)
+        entryPrice: String(upbitEntryPricePerBtc),
         binanceEntryPrice: String(currentPrice), // ← 바이낸스 진입가 (USD 단가)
         quantity: String(executedVolume), // 실제 체결된 수량
         binanceQuantity: String(adjustedQuantity), // 바이낸스 수량 (동일)
