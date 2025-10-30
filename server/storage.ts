@@ -687,15 +687,20 @@ export class DatabaseStorage {
   
   async createTrade(data: any): Promise<any> {
     try {
-      // fee가 0이면 저장하지 않음
+      // ⚠️ CRITICAL: fee가 0이어도 거래는 무조건 저장해야 함!
+      // 실제 거래소에서 거래가 발생했는데 DB에 저장 안 되면 큰 문제 발생
       if (!data.fee || data.fee <= 0) {
-        console.warn('⚠️ [createTrade] fee가 0이므로 거래 기록을 저장하지 않습니다:', {
+        console.error('🚨 [createTrade] fee가 0입니다! 하지만 거래 기록은 저장합니다 (실제 거래 발생):', {
           userId: data.userId,
           symbol: data.symbol,
           exchange: data.exchange,
+          side: data.side,
+          quantity: data.quantity,
+          price: data.price,
           exchangeOrderId: data.exchangeOrderId
         });
-        return null;
+        // fee를 0.00000001로 최소값 설정 (DB에 NULL 방지)
+        data.fee = 0.00000001;
       }
 
       // 필수 필드 검증
