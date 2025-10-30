@@ -740,26 +740,37 @@ export class MultiStrategyTradingService {
 
         // 🔧 시장가 주문은 즉시 체결되므로 1초 대기 후 주문 상세 조회
         if (upbitResult.uuid) {
-          console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          try {
+            console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-          const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
-          console.log(`🔍 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+            const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
+            console.log(`🔍 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
 
-          paidFee = orderDetail.paid_fee ? parseFloat(orderDetail.paid_fee) : undefined;
+            paidFee = orderDetail.paid_fee ? parseFloat(orderDetail.paid_fee) : undefined;
 
-          // 🔧 trades 배열에서 총 체결금액과 총 체결수량 계산
-          if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
-            for (const trade of orderDetail.trades) {
-              totalFunds += parseFloat(trade.funds || "0"); // 총 체결금액 (KRW)
-              executedVolume += parseFloat(trade.volume || "0"); // 총 체결수량 (BTC)
+            // 🔧 trades 배열에서 총 체결금액과 총 체결수량 계산
+            if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
+              for (const trade of orderDetail.trades) {
+                totalFunds += parseFloat(trade.funds || "0"); // 총 체결금액 (KRW)
+                executedVolume += parseFloat(trade.volume || "0"); // 총 체결수량 (BTC)
+              }
+              console.log(`💡 trades 배열 집계: 총금액=${totalFunds.toLocaleString()}원, 총수량=${executedVolume} BTC`);
+            } else {
+              // trades 배열이 없으면 기본 필드 사용 (fallback)
+              executedVolume = parseFloat(orderDetail.executed_volume || orderDetail.volume || "0");
+              totalFunds = parseFloat(orderDetail.price || "0");
+              console.warn(`⚠️ trades 배열 없음, 기본 필드 사용: volume=${executedVolume}, price=${totalFunds}`);
             }
-            console.log(`💡 trades 배열 집계: 총금액=${totalFunds.toLocaleString()}원, 총수량=${executedVolume} BTC`);
-          } else {
-            // trades 배열이 없으면 기본 필드 사용 (fallback)
-            executedVolume = parseFloat(orderDetail.executed_volume || orderDetail.volume || "0");
-            totalFunds = parseFloat(orderDetail.price || "0");
-            console.warn(`⚠️ trades 배열 없음, 기본 필드 사용: volume=${executedVolume}, price=${totalFunds}`);
+          } catch (detailError) {
+            // 🚨 CRITICAL: 주문 상세 조회 실패해도 초기 응답 데이터 사용
+            console.error(`❌ 업비트 주문 상세 조회 실패 (주문은 성공):`, detailError);
+            console.log(`⚠️ 초기 응답 데이터로 fallback - executed_volume: ${upbitResult.executed_volume}, price: ${upbitResult.price}`);
+
+            executedVolume = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
+            totalFunds = parseFloat(upbitResult.price || "0");
+
+            // paidFee는 이미 line 739에서 초기 응답에서 가져왔으므로 유지
           }
         }
 
@@ -1071,31 +1082,38 @@ export class MultiStrategyTradingService {
 
         // 🔍 매도도 매수와 동일하게 주문 상세 조회로 avg_price 확보
         if (upbitResult.uuid) {
-          console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          try {
+            console.log(`⏳ 체결 확인을 위해 1초 대기 후 주문 상세 조회...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-          const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
-          console.log(`🔍 매도 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
+            const orderDetail = await upbitService.getOrderDetail(upbitResult.uuid);
+            console.log(`🔍 매도 주문 상세 조회 결과:`, JSON.stringify(orderDetail, null, 2));
 
-          // 🔧 avg_price 필드가 없으면 trades 배열에서 직접 계산
-          if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
-            let totalFunds = 0;
-            let totalVolume = 0;
+            // 🔧 avg_price 필드가 없으면 trades 배열에서 직접 계산
+            if (orderDetail.trades && Array.isArray(orderDetail.trades) && orderDetail.trades.length > 0) {
+              let totalFunds = 0;
+              let totalVolume = 0;
 
-            for (const trade of orderDetail.trades) {
-              totalFunds += parseFloat(trade.funds || "0");
-              totalVolume += parseFloat(trade.volume || "0");
+              for (const trade of orderDetail.trades) {
+                totalFunds += parseFloat(trade.funds || "0");
+                totalVolume += parseFloat(trade.volume || "0");
+              }
+
+              const calculatedAvgPrice = totalVolume > 0 ? totalFunds / totalVolume : 0;
+              console.log(`💡 trades 배열에서 평균가 계산: ${calculatedAvgPrice} (총금액: ${totalFunds}, 총수량: ${totalVolume})`);
+
+              // avg_price 필드를 계산된 값으로 추가
+              orderDetail.avg_price = calculatedAvgPrice;
             }
 
-            const calculatedAvgPrice = totalVolume > 0 ? totalFunds / totalVolume : 0;
-            console.log(`💡 trades 배열에서 평균가 계산: ${calculatedAvgPrice} (총금액: ${totalFunds}, 총수량: ${totalVolume})`);
-
-            // avg_price 필드를 계산된 값으로 추가
-            orderDetail.avg_price = calculatedAvgPrice;
+            // 상세 조회 결과로 덮어쓰기 (avg_price, executed_volume, paid_fee 포함)
+            upbitResult = orderDetail;
+          } catch (detailError) {
+            // 🚨 CRITICAL: 매도 주문 상세 조회 실패해도 초기 응답 데이터 사용
+            console.error(`❌ 업비트 매도 주문 상세 조회 실패 (주문은 성공):`, detailError);
+            console.log(`⚠️ 초기 응답 데이터 사용: upbitResult 유지`);
+            // upbitResult는 이미 초기 응답으로 설정되어 있으므로 그대로 사용
           }
-
-          // 상세 조회 결과로 덮어쓰기 (avg_price, executed_volume, paid_fee 포함)
-          upbitResult = orderDetail;
         }
       } catch (error) {
         upbitError = error;
