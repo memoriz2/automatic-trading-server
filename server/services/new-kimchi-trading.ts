@@ -98,6 +98,11 @@ export class MultiStrategyTradingService {
 
     this.userTradingStates.set(userId, true);
 
+    // 누락된 포지션 복구 (백그라운드)
+    this.recoverMissingPositions(parseInt(userId)).catch((error) => {
+      console.error(`❌ 포지션 복구 실패:`, error);
+    });
+
     await storage.createSystemAlert({
       type: "info",
       title: "다중 전략 자동매매 시작",
@@ -1457,8 +1462,158 @@ export class MultiStrategyTradingService {
   }
 
   /**
-   * 백그라운드에서 trades 테이블 조회해서 포지션 진입가 자동 수정
+   * position_id가 null인 거래 기록으로부터 포지션을 복구 생성
+   * 자동매매 시작 시 호출되어 누락된 포지션을 복구함
    */
+  public async recoverMissingPositions(userId: number): Promise<void> {
+    try {
+      console.log(`🔍 [포지션 복구] 사용자 ${userId}의 누락된 포지션 검색 중...`);
+
+      // position_id가 null이고 최근 1시간 내의 거래 중 바이낸스 숏과 업비트 매수가 쌍으로 있는 거래 찾기
+      const result = await storage.pool.query(`
+        WITH orphan_trades AS (
+          SELECT
+            t.id,
+            t.user_id,
+            t.strategy_id,
+            t.symbol,
+            t.side,
+            t.exchange,
+            t.quantity,
+            t.price,
+            t.fee,
+            t.exchange_order_id,
+            t.executed_at,
+            s.name as strategy_name,
+            s.entry_rate,
+            s.exit_rate,
+            s.leverage
+          FROM trades t
+          LEFT JOIN trading_strategies s ON t.strategy_id = s.id
+          WHERE t.user_id = $1
+            AND t.position_id IS NULL
+            AND t.executed_at > NOW() - INTERVAL '24 hours'
+            AND t.side IN ('buy', 'short')
+          ORDER BY t.executed_at DESC
+        ),
+        trade_pairs AS (
+          SELECT
+            b.id as binance_trade_id,
+            u.id as upbit_trade_id,
+            b.user_id,
+            b.strategy_id,
+            b.symbol,
+            b.quantity as binance_quantity,
+            b.price as binance_price,
+            b.fee as binance_fee,
+            b.exchange_order_id as binance_order_id,
+            u.quantity as upbit_quantity,
+            u.price as upbit_price,
+            u.fee as upbit_fee,
+            u.exchange_order_id as upbit_order_id,
+            b.executed_at as entry_time,
+            b.strategy_name,
+            b.entry_rate,
+            b.exit_rate,
+            b.leverage
+          FROM orphan_trades b
+          INNER JOIN orphan_trades u ON
+            b.user_id = u.user_id
+            AND b.strategy_id = u.strategy_id
+            AND b.symbol = u.symbol
+            AND b.exchange = 'binance'
+            AND u.exchange = 'upbit'
+            AND b.side = 'short'
+            AND u.side = 'buy'
+            AND ABS(EXTRACT(EPOCH FROM (b.executed_at - u.executed_at))) < 10
+        )
+        SELECT * FROM trade_pairs
+        LIMIT 10
+      `, [userId]);
+
+      if (result.rows.length === 0) {
+        console.log(`✅ [포지션 복구] 사용자 ${userId}: 복구할 포지션 없음`);
+        return;
+      }
+
+      console.log(`🔧 [포지션 복구] ${result.rows.length}개의 누락된 포지션 발견`);
+
+      // 각 거래 쌍에 대해 포지션 생성
+      for (const row of result.rows) {
+        try {
+          // 업비트 평균 단가 계산
+          const upbitEntryPrice = Math.round(parseFloat(row.upbit_price) / parseFloat(row.upbit_quantity));
+          const totalFees = parseFloat(row.upbit_fee || '0') + parseFloat(row.binance_fee || '0');
+
+          // 포지션 생성
+          const positionResult = await storage.pool.query(`
+            INSERT INTO positions (
+              user_id, strategy_id, symbol, type, side, status,
+              entry_price, quantity, binance_entry_price, binance_quantity, remaining_quantity,
+              binance_leverage, total_fees, upbit_order_id, binance_order_id, entry_time,
+              entry_premium_rate, current_premium_rate, entry_usd_krw,
+              unrealized_pnl, created_at, updated_at
+            ) VALUES (
+              $1, $2, $3, 'BACK', 'short', 'open',
+              $4, $5, $6, $7, $8,
+              $9, $10, $11, $12, $13,
+              $14, $14, 1380,
+              0, NOW(), NOW()
+            )
+            RETURNING id
+          `, [
+            row.user_id,
+            row.strategy_id,
+            row.symbol,
+            upbitEntryPrice,
+            row.upbit_quantity,
+            row.binance_price,
+            row.binance_quantity,
+            row.binance_quantity,
+            row.leverage || 5,
+            totalFees,
+            row.upbit_order_id,
+            row.binance_order_id,
+            row.entry_time,
+            row.entry_rate || 0
+          ]);
+
+          const positionId = positionResult.rows[0].id;
+
+          // 거래 기록 업데이트
+          await storage.pool.query(`
+            UPDATE trades
+            SET position_id = $1
+            WHERE id IN ($2, $3)
+          `, [positionId, row.binance_trade_id, row.upbit_trade_id]);
+
+          console.log(`✅ [포지션 복구] 포지션 ${positionId} 생성 완료:`, {
+            strategy: row.strategy_name,
+            symbol: row.symbol,
+            quantity: row.upbit_quantity,
+            binance_order: row.binance_order_id,
+            upbit_order: row.upbit_order_id
+          });
+
+          // 시스템 알림 생성
+          await storage.createSystemAlert({
+            type: "info",
+            title: "포지션 자동 복구",
+            message: `${row.strategy_name} - ${row.symbol} 포지션이 거래 기록으로부터 자동 복구되었습니다. (포지션 ID: ${positionId})`
+          });
+
+        } catch (error) {
+          console.error(`❌ [포지션 복구] 실패:`, error);
+        }
+      }
+
+      console.log(`✅ [포지션 복구] 완료: ${result.rows.length}개 처리됨`);
+
+    } catch (error) {
+      console.error(`❌ [포지션 복구] 오류:`, error);
+    }
+  }
+
   private async fixPositionEntryPriceFromTrades(positionId: number): Promise<void> {
     try {
       console.log(`🔄 포지션 ${positionId} 진입가 자동 수정 시작...`);

@@ -1665,6 +1665,25 @@ export async function registerRoutes(
     }
   });
 
+  // 포지션 복구 API (수동 실행)
+  app.post("/api/trading/recover-positions/:userId", authenticateSession, async (req: any, res): Promise<void> => {
+    try {
+      const userId = parseInt(req.params.userId);
+
+      console.log(`🔧 [포지션 복구 API] 사용자 ${userId} 수동 복구 시작`);
+
+      await multiStrategyTradingService.recoverMissingPositions(userId);
+
+      res.json({
+        success: true,
+        message: "포지션 복구가 완료되었습니다"
+      });
+    } catch (error: any) {
+      console.error(`❌ [포지션 복구 API] 실패:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // 자동매매 중지
   app.post("/api/trading/stop/:userId", async (req, res) => {
     try {
