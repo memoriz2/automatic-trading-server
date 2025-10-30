@@ -755,86 +755,95 @@ export class MultiStrategyTradingService {
       console.log(`업비트:`, upbitResult);
       console.log(`바이낸스:`, binanceResult);
 
-      // 포지션 생성 - 진입가 명시적 저장
-      const entryTimeKST = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST 시간
-
-      // 진입가 경고 (0이면 백그라운드에서 수정 예정)
-      const needsEntryPriceFix = (!upbitEntryPrice || upbitEntryPrice === 0) || (!currentPrice || currentPrice === 0);
-      if (needsEntryPriceFix) {
-        console.warn(`⚠️ 진입가가 0입니다. 백그라운드에서 trades 테이블 조회 후 자동 수정 예정:`, {
-          업비트진입가: upbitEntryPrice,
-          바이낸스진입가: currentPrice
-        });
-      } else {
-        console.log(`💾 DB 저장 전 진입가 확인:`, {
-          업비트진입가: upbitEntryPrice,
-          바이낸스진입가: currentPrice,
-          수량: adjustedQuantity
-        });
-      }
-
-      // 수수료 총합 계산 (KRW) - 단가 계산 필요
-      const avgPriceForFeeCal = executedVolume > 0 ? upbitEntryPrice / executedVolume : 0;
-      const upbitEntryFee = calculateUpbitFee(executedVolume, avgPriceForFeeCal, paidFee);
-      const binanceEntryFeeUSDT = calculateBinanceFee(adjustedQuantity, currentPrice, binancePaidFee);
-
-      // USDT/KRW 환율로 바이낸스 수수료를 KRW로 환산
-      const { UpbitAdapter: UAdapter } = await import('../adapters/UpbitAdapter.js');
-      const upbitAdapterForFee = new UAdapter();
-      const usdtKrwRateForFee = await upbitAdapterForFee.getCurrentPrice('USDT');
-      const binanceEntryFeeKRW = binanceEntryFeeUSDT * usdtKrwRateForFee;
-      const totalFeesKRW = upbitEntryFee + binanceEntryFeeKRW;
-
-      console.log(`💰 진입 수수료 계산:`, {
-        upbitFee: `₩${upbitEntryFee.toLocaleString()}`,
-        binanceFee: `$${binanceEntryFeeUSDT.toFixed(4)} (₩${binanceEntryFeeKRW.toLocaleString()})`,
-        totalFee: `₩${totalFeesKRW.toLocaleString()}`
-      });
-
-      // 🔍 바이낸스 포지션 상세 정보 즉시 조회
-      let binanceDetails: any = {};
+      // 포지션 생성 - 진입가 명시적 저장 (전체를 try-catch로 보호)
+      let position: any = null;
       try {
-        // 1초 대기: 바이낸스 주문이 완전히 체결될 시간 확보
-        console.log(`⏳ 바이낸스 포지션 체결 대기 중... (1초)`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const entryTimeKST = new Date(Date.now() + 9 * 60 * 60 * 1000); // KST 시간
 
-        const binancePositions = await binanceService.getFuturesPositions();
-        console.log(`🔍 [DEBUG] 전체 바이낸스 포지션 개수: ${binancePositions.length}개`);
-        console.log(`🔍 [DEBUG] 전체 바이낸스 포지션:`, JSON.stringify(binancePositions, null, 2));
-
-        const searchSymbol = `${symbol}USDT`;
-        console.log(`🔍 [DEBUG] 검색할 심볼: ${searchSymbol}`);
-
-        const binancePos = binancePositions.find(pos => pos.symbol === searchSymbol);
-
-        if (binancePos) {
-          console.log(`✅ [DEBUG] 바이낸스 포지션 찾음!`);
-          console.log(`🔍 [DEBUG] 원본 바이낸스 포지션 데이터:`, JSON.stringify(binancePos, null, 2));
-
-          binanceDetails = {
-            binanceMarkPrice: binancePos.markPrice,
-            binanceLiquidationPrice: binancePos.liquidationPrice,
-            binanceSizeUsdt: binancePos.sizeUsdt,
-            binanceMarginUsdt: binancePos.marginUsdt,
-            binanceMarginRatio: binancePos.marginRatio,
-            binanceMarginType: binancePos.marginType,
-            binanceUnrealizedPnl: binancePos.unRealizedProfit
-          };
-
-          console.log(`✅ [DEBUG] binanceDetails 객체 생성 완료:`, JSON.stringify(binanceDetails, null, 2));
+        // 진입가 경고 (0이면 백그라운드에서 수정 예정)
+        const needsEntryPriceFix = (!upbitEntryPrice || upbitEntryPrice === 0) || (!currentPrice || currentPrice === 0);
+        if (needsEntryPriceFix) {
+          console.warn(`⚠️ 진입가가 0입니다. 백그라운드에서 trades 테이블 조회 후 자동 수정 예정:`, {
+            업비트진입가: upbitEntryPrice,
+            바이낸스진입가: currentPrice
+          });
         } else {
-          console.error(`❌ [DEBUG] 바이낸스 포지션을 찾을 수 없습니다!`);
-          console.error(`❌ [DEBUG] 검색한 심볼: ${searchSymbol}`);
-          console.error(`❌ [DEBUG] 사용 가능한 심볼들:`, binancePositions.map(p => p.symbol));
-          console.error(`❌ [DEBUG] binanceDetails는 빈 객체로 남음: {}`);
+          console.log(`💾 DB 저장 전 진입가 확인:`, {
+            업비트진입가: upbitEntryPrice,
+            바이낸스진입가: currentPrice,
+            수량: adjustedQuantity
+          });
         }
-      } catch (binanceError) {
-        console.warn(`⚠️ 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
-      }
 
-      console.log(`🔍 [DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
+        // 수수료 총합 계산 (KRW) - 단가 계산 필요
+        const avgPriceForFeeCal = executedVolume > 0 ? upbitEntryPrice / executedVolume : 0;
+        const upbitEntryFee = calculateUpbitFee(executedVolume, avgPriceForFeeCal, paidFee);
+        const binanceEntryFeeUSDT = calculateBinanceFee(adjustedQuantity, currentPrice, binancePaidFee);
 
-      const position = await storage.createPosition({
+        // USDT/KRW 환율로 바이낸스 수수료를 KRW로 환산
+        let usdtKrwRateForFee = 1400; // 기본값
+        let totalFeesKRW = 0;
+        try {
+          const { UpbitAdapter: UAdapter } = await import('../adapters/UpbitAdapter.js');
+          const upbitAdapterForFee = new UAdapter();
+          usdtKrwRateForFee = await upbitAdapterForFee.getCurrentPrice('USDT');
+          const binanceEntryFeeKRW = binanceEntryFeeUSDT * usdtKrwRateForFee;
+          totalFeesKRW = upbitEntryFee + binanceEntryFeeKRW;
+
+          console.log(`💰 진입 수수료 계산:`, {
+            upbitFee: `₩${upbitEntryFee.toLocaleString()}`,
+            binanceFee: `$${binanceEntryFeeUSDT.toFixed(4)} (₩${binanceEntryFeeKRW.toLocaleString()})`,
+            totalFee: `₩${totalFeesKRW.toLocaleString()}`
+          });
+        } catch (feeError) {
+          console.error(`❌ 수수료 계산 실패, 기본값 사용:`, feeError);
+          totalFeesKRW = upbitEntryFee + (binanceEntryFeeUSDT * usdtKrwRateForFee);
+        }
+
+        // 🔍 바이낸스 포지션 상세 정보 즉시 조회
+        let binanceDetails: any = {};
+        try {
+          // 1초 대기: 바이낸스 주문이 완전히 체결될 시간 확보
+          console.log(`⏳ 바이낸스 포지션 체결 대기 중... (1초)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          const binancePositions = await binanceService.getFuturesPositions();
+          console.log(`🔍 [DEBUG] 전체 바이낸스 포지션 개수: ${binancePositions.length}개`);
+          console.log(`🔍 [DEBUG] 전체 바이낸스 포지션:`, JSON.stringify(binancePositions, null, 2));
+
+          const searchSymbol = `${symbol}USDT`;
+          console.log(`🔍 [DEBUG] 검색할 심볼: ${searchSymbol}`);
+
+          const binancePos = binancePositions.find(pos => pos.symbol === searchSymbol);
+
+          if (binancePos) {
+            console.log(`✅ [DEBUG] 바이낸스 포지션 찾음!`);
+            console.log(`🔍 [DEBUG] 원본 바이낸스 포지션 데이터:`, JSON.stringify(binancePos, null, 2));
+
+            binanceDetails = {
+              binanceMarkPrice: binancePos.markPrice,
+              binanceLiquidationPrice: binancePos.liquidationPrice,
+              binanceSizeUsdt: binancePos.sizeUsdt,
+              binanceMarginUsdt: binancePos.marginUsdt,
+              binanceMarginRatio: binancePos.marginRatio,
+              binanceMarginType: binancePos.marginType,
+              binanceUnrealizedPnl: binancePos.unRealizedProfit
+            };
+
+            console.log(`✅ [DEBUG] binanceDetails 객체 생성 완료:`, JSON.stringify(binanceDetails, null, 2));
+          } else {
+            console.error(`❌ [DEBUG] 바이낸스 포지션을 찾을 수 없습니다!`);
+            console.error(`❌ [DEBUG] 검색한 심볼: ${searchSymbol}`);
+            console.error(`❌ [DEBUG] 사용 가능한 심볼들:`, binancePositions.map(p => p.symbol));
+            console.error(`❌ [DEBUG] binanceDetails는 빈 객체로 남음: {}`);
+          }
+        } catch (binanceError) {
+          console.warn(`⚠️ 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
+        }
+
+        console.log(`🔍 [DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
+
+        position = await storage.createPosition({
         userId: parseInt(userId),
         strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
         symbol,
@@ -910,25 +919,40 @@ export class MultiStrategyTradingService {
         console.error(`❌ 업비트 거래 기록 업데이트 실패:`, error);
       }
 
-      // 🔧 백그라운드에서 진입가 수정 (0인 경우) - trades positionId 업데이트 후 실행!
-      if (needsEntryPriceFix && position?.id) {
-        console.log(`🔄 백그라운드에서 포지션 ${position.id} 진입가 자동 수정 시작...`);
-        this.fixPositionEntryPriceFromTrades(position.id).catch((err: Error) => {
-          console.error(`❌ 포지션 ${position.id} 진입가 자동 수정 실패:`, err);
+        // 🔧 백그라운드에서 진입가 수정 (0인 경우) - trades positionId 업데이트 후 실행!
+        if (needsEntryPriceFix && position?.id) {
+          console.log(`🔄 백그라운드에서 포지션 ${position.id} 진입가 자동 수정 시작...`);
+          this.fixPositionEntryPriceFromTrades(position.id).catch((err: Error) => {
+            console.error(`❌ 포지션 ${position.id} 진입가 자동 수정 실패:`, err);
+          });
+        }
+
+        // 성공 알림
+        await storage.createSystemAlert({
+          type: "success",
+          title: `${strategy.name} 포지션 진입`,
+          message: `${symbol} ${strategy.name} 전략 진입 완료. 김프율: ${signal.premiumRate}%, 수량: ${adjustedQuantity}`,
         });
+
+        log.success('포지션 진입 완료', { symbol });
+
+        // ✅ DB 기반 쿨다운으로 변경: Position 테이블의 entryTime이 자동으로 쿨다운 역할
+        console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
+
+      } catch (positionError: any) {
+        console.error(`❌ 포지션 생성 실패 (거래는 완료됨):`, positionError);
+
+        // 포지션 생성 실패 알림
+        await storage.createSystemAlert({
+          type: "error",
+          title: "포지션 생성 실패",
+          message: `${symbol} 거래는 완료되었으나 포지션 생성 실패. order_id: 업비트=${upbitResult?.uuid}, 바이낸스=${binanceResult?.orderId}. 에러: ${positionError.message}`,
+        });
+
+        // 포지션 생성 실패 시에도 함수는 정상 종료 (거래는 완료되었으므로)
+        console.warn(`⚠️ 포지션 생성은 실패했지만 거래는 완료되었으므로 계속 진행합니다.`);
       }
 
-      // 성공 알림
-      await storage.createSystemAlert({
-        type: "success",
-        title: `${strategy.name} 포지션 진입`,
-        message: `${symbol} ${strategy.name} 전략 진입 완료. 김프율: ${signal.premiumRate}%, 수량: ${adjustedQuantity}`,
-      });
-
-      log.success('포지션 진입 완료', { symbol });
-
-      // ✅ DB 기반 쿨다운으로 변경: Position 테이블의 entryTime이 자동으로 쿨다운 역할
-      console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
     } catch (error) {
       console.error(`새로운 김프 진입 실패 (${symbol}):`, error);
       throw error;
