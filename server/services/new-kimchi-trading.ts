@@ -1467,18 +1467,25 @@ export class MultiStrategyTradingService {
         const binanceCurrentPrice = currentData.binanceFuturesPrice || 0; // USD/BTC 현재가
         const entryUsdKrw = Number((position as any).entryUsdKrw || (position as any).entry_usd_krw || 1400); // 진입 시점 환율
 
-        // 업비트 손익 (매수 포지션): 가격 하락 시 손실
+        // 업비트 손익 (항상 매수 포지션): 가격 상승 시 이익
         const upbitPnl = (upbitCurrentPrice - upbitEntryPrice) * quantity;
 
-        // 바이낸스 손익 (숏 포지션): 가격 하락 시 이익, KRW로 환산
-        const binancePnl = (binanceEntryPrice - binanceCurrentPrice) * quantity * entryUsdKrw;
+        // 바이낸스 손익: side에 따라 계산식 다름
+        let binancePnl = 0;
+        if (position.side === 'short') {
+          // 바이낸스 숏: 가격 하락 시 이익
+          binancePnl = (binanceEntryPrice - binanceCurrentPrice) * quantity * entryUsdKrw;
+        } else if (position.side === 'long') {
+          // 바이낸스 롱: 가격 상승 시 이익
+          binancePnl = (binanceCurrentPrice - binanceEntryPrice) * quantity * entryUsdKrw;
+        }
 
         // 총 손익 (수수료 제외)
         const estimatedPnl = upbitPnl + binancePnl;
 
-        console.log(`📊 포지션 ${position.id} 수익 계산:
+        console.log(`📊 포지션 ${position.id} 수익 계산 (${position.side}):
   업비트: 진입₩${upbitEntryPrice.toLocaleString()} → 현재₩${upbitCurrentPrice.toLocaleString()} = ${upbitPnl > 0 ? '+' : ''}₩${upbitPnl.toFixed(0)}
-  바이낸스: 진입$${binanceEntryPrice.toFixed(2)} → 현재$${binanceCurrentPrice.toFixed(2)} = ${binancePnl > 0 ? '+' : ''}₩${binancePnl.toFixed(0)}
+  바이낸스(${position.side}): 진입$${binanceEntryPrice.toFixed(2)} → 현재$${binanceCurrentPrice.toFixed(2)} = ${binancePnl > 0 ? '+' : ''}₩${binancePnl.toFixed(0)}
   총 예상수익: ${estimatedPnl > 0 ? '+' : ''}₩${estimatedPnl.toFixed(0)} (김프: ${entryPremium.toFixed(2)}% → ${currentPremium.toFixed(2)}%)`);
 
         // 바이낸스 선물 포지션 상세 정보 조회
