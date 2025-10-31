@@ -371,12 +371,12 @@ export class MultiStrategyTradingService {
             END as last_action_time,
             CASE
               WHEN status = 'closed' AND exit_time IS NOT NULL
-                THEN EXTRACT(EPOCH FROM (NOW() - exit_time)) * 1000
+                THEN EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - exit_time)) * 1000
               WHEN status = 'open' AND entry_time IS NOT NULL
-                THEN EXTRACT(EPOCH FROM (NOW() - entry_time)) * 1000
+                THEN EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - entry_time)) * 1000
               ELSE NULL
             END as elapsed_ms,
-            NOW() as db_now
+            (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as db_now
           FROM positions
           WHERE strategy_id = $1
           ORDER BY
@@ -425,20 +425,19 @@ export class MultiStrategyTradingService {
       }
 
       // 🔒 추가 안전장치: trades 테이블에서도 쿨다운 체크 (포지션 생성 실패 대비)
-      // ✅ 청산(sell) 후에도 쿨타임 적용: 모든 거래 유형 포함
+      // ✅ 청산(sell/cover) 후에도 쿨타임 적용: strategy_id가 NULL인 청산 거래도 포함
       // ⚠️ DB 시간 기준으로 정확히 계산
       try {
         const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
         const recentTradeResult = await storage.pool.query(`
           SELECT
             MAX(executed_at) as last_trade_time,
-            EXTRACT(EPOCH FROM (NOW() - MAX(executed_at))) * 1000 as elapsed_ms
+            EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - MAX(executed_at))) * 1000 as elapsed_ms
           FROM trades
           WHERE user_id = $1
-            AND strategy_id = $2
-            AND side IN ('buy', 'short', 'sell')
-            AND executed_at > NOW() - INTERVAL '10 minutes'
-        `, [strategyUserId, strategy.id]);
+            AND side IN ('buy', 'short', 'sell', 'cover')
+            AND executed_at > (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - INTERVAL '10 minutes'
+        `, [strategyUserId]);
 
         if (recentTradeResult.rows[0]?.last_trade_time) {
           const elapsedMs = parseFloat(recentTradeResult.rows[0].elapsed_ms);
