@@ -44,6 +44,20 @@ export class UnifiedPositionService {
             const entryTime = new Date();
             const safePrice = Number(params.price) > 0 ? Number(params.price) : 0.00000001;
             const safeQty = Number(params.quantity) > 0 ? Number(params.quantity) : 0.00000001;
+            // 환율 기본값 설정 (제공되지 않으면 현재 USDT 가격 조회)
+            let entryUsdKrw = params.entryUsdKrw || 0;
+            if (!entryUsdKrw || entryUsdKrw === 0) {
+                try {
+                    const { UpbitAdapter } = await import('../adapters/UpbitAdapter.js');
+                    const upbitAdapter = new UpbitAdapter();
+                    entryUsdKrw = await upbitAdapter.getCurrentPrice('USDT');
+                    console.log(`💱 현재 환율 조회: ${entryUsdKrw.toFixed(2)} KRW/USD`);
+                }
+                catch (error) {
+                    console.error('❌ 환율 조회 실패, 기본값 1380 사용:', error);
+                    entryUsdKrw = 1380; // fallback
+                }
+            }
             const baseData = {
                 userId: params.userId,
                 strategyId: params.strategyId,
@@ -54,6 +68,7 @@ export class UnifiedPositionService {
                 entryPrice: safePrice,
                 quantity: safeQty,
                 entryPremiumRate: Number(params.premiumRate),
+                entryUsdKrw: entryUsdKrw,
                 unrealizedPnl: 0,
                 totalFees: 0,
                 entryTime: entryTime,
@@ -82,6 +97,7 @@ export class UnifiedPositionService {
                         status: baseData.status,
                         side: baseData.side,
                         binanceLeverage: 5,
+                        entryUsdKrw: baseData.entryUsdKrw,
                         unrealizedPnl: 0,
                         totalFees: 0,
                         entryTime: baseData.entryTime,
