@@ -287,13 +287,14 @@ export class MultiStrategyTradingService {
                 }
             }
             // 🔒 추가 안전장치: trades 테이블에서도 쿨다운 체크 (포지션 생성 실패 대비)
+            // ✅ 청산(sell) 후에도 쿨타임 적용: 모든 거래 유형 포함
             try {
                 const recentTradeResult = await storage.pool.query(`
           SELECT MAX(executed_at) as last_trade_time
           FROM trades
           WHERE user_id = $1
             AND strategy_id = $2
-            AND side IN ('buy', 'short')
+            AND side IN ('buy', 'short', 'sell')
             AND executed_at > NOW() - INTERVAL '10 minutes'
         `, [strategyUserId, strategy.id]);
                 if (recentTradeResult.rows[0]?.last_trade_time) {
@@ -301,7 +302,7 @@ export class MultiStrategyTradingService {
                     const elapsed = Date.now() - lastTradeTime;
                     if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
                         const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-                        console.log(`🔒 [쿨다운] trades 기반 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+                        console.log(`🔒 [쿨다운] trades 기반 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id}, 청산 후 재진입 방지)`);
                         return null;
                     }
                 }
