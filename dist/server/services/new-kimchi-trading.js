@@ -426,6 +426,8 @@ export class MultiStrategyTradingService {
         // Lock 설정
         this.entryLocks.set(strategy.id, true);
         console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 획득`);
+        // 🔒 임시 포지션 ID (거래 시작 전 DB에 예약)
+        let reservedPositionId = null;
         try {
             // 🔒 DB 레벨 중복 체크: Lock 후 실제 DB 상태 확인 (이중 안전장치)
             const existingPosition = await storage.getActivePositionByStrategy(strategy.id, symbol);
@@ -439,6 +441,22 @@ export class MultiStrategyTradingService {
                 throw new Error(`전략 ${strategy.id}에 이미 활성 포지션 존재 (ID: ${existingPosition.id})`);
             }
             console.log(`✅ [전략 ${strategy.id}] DB 중복 체크 통과 - 활성 포지션 없음`);
+            // 🔒 즉시 임시 포지션 생성하여 다른 요청 차단 (Race Condition 방지)
+            const tempPosition = await storage.pool.query(`
+        INSERT INTO positions (
+          user_id, strategy_id, symbol, type, side, status,
+          entry_price, quantity, binance_quantity, remaining_quantity,
+          entry_premium_rate, current_premium_rate, unrealized_pnl,
+          entry_time, binance_leverage
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14)
+        RETURNING id
+      `, [
+                parseInt(userId), strategy.id, symbol, 'BACK', 'short', 'pending',
+                '0', '0', '0', '0', String(signal.premiumRate), String(signal.premiumRate), '0',
+                strategy.leverage || 5
+            ]);
+            reservedPositionId = tempPosition.rows[0].id;
+            console.log(`🔒 [전략 ${strategy.id}] 임시 포지션 예약 완료 (ID: ${reservedPositionId})`);
             // 🚨 잔고 검증 추가
             console.log(`🔍 잔고 확인: 투자금액 ${upbitEntryAmount.toLocaleString()}원, 진입조건: ${entryRate}%`);
         }
@@ -446,6 +464,10 @@ export class MultiStrategyTradingService {
             // Lock 해제 후 에러 재발생
             this.entryLocks.delete(strategy.id);
             console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 해제 (DB 중복 체크 실패)`);
+            // 임시 포지션 삭제
+            if (reservedPositionId) {
+                await storage.pool.query('DELETE FROM positions WHERE id = $1', [reservedPositionId]);
+            }
             throw error;
         }
         try {
@@ -754,31 +776,29 @@ export class MultiStrategyTradingService {
                 // usdtKrwRateForFee는 이미 위에서 getUSDTKRWRate()로 조회됨 (약 1400원)
                 const upbitEntryPricePerBtc = Math.round(currentPrice * usdtKrwRateForFee);
                 console.log(`💰 진입가 계산: $${currentPrice} × ${usdtKrwRateForFee}원 = ₩${upbitEntryPricePerBtc.toLocaleString()}/BTC`);
-                position = await storage.createPosition({
-                    userId: parseInt(userId),
-                    strategyId: strategy.id, // ← 전략 ID 추가 (쿨다운 체크용)
-                    symbol,
-                    type: "BACK", // 백그라운드 자동매매
-                    side: "short", // 바이낸스 선물 숏 포지션
-                    status: "open",
-                    // 업비트 진입가는 바이낸스 USD 단가 × 환율로 계산 (BTC 기준)
+                // 🔒 임시 포지션을 실제 포지션으로 업데이트 (createPosition 대신 UPDATE 사용)
+                if (!reservedPositionId) {
+                    throw new Error('임시 포지션 ID가 없습니다');
+                }
+                await storage.updatePosition(reservedPositionId, {
+                    status: 'open',
                     entryPrice: String(upbitEntryPricePerBtc),
-                    binanceEntryPrice: String(currentPrice), // ← 바이낸스 진입가 (USD 단가)
-                    quantity: String(executedVolume), // 실제 체결된 수량
-                    binanceQuantity: String(adjustedQuantity), // 바이낸스 수량 (동일)
-                    remainingQuantity: String(adjustedQuantity), // 남은 수량 (초기값 = 전체 수량)
-                    entryPremiumRate: String(signal.premiumRate),
-                    currentPremiumRate: String(signal.premiumRate), // 현재 프리미엄 = 진입 프리미엄으로 초기화
-                    unrealizedPnl: String(0), // 초기값 0 (이후 manageMultiStrategyPositions에서 업데이트)
-                    totalFees: String(totalFeesKRW), // 총 수수료 (KRW)
-                    binanceLeverage: Number(strategy.leverage || 5),
-                    entryTime: entryTimeKST, // ← KST 시간으로 명시적 설정
+                    binanceEntryPrice: String(currentPrice),
+                    quantity: String(executedVolume),
+                    binanceQuantity: String(adjustedQuantity),
+                    remainingQuantity: String(adjustedQuantity),
+                    upbitQuantity: String(executedVolume),
+                    totalFees: String(totalFeesKRW),
+                    entryTime: entryTimeKST,
                     upbitOrderId: upbitResult.uuid,
                     binanceOrderId: String(binanceResult.orderId),
-                    entryUsdKrw: usdtKrwRateForFee, // 진입 시점 환율 저장
-                    // 바이낸스 선물 상세 정보 즉시 저장
+                    entryUsdKrw: usdtKrwRateForFee,
                     ...binanceDetails
                 });
+                // 업데이트된 포지션 조회
+                position = await storage.pool.query('SELECT * FROM positions WHERE id = $1', [reservedPositionId]);
+                position = position.rows[0];
+                console.log(`🔒 [전략 ${strategy.id}] 임시 포지션을 실제 포지션으로 업데이트 완료 (ID: ${reservedPositionId})`);
                 console.log(`✅ 포지션 생성 완료:`, position);
                 console.log(`🕒 진입 시간 (KST):`, entryTimeKST.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
                 // DB 저장 후 검증
@@ -856,6 +876,16 @@ export class MultiStrategyTradingService {
         }
         catch (error) {
             console.error(`새로운 김프 진입 실패 (${symbol}):`, error);
+            // 🔒 거래 실패 시 임시 포지션 삭제 (중복 진입 방지를 위해)
+            if (reservedPositionId) {
+                try {
+                    await storage.pool.query('DELETE FROM positions WHERE id = $1 AND status = $2', [reservedPositionId, 'pending']);
+                    console.log(`🗑️ [전략 ${strategy.id}] 거래 실패로 임시 포지션 삭제 (ID: ${reservedPositionId})`);
+                }
+                catch (deleteError) {
+                    console.error(`❌ 임시 포지션 삭제 실패:`, deleteError);
+                }
+            }
             throw error;
         }
         finally {
