@@ -22,8 +22,8 @@ export class UnifiedPositionService {
                 exchange: params.exchange,
                 device: params.deviceInfo ? formatDeviceInfo(params.deviceInfo) : 'unknown'
             });
-            // 1. 중복 진입 방지: 해당 전략에 활성 포지션이 있는지 확인
-            const existingPosition = await this.positionsRepo.getOpenPositionByStrategyAndSymbol(params.strategyId, params.symbol);
+            // 1. 중복 진입 방지: (사용자+전략+심볼) 기준으로 활성 포지션 확인
+            const existingPosition = await this.positionsRepo.getOpenPositionByUserStrategyAndSymbol(params.userId, params.strategyId, params.symbol);
             if (existingPosition) {
                 const message = `전략 ${params.strategyId}에 이미 ${params.symbol} 활성 포지션이 있습니다.`;
                 console.log(`⚠️ 중복 진입 차단: ${message} (ID: ${existingPosition.id})`);
@@ -40,18 +40,20 @@ export class UnifiedPositionService {
                     }
                 };
             }
-            // 2. 포지션 생성 (디바이스 정보 포함)
+            // 2. 포지션 생성 (디바이스 정보 포함) - 동시성 안전 생성 사용
             const entryTime = new Date();
-            const position = await this.positionsRepo.create({
+            const safePrice = Number(params.price) > 0 ? Number(params.price) : 0.00000001;
+            const safeQty = Number(params.quantity) > 0 ? Number(params.quantity) : 0.00000001;
+            const baseData = {
                 userId: params.userId,
                 strategyId: params.strategyId,
                 symbol: params.symbol,
                 type: "kimchi_arbitrage",
-                side: params.side === 'buy' ? 'long' : params.side === 'sell' ? 'short' : params.side,
+                side: (params.side === 'buy' ? 'long' : params.side === 'sell' ? 'short' : params.side),
                 status: "open",
-                entryPrice: params.price,
-                quantity: params.quantity,
-                entryPremiumRate: params.premiumRate,
+                entryPrice: safePrice,
+                quantity: safeQty,
+                entryPremiumRate: Number(params.premiumRate),
                 unrealizedPnl: 0,
                 totalFees: 0,
                 entryTime: entryTime,
@@ -59,7 +61,42 @@ export class UnifiedPositionService {
                 binanceOrderId: params.binanceOrderId,
                 ip: params.deviceInfo?.ip,
                 deviceType: params.deviceInfo?.deviceType || 'Unknown',
-            });
+            };
+            let position = null;
+            try {
+                position = await this.positionsRepo.createOpenIfNone(baseData);
+            }
+            catch (primaryError) {
+                console.error('❌ 동시성 안전 생성 실패, fallback 시도:', primaryError?.message || primaryError);
+                try {
+                    // Fallback: 기존 스토리지 경로로 생성 시도 (DB 유니크 인덱스가 중복을 차단)
+                    const created = await storage.createPosition({
+                        userId: baseData.userId,
+                        strategyId: baseData.strategyId,
+                        symbol: baseData.symbol,
+                        type: baseData.type,
+                        entryPrice: String(baseData.entryPrice),
+                        quantity: String(baseData.quantity),
+                        entryPremiumRate: String(baseData.entryPremiumRate),
+                        currentPremiumRate: String(baseData.entryPremiumRate),
+                        status: baseData.status,
+                        side: baseData.side,
+                        binanceLeverage: 5,
+                        unrealizedPnl: 0,
+                        totalFees: 0,
+                        entryTime: baseData.entryTime,
+                        upbitOrderId: baseData.upbitOrderId,
+                        binanceOrderId: baseData.binanceOrderId,
+                        ip: baseData.ip,
+                        deviceType: baseData.deviceType
+                    });
+                    position = created;
+                }
+                catch (fallbackError) {
+                    console.error('❌ 포지션 생성 fallback 실패:', fallbackError?.message || fallbackError);
+                    throw fallbackError;
+                }
+            }
             // 3. 거래 기록 생성 (디바이스 정보 포함)
             if (params.deviceInfo) {
                 try {

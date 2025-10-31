@@ -1444,6 +1444,16 @@ export class MultiStrategyTradingService {
             // 각 거래 쌍에 대해 포지션 생성
             for (const row of result.rows) {
                 try {
+                    // 🔒 중복 체크: 이미 해당 전략의 활성 포지션이 있으면 건너뛰기
+                    const existingCheck = await storage.pool.query(`
+            SELECT id FROM positions
+            WHERE user_id = $1 AND strategy_id = $2 AND symbol = $3 AND status IN ('open', 'pending')
+            LIMIT 1
+          `, [row.user_id, row.strategy_id, row.symbol]);
+                    if (existingCheck.rows.length > 0) {
+                        console.log(`⏭️  [포지션 복구] 건너뛰기: 전략 ${row.strategy_id}에 이미 활성 포지션 존재 (ID: ${existingCheck.rows[0].id})`);
+                        continue;
+                    }
                     // 업비트 평균 단가 계산
                     const upbitEntryPrice = Math.round(parseFloat(row.upbit_price) / parseFloat(row.upbit_quantity));
                     const totalFees = parseFloat(row.upbit_fee || '0') + parseFloat(row.binance_fee || '0');

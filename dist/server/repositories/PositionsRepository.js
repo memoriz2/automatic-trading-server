@@ -292,6 +292,221 @@ export class PositionsRepository extends BaseRepository {
         return this.queryOne(query, [strategyId, symbol]);
     }
     /**
+     * 사용자+전략+심볼로 OPEN 상태 포지션 조회 (정확 매칭)
+     */
+    async getOpenPositionByUserStrategyAndSymbol(userId, strategyId, symbol) {
+        const query = `
+      SELECT
+        id,
+        user_id as "userId",
+        strategy_id as "strategyId",
+        symbol,
+        side,
+        status,
+        quantity as "upbitQuantity",
+        entry_price as "upbitEntryPrice",
+        upbit_order_id as "upbitOrderId",
+        binance_quantity as "binanceQuantity",
+        binance_entry_price as "binanceEntryPrice",
+        binance_leverage as "binanceLeverage",
+        binance_order_id as "binanceOrderId",
+        entry_premium_rate as "entryPremiumRate",
+        current_premium_rate as "currentPremiumRate",
+        unrealized_pnl as "unrealizedPnl",
+        realized_pnl as "realizedPnl",
+        total_fees as "totalFees",
+        entry_time as "entryTime",
+        exit_time as "exitTime",
+        COALESCE(remaining_quantity, quantity, binance_quantity) as "remainingQuantity",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM positions
+      WHERE user_id = $1 AND strategy_id = $2 AND symbol = $3 AND status = 'open'       LIMIT 1
+    `;
+        return this.queryOne(query, [userId, strategyId, symbol]);
+    }
+    /**
+     * 사용자+심볼로 OPEN 상태 포지션 조회 (중복 진입 방지용)
+     */
+    async getOpenPositionByUserAndSymbol(userId, symbol) {
+        const query = `
+      SELECT
+        id,
+        user_id as "userId",
+        strategy_id as "strategyId",
+        symbol,
+        side,
+        status,
+        quantity as "upbitQuantity",
+        entry_price as "upbitEntryPrice",
+        upbit_order_id as "upbitOrderId",
+        binance_quantity as "binanceQuantity",
+        binance_entry_price as "binanceEntryPrice",
+        binance_leverage as "binanceLeverage",
+        binance_order_id as "binanceOrderId",
+        entry_premium_rate as "entryPremiumRate",
+        current_premium_rate as "currentPremiumRate",
+        unrealized_pnl as "unrealizedPnl",
+        realized_pnl as "realizedPnl",
+        total_fees as "totalFees",
+        entry_time as "entryTime",
+        exit_time as "exitTime",
+        COALESCE(remaining_quantity, quantity, binance_quantity) as "remainingQuantity",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM positions
+      WHERE user_id = $1 AND symbol = $2 AND status = 'open'
+      LIMIT 1
+    `;
+        return this.queryOne(query, [userId, symbol]);
+    }
+    /**
+     * 동시성 안전 생성: 동일 (strategyId, symbol) 조합에 대해 OPEN 포지션이 없을 때만 생성
+     * 여러 프로세스에서도 안전하도록 트랜잭션 + advisory lock 사용
+     */
+    async createOpenIfNone(positionData) {
+        const lockKey = `${positionData.userId}:${positionData.symbol}`;
+        const client = await this.pool.connect();
+        try {
+            await client.query('BEGIN');
+            // Postgres 버전 호환성을 위해 md5 -> bigint 변환으로 advisory lock 키 생성
+            await client.query("SELECT pg_advisory_xact_lock((E'\\x' || substr(md5($1),1,16))::bit(64)::bigint)", [lockKey]);
+            // 동일 트랜잭션/커넥션에서 기존 OPEN 포지션 재확인 (유저 기준)
+            const selectExistingQuery = `
+        SELECT
+          id,
+          user_id as "userId",
+          strategy_id as "strategyId",
+          symbol,
+          side,
+          status,
+          quantity as "upbitQuantity",
+          entry_price as "upbitEntryPrice",
+          upbit_order_id as "upbitOrderId",
+          binance_quantity as "binanceQuantity",
+          binance_entry_price as "binanceEntryPrice",
+          binance_leverage as "binanceLeverage",
+          binance_order_id as "binanceOrderId",
+          entry_premium_rate as "entryPremiumRate",
+          current_premium_rate as "currentPremiumRate",
+          unrealized_pnl as "unrealizedPnl",
+          realized_pnl as "realizedPnl",
+          total_fees as "totalFees",
+          entry_time as "entryTime",
+          exit_time as "exitTime",
+          COALESCE(remaining_quantity, quantity, binance_quantity) as "remainingQuantity",
+          created_at as "createdAt",
+          updated_at as "updatedAt"
+        FROM positions
+        WHERE user_id = $1 AND symbol = $2 AND status = 'open'
+        LIMIT 1
+      `;
+            const existingRes = await client.query(selectExistingQuery, [positionData.userId, positionData.symbol]);
+            if (existingRes.rows.length > 0) {
+                await client.query('COMMIT');
+                return existingRes.rows[0];
+            }
+            // 동일 커넥션에서 INSERT 수행
+            const insertQuery = `
+        INSERT INTO positions (
+          user_id, strategy_id, symbol, type, side, status,
+          entry_price, quantity,
+          binance_quantity, binance_entry_price, binance_leverage,
+          entry_premium_rate, current_premium_rate,
+          unrealized_pnl, realized_pnl, total_fees,
+          entry_time, exit_time,
+          upbit_order_id, binance_order_id,
+          ip, device_type,
+          binance_mark_price, binance_liquidation_price, binance_size_usdt,
+          binance_margin_usdt, binance_margin_ratio, binance_margin_type, binance_unrealized_pnl,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8,
+          $9, $10, $11,
+          $12, $13,
+          $14, $15, $16,
+          $17, $18,
+          $19, $20,
+          $21, $22,
+          $23, $24, $25,
+          $26, $27, $28, $29,
+          NOW(), NOW()
+        )
+        RETURNING
+          id,
+          user_id as "userId",
+          strategy_id as "strategyId",
+          symbol,
+          side,
+          status,
+          quantity as "upbitQuantity",
+          entry_price as "upbitEntryPrice",
+          upbit_order_id as "upbitOrderId",
+          binance_quantity as "binanceQuantity",
+          binance_entry_price as "binanceEntryPrice",
+          binance_leverage as "binanceLeverage",
+          binance_order_id as "binanceOrderId",
+          entry_premium_rate as "entryPremiumRate",
+          current_premium_rate as "currentPremiumRate",
+          unrealized_pnl as "unrealizedPnl",
+          realized_pnl as "realizedPnl",
+          total_fees as "totalFees",
+          entry_time as "entryTime",
+          exit_time as "exitTime",
+          created_at as "createdAt",
+          updated_at as "updatedAt"
+      `;
+            const insertParams = [
+                positionData.userId,
+                positionData.strategyId || null,
+                positionData.symbol,
+                positionData.type,
+                positionData.side,
+                positionData.status,
+                positionData.entryPrice,
+                positionData.quantity,
+                // Binance 전용 필드(없으면 0/기본값)
+                positionData.binanceQuantity ?? 0,
+                positionData.binanceEntryPrice ?? 0,
+                positionData.binanceLeverage ?? 5,
+                positionData.entryPremiumRate,
+                positionData.currentPremiumRate || null,
+                positionData.unrealizedPnl ?? 0,
+                positionData.realizedPnl || null,
+                positionData.totalFees ?? 0,
+                positionData.entryTime,
+                positionData.exitTime || null,
+                positionData.upbitOrderId || null,
+                positionData.binanceOrderId || null,
+                positionData.ip || null,
+                positionData.deviceType || 'Unknown',
+                // Binance 상세 정보
+                positionData.binanceMarkPrice ?? 0,
+                positionData.binanceLiquidationPrice ?? 0,
+                positionData.binanceSizeUsdt ?? 0,
+                positionData.binanceMarginUsdt ?? 0,
+                positionData.binanceMarginRatio ?? 0,
+                positionData.binanceMarginType || 'cross',
+                positionData.binanceUnrealizedPnl ?? 0,
+            ];
+            const insertRes = await client.query(insertQuery, insertParams);
+            const created = insertRes.rows[0];
+            await client.query('COMMIT');
+            return created;
+        }
+        catch (error) {
+            try {
+                await client.query('ROLLBACK');
+            }
+            catch { }
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    }
+    /**
      * 포지션 부분 청산 (remaining_quantity 업데이트)
      */
     async updateRemainingQuantity(id, remainingQuantity) {
