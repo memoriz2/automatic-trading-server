@@ -157,10 +157,12 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
 
         if (response.ok) {
           const dbPositions = await response.json();
-          // DB 포지션 조회 완료
+          console.log(`🔄 DB 포지션 동기화: ${dbPositions?.length ?? 0}개 포지션 로드`);
 
-          // DB 포지션을 LivePosition 형태로 변환
-          const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
+          // ✅ DB 포지션이 배열이면 무조건 Redux 업데이트 (빈 배열이어도 업데이트하여 거짓 포지션 제거)
+          if (Array.isArray(dbPositions)) {
+            // DB 포지션을 LivePosition 형태로 변환
+            const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
               // 포지션 변환 처리
               // 전략 이름
               let displayName = pos.strategyName ?? pos.strategy_name;
@@ -213,14 +215,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                 binanceUnrealizedPnl: pos.binanceUnrealizedPnl
               };
             });
-            
+
+            // ✅ 항상 Redux 스토어 업데이트 (빈 배열이면 모든 포지션 제거)
             dispatch(setLivePositions(convertedPositions));
-            // DB 포지션 변환 완료
+            console.log(`✅ Redux 포지션 업데이트 완료: ${convertedPositions.length}개`);
           }
-        } catch (error) {
-          console.error('❌ DB 포지션 조회 실패:', error);
         }
-      };
+      } catch (error) {
+        console.error('❌ DB 포지션 조회 실패:', error);
+      }
+    };
       
     // 초기 조회
     fetchDbPositions();

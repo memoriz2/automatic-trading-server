@@ -684,15 +684,16 @@ export class MultiStrategyTradingService {
                 let usdtKrwRateForFee = 1400; // 기본값
                 let totalFeesKRW = 0;
                 try {
-                    const { UpbitAdapter: UAdapter } = await import('../adapters/UpbitAdapter.js');
-                    const upbitAdapterForFee = new UAdapter();
-                    usdtKrwRateForFee = await upbitAdapterForFee.getCurrentPrice('USDT');
+                    // ✅ 정확한 USDT/KRW 환율 조회 (fee-calculator 사용)
+                    const { getUSDTKRWRate } = await import('../utils/fee-calculator.js');
+                    usdtKrwRateForFee = await getUSDTKRWRate();
                     const binanceEntryFeeKRW = binanceEntryFeeUSDT * usdtKrwRateForFee;
                     totalFeesKRW = upbitEntryFee + binanceEntryFeeKRW;
                     console.log(`💰 진입 수수료 계산:`, {
                         upbitFee: `₩${upbitEntryFee.toLocaleString()}`,
                         binanceFee: `$${binanceEntryFeeUSDT.toFixed(4)} (₩${binanceEntryFeeKRW.toLocaleString()})`,
-                        totalFee: `₩${totalFeesKRW.toLocaleString()}`
+                        totalFee: `₩${totalFeesKRW.toLocaleString()}`,
+                        usdtKrwRate: usdtKrwRateForFee
                     });
                 }
                 catch (feeError) {
@@ -736,7 +737,8 @@ export class MultiStrategyTradingService {
                     console.warn(`⚠️ 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
                 }
                 console.log(`🔍 [DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
-                // 업비트 진입가 계산: 바이낸스 USD 단가 × 환율 (더 정확함)
+                // ✅ 업비트 진입가 계산: 바이낸스 USD 단가 × 환율 (정확한 환율 사용)
+                // usdtKrwRateForFee는 이미 위에서 getUSDTKRWRate()로 조회됨 (약 1400원)
                 const upbitEntryPricePerBtc = Math.round(currentPrice * usdtKrwRateForFee);
                 console.log(`💰 진입가 계산: $${currentPrice} × ${usdtKrwRateForFee}원 = ₩${upbitEntryPricePerBtc.toLocaleString()}/BTC`);
                 position = await storage.createPosition({
