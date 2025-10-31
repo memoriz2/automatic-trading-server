@@ -1485,11 +1485,13 @@ export class MultiStrategyTradingService {
             console.log(`🔄 포지션 ${positionId} 진입가 자동 수정 시작...`);
             // 2초 대기 (거래 기록이 저장될 시간 확보)
             await new Promise(resolve => setTimeout(resolve, 2000));
-            // trades 테이블에서 진입가 조회
+            // trades 테이블에서 진입가 조회 (⚠️ trades의 price는 총액이므로 quantity로 나눠서 단가 계산)
             const result = await storage.pool.query(`
         SELECT
-          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_entry_price,
-          MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price END) as binance_entry_price
+          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price / NULLIF(quantity, 0) END) as upbit_entry_price,
+          MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price / NULLIF(quantity, 0) END) as binance_entry_price,
+          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_total,
+          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN quantity END) as upbit_qty
         FROM trades
         WHERE position_id = $1
         GROUP BY position_id
@@ -1498,23 +1500,27 @@ export class MultiStrategyTradingService {
                 console.warn(`⚠️ 포지션 ${positionId}의 거래 기록을 찾을 수 없습니다`);
                 return;
             }
-            const { upbit_entry_price, binance_entry_price } = result.rows[0];
+            const { upbit_entry_price, binance_entry_price, upbit_total, upbit_qty } = result.rows[0];
             if (!upbit_entry_price || !binance_entry_price) {
                 console.warn(`⚠️ 포지션 ${positionId}의 진입가를 trades에서 찾을 수 없습니다:`, {
-                    upbit: upbit_entry_price,
+                    upbit단가: upbit_entry_price,
+                    upbit총액: upbit_total,
+                    upbit수량: upbit_qty,
                     binance: binance_entry_price
                 });
                 return;
             }
-            // 포지션 업데이트
+            // 포지션 업데이트 (단가로 저장)
             await storage.pool.query(`
         UPDATE positions
         SET entry_price = $1, binance_entry_price = $2, updated_at = NOW()
         WHERE id = $3
-      `, [upbit_entry_price, binance_entry_price, positionId]);
+      `, [Math.round(Number(upbit_entry_price)), binance_entry_price, positionId]);
             console.log(`✅ 포지션 ${positionId} 진입가 자동 수정 완료:`, {
-                upbit: Number(upbit_entry_price),
-                binance: Number(binance_entry_price)
+                upbit단가: `₩${Math.round(Number(upbit_entry_price)).toLocaleString()}/BTC`,
+                upbit총액: `₩${Number(upbit_total).toLocaleString()}`,
+                upbit수량: `${Number(upbit_qty).toFixed(8)} BTC`,
+                binance단가: `$${Number(binance_entry_price).toFixed(2)}/BTC`
             });
         }
         catch (error) {
