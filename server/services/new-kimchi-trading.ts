@@ -424,9 +424,13 @@ export class MultiStrategyTradingService {
 
       // 🔒 추가 안전장치: trades 테이블에서도 쿨다운 체크 (포지션 생성 실패 대비)
       // ✅ 청산(sell) 후에도 쿨타임 적용: 모든 거래 유형 포함
+      // ⚠️ DB 시간 기준으로 정확히 계산
       try {
+        const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
         const recentTradeResult = await storage.pool.query(`
-          SELECT MAX(executed_at) as last_trade_time
+          SELECT
+            MAX(executed_at) as last_trade_time,
+            EXTRACT(EPOCH FROM (NOW() - MAX(executed_at))) * 1000 as elapsed_ms
           FROM trades
           WHERE user_id = $1
             AND strategy_id = $2
@@ -435,13 +439,16 @@ export class MultiStrategyTradingService {
         `, [strategyUserId, strategy.id]);
 
         if (recentTradeResult.rows[0]?.last_trade_time) {
-          const lastTradeTime = new Date(recentTradeResult.rows[0].last_trade_time).getTime();
-          const elapsed = Date.now() - lastTradeTime;
+          const elapsedMs = parseFloat(recentTradeResult.rows[0].elapsed_ms);
 
-          if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
-            const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-            console.log(`🔒 [쿨다운] trades 기반 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id}, 청산 후 재진입 방지)`);
+          if (elapsedMs < cooldownMs) {
+            const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+            console.log(`🔒 [쿨다운 차단] trades 기반 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+            console.log(`   최근 거래 시간: ${recentTradeResult.rows[0].last_trade_time}`);
+            console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초 / 필요: ${cooldownMs/1000}초`);
             return null;
+          } else {
+            console.log(`✅ [쿨다운 통과] trades 체크: ${(elapsedMs / 1000).toFixed(1)}초 >= ${cooldownMs/1000}초`);
           }
         }
       } catch (tradeCheckError) {
