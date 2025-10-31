@@ -276,6 +276,7 @@ export class MultiStrategyTradingService {
                 const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
                 const cooldownCheck = await storage.pool.query(`
           SELECT
+            id,
             status,
             entry_time,
             exit_time,
@@ -290,7 +291,8 @@ export class MultiStrategyTradingService {
               WHEN status = 'open' AND entry_time IS NOT NULL
                 THEN EXTRACT(EPOCH FROM (NOW() - entry_time)) * 1000
               ELSE NULL
-            END as elapsed_ms
+            END as elapsed_ms,
+            NOW() as db_now
           FROM positions
           WHERE strategy_id = $1
           ORDER BY
@@ -301,18 +303,36 @@ export class MultiStrategyTradingService {
             END DESC
           LIMIT 1
         `, [strategy.id]);
+                console.log(`🔍 [쿨다운 체크] 전략 ${strategy.id} - 쿨다운 설정: ${cooldownMs}ms (${cooldownMs / 1000}초)`);
                 if (cooldownCheck.rows.length > 0) {
                     const row = cooldownCheck.rows[0];
                     const elapsedMs = parseFloat(row.elapsed_ms);
+                    console.log(`🔍 [쿨다운 체크] 최근 포지션:`, {
+                        positionId: row.id,
+                        status: row.status,
+                        lastActionTime: row.last_action_time,
+                        elapsedMs: elapsedMs,
+                        elapsedSec: elapsedMs ? (elapsedMs / 1000).toFixed(1) : 'null',
+                        dbNow: row.db_now,
+                        cooldownRequired: cooldownMs,
+                        willBlock: elapsedMs != null && elapsedMs < cooldownMs
+                    });
                     if (elapsedMs != null && elapsedMs < cooldownMs) {
                         const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
                         const actionType = row.status === 'closed' ? '청산' : '진입';
-                        console.log(`🔒 [쿨다운] ${actionType} 후 재진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+                        console.log(`🔒 [쿨다운 차단] ${actionType} 후 재진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+                        console.log(`   포지션 ID: ${row.id}`);
                         console.log(`   최근 ${actionType} 시간: ${row.last_action_time}`);
-                        console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초`);
+                        console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초 / 필요: ${cooldownMs / 1000}초`);
                         console.log(`   포지션 상태: ${row.status}`);
                         return null;
                     }
+                    else {
+                        console.log(`✅ [쿨다운 통과] 경과 시간 충분: ${(elapsedMs / 1000).toFixed(1)}초 >= ${cooldownMs / 1000}초`);
+                    }
+                }
+                else {
+                    console.log(`✅ [쿨다운 통과] 전략 ${strategy.id}에 이전 포지션 없음`);
                 }
             }
             catch (cooldownError) {
