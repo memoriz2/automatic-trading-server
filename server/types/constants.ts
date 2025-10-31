@@ -201,7 +201,7 @@ export const TRADING_CONSTANTS = {
   DEFAULT_BINANCE_BTC_PRICE_USD: 115000, // 11만 5천 달러
 
   // 쿨다운 시간 (청산 후 재진입 대기 시간)
-  MIN_ENTRY_COOLDOWN_MS: 5 * 60 * 1000, // 5분 (300초)
+  MIN_ENTRY_COOLDOWN_MS: 1 * 60 * 1000, // 1분 (60초)
 
   // 재시도 횟수
   BALANCE_CHECK_RETRY_COUNT: 3,
