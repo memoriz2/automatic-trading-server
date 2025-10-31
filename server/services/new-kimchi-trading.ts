@@ -864,7 +864,10 @@ export class MultiStrategyTradingService {
         const avgPriceForFee = executedVolume > 0 ? totalFunds / executedVolume : 0;
         const upbitFee = calculateUpbitFee(executedVolume, avgPriceForFee, paidFee);
 
-        // 업비트 거래 즉시 DB 저장 (총액으로 저장)
+        // 업비트 단가 계산 (총액 / 수량)
+        const upbitUnitPrice = executedVolume > 0 ? Math.round(totalFunds / executedVolume) : 0;
+
+        // 업비트 거래 즉시 DB 저장 (단가로 저장 - 바이낸스와 일관성 유지)
         try {
           await storage.createTrade({
             userId: parseInt(userId),
@@ -874,11 +877,11 @@ export class MultiStrategyTradingService {
             side: "buy",
             exchange: "upbit",
             quantity: String(executedVolume), // 총 체결수량
-            price: String(totalFunds), // 총 체결금액
+            price: String(upbitUnitPrice), // ✅ 단가 (KRW per BTC)
             fee: upbitFee, // KRW 단위 수수료
             exchangeOrderId: upbitResult.uuid,
           });
-          console.log(`✅ 업비트 매수 거래 기록 즉시 저장 완료 (총액: ₩${totalFunds.toLocaleString()}, 수량: ${executedVolume} BTC, 수수료: ₩${upbitFee.toLocaleString()})`);
+          console.log(`✅ 업비트 매수 거래 기록 즉시 저장 완료 (단가: ₩${upbitUnitPrice.toLocaleString()}/BTC, 총액: ₩${totalFunds.toLocaleString()}, 수량: ${executedVolume} BTC, 수수료: ₩${upbitFee.toLocaleString()})`);
         } catch (dbError) {
           console.error(`❌ 업비트 거래 기록 저장 실패:`, dbError);
         }
@@ -1786,8 +1789,8 @@ export class MultiStrategyTradingService {
             continue;
           }
 
-          // 업비트 평균 단가 계산
-          const upbitEntryPrice = Math.round(parseFloat(row.upbit_price) / parseFloat(row.upbit_quantity));
+          // 업비트 진입가 (이제 trades.price는 단가로 저장됨)
+          const upbitEntryPrice = Math.round(parseFloat(row.upbit_price));
           const totalFees = parseFloat(row.upbit_fee || '0') + parseFloat(row.binance_fee || '0');
 
           // 포지션 생성
@@ -1866,12 +1869,11 @@ export class MultiStrategyTradingService {
       // 2초 대기 (거래 기록이 저장될 시간 확보)
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // trades 테이블에서 진입가 조회 (⚠️ trades의 price는 총액이므로 quantity로 나눠서 단가 계산)
+      // trades 테이블에서 진입가 조회 (✅ trades의 price는 이제 단가로 저장됨)
       const result = await storage.pool.query(`
         SELECT
-          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price / NULLIF(quantity, 0) END) as upbit_entry_price,
-          MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price / NULLIF(quantity, 0) END) as binance_entry_price,
-          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_total,
+          MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN price END) as upbit_entry_price,
+          MAX(CASE WHEN exchange = 'binance' AND side IN ('sell', 'short') THEN price END) as binance_entry_price,
           MAX(CASE WHEN exchange = 'upbit' AND side = 'buy' THEN quantity END) as upbit_qty
         FROM trades
         WHERE position_id = $1
@@ -1883,12 +1885,11 @@ export class MultiStrategyTradingService {
         return;
       }
 
-      const { upbit_entry_price, binance_entry_price, upbit_total, upbit_qty } = result.rows[0];
+      const { upbit_entry_price, binance_entry_price, upbit_qty } = result.rows[0];
 
       if (!upbit_entry_price || !binance_entry_price) {
         console.warn(`⚠️ 포지션 ${positionId}의 진입가를 trades에서 찾을 수 없습니다:`, {
           upbit단가: upbit_entry_price,
-          upbit총액: upbit_total,
           upbit수량: upbit_qty,
           binance: binance_entry_price
         });
@@ -1904,7 +1905,6 @@ export class MultiStrategyTradingService {
 
       console.log(`✅ 포지션 ${positionId} 진입가 자동 수정 완료:`, {
         upbit단가: `₩${Math.round(Number(upbit_entry_price)).toLocaleString()}/BTC`,
-        upbit총액: `₩${Number(upbit_total).toLocaleString()}`,
         upbit수량: `${Number(upbit_qty).toFixed(8)} BTC`,
         binance단가: `$${Number(binance_entry_price).toFixed(2)}/BTC`
       });
