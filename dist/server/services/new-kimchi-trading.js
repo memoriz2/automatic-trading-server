@@ -289,12 +289,12 @@ export class MultiStrategyTradingService {
             END as last_action_time,
             CASE
               WHEN status = 'closed' AND exit_time IS NOT NULL
-                THEN EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - exit_time)) * 1000
+                THEN EXTRACT(EPOCH FROM (NOW() - exit_time)) * 1000
               WHEN status = 'open' AND entry_time IS NOT NULL
-                THEN EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - entry_time)) * 1000
+                THEN EXTRACT(EPOCH FROM (NOW() - entry_time)) * 1000
               ELSE NULL
             END as elapsed_ms,
-            (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') as db_now
+            NOW() as db_now
           FROM positions
           WHERE strategy_id = $1
           ORDER BY
@@ -348,11 +348,11 @@ export class MultiStrategyTradingService {
                 const recentTradeResult = await storage.pool.query(`
           SELECT
             MAX(executed_at) as last_trade_time,
-            EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - MAX(executed_at))) * 1000 as elapsed_ms
+            EXTRACT(EPOCH FROM (NOW() - MAX(executed_at))) * 1000 as elapsed_ms
           FROM trades
           WHERE user_id = $1
             AND side IN ('buy', 'short', 'sell', 'cover')
-            AND executed_at > (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') - INTERVAL '10 minutes'
+            AND executed_at > NOW() - INTERVAL '10 minutes'
         `, [strategyUserId]);
                 if (recentTradeResult.rows[0]?.last_trade_time) {
                     const elapsedMs = parseFloat(recentTradeResult.rows[0].elapsed_ms);

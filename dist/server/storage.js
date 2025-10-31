@@ -1331,8 +1331,8 @@ export class DatabaseStorage {
             const result = await this.pool.query(`
         UPDATE positions
         SET status = 'closed',
-            exit_time = (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul'),
-            updated_at = (NOW() AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul')
+            exit_time = NOW(),
+            updated_at = NOW()
         WHERE ${whereClause}
       `, params);
             return { count: result.rowCount ?? 0 };
