@@ -574,15 +574,29 @@ export class MultiStrategyTradingService {
     this.entryLocks.set(strategy.id, true);
     console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 획득`);
 
-    // 🚨 잔고 검증 추가
     try {
-      // 직접 스토리지에서 잔고 확인 (더 안전)
-//       const exchanges = await storage.getExchangesByUserId(parseInt(userId));
+      // 🔒 DB 레벨 중복 체크: Lock 후 실제 DB 상태 확인 (이중 안전장치)
+      const existingPosition = await storage.getActivePositionByStrategy(strategy.id, symbol);
+      if (existingPosition) {
+        console.error(`🚨 [전략 ${strategy.id}] DB에 이미 활성 포지션 존재! ID=${existingPosition.id}`);
+        await storage.createSystemAlert({
+          type: "error",
+          title: "중복 포지션 차단",
+          message: `전략 ${strategy.name}에 이미 활성 포지션이 있어 새로운 진입을 차단했습니다.`,
+        });
+        throw new Error(`전략 ${strategy.id}에 이미 활성 포지션 존재 (ID: ${existingPosition.id})`);
+      }
+      console.log(`✅ [전략 ${strategy.id}] DB 중복 체크 통과 - 활성 포지션 없음`);
+
+      // 🚨 잔고 검증 추가
       console.log(
         `🔍 잔고 확인: 투자금액 ${upbitEntryAmount.toLocaleString()}원, 진입조건: ${entryRate}%`
       );
     } catch (error) {
-      console.log(`⚠️ 잔고 확인 실패: ${error}`);
+      // Lock 해제 후 에러 재발생
+      this.entryLocks.delete(strategy.id);
+      console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 해제 (DB 중복 체크 실패)`);
+      throw error;
     }
 
     try {
@@ -1238,7 +1252,7 @@ export class MultiStrategyTradingService {
           title: "완전 청산 실패",
           message: `${signal.symbol}: 업비트, 바이낸스 모두 청산 실패 - 즉시 수동 처리 필요`,
         });
-        throw new Error(`완전 청산 실패: 업비트(${upbitError.message}), 바이낸스(${binanceError.message})`);
+        // ⚠️ throw 하지 않고 계속 진행 (포지션 상태 업데이트 필요)
       }
 
       // 3. 청산 시점 환율 조회 (필수)
@@ -1248,18 +1262,45 @@ export class MultiStrategyTradingService {
       console.log(`💱 청산 시점 환율: ${exitUsdKrw.toFixed(2)} KRW/USD`);
 
       // 4. 포지션 상태 업데이트
-      // 부분 청산인 경우 포지션을 닫지 않음
-      const isBothSucceeded = !upbitError && !binanceError;
-      const positionStatus = isBothSucceeded ? 'closed' : 'open';
+      // ✅ 개선: 거래 기록으로 실제 청산 여부 재확인
+      const hasUpbitTrade = upbitResult && !upbitError;
+      const hasBinanceTrade = binanceResult && !binanceError;
+      const isBothSucceeded = hasUpbitTrade && hasBinanceTrade;
 
-      if (!isBothSucceeded) {
-        console.warn(`⚠️ 부분 청산 발생 - 포지션 ${position.id}를 'open' 상태 유지`);
+      // 📊 청산 상태 판단
+      let positionStatus: 'open' | 'closed' = 'open';
+      if (isBothSucceeded) {
+        positionStatus = 'closed';
+        console.log(`✅ [포지션 ${position.id}] 양쪽 청산 성공 → 'closed'`);
+      } else if (!hasUpbitTrade && !hasBinanceTrade) {
+        // 양쪽 모두 실패 - 'open' 유지하지만 경고
+        console.error(`🚨 [포지션 ${position.id}] 양쪽 청산 모두 실패 → 'open' 유지 (수동 처리 필요)`);
+      } else {
+        // 부분 청산: 성공한 쪽의 수량을 0으로 업데이트
+        console.warn(`⚠️ [포지션 ${position.id}] 부분 청산 발생 - 포지션 상태는 'open' 유지`);
+
+        // 부분 청산된 수량 업데이트 (성공한 쪽은 0으로)
+        const updateData: any = {};
+        if (hasUpbitTrade) {
+          updateData.upbitQuantity = 0;
+          console.log(`  - 업비트 청산 완료, 수량 → 0`);
+        }
+        if (hasBinanceTrade) {
+          updateData.binanceQuantity = 0;
+          console.log(`  - 바이낸스 청산 완료, 수량 → 0`);
+        }
+
+        // 수량 업데이트 먼저 실행
+        if (Object.keys(updateData).length > 0) {
+          await storage.updatePosition(position.id, updateData);
+        }
       }
 
       await storage.updatePosition(position.id, {
         status: positionStatus,
         currentPremiumRate: signal.premiumRate,
         exitUsdKrw: exitUsdKrw, // 청산 시점 환율 저장
+        ...(positionStatus === 'closed' ? { exit_time: new Date() } : {}), // closed일 때만 exit_time 설정
       });
 
       // 4. 거래 기록 생성 (성공한 것만, 수수료 포함)
