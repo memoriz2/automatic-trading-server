@@ -353,19 +353,34 @@ export class MultiStrategyTradingService {
         console.error('❌ [포지션 복구] 체크 실패:', recoveryError);
       }
 
-      // 🔒 진입 쿨다운 가드: DB에서 최근 진입 시간 확인 (서버 재시작에도 유지)
+      // 🔒 진입 쿨다운 가드: DB에서 최근 포지션 확인 (진입/청산 시간 모두 체크)
       const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
 
       if (recentPosition) {
+        // 청산된 포지션인 경우: exit_time 체크 (청산 후 재진입 방지)
+        const exitTime = recentPosition.exit_time || recentPosition.exitTime;
+        if (exitTime && recentPosition.status === 'closed') {
+          const lastExitTime = new Date(exitTime).getTime();
+          const elapsed = Date.now() - lastExitTime;
+
+          if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
+            const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+            console.log(`🔒 [쿨다운] 청산 후 재진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+            console.log(`   최근 청산 시간: ${new Date(exitTime).toISOString()}`);
+            return null;
+          }
+        }
+
+        // 진입된 포지션인 경우: entry_time 체크 (중복 진입 방지)
         const entryTime = recentPosition.entry_time || recentPosition.entryTime;
-        if (entryTime) {
+        if (entryTime && recentPosition.status === 'open') {
           const lastEntryTime = new Date(entryTime).getTime();
           const elapsed = Date.now() - lastEntryTime;
 
           if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
             const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-            log.debug('DB 기반 진입 쿨다운 진행중 (positions)', { remainSec, strategyId: strategy.id });
-            log.debug('최근 진입 시간', { lastEntry: new Date(entryTime).toISOString() });
+            console.log(`🔒 [쿨다운] 진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+            console.log(`   최근 진입 시간: ${new Date(entryTime).toISOString()}`);
             return null;
           }
         }
