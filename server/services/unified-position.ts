@@ -98,7 +98,8 @@ export class UnifiedPositionService {
         strategyId: params.strategyId,
         symbol: params.symbol,
         type: "kimchi_arbitrage",
-        side: (params.side === 'buy' ? 'long' : params.side === 'sell' ? 'short' : (params.side as 'long' | 'short')),
+        // 김치 프리미엄 거래: 업비트 buy = 숏 포지션, 업비트 sell = 롱 포지션
+        side: (params.side === 'buy' ? 'short' : params.side === 'sell' ? 'long' : (params.side as 'long' | 'short')),
         status: "open" as const,
         entryPrice: safePrice,
         quantity: safeQty,
