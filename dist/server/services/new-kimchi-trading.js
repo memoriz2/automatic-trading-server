@@ -272,8 +272,10 @@ export class MultiStrategyTradingService {
                 console.error('❌ [포지션 복구] 체크 실패:', recoveryError);
             }
             // 🔒 진입 쿨다운 가드: DB 내에서 시간 차이 계산 (타임존 문제 해결)
+            console.log(`🚨🚨🚨 [쿨다운 시작] 전략 ${strategy.id} 쿨다운 체크 실행 - 코드 버전: 2025-11-01-v2`);
             try {
                 const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
+                console.log(`🚨 [쿨다운] 설정값: ${cooldownMs}ms = ${cooldownMs / 1000}초`);
                 const cooldownCheck = await storage.pool.query(`
           SELECT
             id,
