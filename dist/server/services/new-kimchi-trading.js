@@ -271,33 +271,46 @@ export class MultiStrategyTradingService {
             catch (recoveryError) {
                 console.error('❌ [포지션 복구] 체크 실패:', recoveryError);
             }
-            // 🔒 진입 쿨다운 가드: DB에서 최근 포지션 확인 (진입/청산 시간 모두 체크)
-            const recentPosition = await storage.getRecentPositionByStrategy(strategy.id);
-            if (recentPosition) {
-                // 청산된 포지션인 경우: exit_time 체크 (청산 후 재진입 방지)
-                const exitTime = recentPosition.exit_time || recentPosition.exitTime;
-                if (exitTime && recentPosition.status === 'closed') {
-                    const lastExitTime = new Date(exitTime).getTime();
-                    const elapsed = Date.now() - lastExitTime;
-                    if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
-                        const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-                        console.log(`🔒 [쿨다운] 청산 후 재진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
-                        console.log(`   최근 청산 시간: ${new Date(exitTime).toISOString()}`);
-                        return null;
+            // 🔒 진입 쿨다운 가드: 최근 청산 시간을 직접 DB에서 확인
+            try {
+                const cooldownCheck = await storage.pool.query(`
+          SELECT
+            status,
+            entry_time,
+            exit_time,
+            CASE
+              WHEN status = 'closed' AND exit_time IS NOT NULL THEN exit_time
+              WHEN status = 'open' AND entry_time IS NOT NULL THEN entry_time
+              ELSE NULL
+            END as last_action_time
+          FROM positions
+          WHERE strategy_id = $1
+          ORDER BY
+            CASE
+              WHEN status = 'closed' AND exit_time IS NOT NULL THEN exit_time
+              WHEN status = 'open' AND entry_time IS NOT NULL THEN entry_time
+              ELSE '1970-01-01'::timestamp
+            END DESC
+          LIMIT 1
+        `, [strategy.id]);
+                if (cooldownCheck.rows.length > 0) {
+                    const row = cooldownCheck.rows[0];
+                    const lastActionTime = row.last_action_time;
+                    if (lastActionTime) {
+                        const elapsed = Date.now() - new Date(lastActionTime).getTime();
+                        if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
+                            const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
+                            const actionType = row.status === 'closed' ? '청산' : '진입';
+                            console.log(`🔒 [쿨다운] ${actionType} 후 재진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
+                            console.log(`   최근 ${actionType} 시간: ${new Date(lastActionTime).toISOString()}`);
+                            console.log(`   포지션 상태: ${row.status}`);
+                            return null;
+                        }
                     }
                 }
-                // 진입된 포지션인 경우: entry_time 체크 (중복 진입 방지)
-                const entryTime = recentPosition.entry_time || recentPosition.entryTime;
-                if (entryTime && recentPosition.status === 'open') {
-                    const lastEntryTime = new Date(entryTime).getTime();
-                    const elapsed = Date.now() - lastEntryTime;
-                    if (elapsed < TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS) {
-                        const remainSec = Math.ceil((TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS - elapsed) / 1000);
-                        console.log(`🔒 [쿨다운] 진입 쿨다운: ${remainSec}초 남음 (전략 ${strategy.id})`);
-                        console.log(`   최근 진입 시간: ${new Date(entryTime).toISOString()}`);
-                        return null;
-                    }
-                }
+            }
+            catch (cooldownError) {
+                console.error('❌ 쿨다운 체크 실패:', cooldownError);
             }
             // 🔒 추가 안전장치: trades 테이블에서도 쿨다운 체크 (포지션 생성 실패 대비)
             // ✅ 청산(sell) 후에도 쿨타임 적용: 모든 거래 유형 포함
