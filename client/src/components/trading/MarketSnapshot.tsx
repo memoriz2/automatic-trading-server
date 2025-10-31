@@ -53,7 +53,10 @@ export const MarketSnapshot: React.FC<MarketSnapshotProps> = ({
             </div>
             <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
               <span className="text-xs md:text-sm text-slate-400">바이낸스</span>
-              <span className="text-base md:text-lg font-bold text-orange-400" id="binance_price">{loc(Math.floor(kimp.binance_price * kimp.usdkrw))}</span>
+              <div className="text-right">
+                <div className="text-base md:text-lg font-bold text-orange-400" id="binance_price">${Math.floor(kimp.binance_price).toLocaleString('en-US')}</div>
+                <div className="text-xs text-slate-500">{loc(Math.floor(kimp.binance_price * kimp.usdkrw))}</div>
+              </div>
             </div>
             <div className="flex justify-between items-center p-3 rounded-lg bg-slate-800/50">
               <span className="text-xs md:text-sm text-slate-400">환율</span>
