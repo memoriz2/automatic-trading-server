@@ -2037,6 +2037,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               realtimeBalances={realtimeBalances}
               balanceLoading={balanceLoading}
               btcKrwPrice={currentKimchiData?.upbit_price}
+              btcUsdPrice={currentKimchiData?.binance_price}
               usdtKrwRate={currentKimchiData?.usdkrw}
             />
           );

@@ -380,7 +380,7 @@ export const StrategyList: React.FC<StrategyListProps> = React.memo(({
                   <p className="font-medium" data-testid={`text-crypto-${strategy.id}`}>{strategy.crypto}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">진입 조건 (정확한 일치)</p>
+                  <p className="text-muted-foreground">진입 김프</p>
                   <p className="font-medium text-green-500" data-testid={`text-entry-${strategy.id}`}>
                     {formatPercent(Number(strategy.entryCondition))}% ± {formatPercent(Number(strategy.tolerance || STRATEGY_DEFAULTS.TOLERANCE))}%
                   </p>

@@ -20,8 +20,9 @@ interface LiveBalanceDisplayProps {
   binancePnlSum?: number;    // 활성 포지션 바이낸스 가치 변화 합계(KRW)
   realtimeBalances?: { upbitBtc: number; binanceBtc: number; timestamp: string };
   balanceLoading?: boolean;
-  btcKrwPrice?: number;
-  usdtKrwRate?: number;
+  btcKrwPrice?: number;      // 업비트 BTC 가격 (KRW)
+  btcUsdPrice?: number;      // 바이낸스 BTC 가격 (USD)
+  usdtKrwRate?: number;      // USDT/KRW 환율
 }
 
 export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
@@ -33,6 +34,7 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
   realtimeBalances,
   balanceLoading,
   btcKrwPrice,
+  btcUsdPrice,
   usdtKrwRate
 }) => {
   return (
@@ -72,9 +74,9 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
               <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
             )}
           </div>
-          {btcKrwPrice && (
+          {btcUsdPrice && usdtKrwRate && (
             <p className="text-xs text-slate-500">
-              ≈ ₩{Math.floor(Math.abs(realtimeBalances?.binanceBtc || 0) * btcKrwPrice).toLocaleString()}
+              ≈ ₩{Math.floor(Math.abs(realtimeBalances?.binanceBtc || 0) * btcUsdPrice * usdtKrwRate).toLocaleString()}
             </p>
           )}
         </div>

@@ -567,26 +567,26 @@ export class MultiStrategyTradingService {
     
     log.info('잔고 확인 완료');
 
-    // 🚨 진입 조건 2차 검증 (단순 로직)
+    // 🚨 진입 조건 2차 검증 (실시간 김프율 재조회)
     const entryRate = Number((strategy as any).entry_rate);
     const tolerance = Number((strategy as any).tolerance_rate || (strategy as any).tolerance);
 
+    // 🔥 실시간 김프율 재조회 (신호 생성 시점과 다를 수 있음)
+    const currentKimchiData = await this.simpleKimchiService.calculateSimpleKimchi(['BTC'], userId);
+    const currentPremiumRate = currentKimchiData.find(d => d.symbol === 'BTC')?.premiumRate || signal.premiumRate;
+
     console.log(
-      `🔍 진입 조건 2차 검증: 현재김프=${signal.premiumRate}%, 설정진입율=${entryRate}%, 허용오차=${tolerance}%`
+      `🔍 진입 조건 2차 검증: 실시간김프=${currentPremiumRate.toFixed(4)}% (신호생성시=${signal.premiumRate.toFixed(4)}%), 설정진입율=${entryRate}%, 허용오차=${tolerance}%`
     );
 
-    // 정확한 진입 조건 검증 (허용오차 범위 내) - 음수/양수 구분
-    // const lowerBound = entryRate - tolerance; // 현재 사용하지 않음
-    // const upperBound = entryRate + tolerance; // 현재 사용하지 않음
-
-    // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인
-    const difference = Math.abs(signal.premiumRate - entryRate);
+    // 🎯 정확한 값 매칭: 설정값과의 차이가 허용오차 이내인지 확인 (실시간 김프율 사용)
+    const difference = Math.abs(currentPremiumRate - entryRate);
     let conditionMet = difference <= tolerance;
 
     // 추가 안전 장치: 같은 부호에서만 거래
     const sameSign =
-      (entryRate >= 0 && signal.premiumRate >= 0) ||
-      (entryRate < 0 && signal.premiumRate < 0);
+      (entryRate >= 0 && currentPremiumRate >= 0) ||
+      (entryRate < 0 && currentPremiumRate < 0);
     conditionMet = conditionMet && sameSign;
 
     console.log(
@@ -596,7 +596,7 @@ export class MultiStrategyTradingService {
     );
 
     if (!conditionMet) {
-      const errorMsg = `🚨 진입 조건 미충족! 현재김프=${signal.premiumRate}%, 설정진입율=${entryRate}% - 조건 불만족`;
+      const errorMsg = `🚨 진입 조건 미충족! 실시간김프=${currentPremiumRate.toFixed(4)}% (신호시=${signal.premiumRate.toFixed(4)}%), 설정진입율=${entryRate}% - 조건 불만족`;
       console.log(errorMsg);
       await storage.createSystemAlert({
         type: "warning",
@@ -715,10 +715,6 @@ export class MultiStrategyTradingService {
           adjustedQuantity
         );
         console.log(`바이낸스 숏 결과:`, binanceResult);
-
-        // 🔥🔥 바이낸스 주문 성공 즉시 메모리에 거래 시간 기록 (가장 먼저!)
-        this.userLastTradeTimes.set(userId, Date.now());
-        console.log(`🔥 [자동매매 즉시 기록] 바이낸스 숏 주문 성공 → 메모리에 시간 저장: ${new Date().toLocaleString('ko-KR')}`);
 
         // 🔧 주문 체결 대기 후 상세 정보 조회
         console.log(`⏳ 바이낸스 주문 체결 대기 중... (2초)`);
@@ -995,53 +991,14 @@ export class MultiStrategyTradingService {
           totalFeesKRW = upbitEntryFee + (binanceEntryFeeUSDT * usdtKrwRateForFee);
         }
 
-        // 🔍 바이낸스 포지션 상세 정보 즉시 조회
+        // 🔍 바이낸스 포지션 상세 정보는 나중에 백그라운드로 조회 (포지션 생성 속도 개선)
         let binanceDetails: any = {};
-        try {
-          // 1초 대기: 바이낸스 주문이 완전히 체결될 시간 확보
-          console.log(`⏳ 바이낸스 포지션 체결 대기 중... (1초)`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`⚡ 포지션을 먼저 생성하고, 바이낸스 상세 정보는 백그라운드에서 업데이트합니다`);
 
-          const binancePositions = await binanceService.getFuturesPositions();
-          console.log(`🔍 [DEBUG] 전체 바이낸스 포지션 개수: ${binancePositions.length}개`);
-          console.log(`🔍 [DEBUG] 전체 바이낸스 포지션:`, JSON.stringify(binancePositions, null, 2));
-
-          const searchSymbol = `${symbol}USDT`;
-          console.log(`🔍 [DEBUG] 검색할 심볼: ${searchSymbol}`);
-
-          const binancePos = binancePositions.find(pos => pos.symbol === searchSymbol);
-
-          if (binancePos) {
-            console.log(`✅ [DEBUG] 바이낸스 포지션 찾음!`);
-            console.log(`🔍 [DEBUG] 원본 바이낸스 포지션 데이터:`, JSON.stringify(binancePos, null, 2));
-
-            binanceDetails = {
-              binanceMarkPrice: binancePos.markPrice,
-              binanceLiquidationPrice: binancePos.liquidationPrice,
-              binanceSizeUsdt: binancePos.sizeUsdt,
-              binanceMarginUsdt: binancePos.marginUsdt,
-              binanceMarginRatio: binancePos.marginRatio,
-              binanceMarginType: binancePos.marginType,
-              binanceUnrealizedPnl: binancePos.unRealizedProfit
-            };
-
-            console.log(`✅ [DEBUG] binanceDetails 객체 생성 완료:`, JSON.stringify(binanceDetails, null, 2));
-          } else {
-            console.error(`❌ [DEBUG] 바이낸스 포지션을 찾을 수 없습니다!`);
-            console.error(`❌ [DEBUG] 검색한 심볼: ${searchSymbol}`);
-            console.error(`❌ [DEBUG] 사용 가능한 심볼들:`, binancePositions.map(p => p.symbol));
-            console.error(`❌ [DEBUG] binanceDetails는 빈 객체로 남음: {}`);
-          }
-        } catch (binanceError) {
-          console.warn(`⚠️ 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
-        }
-
-        console.log(`🔍 [DEBUG] 포지션 생성 전 binanceDetails 최종 확인:`, JSON.stringify(binanceDetails, null, 2));
-
-        // ✅ 업비트 진입가 계산: 바이낸스 USD 단가 × 환율 (정확한 환율 사용)
-        // usdtKrwRateForFee는 이미 위에서 getUSDTKRWRate()로 조회됨 (약 1400원)
-        const upbitEntryPricePerBtc = Math.round(currentPrice * usdtKrwRateForFee);
-        console.log(`💰 진입가 계산: $${currentPrice} × ${usdtKrwRateForFee}원 = ₩${upbitEntryPricePerBtc.toLocaleString()}/BTC`);
+        // ✅ 업비트 진입가: 실제 거래된 평균 단가 사용
+        // 이전에는 바이낸스 가격 × 환율로 계산했지만, 실제 거래 가격과 차이가 발생하여 PnL이 부정확했음
+        const upbitActualEntryPricePerBtc = executedVolume > 0 ? Math.round(totalFunds / executedVolume) : 0;
+        console.log(`💰 업비트 실제 진입가: ₩${upbitActualEntryPricePerBtc.toLocaleString()}/BTC (총액: ₩${totalFunds.toLocaleString()}, 수량: ${executedVolume} BTC)`);
 
         // 🔒 임시 포지션을 실제 포지션으로 업데이트 (createPosition 대신 UPDATE 사용)
         if (!reservedPositionId) {
@@ -1050,7 +1007,8 @@ export class MultiStrategyTradingService {
 
         await storage.updatePosition(reservedPositionId, {
           status: 'open',
-          entryPrice: String(upbitEntryPricePerBtc),
+          entryPrice: String(upbitActualEntryPricePerBtc), // ✅ 실제 업비트 거래 평균 단가 사용
+          upbitEntryPrice: String(upbitActualEntryPricePerBtc), // ✅ upbit_entry_price 필드 추가 (PnL 계산용) - 실제 거래 단가
           binanceEntryPrice: String(currentPrice),
           quantity: String(executedVolume),
           binanceQuantity: String(adjustedQuantity),
@@ -1128,6 +1086,36 @@ export class MultiStrategyTradingService {
           });
         }
 
+        // 🔄 백그라운드에서 바이낸스 포지션 상세 정보 업데이트
+        if (position?.id) {
+          console.log(`🔄 백그라운드에서 포지션 ${position.id} 바이낸스 상세 정보 업데이트 시작...`);
+          setTimeout(async () => {
+            try {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 대기
+              const binancePositions = await binanceService.getFuturesPositions();
+              const searchSymbol = `${symbol}USDT`;
+              const binancePos = binancePositions.find(pos => pos.symbol === searchSymbol);
+
+              if (binancePos) {
+                await storage.updatePosition(position.id, {
+                  binanceMarkPrice: binancePos.markPrice,
+                  binanceLiquidationPrice: binancePos.liquidationPrice,
+                  binanceSizeUsdt: binancePos.sizeUsdt,
+                  binanceMarginUsdt: binancePos.marginUsdt,
+                  binanceMarginRatio: binancePos.marginRatio,
+                  binanceMarginType: binancePos.marginType,
+                  binanceUnrealizedPnl: binancePos.unRealizedProfit
+                });
+                console.log(`✅ 포지션 ${position.id} 바이낸스 상세 정보 업데이트 완료`);
+              } else {
+                console.warn(`⚠️ 바이낸스 포지션을 찾을 수 없습니다: ${searchSymbol}`);
+              }
+            } catch (error) {
+              console.error(`❌ 바이낸스 상세 정보 업데이트 실패:`, error);
+            }
+          }, 0);
+        }
+
         // 성공 알림
         await storage.createSystemAlert({
           type: "success",
@@ -1173,6 +1161,10 @@ export class MultiStrategyTradingService {
       this.entryLocks.delete(strategy.id);
       console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 해제`);
     }
+
+    // 🔥🔥 진입 완료 후 메모리에 거래 시간 기록 (모든 거래 성공 후)
+    this.userLastTradeTimes.set(userId, Date.now());
+    console.log(`🔥 [자동매매 진입 완료] 메모리에 시간 저장 → 60초 쿨다운 시작: ${new Date().toLocaleString('ko-KR')}`);
   }
 
   // 전략 청산: 업비트 매도 + 바이낸스 포지션 청산
@@ -1235,10 +1227,6 @@ export class MultiStrategyTradingService {
       try {
         upbitResult = await upbitService.placeSellOrder(market, upbitQuantity);
         console.log(`✅ 업비트 매도 성공 (초기 응답):`, upbitResult);
-
-        // 🔥🔥 업비트 매도 주문 성공 즉시 메모리에 거래 시간 기록 (가장 먼저!)
-        this.userLastTradeTimes.set(userId, Date.now());
-        console.log(`🔥 [자동매매 즉시 기록] 업비트 매도 주문 성공 → 메모리에 시간 저장: ${new Date().toLocaleString('ko-KR')}`);
 
         // 🔍 매도도 매수와 동일하게 재시도하며 주문 상세 조회
         if (upbitResult.uuid) {
@@ -1474,6 +1462,10 @@ export class MultiStrategyTradingService {
         title: `${strategyName} 포지션 청산`,
         message: `${signal.symbol} ${strategyName} 청산 완료. 김프율: ${signal.premiumRate}%`,
       });
+
+      // 🔥🔥 청산 완료 후 메모리에 거래 시간 기록 (모든 거래 성공 후)
+      this.userLastTradeTimes.set(userId, Date.now());
+      console.log(`🔥 [자동매매 청산 완료] 메모리에 시간 저장 → 60초 쿨다운 시작: ${new Date().toLocaleString('ko-KR')}`);
     } catch (error) {
       console.error(`새로운 김프 청산 실패 (${signal.symbol}):`, error);
       throw error;

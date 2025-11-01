@@ -203,7 +203,8 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     // 총 투자금액 기준 손익 표시
                     const fmtKRW = (v: number) => `₩${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}`;
                     const upbitStr = fmtKRW(upValueDiff);
-                    const binanceStr = fmtKRW(binanceValueDiff);
+                    const binancePnlUsd = binDiff; // USD 손익
+                    const binanceStrWithUsd = `${fmtKRW(binanceValueDiff)}($${binancePnlUsd >= 0 ? '+' : ''}${binancePnlUsd.toFixed(2)})`;
                     const comparison = Math.abs(upValueDiff) > Math.abs(binanceValueDiff) ? '>' : '<';
                     const isProfit = (upValueDiff + binanceValueDiff) >= 0;
 
@@ -213,7 +214,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     return (
                       <>
                         <p className={`font-bold text-xs md:text-sm ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
-                          {isProfit ? '🟢' : '🔴'} 업비트 {upbitStr} {comparison} {binanceStr} 바이낸스
+                          {isProfit ? '🟢' : '🔴'} 업비트 {upbitStr} {comparison} {binanceStrWithUsd} 바이낸스
                         </p>
                         <p className="text-[9px] text-slate-500 mt-0.5">{debugInfo}</p>
                       </>
