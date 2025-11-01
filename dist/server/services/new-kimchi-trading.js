@@ -15,6 +15,8 @@ export class MultiStrategyTradingService {
     lastCheckTimes = new Map();
     // 🔒 진입 Lock: 동시에 여러 진입 시도 방지 (strategyId -> 진행중 여부)
     entryLocks = new Map();
+    // 🔒🔒 글로벌 쿨다운 Lock: 사용자별 마지막 거래 시간 추적 (userId -> 마지막 거래 타임스탬프)
+    userLastTradeTimes = new Map();
     constructor() {
         this.simpleKimchiService = new SimpleKimchiService();
     }
@@ -216,9 +218,11 @@ export class MultiStrategyTradingService {
         try {
             if (signal.action === "entry") {
                 await this.executeStrategyEntry(userId, signal);
+                console.log(`✅ [자동매매 진입 완료] 사용자 ${userId} 진입 성공 (메모리 기록됨)`);
             }
             else if (signal.action === "exit") {
                 await this.executeStrategyExit(userId, signal);
+                console.log(`✅ [자동매매 청산 완료] 사용자 ${userId} 청산 성공 (메모리 기록됨)`);
             }
         }
         catch (error) {
@@ -244,11 +248,30 @@ export class MultiStrategyTradingService {
         console.log(`🔍 [서버] 포지션 확인: existingPosition=${existingPosition ? 'O' : 'X'}`);
         // 🔒🔒🔒 전체 쿨다운 가드: 진입/청산 모두 쿨다운 체크 (맨 앞에 배치)
         const strategyUserId = strategy.user_id || strategy.userId;
-        console.log(`🚨🚨🚨 [쿨다운 시작] 전략 ${strategy.id} 쿨다운 체크 실행 - 코드 버전: 2025-11-01-v3`);
+        console.log(`🚨🚨🚨 [자동매매 쿨다운] 전략 ${strategy.id} 체크 실행 - 코드 버전: 2025-11-01-v6`);
+        const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
+        console.log(`🚨 [자동매매 쿨다운] 설정값: ${cooldownMs}ms = ${cooldownMs / 1000}초 (수동 거래는 무시)`);
+        // 🔥 1단계: 메모리 기반 즉시 차단 (DB 조회 전)
+        const userIdStr = String(strategyUserId);
+        const lastTradeTime = this.userLastTradeTimes.get(userIdStr);
+        if (lastTradeTime) {
+            const elapsedMs = Date.now() - lastTradeTime;
+            if (elapsedMs < cooldownMs) {
+                const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+                console.log(`🔒🔥 [자동매매 메모리 차단] 마지막 자동매매로부터 ${remainSec}초 남음 (전략 ${strategy.id})`);
+                console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초 / 필요: ${cooldownMs / 1000}초`);
+                return null; // 🚫 거래소 API 호출 전에 즉시 차단
+            }
+            else {
+                console.log(`✅ [자동매매 메모리 통과] 마지막 자동매매로부터 ${(elapsedMs / 1000).toFixed(1)}초 경과`);
+            }
+        }
+        else {
+            console.log(`✅ [자동매매 메모리 통과] 최초 거래 또는 메모리에 기록 없음`);
+        }
+        // 🔥 2단계: DB 기반 이중 검증 (메모리와 동기화)
         try {
-            const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
-            console.log(`🚨 [쿨다운] 설정값: ${cooldownMs}ms = ${cooldownMs / 1000}초`);
-            // trades 테이블에서 가장 최근 거래 확인 (모든 거래 타입 포함)
+            // trades 테이블에서 가장 최근 자동매매 거래 확인 (수동 거래 제외)
             const recentTradeResult = await storage.pool.query(`
         SELECT
           MAX(executed_at) as last_trade_time,
@@ -256,27 +279,34 @@ export class MultiStrategyTradingService {
         FROM trades
         WHERE user_id = $1
           AND side IN ('buy', 'short', 'sell', 'cover')
+          AND strategy_id IS NOT NULL
           AND executed_at > NOW() - INTERVAL '10 minutes'
       `, [strategyUserId]);
             if (recentTradeResult.rows[0]?.last_trade_time) {
+                const dbLastTradeTime = new Date(recentTradeResult.rows[0].last_trade_time).getTime();
                 const elapsedMs = parseFloat(recentTradeResult.rows[0].elapsed_ms);
+                // 🔄 메모리와 DB 동기화 (DB가 더 최신이면 메모리 업데이트)
+                if (!lastTradeTime || dbLastTradeTime > lastTradeTime) {
+                    console.log(`🔄 [자동매매 메모리 동기화] DB 자동매매 시간으로 갱신: ${new Date(dbLastTradeTime).toLocaleString('ko-KR')}`);
+                    this.userLastTradeTimes.set(userIdStr, dbLastTradeTime);
+                }
                 if (elapsedMs < cooldownMs) {
                     const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
-                    console.log(`🔒 [쿨다운 차단] 마지막 거래로부터 ${remainSec}초 남음 (전략 ${strategy.id})`);
-                    console.log(`   최근 거래 시간: ${recentTradeResult.rows[0].last_trade_time}`);
+                    console.log(`🔒 [자동매매 DB 차단] 마지막 자동매매로부터 ${remainSec}초 남음 (전략 ${strategy.id})`);
+                    console.log(`   최근 자동매매 시간: ${recentTradeResult.rows[0].last_trade_time}`);
                     console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초 / 필요: ${cooldownMs / 1000}초`);
                     return null; // 🚫 쿨다운 중에는 진입/청산 모두 차단
                 }
                 else {
-                    console.log(`✅ [쿨다운 통과] 마지막 거래로부터 ${(elapsedMs / 1000).toFixed(1)}초 경과 (필요: ${cooldownMs / 1000}초)`);
+                    console.log(`✅ [자동매매 DB 통과] 마지막 자동매매로부터 ${(elapsedMs / 1000).toFixed(1)}초 경과 (필요: ${cooldownMs / 1000}초)`);
                 }
             }
             else {
-                console.log(`✅ [쿨다운 통과] 최근 10분 내 거래 없음`);
+                console.log(`✅ [자동매매 DB 통과] 최근 10분 내 자동매매 없음 (수동 거래는 무시됨)`);
             }
         }
         catch (cooldownError) {
-            console.error('❌ 쿨다운 체크 실패:', cooldownError);
+            console.error('❌ 자동매매 DB 쿨다운 체크 실패:', cooldownError);
         }
         // 진입 조건 체크 (해당 전략의 포지션이 없을 때만)
         if (!existingPosition) {
@@ -356,6 +386,18 @@ export class MultiStrategyTradingService {
     // 전략 진입: 양수/음수 동일한 로직으로 매매
     async executeStrategyEntry(userId, signal) {
         const symbol = signal.symbol;
+        // 🔒🔒 이중 안전장치: 거래소 매매 직전 쿨다운 재확인
+        const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
+        const lastTradeTime = this.userLastTradeTimes.get(userId);
+        if (lastTradeTime) {
+            const elapsedMs = Date.now() - lastTradeTime;
+            if (elapsedMs < cooldownMs) {
+                const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+                console.log(`🚫🚫 [거래소 매매 차단] 진입 함수 진입 시점에도 쿨다운 ${remainSec}초 남음 - 거래소 API 호출 차단!`);
+                throw new Error(`쿨다운 ${remainSec}초 남음 - 거래소 매매 차단됨`);
+            }
+            console.log(`✅ [거래소 매매 허용] 쿨다운 ${(elapsedMs / 1000).toFixed(1)}초 경과 - 진입 거래 진행`);
+        }
         // 해당 전략 정보 조회
         const strategy = await storage.getTradingStrategy(signal.strategyId);
         if (!strategy) {
@@ -498,6 +540,9 @@ export class MultiStrategyTradingService {
                 await binanceService.setLeverage(symbol, strategy.leverage || 3);
                 binanceResult = await binanceService.placeFuturesShortOrder(symbol, adjustedQuantity);
                 console.log(`바이낸스 숏 결과:`, binanceResult);
+                // 🔥🔥 바이낸스 주문 성공 즉시 메모리에 거래 시간 기록 (가장 먼저!)
+                this.userLastTradeTimes.set(userId, Date.now());
+                console.log(`🔥 [자동매매 즉시 기록] 바이낸스 숏 주문 성공 → 메모리에 시간 저장: ${new Date().toLocaleString('ko-KR')}`);
                 // 🔧 주문 체결 대기 후 상세 정보 조회
                 console.log(`⏳ 바이낸스 주문 체결 대기 중... (2초)`);
                 await new Promise(resolve => setTimeout(resolve, 2000));
@@ -896,6 +941,18 @@ export class MultiStrategyTradingService {
     }
     // 전략 청산: 업비트 매도 + 바이낸스 포지션 청산
     async executeStrategyExit(userId, signal) {
+        // 🔒🔒 이중 안전장치: 거래소 매매 직전 쿨다운 재확인
+        const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
+        const lastTradeTime = this.userLastTradeTimes.get(userId);
+        if (lastTradeTime) {
+            const elapsedMs = Date.now() - lastTradeTime;
+            if (elapsedMs < cooldownMs) {
+                const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
+                console.log(`🚫🚫 [거래소 매매 차단] 청산 함수 진입 시점에도 쿨다운 ${remainSec}초 남음 - 거래소 API 호출 차단!`);
+                throw new Error(`쿨다운 ${remainSec}초 남음 - 거래소 매매 차단됨`);
+            }
+            console.log(`✅ [거래소 매매 허용] 쿨다운 ${(elapsedMs / 1000).toFixed(1)}초 경과 - 청산 거래 진행`);
+        }
         const positions = await storage.getActivePositions(parseInt(userId));
         const position = positions.find((p) => p.symbol === signal.symbol && p.status === "open" && p.strategy_id === signal.strategyId);
         if (!position) {
@@ -922,6 +979,9 @@ export class MultiStrategyTradingService {
             try {
                 upbitResult = await upbitService.placeSellOrder(market, upbitQuantity);
                 console.log(`✅ 업비트 매도 성공 (초기 응답):`, upbitResult);
+                // 🔥🔥 업비트 매도 주문 성공 즉시 메모리에 거래 시간 기록 (가장 먼저!)
+                this.userLastTradeTimes.set(userId, Date.now());
+                console.log(`🔥 [자동매매 즉시 기록] 업비트 매도 주문 성공 → 메모리에 시간 저장: ${new Date().toLocaleString('ko-KR')}`);
                 // 🔍 매도도 매수와 동일하게 재시도하며 주문 상세 조회
                 if (upbitResult.uuid) {
                     let orderDetail = null;
