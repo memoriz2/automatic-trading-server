@@ -648,9 +648,16 @@ export class DatabaseStorage {
     Object.entries(updates).forEach(([key, value]) => {
       if (value !== undefined && key !== 'id') {
         const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        updateFields.push(`${dbField} = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
+
+        // 🔧 exit_time은 NOW()를 사용하여 타임존 문제 해결
+        if (dbField === 'exit_time') {
+          updateFields.push(`${dbField} = NOW()`);
+          // value를 values 배열에 추가하지 않음 (paramIndex도 증가 안함)
+        } else {
+          updateFields.push(`${dbField} = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
       }
     });
 
