@@ -394,46 +394,48 @@ export default function History() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-600 space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">총 거래량</span>
-                        <span className="text-white font-semibold">
-                          {overallStats.totalVolume.toLocaleString()}원
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">총 포지션</span>
-                        <span className="text-white font-semibold">
-                          {overallStats.totalPositions}개
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">승률</span>
-                        <span className={`font-semibold ${overallStats.winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-                          {overallStats.winRate.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">평균 수익</span>
-                        <span className={`font-semibold ${overallStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {overallStats.avgProfit >= 0 ? '+' : ''}{overallStats.avgProfit.toLocaleString()}원
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">수익 포지션</span>
-                        <span className="text-green-400 font-semibold">
-                          {overallStats.profitPositions}개
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">손실 포지션</span>
-                        <span className="text-red-400 font-semibold">
-                          {overallStats.lossPositions}개
-                        </span>
+                  {!isRestrictedIP && (
+                    <div className="pt-4 border-t border-slate-600 space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">총 거래량</span>
+                          <span className="text-white font-semibold">
+                            {overallStats.totalVolume.toLocaleString()}원
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">총 포지션</span>
+                          <span className="text-white font-semibold">
+                            {overallStats.totalPositions}개
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">승률</span>
+                          <span className={`font-semibold ${overallStats.winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                            {overallStats.winRate.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">평균 수익</span>
+                          <span className={`font-semibold ${overallStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {overallStats.avgProfit >= 0 ? '+' : ''}{overallStats.avgProfit.toLocaleString()}원
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">수익 포지션</span>
+                          <span className="text-green-400 font-semibold">
+                            {overallStats.profitPositions}개
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">손실 포지션</span>
+                          <span className="text-red-400 font-semibold">
+                            {overallStats.lossPositions}개
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
