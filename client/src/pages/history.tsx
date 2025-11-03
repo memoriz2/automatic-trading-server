@@ -100,15 +100,20 @@ export default function History() {
   });
 
   // 선택된 날짜의 거래 내역
-  const selectedDateTrades = trades.filter(trade =>
-    isSameDay(new Date(trade.createdAt), selectedDate)
-  );
+  const selectedDateTrades = trades.filter(trade => {
+    // executed_at 또는 created_at 사용 (API 응답에 따라)
+    const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
+    if (!tradeDate) return false;
+    return isSameDay(new Date(tradeDate), selectedDate);
+  });
 
   // 일일 통계 계산
   const dailyClosedPositions = positions.filter(pos => {
-    if (pos.status !== 'closed' || !pos.exit_time) return false;
-    const exitDate = new Date(pos.exit_time);
-    return exitDate.toDateString() === selectedDate.toDateString();
+    if (pos.status !== 'closed') return false;
+    const exitTime = pos.exit_time || pos.exitTime;
+    if (!exitTime) return false;
+    const exitDate = new Date(exitTime);
+    return isSameDay(exitDate, selectedDate);
   });
 
   const dailyStats = {
@@ -160,9 +165,12 @@ export default function History() {
   };
 
   // 거래가 있는 날짜들
-  const tradingDates = trades.map(trade => 
-    startOfDay(new Date(trade.createdAt)).getTime()
-  );
+  const tradingDates = trades
+    .filter(trade => trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt)
+    .map(trade => {
+      const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
+      return startOfDay(new Date(tradeDate)).getTime();
+    });
 
   // 캘린더 타일 클래스 설정
   const tileClassName = ({ date }: { date: Date }) => {
