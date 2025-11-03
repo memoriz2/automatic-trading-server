@@ -1363,6 +1363,26 @@ export class DatabaseStorage {
             return [];
         }
     }
+    async getTradesByPositionId(positionId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM trades WHERE position_id = $1 ORDER BY executed_at ASC', [positionId]);
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting trades by position:', error);
+            return [];
+        }
+    }
+    async getPositionById(positionId) {
+        try {
+            const result = await this.pool.query('SELECT * FROM positions WHERE id = $1', [positionId]);
+            return result.rows[0];
+        }
+        catch (error) {
+            console.error('Error getting position by id:', error);
+            return undefined;
+        }
+    }
     async getTradesWithStrategyInfo(userId, limit = 50) {
         try {
             const result = await this.pool.query(`

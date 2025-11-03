@@ -90,6 +90,91 @@ function getUserIdFromRequest(req: any): string {
 }
 
 /**
+ * 포지션의 청산 가격 및 프리미엄 계산 및 업데이트
+ * - 업비트 매도와 바이낸스 커버 거래가 모두 있을 때만 실행
+ * - exit_price와 exit_premium_rate를 계산하여 positions 테이블에 저장
+ */
+async function updatePositionExitPrice(positionId: number): Promise<void> {
+  try {
+    console.log(`📊 [updatePositionExitPrice] 포지션 ${positionId} exit_price 계산 시작`);
+
+    // 1. 포지션 정보 조회
+    const position = await storage.getPositionById(positionId);
+    if (!position) {
+      console.log(`⚠️ 포지션 ${positionId} 찾을 수 없음`);
+      return;
+    }
+
+    // 2. 해당 포지션의 모든 거래 조회
+    const trades = await storage.getTradesByPositionId(positionId);
+    if (!trades || trades.length === 0) {
+      console.log(`⚠️ 포지션 ${positionId}에 거래 기록이 없음`);
+      return;
+    }
+
+    // 3. 업비트 매도(sell)와 바이낸스 커버(cover) 거래 찾기
+    const upbitSellTrades = trades.filter((t: any) => t.exchange === 'upbit' && t.side === 'sell');
+    const binanceCoverTrades = trades.filter((t: any) => t.exchange === 'binance' && t.side === 'cover');
+
+    if (upbitSellTrades.length === 0 || binanceCoverTrades.length === 0) {
+      console.log(`⚠️ 포지션 ${positionId} 양쪽 청산 거래 없음 (upbit sell: ${upbitSellTrades.length}, binance cover: ${binanceCoverTrades.length})`);
+      return;
+    }
+
+    // 4. 업비트 평균 청산가 계산 (가중 평균)
+    let upbitTotalFunds = 0;
+    let upbitTotalQty = 0;
+    upbitSellTrades.forEach((trade: any) => {
+      const qty = parseFloat(String(trade.quantity));
+      const price = parseFloat(String(trade.price));
+      upbitTotalFunds += qty * price;
+      upbitTotalQty += qty;
+    });
+    const upbitExitPrice = upbitTotalQty > 0 ? upbitTotalFunds / upbitTotalQty : 0;
+
+    // 5. 바이낸스 평균 청산가 계산 (가중 평균, USD)
+    let binanceTotalValue = 0;
+    let binanceTotalQty = 0;
+    binanceCoverTrades.forEach((trade: any) => {
+      const qty = parseFloat(String(trade.quantity));
+      const price = parseFloat(String(trade.price));
+      binanceTotalValue += qty * price;
+      binanceTotalQty += qty;
+    });
+    const binanceExitPriceUsd = binanceTotalQty > 0 ? binanceTotalValue / binanceTotalQty : 0;
+
+    console.log(`📊 청산가 계산: upbit=${upbitExitPrice.toLocaleString()}원, binance=${binanceExitPriceUsd.toFixed(2)} USD`);
+
+    // 6. 둘 다 유효한 가격이 있어야 계산
+    if (upbitExitPrice <= 0 || binanceExitPriceUsd <= 0) {
+      console.log(`⚠️ 유효하지 않은 청산가 (upbit: ${upbitExitPrice}, binance: ${binanceExitPriceUsd})`);
+      return;
+    }
+
+    // 7. 환율 조회 (position의 exitUsdKrw 사용, 없으면 현재 환율)
+    let usdKrw = position.exitUsdKrw || position.entryUsdKrw || 1300;
+    console.log(`💱 환율: ${usdKrw}원/USD (출처: ${position.exitUsdKrw ? 'position.exitUsdKrw' : 'position.entryUsdKrw 또는 기본값'})`);
+
+    // 8. exit_price 및 exit_premium_rate 계산
+    const binanceExitPriceKrw = binanceExitPriceUsd * usdKrw;
+    const exitPrice = (upbitExitPrice + binanceExitPriceKrw) / 2;
+    const exitPremiumRate = ((upbitExitPrice / binanceExitPriceKrw) - 1) * 100;
+
+    console.log(`📊 최종 계산: exit_price=${exitPrice.toLocaleString()}원, exit_premium_rate=${exitPremiumRate.toFixed(4)}%`);
+
+    // 9. position 업데이트
+    await storage.updatePosition(positionId, {
+      exit_price: exitPrice,
+      exit_premium_rate: exitPremiumRate,
+    });
+
+    console.log(`✅ 포지션 ${positionId} exit_price 업데이트 완료`);
+  } catch (error: any) {
+    console.error(`❌ updatePositionExitPrice 실패 (positionId: ${positionId}):`, error);
+  }
+}
+
+/**
  * 실제 API 키가 있는 활성 사용자를 찾기
  * (현재 미사용 - 추후 필요시 사용 예정)
 
@@ -4335,6 +4420,11 @@ export async function registerRoutes(
             isMock: false
           });
           console.log(`✅ 바이낸스 청산 거래 기록 DB 저장 성공 (positionId: ${finalPositionId}, fee: ${commission})`);
+
+          // ✅ positionId가 있으면 exit_price 및 exit_premium_rate 계산 및 업데이트
+          if (finalPositionId) {
+            await updatePositionExitPrice(finalPositionId);
+          }
         } else {
           console.log(`⚠️ 바이낸스 청산 수수료 0이므로 거래 기록 저장 안 함`);
         }
@@ -4356,13 +4446,19 @@ export async function registerRoutes(
               // 전량 청산
               const exitPrice = parseFloat(closeResult.price || closeResult.avgPrice || '0');
               const pnl = (openPosition.entryPrice - exitPrice) * (openPosition.remainingQuantity || openPosition.quantity);
-              
+
               await positionsRepo.closeWithRemaining(openPosition.id, exitPrice, 0, pnl, 0);
               console.log(`✅ 포지션 완전 청산: ID=${openPosition.id}, PnL=${pnl}`);
+
+              // ✅ exit_price 및 exit_premium_rate 계산 및 업데이트
+              await updatePositionExitPrice(openPosition.id);
             } else {
               // 부분 청산
               await positionsRepo.updateRemainingQuantity(openPosition.id, newRemainingQty);
               console.log(`✅ 포지션 부분 청산: ID=${openPosition.id}, 남은수량=${newRemainingQty}`);
+
+              // ✅ 부분 청산이어도 exit_price 계산 시도 (양쪽 거래가 있으면 계산됨)
+              await updatePositionExitPrice(openPosition.id);
             }
           }
         } catch (positionError: any) {
@@ -4693,6 +4789,9 @@ export async function registerRoutes(
                 exit_time: new Date()
               });
               console.log(`✅ 포지션 ${positionId} 청산 완료 (exit_time 업데이트)`);
+
+              // ✅ exit_price 및 exit_premium_rate 계산 및 업데이트
+              await updatePositionExitPrice(positionId);
             } catch (posError) {
               console.error(`❌ 포지션 ${positionId} 업데이트 실패:`, posError);
             }
