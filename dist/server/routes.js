@@ -44,7 +44,7 @@ const insertUserSchema = z.object({
     password: z.string(),
 });
 import { getCurrentServerIP, isReplit } from "./utils/ip.js";
-import { registerAuthRoutes } from "./routes/auth.js";
+import { registerAuthRoutes, authenticateSession as authMiddleware } from "./routes/auth.js";
 import { registerTradingRoutes } from "./routes/trading.js";
 import { registerApiRoutes } from "./routes/api.js";
 import { registerMonitoringRoutes } from "./routes/monitoring.js";
@@ -2597,7 +2597,7 @@ export async function registerRoutes(app, server) {
     });
     // 포지션 조회 API
     // 포지션 히스토리 조회 (닫힌 포지션만)
-    app.get("/api/positions/history", authenticateSession, async (req, res) => {
+    app.get("/api/positions/history", authMiddleware, async (req, res) => {
         try {
             const userId = req.user.id;
             const limit = parseInt(req.query.limit) || 100;
