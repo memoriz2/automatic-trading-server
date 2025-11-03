@@ -1489,49 +1489,71 @@ export class MultiStrategyTradingService {
 
       // 업비트 손익 계산 (청산 성공 시에만)
       if (upbitResult && !upbitError) {
-        const upbitSellQuantity = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
-        const upbitSellPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
-        const upbitPaidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
-        const upbitFee = calculateUpbitFee(upbitSellQuantity, upbitSellPrice, upbitPaidFee);
+        // 🎯 업비트 API trades 배열에서 실제 체결 금액 사용
+        const upbitPaidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : 0;
+
+        let upbitExitTotal = 0;
+        if (upbitResult.trades && Array.isArray(upbitResult.trades) && upbitResult.trades.length > 0) {
+          // trades 배열에서 실제 체결 금액(funds) 합산
+          upbitExitTotal = upbitResult.trades.reduce((sum: number, trade: any) => {
+            return sum + parseFloat(trade.funds || "0");
+          }, 0);
+          console.log(`📊 업비트 API trades 체결 금액: ₩${upbitExitTotal.toLocaleString()}`);
+        } else {
+          // fallback: avg_price 사용
+          const upbitSellQuantity = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
+          const upbitSellPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
+          upbitExitTotal = upbitSellQuantity * upbitSellPrice;
+          console.log(`📊 업비트 계산된 체결 금액 (fallback): ₩${upbitExitTotal.toLocaleString()}`);
+        }
 
         // 업비트 진입 시 총 금액
         const upbitEntryTotal = Number(position.upbit_entry_price || position.entry_price || 0);
-        // 업비트 청산 시 총 금액
-        const upbitExitTotal = upbitSellQuantity * upbitSellPrice;
         // 업비트 손익 = 청산금액 - 진입금액 - 수수료 (KRW)
-        upbitPnl = upbitExitTotal - upbitEntryTotal - upbitFee;
-        totalFees += upbitFee;
+        upbitPnl = upbitExitTotal - upbitEntryTotal - upbitPaidFee;
+        totalFees += upbitPaidFee;
 
-        console.log(`💰 업비트 손익: 청산 ₩${upbitExitTotal.toLocaleString()} - 진입 ₩${upbitEntryTotal.toLocaleString()} - 수수료 ₩${upbitFee.toFixed(0)} = ₩${upbitPnl.toFixed(0)}`);
+        console.log(`💰 업비트 손익: 청산 ₩${upbitExitTotal.toLocaleString()} - 진입 ₩${upbitEntryTotal.toLocaleString()} - 수수료 ₩${upbitPaidFee.toFixed(0)} = ₩${upbitPnl.toFixed(0)}`);
       }
 
       // 바이낸스 손익 계산 (청산 성공 시에만)
       if (binanceResult && !binanceError) {
-        const binanceCloseQuantity = parseFloat(binanceResult.executedQty || binanceResult.quantity || "0");
-        const binanceClosePrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
-        const binanceFee = calculateBinanceFee(binanceCloseQuantity, binanceClosePrice);
+        // 🎯 바이낸스 API trades 배열에서 realizedPnl 직접 사용
+        let binancePnlUsd = 0;
+        let binanceFeeUsd = 0;
 
-        // 바이낸스 진입 가격 (USD 단가)
-        const binanceEntryPriceUsd = Number(position.binance_entry_price || position.entry_price || 0);
-        // 바이낸스 진입 시 총 금액 (USD)
-        const binanceEntryTotal = binanceEntryPriceUsd * binanceCloseQuantity;
-        // 바이낸스 청산 시 총 금액 (USD)
-        const binanceExitTotal = binanceClosePrice * binanceCloseQuantity;
+        if (binanceResult.trades && Array.isArray(binanceResult.trades) && binanceResult.trades.length > 0) {
+          // trades 배열에서 realizedPnl과 commission 합산
+          binanceResult.trades.forEach((trade: any) => {
+            binancePnlUsd += parseFloat(trade.realizedPnl || "0");
+            binanceFeeUsd += parseFloat(trade.commission || "0");
+          });
+          console.log(`📊 바이낸스 API realizedPnl: $${binancePnlUsd.toFixed(2)}, 수수료: $${binanceFeeUsd.toFixed(2)}`);
+        } else {
+          // fallback: 계산된 손익 사용
+          const binanceCloseQuantity = parseFloat(binanceResult.executedQty || binanceResult.quantity || "0");
+          const binanceClosePrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
+          binanceFeeUsd = parseFloat(binanceResult.commission || "0") || calculateBinanceFee(binanceCloseQuantity, binanceClosePrice);
 
-        // 선물 포지션 타입 확인 (long/short)
-        const positionType = String(position.type || '').toLowerCase();
-        const isShort = positionType.includes('short') || positionType.includes('sell');
+          const binanceEntryPriceUsd = Number(position.binance_entry_price || position.entry_price || 0);
+          const binanceEntryTotal = binanceEntryPriceUsd * binanceCloseQuantity;
+          const binanceExitTotal = binanceClosePrice * binanceCloseQuantity;
 
-        // 바이낸스 손익 (USD): 롱은 (청산-진입), 숏은 (진입-청산)
-        const binancePnlUsd = isShort
-          ? (binanceEntryTotal - binanceExitTotal - binanceFee)
-          : (binanceExitTotal - binanceEntryTotal - binanceFee);
+          const positionType = String(position.type || '').toLowerCase();
+          const isShort = positionType.includes('short') || positionType.includes('sell');
+
+          binancePnlUsd = isShort
+            ? (binanceEntryTotal - binanceExitTotal - binanceFeeUsd)
+            : (binanceExitTotal - binanceEntryTotal - binanceFeeUsd);
+
+          console.log(`📊 바이낸스 계산된 손익 (fallback): $${binancePnlUsd.toFixed(2)}`);
+        }
 
         // 바이낸스 손익 (KRW 환산)
         binancePnl = binancePnlUsd * exitUsdKrw;
-        totalFees += binanceFee * exitUsdKrw; // 수수료도 KRW로 환산
+        totalFees += binanceFeeUsd * exitUsdKrw; // 수수료도 KRW로 환산
 
-        console.log(`💰 바이낸스 손익 (${isShort ? '숏' : '롱'}): (${isShort ? '진입-청산' : '청산-진입'}) $${binancePnlUsd.toFixed(2)} × ${exitUsdKrw.toFixed(0)} = ₩${binancePnl.toFixed(0)}`);
+        console.log(`💰 바이낸스 손익: $${binancePnlUsd.toFixed(2)} × ${exitUsdKrw.toFixed(0)} = ₩${binancePnl.toFixed(0)}`);
       }
 
       // 총 실현 손익 = 업비트 손익 + 바이낸스 손익 (KRW)
