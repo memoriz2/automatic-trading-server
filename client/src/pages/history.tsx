@@ -105,39 +105,54 @@ export default function History() {
   );
 
   // 일일 통계 계산
+  const dailyClosedPositions = positions.filter(pos => {
+    if (pos.status !== 'closed' || !pos.exit_time) return false;
+    const exitDate = new Date(pos.exit_time);
+    return exitDate.toDateString() === selectedDate.toDateString();
+  });
+
   const dailyStats = {
     totalTrades: selectedDateTrades.length,
     upbitTrades: selectedDateTrades.filter(t => t.exchange === 'upbit').length,
     binanceTrades: selectedDateTrades.filter(t => t.exchange === 'binance').length,
-    totalProfit: positions
-      .filter(pos => {
-        if (pos.status !== 'closed' || !pos.exit_time) return false;
-        const exitDate = new Date(pos.exit_time);
-        return exitDate.toDateString() === selectedDate.toDateString();
-      })
-      .reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0),
+    totalProfit: dailyClosedPositions.reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0),
     totalVolume: selectedDateTrades.reduce((sum, t) => sum + (t.amount || 0), 0),
-    profitTrades: 0,
+    totalPositions: dailyClosedPositions.length,
+    profitPositions: dailyClosedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) > 0).length,
+    lossPositions: dailyClosedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) < 0).length,
     upbitVolume: selectedDateTrades.filter(t => t.exchange === 'upbit').reduce((sum, t) => sum + (t.amount || 0), 0),
     binanceVolume: selectedDateTrades.filter(t => t.exchange === 'binance').reduce((sum, t) => sum + (t.amount || 0), 0),
     buyTrades: selectedDateTrades.filter(t => t.side === 'buy').length,
     sellTrades: selectedDateTrades.filter(t => t.side === 'sell').length,
     shortTrades: selectedDateTrades.filter(t => t.side === 'short').length,
     coverTrades: selectedDateTrades.filter(t => t.side === 'cover').length,
+    avgProfit: dailyClosedPositions.length > 0
+      ? dailyClosedPositions.reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0) / dailyClosedPositions.length
+      : 0,
+    winRate: dailyClosedPositions.length > 0
+      ? (dailyClosedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) > 0).length / dailyClosedPositions.length) * 100
+      : 0,
   };
 
   // 전체 통계 계산
+  const closedPositions = positions.filter(pos => pos.status === 'closed');
   const overallStats = {
     totalTrades: trades.length,
     upbitTrades: trades.filter(t => t.exchange === 'upbit').length,
     binanceTrades: trades.filter(t => t.exchange === 'binance').length,
-    totalProfit: positions
-      .filter(pos => pos.status === 'closed')
-      .reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0),
+    totalProfit: closedPositions.reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0),
     totalVolume: trades.reduce((sum, t) => sum + (t.amount || 0), 0),
-    profitTrades: 0,
+    totalPositions: closedPositions.length,
+    profitPositions: closedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) > 0).length,
+    lossPositions: closedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) < 0).length,
     upbitVolume: trades.filter(t => t.exchange === 'upbit').reduce((sum, t) => sum + (t.amount || 0), 0),
     binanceVolume: trades.filter(t => t.exchange === 'binance').reduce((sum, t) => sum + (t.amount || 0), 0),
+    avgProfit: closedPositions.length > 0
+      ? closedPositions.reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0) / closedPositions.length
+      : 0,
+    winRate: closedPositions.length > 0
+      ? (closedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) > 0).length / closedPositions.length) * 100
+      : 0,
   };
 
   // 거래가 있는 날짜들
@@ -224,7 +239,7 @@ export default function History() {
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t border-slate-600">
+                  <div className="pt-4 border-t border-slate-600 space-y-3">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex justify-between">
                         <span className="text-slate-400">거래량</span>
@@ -233,12 +248,33 @@ export default function History() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">승률</span>
+                        <span className="text-slate-400">포지션</span>
                         <span className="text-white font-semibold">
-                          {dailyStats.totalTrades > 0 
-                            ? `${((dailyStats.profitTrades / dailyStats.totalTrades) * 100).toFixed(1)}%`
-                            : '0%'
-                          }
+                          {dailyStats.totalPositions}개
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">승률</span>
+                        <span className={`font-semibold ${dailyStats.winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                          {dailyStats.winRate.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">평균 수익</span>
+                        <span className={`font-semibold ${dailyStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {dailyStats.avgProfit >= 0 ? '+' : ''}{dailyStats.avgProfit.toLocaleString()}원
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">수익 포지션</span>
+                        <span className="text-green-400 font-semibold">
+                          {dailyStats.profitPositions}개
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">손실 포지션</span>
+                        <span className="text-red-400 font-semibold">
+                          {dailyStats.lossPositions}개
                         </span>
                       </div>
                     </div>
@@ -305,8 +341,8 @@ export default function History() {
                       <p className="text-xs text-slate-400">총 수익 (원)</p>
                     </div>
                   </div>
-                  
-                  <div className="pt-4 border-t border-slate-600">
+
+                  <div className="pt-4 border-t border-slate-600 space-y-3">
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex justify-between">
                         <span className="text-slate-400">총 거래량</span>
@@ -315,12 +351,33 @@ export default function History() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-400">전체 승률</span>
+                        <span className="text-slate-400">총 포지션</span>
                         <span className="text-white font-semibold">
-                          {overallStats.totalTrades > 0 
-                            ? `${((overallStats.profitTrades / overallStats.totalTrades) * 100).toFixed(1)}%`
-                            : '0%'
-                          }
+                          {overallStats.totalPositions}개
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">승률</span>
+                        <span className={`font-semibold ${overallStats.winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                          {overallStats.winRate.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">평균 수익</span>
+                        <span className={`font-semibold ${overallStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {overallStats.avgProfit >= 0 ? '+' : ''}{overallStats.avgProfit.toLocaleString()}원
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">수익 포지션</span>
+                        <span className="text-green-400 font-semibold">
+                          {overallStats.profitPositions}개
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">손실 포지션</span>
+                        <span className="text-red-400 font-semibold">
+                          {overallStats.lossPositions}개
                         </span>
                       </div>
                     </div>
