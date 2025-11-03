@@ -1267,12 +1267,13 @@ export class MultiStrategyTradingService {
             realizedPnl = upbitPnl + binancePnl;
             console.log(`💰💰 총 실현 손익: 업비트 ₩${upbitPnl.toFixed(0)} + 바이낸스 ₩${binancePnl.toFixed(0)} = ₩${realizedPnl.toFixed(0)}`);
             console.log(`💸 총 수수료: ₩${totalFees.toFixed(0)}`);
-            // 📊 청산 가격 및 프리미엄 계산 (closed일 때만)
+            // 📊 청산 가격 및 프리미엄 계산 (부분 청산 시에도 계산)
             let exitPrice;
             let exitPremiumRate;
-            if (positionStatus === 'closed' && upbitResult && binanceResult) {
-                // 업비트 청산 평균가 (KRW)
-                let upbitExitPrice = 0;
+            let upbitExitPrice = 0;
+            let binanceExitPriceUsd = 0;
+            // 업비트 청산 평균가 계산 (업비트 청산 성공 시)
+            if (upbitResult && !upbitError) {
                 if (upbitResult.trades && Array.isArray(upbitResult.trades) && upbitResult.trades.length > 0) {
                     const totalVolume = upbitResult.trades.reduce((sum, t) => sum + parseFloat(t.volume || "0"), 0);
                     const totalFunds = upbitResult.trades.reduce((sum, t) => sum + parseFloat(t.funds || "0"), 0);
@@ -1281,8 +1282,10 @@ export class MultiStrategyTradingService {
                 else {
                     upbitExitPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
                 }
-                // 바이낸스 청산 평균가 (USD)
-                let binanceExitPriceUsd = 0;
+                console.log(`📊 업비트 청산가: ₩${upbitExitPrice.toLocaleString()}`);
+            }
+            // 바이낸스 청산 평균가 계산 (바이낸스 청산 성공 시)
+            if (binanceResult && !binanceError) {
                 if (binanceResult.trades && Array.isArray(binanceResult.trades) && binanceResult.trades.length > 0) {
                     const totalQty = binanceResult.trades.reduce((sum, t) => sum + parseFloat(t.qty || "0"), 0);
                     const totalQuoteQty = binanceResult.trades.reduce((sum, t) => sum + parseFloat(t.quoteQty || "0"), 0);
@@ -1291,23 +1294,26 @@ export class MultiStrategyTradingService {
                 else {
                     binanceExitPriceUsd = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
                 }
+                console.log(`📊 바이낸스 청산가: $${binanceExitPriceUsd.toFixed(2)}`);
+            }
+            // 둘 다 청산된 경우에만 평균 가격 및 프리미엄 계산
+            if (upbitExitPrice > 0 && binanceExitPriceUsd > 0) {
                 // 바이낸스 청산가 KRW 환산
                 const binanceExitPriceKrw = binanceExitPriceUsd * exitUsdKrw;
                 // 평균 청산 가격 (업비트 + 바이낸스 KRW 평균)
                 exitPrice = (upbitExitPrice + binanceExitPriceKrw) / 2;
                 // 청산 프리미엄 = ((업비트 가격 / 바이낸스 KRW 가격) - 1) * 100
-                if (binanceExitPriceKrw > 0) {
-                    exitPremiumRate = ((upbitExitPrice / binanceExitPriceKrw) - 1) * 100;
-                }
-                console.log(`📊 청산 가격: 업비트 ₩${upbitExitPrice.toLocaleString()}, 바이낸스 $${binanceExitPriceUsd.toFixed(2)} (₩${binanceExitPriceKrw.toLocaleString()})`);
-                console.log(`📊 평균 청산가: ₩${exitPrice.toLocaleString()}, 청산 프리미엄: ${exitPremiumRate?.toFixed(4)}%`);
+                exitPremiumRate = ((upbitExitPrice / binanceExitPriceKrw) - 1) * 100;
+                console.log(`📊 바이낸스 청산가 KRW 환산: ₩${binanceExitPriceKrw.toLocaleString()}`);
+                console.log(`📊 평균 청산가: ₩${exitPrice.toLocaleString()}`);
+                console.log(`📊 청산 프리미엄: ${exitPremiumRate.toFixed(4)}%`);
             }
             await storage.updatePosition(position.id, {
                 status: positionStatus,
                 currentPremiumRate: signal.premiumRate,
                 exitUsdKrw: exitUsdKrw, // 청산 시점 환율 저장
-                exit_price: positionStatus === 'closed' ? exitPrice : undefined, // closed일 때만 청산가 저장
-                exit_premium_rate: positionStatus === 'closed' ? exitPremiumRate : undefined, // closed일 때만 청산 프리미엄 저장
+                exit_price: exitPrice, // 청산가 저장 (부분 청산 시에도 저장)
+                exit_premium_rate: exitPremiumRate, // 청산 프리미엄 저장 (부분 청산 시에도 저장)
                 realized_pnl: positionStatus === 'closed' ? realizedPnl : undefined, // closed일 때만 실현손익 저장
                 total_fees: positionStatus === 'closed' ? totalFees : undefined, // closed일 때만 총 수수료 저장
                 ...(positionStatus === 'closed' ? { exit_time: new Date() } : {}), // closed일 때만 exit_time 설정
