@@ -516,13 +516,30 @@ export class DatabaseStorage {
     }
   }
 
-  async getActivePositionByStrategy(strategyId: number, symbol: string): Promise<any | undefined> {
+  async getActivePositionByStrategy(strategyId: number, symbol: string, userId?: number): Promise<any | undefined> {
     try {
-      // 정확한 전략+심볼 매칭만 허용 (fallback 제거)
-      const result = await this.pool.query(
-        'SELECT * FROM positions WHERE strategy_id = $1 AND symbol = $2 AND status = $3 ORDER BY entry_time DESC LIMIT 1',
-        [strategyId, symbol, 'open']
-      );
+      // 🔒 사용자별 중복 체크: userId가 있으면 반드시 사용
+      // ⚠️ CRITICAL: pending 포지션도 체크해야 동시 진입 방지!
+      let query = 'SELECT * FROM positions WHERE strategy_id = $1 AND symbol = $2 AND status IN ($3, $4)';
+      const params: any[] = [strategyId, symbol, 'open', 'pending'];
+
+      if (userId !== undefined) {
+        query += ' AND user_id = $5';
+        params.push(userId);
+        console.log(`🔍 [getActivePositionByStrategy] 사용자별 체크 (open/pending) - 사용자 ${userId}, 전략 ${strategyId}, 심볼 ${symbol}`);
+      } else {
+        console.warn(`⚠️ [getActivePositionByStrategy] userId 없이 호출됨 - 다중 진입 위험!`);
+      }
+
+      query += ' ORDER BY entry_time DESC LIMIT 1';
+
+      const result = await this.pool.query(query, params);
+
+      if (result.rows[0]) {
+        console.log(`✅ [getActivePositionByStrategy] 활성/대기 포지션 발견: ID=${result.rows[0].id}, status=${result.rows[0].status}`);
+      } else {
+        console.log(`✅ [getActivePositionByStrategy] 활성/대기 포지션 없음`);
+      }
 
       return result.rows[0] || undefined;
     } catch (error) {
@@ -653,7 +670,7 @@ export class DatabaseStorage {
 
     try {
       const result = await this.pool.query(`
-        UPDATE positions 
+        UPDATE positions
         SET ${updateFields.join(', ')}
         WHERE id = $${paramIndex}
         RETURNING *
@@ -661,7 +678,7 @@ export class DatabaseStorage {
       return result.rows[0] || undefined;
     } catch (error) {
       console.error('Error updating position:', error);
-      return undefined;
+      throw error;
     }
   }
 
@@ -1578,7 +1595,7 @@ export class DatabaseStorage {
       const result = await this.pool.query(`
         UPDATE positions
         SET status = 'closed',
-            exit_time = NOW(),
+            exit_time = NOW() AT TIME ZONE 'Asia/Seoul',
             updated_at = NOW()
         WHERE ${whereClause}
       `, params);
@@ -1747,8 +1764,8 @@ export class DatabaseStorage {
         )
         SELECT COALESCE(SUM(realized_pnl), 0) as total_profit FROM positions, trading_day
         WHERE user_id = $1
-        AND (exit_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') >= trading_day.start_time
-        AND (exit_time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul') < trading_day.start_time + INTERVAL '24 hours'
+        AND exit_time >= trading_day.start_time
+        AND exit_time < trading_day.start_time + INTERVAL '24 hours'
         AND status = 'closed'
       `, [userId]);
 

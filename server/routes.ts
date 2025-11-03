@@ -1222,10 +1222,12 @@ export async function registerRoutes(
   app.get("/api/positions/check-active", authenticateSession, async (req: any, res) => {
     try {
       const { strategyId, symbol } = req.query;
+      const userId = req.user?.id;
 
       const activePosition = await storage.getActivePositionByStrategy(
         parseInt(strategyId as string),
-        symbol as string
+        symbol as string,
+        userId
       );
 
       // DB snake_case → Frontend camelCase 매핑
@@ -2995,16 +2997,36 @@ export async function registerRoutes(
       const whereClause: any = { userId, status: status || 'open' };
       const positions = await storage.getPositions(whereClause);
 
-      // 바이낸스 진입가 보정 로직 비활성화 (DB에 이미 값이 있음)
-      // const needsRepair = positions.filter((p: any) =>
-      //   (!p.binancePrice || Number(p.binancePrice) === 0) &&
-      //   (!p.binance_entry_price || Number(p.binance_entry_price) === 0) &&
-      //   (p.binance_order_id || p.binanceOrderId)
-      // );
-      // if (needsRepair.length > 0) {
-      //   console.log(`🔧 바이낸스 진입가 보정 필요: ${needsRepair.length}개 포지션`);
-      //   ...
-      // }
+      // 바이낸스 실시간 포지션 정보 가져오기 (open 포지션만)
+      let binancePositionsMap: Map<string, any> = new Map();
+
+      if (status === 'open' && positions.length > 0) {
+        try {
+          const exchange = await storage.getDecryptedExchange(String(userId), 'binance');
+          if (exchange?.apiKey && exchange?.apiSecret) {
+            const binanceService = new BinanceService(
+              exchange.apiKey,
+              exchange.apiSecret
+            );
+
+            // 바이낸스 선물 포지션 정보 조회
+            const binancePositions = await binanceService.getFuturesPositions();
+
+            // symbol을 키로 하는 Map 생성
+            binancePositions.forEach((pos: any) => {
+              if (Math.abs(parseFloat(pos.positionAmt || '0')) > 0) {
+                // BTCUSDT -> BTC
+                const symbol = pos.symbol.replace('USDT', '');
+                binancePositionsMap.set(symbol, pos);
+              }
+            });
+
+            console.log(`📊 바이낸스 실시간 포지션 ${binancePositionsMap.size}개 조회 완료`);
+          }
+        } catch (binanceError) {
+          console.warn('⚠️ 바이낸스 포지션 조회 실패 (DB 데이터만 반환):', binanceError);
+        }
+      }
 
       // camelCase로만 정규화하여 반환 (원본 로우 필드는 포함하지 않음)
       const mappedPositions = positions.map((p: any) => {
@@ -3016,6 +3038,16 @@ export async function registerRoutes(
           const n = typeof v === 'string' ? parseFloat(v) : v;
           return Number.isFinite(n) ? n : undefined;
         };
+
+        // 바이낸스 실시간 포지션 정보 병합
+        const binancePos = binancePositionsMap.get(p.symbol);
+        const binanceMarkPrice = binancePos ? parseFloat(binancePos.markPrice || '0') : undefined;
+        const binanceLiquidationPrice = binancePos ? parseFloat(binancePos.liquidationPrice || '0') : undefined;
+        const binanceUnrealizedPnl = binancePos ? parseFloat(binancePos.unRealizedProfit || '0') : undefined;
+        const binanceMarginRatio = binancePos ? parseFloat(binancePos.marginRatio || '0') * 100 : undefined; // 0.01 -> 1%
+        const binanceSizeUsdt = binancePos ? Math.abs(parseFloat(binancePos.notional || '0')) : undefined;
+        const binanceMarginUsdt = binancePos ? parseFloat(binancePos.isolatedWallet || '0') : undefined;
+        const binanceMarginType = binancePos?.marginType?.toLowerCase();
 
         return {
           // 식별/기본
@@ -3056,15 +3088,15 @@ export async function registerRoutes(
           // 레버리지
           leverage: num(p.leverage ?? p.binance_leverage) ?? undefined,
 
-          // 환율/바이낸스 상세(정규화된 단위 명시)
+          // 환율/바이낸스 상세(정규화된 단위 명시) - 실시간 데이터 우선
           entryUsdKrw: num(p.entryUsdKrw ?? p.entryusdkrw),
-          binanceMarkPrice: num(p.binanceMarkPrice ?? p.binancemarkprice),
-          binanceLiquidationPrice: num(p.binanceLiquidationPrice ?? p.binanceliquidationprice),
-          binanceSizeUsdt: num(p.binanceSizeUsdt ?? p.binancesizeusdt),
-          binanceMarginUsdt: num(p.binanceMarginUsdt ?? p.binancemarginusdt),
-          binanceMarginRatio: num(p.binanceMarginRatio ?? p.binancemarginratio),
-          binanceMarginType: p.binanceMarginType ?? p.binancemargintype,
-          binanceUnrealizedPnl: num(p.binanceUnrealizedPnl ?? p.binanceunrealizedpnl),
+          binanceMarkPrice: binanceMarkPrice ?? num(p.binanceMarkPrice ?? p.binancemarkprice),
+          binanceLiquidationPrice: binanceLiquidationPrice ?? num(p.binanceLiquidationPrice ?? p.binanceliquidationprice),
+          binanceSizeUsdt: binanceSizeUsdt ?? num(p.binanceSizeUsdt ?? p.binancesizeusdt),
+          binanceMarginUsdt: binanceMarginUsdt ?? num(p.binanceMarginUsdt ?? p.binancemarginusdt),
+          binanceMarginRatio: binanceMarginRatio ?? num(p.binanceMarginRatio ?? p.binancemarginratio),
+          binanceMarginType: binanceMarginType ?? (p.binanceMarginType ?? p.binancemargintype),
+          binanceUnrealizedPnl: binanceUnrealizedPnl ?? num(p.binanceUnrealizedPnl ?? p.binanceunrealizedpnl),
 
           // 메타
           createdAt: p.createdAt ?? p.created_at,
@@ -3103,9 +3135,9 @@ export async function registerRoutes(
       });
 
       // 실거래 기록을 DB에 저장
-      // 해당 전략의 활성 포지션 찾기
-      const activePosition = tradeData.strategyId ? 
-        await storage.getActivePositionByStrategy(tradeData.strategyId, tradeData.symbol) : null;
+      // 해당 전략의 활성 포지션 찾기 (사용자별)
+      const activePosition = tradeData.strategyId ?
+        await storage.getActivePositionByStrategy(tradeData.strategyId, tradeData.symbol, parseInt(userId)) : null;
       
       const trade = await storage.createTrade({
         userId: parseInt(userId),
@@ -4058,8 +4090,30 @@ export async function registerRoutes(
         const symbol = market.replace('KRW-', '');
 
         if (strategyId) {
-          // 전략 주문: strategyId로 포지션 찾기
-          activePosition = await storage.getActivePositionByStrategy(strategyId, symbol);
+          // 전략 주문: strategyId로 포지션 찾기 (사용자별)
+          activePosition = await storage.getActivePositionByStrategy(strategyId, symbol, parseInt(userId));
+
+          // 포지션이 없으면 자동 생성 (자동매매용)
+          if (!activePosition) {
+            const strategy = await storage.getTradingStrategy(strategyId);
+            if (strategy) {
+              const tempPosition = await storage.pool.query(`
+                INSERT INTO positions (
+                  user_id, strategy_id, symbol, type, side, status,
+                  entry_price, quantity, binance_quantity, remaining_quantity,
+                  entry_premium_rate, current_premium_rate, unrealized_pnl,
+                  entry_time, binance_leverage
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14)
+                RETURNING *
+              `, [
+                userId, strategyId, symbol, 'BACK', 'short', 'pending',
+                '0', '0', '0', '0', '0', '0', '0',
+                strategy.leverage || 5
+              ]);
+              activePosition = tempPosition.rows[0];
+              console.log(`✅ [Upbit Buy] 자동매매용 포지션 자동 생성: ID=${activePosition.id}`);
+            }
+          }
         } else {
           // 강제진입: 사용자의 가장 최근 open 포지션 찾기
           const activePositions = await storage.getActivePositions(userId);
@@ -4157,7 +4211,10 @@ export async function registerRoutes(
         // 활성 포지션 업데이트
         if (activePosition && orderResult.uuid) {
           const updateData: any = {
-            upbitOrderId: orderResult.uuid
+            upbitOrderId: orderResult.uuid,
+            status: 'open', // pending → open으로 변경
+            entryPrice: perBtcPrice,
+            quantity: executedVolume
           };
 
           if (perBtcPrice > 0) { // ✅ FIX: avgPrice 대신 perBtcPrice 사용
@@ -4167,11 +4224,12 @@ export async function registerRoutes(
 
           if (executedVolume > 0) {
             updateData.upbitQuantity = executedVolume;
+            updateData.remainingQuantity = executedVolume;
             console.log(`📦 업비트 체결 수량: ${executedVolume} BTC`);
           }
 
           await storage.updatePosition(activePosition.id, updateData);
-          console.log(`✅ 포지션 ${activePosition.id} 업데이트 완료:`, updateData);
+          console.log(`✅ 포지션 ${activePosition.id} 상태 open으로 업데이트 완료:`, updateData);
         }
       } catch (dbError: any) {
         console.error(`❌ 업비트 거래 기록 저장 실패:`, dbError);
@@ -4253,9 +4311,9 @@ export async function registerRoutes(
         const symbolOnly = symbol.replace('USDT', '');
         let finalPositionId = positionId || null;
 
-        // positionId가 없고 strategyId가 있으면 포지션 찾기
+        // positionId가 없고 strategyId가 있으면 포지션 찾기 (사용자별)
         if (!finalPositionId && strategyId) {
-          const activePosition = await storage.getActivePositionByStrategy(strategyId, symbolOnly);
+          const activePosition = await storage.getActivePositionByStrategy(strategyId, symbolOnly, userId);
           finalPositionId = activePosition?.id || null;
         }
 
@@ -4746,6 +4804,28 @@ export async function registerRoutes(
       if (strategyId) {
         // 전략 주문: strategyId로 포지션 찾기
         activePosition = await positionsRepo.getOpenPositionByStrategyAndSymbol(strategyId, symbolOnly);
+
+        // 포지션이 없으면 자동 생성 (자동매매용)
+        if (!activePosition) {
+          const strategy = await storage.getTradingStrategy(strategyId);
+          if (strategy) {
+            const tempPosition = await storage.pool.query(`
+              INSERT INTO positions (
+                user_id, strategy_id, symbol, type, side, status,
+                entry_price, quantity, binance_quantity, remaining_quantity,
+                entry_premium_rate, current_premium_rate, unrealized_pnl,
+                entry_time, binance_leverage
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14)
+              RETURNING *
+            `, [
+              userId, strategyId, symbolOnly, 'BACK', 'short', 'pending',
+              '0', '0', '0', '0', '0', '0', '0',
+              strategy.leverage || 5
+            ]);
+            activePosition = tempPosition.rows[0];
+            console.log(`✅ [Binance Short] 자동매매용 포지션 자동 생성: ID=${activePosition.id}`);
+          }
+        }
       } else {
         // 강제진입: 사용자의 가장 최근 open 포지션 찾기
         const activePositions = await storage.getActivePositions(userId);
@@ -4798,6 +4878,16 @@ export async function registerRoutes(
           console.log(`✅ 바이낸스 거래 기록 DB 저장 성공 (positionId: ${activePosition?.id}, fee: ${commission})`);
         } else {
           console.log(`⚠️ 바이낸스 숏 수수료 0이므로 거래 기록 저장 안 함 (orderId: ${orderResult.orderId})`);
+        }
+
+        // 포지션 업데이트 (바이낸스 정보)
+        if (activePosition && avgPrice > 0 && executedQty > 0) {
+          await storage.updatePosition(activePosition.id, {
+            binanceOrderId: orderResult.orderId.toString(),
+            binanceEntryPrice: avgPrice,
+            binanceQuantity: executedQty
+          });
+          console.log(`✅ 포지션 ${activePosition.id} 바이낸스 정보 업데이트 완료`);
         }
       } catch (dbError: any) {
         console.error(`❌ 바이낸스 거래 기록 저장 실패:`, dbError);

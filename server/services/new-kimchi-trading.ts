@@ -395,6 +395,12 @@ export class MultiStrategyTradingService {
 
     // 진입 조건 체크 (해당 전략의 포지션이 없을 때만)
     if (!existingPosition) {
+      // 🔒 진입 신호 생성 전 Lock 체크 (중복 신호 방지)
+      if (this.entryLocks.get(strategy.id)) {
+        console.log(`🔒 [전략 ${strategy.id}] 이미 진입 진행 중, 신호 생성 스킵`);
+        return null;
+      }
+
       // 🔧 포지션이 없는데 거래 기록이 있으면 먼저 복구 시도
       const strategyUserId = (strategy as any).user_id || (strategy as any).userId;
       try {
@@ -413,10 +419,10 @@ export class MultiStrategyTradingService {
           console.log(`🔧 [포지션 복구] 전략 ${strategy.id}에 대한 ${orphanCount}개의 고아 거래 발견, 복구 시도...`);
           await this.recoverMissingPositions(strategyUserId);
 
-          // 복구 후 다시 포지션 확인
-          const recoveredPosition = await storage.getActivePositionByStrategy(strategy.id, 'BTC');
+          // 복구 후 다시 포지션 확인 (사용자별)
+          const recoveredPosition = await storage.getActivePositionByStrategy(strategy.id, 'BTC', strategyUserId);
           if (recoveredPosition) {
-            console.log(`✅ [포지션 복구] 포지션 ${recoveredPosition.id} 복구 완료, 진입 스킵`);
+            console.log(`✅ [포지션 복구] 포지션 ${recoveredPosition.id} 복구 완료, 사용자 ${strategyUserId} 진입 스킵`);
             return null;
           }
         }
@@ -438,6 +444,14 @@ export class MultiStrategyTradingService {
       );
 
       if (shouldEnterBtc) {
+        // 🔒 진입 신호 생성 시 즉시 Lock 설정 (다른 신호 생성 차단)
+        if (this.entryLocks.get(strategy.id)) {
+          console.log(`🔒 [전략 ${strategy.id}] 신호 생성 중 Lock 발견, 중복 신호 차단`);
+          return null;
+        }
+        this.entryLocks.set(strategy.id, true);
+        console.log(`🔐 [전략 ${strategy.id}] 진입 신호 생성 시 Lock 설정`);
+
         console.log(
           `🎯 BTC 진입 신호 발생! 현재=${premiumRate.toFixed(
             2
@@ -606,32 +620,30 @@ export class MultiStrategyTradingService {
       throw new Error(errorMsg);
     }
 
-    // 🔒 진입 Lock 체크: 이미 진행 중이면 스킵
-    if (this.entryLocks.get(strategy.id)) {
-      console.log(`🔒 [전략 ${strategy.id}] 이미 진입 진행 중, 스킵`);
-      throw new Error('이미 진입 진행 중');
+    // 🔒 진입 Lock 체크: 신호 생성 시 이미 설정되어 있어야 함
+    if (!this.entryLocks.get(strategy.id)) {
+      console.warn(`⚠️ [전략 ${strategy.id}] Lock이 없습니다! 신호 생성 단계에서 설정되어야 합니다.`);
+      // 방어적으로 Lock 설정
+      this.entryLocks.set(strategy.id, true);
     }
-
-    // Lock 설정
-    this.entryLocks.set(strategy.id, true);
-    console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 획득`);
+    console.log(`🔒 [전략 ${strategy.id}] 진입 실행 시작 (Lock 확인됨)`);
 
     // 🔒 임시 포지션 ID (거래 시작 전 DB에 예약)
     let reservedPositionId: number | null = null;
 
     try {
-      // 🔒 DB 레벨 중복 체크: Lock 후 실제 DB 상태 확인 (이중 안전장치)
-      const existingPosition = await storage.getActivePositionByStrategy(strategy.id, symbol);
+      // 🔒🔒 DB 레벨 중복 체크: 사용자별로 Lock 후 실제 DB 상태 확인 (이중 안전장치)
+      const existingPosition = await storage.getActivePositionByStrategy(strategy.id, symbol, parseInt(userId));
       if (existingPosition) {
-        console.error(`🚨 [전략 ${strategy.id}] DB에 이미 활성 포지션 존재! ID=${existingPosition.id}`);
+        console.error(`🚨 [전략 ${strategy.id}] DB에 이미 활성 포지션 존재! ID=${existingPosition.id}, 사용자=${userId}`);
         await storage.createSystemAlert({
           type: "error",
           title: "중복 포지션 차단",
-          message: `전략 ${strategy.name}에 이미 활성 포지션이 있어 새로운 진입을 차단했습니다.`,
+          message: `전략 ${strategy.name}에 이미 활성 포지션이 있어 새로운 진입을 차단했습니다. (사용자: ${userId})`,
         });
-        throw new Error(`전략 ${strategy.id}에 이미 활성 포지션 존재 (ID: ${existingPosition.id})`);
+        throw new Error(`전략 ${strategy.id}에 사용자 ${userId}의 활성 포지션이 이미 존재 (ID: ${existingPosition.id})`);
       }
-      console.log(`✅ [전략 ${strategy.id}] DB 중복 체크 통과 - 활성 포지션 없음`);
+      console.log(`✅ [전략 ${strategy.id}] DB 중복 체크 통과 - 사용자 ${userId}의 활성 포지션 없음`);
 
       // 🔒 즉시 임시 포지션 생성하여 다른 요청 차단 (Race Condition 방지)
       const tempPosition = await storage.pool.query(`
@@ -1129,17 +1141,81 @@ export class MultiStrategyTradingService {
         console.log(`✅ DB 기반 쿨다운: Position 생성으로 자동 쿨다운 시작 (${TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS/1000/60}분)`);
 
       } catch (positionError: any) {
-        console.error(`❌ 포지션 생성 실패 (거래는 완료됨):`, positionError);
+        console.error(`❌ 포지션 UPDATE 실패, trades 테이블에서 재생성 시도:`, positionError);
 
-        // 포지션 생성 실패 알림
-        await storage.createSystemAlert({
-          type: "error",
-          title: "포지션 생성 실패",
-          message: `${symbol} 거래는 완료되었으나 포지션 생성 실패. order_id: 업비트=${upbitResult?.uuid}, 바이낸스=${binanceResult?.orderId}. 에러: ${positionError.message}`,
-        });
+        // trades 테이블 데이터로 포지션 재생성 시도
+        try {
+          const binanceTrade = await storage.pool.query(
+            'SELECT * FROM trades WHERE exchange_order_id = $1 ORDER BY executed_at DESC LIMIT 1',
+            [String(binanceResult.orderId)]
+          );
+          const upbitTrade = await storage.pool.query(
+            'SELECT * FROM trades WHERE exchange_order_id = $1 ORDER BY executed_at DESC LIMIT 1',
+            [upbitResult.uuid]
+          );
 
-        // 포지션 생성 실패 시에도 함수는 정상 종료 (거래는 완료되었으므로)
-        console.warn(`⚠️ 포지션 생성은 실패했지만 거래는 완료되었으므로 계속 진행합니다.`);
+          if (binanceTrade.rows[0] && upbitTrade.rows[0]) {
+            const bt = binanceTrade.rows[0];
+            const ut = upbitTrade.rows[0];
+
+            // 임시 포지션을 trades 데이터로 강제 업데이트
+            await storage.pool.query(`
+              UPDATE positions SET
+                status = 'open',
+                entry_price = $1,
+                upbit_entry_price = $1,
+                binance_entry_price = $2,
+                quantity = $3,
+                binance_quantity = $4,
+                remaining_quantity = $4,
+                upbit_quantity = $3,
+                upbit_order_id = $5,
+                binance_order_id = $6,
+                entry_time = NOW(),
+                updated_at = NOW()
+              WHERE id = $7
+              RETURNING *
+            `, [
+              ut.price,
+              bt.price,
+              ut.quantity,
+              bt.quantity,
+              ut.exchange_order_id,
+              bt.exchange_order_id,
+              reservedPositionId
+            ]);
+
+            // position_id 업데이트
+            if (reservedPositionId) {
+              await storage.updateTradePositionId(binanceResult.orderId, reservedPositionId);
+              await storage.updateTradePositionId(upbitResult.uuid, reservedPositionId);
+            }
+
+            // 쿨다운 기록
+            this.userLastTradeTimes.set(userId, Date.now());
+
+            await storage.createSystemAlert({
+              type: "warning",
+              title: "포지션 복구 완료",
+              message: `${symbol} 포지션 생성 실패 후 trades 데이터로 복구 완료`,
+            });
+          } else {
+            throw new Error('trades 데이터를 찾을 수 없음');
+          }
+        } catch (recoveryError) {
+          console.error(`❌❌ 포지션 복구 실패:`, recoveryError);
+
+          // 쿨다운은 기록 (중복 진입 방지)
+          this.userLastTradeTimes.set(userId, Date.now());
+
+          await storage.createSystemAlert({
+            type: "error",
+            title: "🚨 포지션 복구 실패",
+            message: `${symbol} 거래 완료되었으나 포지션 생성/복구 실패. 수동 확인 필요. 업비트=${upbitResult?.uuid}, 바이낸스=${binanceResult?.orderId}`,
+          });
+
+          throw recoveryError;
+        }
       }
 
     } catch (error) {
@@ -1389,10 +1465,70 @@ export class MultiStrategyTradingService {
         }
       }
 
+      // 💰 실현 손익 계산 (업비트 손익 + 바이낸스 손익)
+      let realizedPnl = 0;
+      let totalFees = 0;
+      let upbitPnl = 0;
+      let binancePnl = 0;
+
+      // 업비트 손익 계산 (청산 성공 시에만)
+      if (upbitResult && !upbitError) {
+        const upbitSellQuantity = parseFloat(upbitResult.executed_volume || upbitResult.volume || "0");
+        const upbitSellPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
+        const upbitPaidFee = upbitResult.paid_fee ? parseFloat(upbitResult.paid_fee) : undefined;
+        const upbitFee = calculateUpbitFee(upbitSellQuantity, upbitSellPrice, upbitPaidFee);
+
+        // 업비트 진입 시 총 금액
+        const upbitEntryTotal = Number(position.upbit_entry_price || position.entry_price || 0);
+        // 업비트 청산 시 총 금액
+        const upbitExitTotal = upbitSellQuantity * upbitSellPrice;
+        // 업비트 손익 = 청산금액 - 진입금액 - 수수료 (KRW)
+        upbitPnl = upbitExitTotal - upbitEntryTotal - upbitFee;
+        totalFees += upbitFee;
+
+        console.log(`💰 업비트 손익: 청산 ₩${upbitExitTotal.toLocaleString()} - 진입 ₩${upbitEntryTotal.toLocaleString()} - 수수료 ₩${upbitFee.toFixed(0)} = ₩${upbitPnl.toFixed(0)}`);
+      }
+
+      // 바이낸스 손익 계산 (청산 성공 시에만)
+      if (binanceResult && !binanceError) {
+        const binanceCloseQuantity = parseFloat(binanceResult.executedQty || binanceResult.quantity || "0");
+        const binanceClosePrice = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
+        const binanceFee = calculateBinanceFee(binanceCloseQuantity, binanceClosePrice);
+
+        // 바이낸스 진입 가격 (USD 단가)
+        const binanceEntryPriceUsd = Number(position.binance_entry_price || position.entry_price || 0);
+        // 바이낸스 진입 시 총 금액 (USD)
+        const binanceEntryTotal = binanceEntryPriceUsd * binanceCloseQuantity;
+        // 바이낸스 청산 시 총 금액 (USD)
+        const binanceExitTotal = binanceClosePrice * binanceCloseQuantity;
+
+        // 선물 포지션 타입 확인 (long/short)
+        const positionType = String(position.type || '').toLowerCase();
+        const isShort = positionType.includes('short') || positionType.includes('sell');
+
+        // 바이낸스 손익 (USD): 롱은 (청산-진입), 숏은 (진입-청산)
+        const binancePnlUsd = isShort
+          ? (binanceEntryTotal - binanceExitTotal - binanceFee)
+          : (binanceExitTotal - binanceEntryTotal - binanceFee);
+
+        // 바이낸스 손익 (KRW 환산)
+        binancePnl = binancePnlUsd * exitUsdKrw;
+        totalFees += binanceFee * exitUsdKrw; // 수수료도 KRW로 환산
+
+        console.log(`💰 바이낸스 손익 (${isShort ? '숏' : '롱'}): (${isShort ? '진입-청산' : '청산-진입'}) $${binancePnlUsd.toFixed(2)} × ${exitUsdKrw.toFixed(0)} = ₩${binancePnl.toFixed(0)}`);
+      }
+
+      // 총 실현 손익 = 업비트 손익 + 바이낸스 손익 (KRW)
+      realizedPnl = upbitPnl + binancePnl;
+      console.log(`💰💰 총 실현 손익: 업비트 ₩${upbitPnl.toFixed(0)} + 바이낸스 ₩${binancePnl.toFixed(0)} = ₩${realizedPnl.toFixed(0)}`);
+      console.log(`💸 총 수수료: ₩${totalFees.toFixed(0)}`);
+
       await storage.updatePosition(position.id, {
         status: positionStatus,
         currentPremiumRate: signal.premiumRate,
         exitUsdKrw: exitUsdKrw, // 청산 시점 환율 저장
+        realized_pnl: positionStatus === 'closed' ? realizedPnl : undefined, // closed일 때만 실현손익 저장
+        total_fees: positionStatus === 'closed' ? totalFees : undefined, // closed일 때만 총 수수료 저장
         ...(positionStatus === 'closed' ? { exit_time: new Date() } : {}), // closed일 때만 exit_time 설정
       });
 
