@@ -82,18 +82,25 @@ export default function History() {
 
   // 포지션 내역 조회 (실제 손익 계산용)
   const { data: positions = [] } = useQuery<any[]>({
-    queryKey: [`/api/positions/history`],
+    queryKey: [`/api/positions`],
     queryFn: async () => {
-      const response = await fetch('/api/positions/history', {
+      const response = await fetch('/api/positions', {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         }
       });
       if (!response.ok) {
+        console.error('Positions API error:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         return [];
       }
-      return response.json();
+      const data = await response.json();
+      console.log('✅ Positions loaded:', data.length, 'positions');
+      console.log('First position:', data[0]);
+      // closed 상태만 필터링
+      return data.filter((pos: any) => pos.status === 'closed');
     },
     refetchInterval: 30000,
     enabled: !!user,
@@ -121,7 +128,15 @@ export default function History() {
       if (!exitTime) return false;
       const exitDate = new Date(exitTime);
       if (isNaN(exitDate.getTime())) return false;
-      return isSameDay(exitDate, selectedDate);
+      const isSame = isSameDay(exitDate, selectedDate);
+      if (positions.length > 0 && pos === positions[0]) {
+        console.log('📅 Date comparison for position', pos.id);
+        console.log('  Exit time:', exitTime);
+        console.log('  Exit date:', exitDate.toISOString());
+        console.log('  Selected date:', selectedDate.toISOString());
+        console.log('  Is same day?', isSame);
+      }
+      return isSame;
     } catch (e) {
       return false;
     }
