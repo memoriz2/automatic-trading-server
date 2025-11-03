@@ -1272,6 +1272,8 @@ export class MultiStrategyTradingService {
             let exitPremiumRate;
             let upbitExitPrice = 0;
             let binanceExitPriceUsd = 0;
+            console.log(`🔍 [DEBUG] upbitResult 존재:`, !!upbitResult, `upbitError 존재:`, !!upbitError);
+            console.log(`🔍 [DEBUG] binanceResult 존재:`, !!binanceResult, `binanceError 존재:`, !!binanceError);
             // 업비트 청산 평균가 계산 (업비트 청산 성공 시)
             if (upbitResult && !upbitError) {
                 if (upbitResult.trades && Array.isArray(upbitResult.trades) && upbitResult.trades.length > 0) {
@@ -1282,6 +1284,7 @@ export class MultiStrategyTradingService {
                 else {
                     upbitExitPrice = parseFloat(upbitResult.avg_price || upbitResult.price || "0");
                 }
+                console.log(`🔍 [DEBUG] upbitResult.avg_price:`, upbitResult.avg_price, `upbitResult.price:`, upbitResult.price);
                 console.log(`📊 업비트 청산가: ₩${upbitExitPrice.toLocaleString()}`);
             }
             // 바이낸스 청산 평균가 계산 (바이낸스 청산 성공 시)
@@ -1294,8 +1297,10 @@ export class MultiStrategyTradingService {
                 else {
                     binanceExitPriceUsd = parseFloat(binanceResult.avgPrice || binanceResult.price || "0");
                 }
+                console.log(`🔍 [DEBUG] binanceResult.avgPrice:`, binanceResult.avgPrice, `binanceResult.price:`, binanceResult.price);
                 console.log(`📊 바이낸스 청산가: $${binanceExitPriceUsd.toFixed(2)}`);
             }
+            console.log(`🔍 [DEBUG] 최종 계산값 - upbitExitPrice:`, upbitExitPrice, `binanceExitPriceUsd:`, binanceExitPriceUsd);
             // 둘 다 청산된 경우에만 평균 가격 및 프리미엄 계산
             if (upbitExitPrice > 0 && binanceExitPriceUsd > 0) {
                 // 바이낸스 청산가 KRW 환산
@@ -1308,6 +1313,10 @@ export class MultiStrategyTradingService {
                 console.log(`📊 평균 청산가: ₩${exitPrice.toLocaleString()}`);
                 console.log(`📊 청산 프리미엄: ${exitPremiumRate.toFixed(4)}%`);
             }
+            else {
+                console.log(`⚠️ [DEBUG] exit_price 계산 안됨 - 조건 실패 (upbitExitPrice > 0: ${upbitExitPrice > 0}, binanceExitPriceUsd > 0: ${binanceExitPriceUsd > 0})`);
+            }
+            console.log(`🔍 [DEBUG] 최종 저장값 - exitPrice:`, exitPrice, `exitPremiumRate:`, exitPremiumRate);
             await storage.updatePosition(position.id, {
                 status: positionStatus,
                 currentPremiumRate: signal.premiumRate,
