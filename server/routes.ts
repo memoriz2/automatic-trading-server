@@ -3006,6 +3006,36 @@ export async function registerRoutes(
   });
 
   // 포지션 조회 API
+  // 포지션 히스토리 조회 (닫힌 포지션만)
+  app.get("/api/positions/history", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const limit = parseInt(req.query.limit as string) || 100;
+
+      const positions = await storage.getPositions({
+        userId,
+        status: 'closed'
+      });
+
+      // 최신순 정렬 및 limit 적용
+      const sortedPositions = positions
+        .sort((a, b) => {
+          const aTime = a.exit_time ? new Date(a.exit_time).getTime() : 0;
+          const bTime = b.exit_time ? new Date(b.exit_time).getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, limit);
+
+      res.json(sortedPositions);
+    } catch (error) {
+      logError("포지션 히스토리 조회 오류", {
+        userId: req.user?.id,
+        error: error instanceof Error ? error.message : error
+      });
+      res.status(500).json({ error: "Failed to fetch position history" });
+    }
+  });
+
   app.get("/api/positions", authenticateSession, async (req: any, res) => {
     try {
       const userId = req.user.id;
