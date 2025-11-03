@@ -180,6 +180,7 @@ export interface KimchiData {
   kimp: number;
   upbit_price: number;
   binance_price: number;
+  binanceFuturesMarkPrice?: number; // 바이낸스 선물 Mark Price
   usdkrw: number;
   symbol?: string;
   timestamp?: string | Date;

@@ -325,6 +325,35 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   // 전략별 통계 집계
   const strategyStatsRef = useRef<Record<string, { executionCount: number; realizedPnlKRW: number; investedKRW: number; profitRate: number; }>>({});
 
+  // 바이낸스 선물 Mark Price 실시간 업데이트 (2초마다)
+  useEffect(() => {
+    const fetchBinanceFuturesMarkPrice = async () => {
+      try {
+        const response = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT');
+        const data = await response.json();
+        const markPrice = parseFloat(data.markPrice);
+
+        setLastKimchiData((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            binanceFuturesMarkPrice: markPrice
+          };
+        });
+      } catch (error) {
+        console.error('바이낸스 선물 Mark Price 조회 실패:', error);
+      }
+    };
+
+    // 즉시 한 번 실행
+    fetchBinanceFuturesMarkPrice();
+
+    // 2초마다 업데이트
+    const interval = setInterval(fetchBinanceFuturesMarkPrice, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // 서버 상태 동기화 제거: 클라이언트 상태가 단일 소스 (깜빡임 방지)
   // 필요 시 단발성 복원 로직만 남기고 주기 동기화는 비활성화
 
@@ -869,7 +898,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
   }, [currentKimchiData, toast, setBalanceLoading, refreshRealTimeBalances, dispatch]);
 
   // 청산 (원자적 처리)
-  const liveExit = useCallback(async (position: LivePosition, _premiumRate: number, ratio: number = 1.0) => {
+  const liveExit = useCallback(async (position: LivePosition, _premiumRate: number, ratio: number = 1.0, pnlData?: { upbitPnl: number; binancePnl: number; binancePnlUsd: number }) => {
     // 청산은 긴급 작업이므로 기존 잠금 무시하고 강제 실행
     // 즉시 새로운 잠금 설정 (원자적 작업)
     tradingLockRef.current[Number(position.strategyId)] = true;
@@ -1035,10 +1064,10 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               const remainingUpbit = actualUpbitBalance * (1 - ratio);
               const remainingBinance = actualBinanceBalance * (1 - ratio);
 
-              // 부분 청산 손익 계산
-              const pnlResult = calculatePositionPnL(position, currentKimchiData);
-              const partialPnl = pnlResult.netPnl * ratio;
+              // 부분 청산 손익 계산 (프론트에서 전달받은 손익 데이터 사용)
+              const partialPnl = pnlData ? (pnlData.upbitPnl + pnlData.binancePnl) * ratio : 0;
 
+              console.log(`💰 부분 청산(${Math.round(ratio * 100)}%) 손익: ${partialPnl.toFixed(0)}원`);
 
               dispatch(setLivePositions(
                 livePositions.map(p =>
@@ -1083,10 +1112,16 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               // 전체 청산: 상태 변경 및 정확한 손익 계산
               const exitTime = new Date();
 
-              // PnL 계산기를 사용하여 정확한 손익 계산
-              const pnlResult = calculatePositionPnL(position, currentKimchiData);
-              const realizedPnl = pnlResult.netPnl;
+              // 프론트에서 전달받은 손익 데이터 사용 (화면 표시 값과 동일)
+              const realizedPnl = pnlData ? (pnlData.upbitPnl + pnlData.binancePnl) : 0;
 
+              // 수수료 계산 (간단 버전)
+              const upbitFee = pnlData ? Math.abs(pnlData.upbitPnl) * 0.0005 : 0; // 업비트 0.05%
+              const binanceFee = pnlData ? Math.abs(pnlData.binancePnlUsd) * 0.0004 * (lastKimchiData?.usdkrw || 1400) : 0; // 바이낸스 0.04%
+              const totalFees = upbitFee + binanceFee;
+
+              console.log(`💰 청산 손익: 업비트 ${pnlData?.upbitPnl.toFixed(0)}원 + 바이낸스 ${pnlData?.binancePnl.toFixed(0)}원 = ${realizedPnl.toFixed(0)}원`);
+              console.log(`💸 총 수수료: ${totalFees.toFixed(0)}원`);
 
               dispatch(setLivePositions(
                 livePositions.map(p =>
@@ -1105,7 +1140,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
               // 실제 거래소 청산은 executeLiquidation()에서 처리
               // 거래 기록은 서버에서 실제 주문 결과를 받아서 저장해야 함
 
-              // DB에 청산 정보 저장
+              // DB에 청산 정보 저장 (손익 및 수수료 포함)
               try {
                 await fetch(`/api/positions/${position.id}`, {
                   method: 'PUT',
@@ -1114,7 +1149,8 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
                   body: JSON.stringify({
                     status: 'closed',
                     exitTime: exitTime.toISOString(),
-                    realizedPnl: realizedPnl
+                    realizedPnl: realizedPnl,
+                    totalFees: totalFees
                   })
                 });
               } catch (dbError) {
@@ -1369,16 +1405,17 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       
       setLastKimchiData((prev: any) => {
         // 이전 값과 비교하여 실제 변화가 있을 때만 업데이트
-        if (!prev || 
+        if (!prev ||
             prev.kimp !== currentKimchiData.kimp ||
             prev.upbit_price !== currentKimchiData.upbit_price ||
-            prev.binance_price !== currentKimchiData.binance_price) {
+            prev.binance_price !== currentKimchiData.binance_price ||
+            prev.binanceFuturesMarkPrice !== currentKimchiData.binanceFuturesMarkPrice) {
           return currentKimchiData;
         }
         return prev; // 변화 없으면 이전 값 유지
       });
     }
-  }, [currentKimchiData?.kimp, currentKimchiData?.upbit_price, currentKimchiData?.binance_price, isLiveMode, isValidPriceData]);
+  }, [currentKimchiData?.kimp, currentKimchiData?.upbit_price, currentKimchiData?.binance_price, currentKimchiData?.binanceFuturesMarkPrice, isLiveMode, isValidPriceData]);
 
   // 김프 데이터 변경 시 즉시 매매 체크
   useEffect(() => {

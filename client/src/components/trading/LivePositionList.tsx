@@ -52,11 +52,17 @@ interface KimchiData {
   dataAge?: number;
 }
 
+export interface PnLData {
+  upbitPnl: number; // 업비트 손익 (KRW)
+  binancePnl: number; // 바이낸스 손익 (KRW)
+  binancePnlUsd: number; // 바이낸스 손익 (USD)
+}
+
 interface LivePositionListProps {
   livePositions: LivePosition[];
   strategies: Strategy[];
   lastKimchiData: KimchiData | null;
-  onLiveExit: (position: LivePosition, premiumRate: number, ratio?: number) => void;
+  onLiveExit: (position: LivePosition, premiumRate: number, ratio?: number, pnlData?: PnLData) => void;
 }
 
 export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
@@ -130,7 +136,71 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
       {/* 활성 포지션 목록 */}
       {activePositions.map(position => {
         const pnlData = calculatePnL(position);
-        
+
+        // 손익 상세 계산 (화면 표시 + 청산 시 전달용)
+        const usdkrw = lastKimchiData?.usdkrw || 1400;
+        const currentUpbitPrice = lastKimchiData?.upbit_price || 0;
+        const currentBinancePrice = lastKimchiData?.binance_price || 0;
+        const upbitQuantity = position.upbitQuantity || 0;
+        const binanceQuantity = position.binanceQuantity || 0;
+
+        // 업비트 손익
+        const upEntryUnit = position.upbitEntryPrice || position.upbitPrice || 0;
+        const upbitPnl = (currentUpbitPrice - upEntryUnit) * upbitQuantity;
+
+        // 바이낸스 손익 계산
+        // 바이낸스 선물 Unrealized PNL 계산 공식 (마크 가격 기준, 수수료/펀딩 미포함):
+        // 롱: (markPrice - entryPrice) × |positionQty|
+        // 숏: (entryPrice - markPrice) × |positionQty|
+        // * 레버리지는 손익 계산에 직접 들어가지 않음 (마진/ROE만 영향)
+        // * positionQty는 BTC 수량 (BTCUSDT 기준)
+        // * 결과는 USDT 단위, 원화 환산은 PNL(USDT) × USD/KRW
+
+        const binanceEntryUnitPrice = position.binanceEntryPrice || 0;
+        // 선물 Mark Price 우선 (실시간 2초 갱신), 없으면 DB의 Mark Price, 최후에 현물 가격
+        const binanceCurrentPrice = (lastKimchiData as any)?.binanceFuturesMarkPrice || position.binanceMarkPrice || currentBinancePrice;
+        const binanceEntryTotal = binanceEntryUnitPrice * Math.abs(binanceQuantity);  // entryPrice × |qty|
+        const binanceCurrentTotal = binanceCurrentPrice * Math.abs(binanceQuantity);  // markPrice × |qty|
+
+        let binancePnlUsd = 0;
+
+        // 1순위: 바이낸스 API가 제공하는 Unrealized PnL 사용 (가장 정확)
+        if (typeof position.binanceUnrealizedPnl === 'number') {
+          binancePnlUsd = position.binanceUnrealizedPnl;
+        } else if (binanceQuantity !== 0) {
+          // 2순위: 수동 계산 (실시간 Futures Mark Price 기준)
+          const sideLower = String(position.side || position.type || '').toLowerCase();
+          const isShort = sideLower.includes('short') || sideLower.includes('sell');
+
+          // 숏: (entryPrice - markPrice) × |qty| = (진입총액 - 마크총액)
+          // 롱: (markPrice - entryPrice) × |qty| = (마크총액 - 진입총액)
+          binancePnlUsd = isShort
+            ? (binanceEntryTotal - binanceCurrentTotal)
+            : (binanceCurrentTotal - binanceEntryTotal);
+
+          console.log(`[PnL Debug] 포지션 ${position.id}:`, {
+            진입가: binanceEntryUnitPrice,
+            현재Mark가: binanceCurrentPrice,
+            수량: binanceQuantity,
+            진입총액: binanceEntryTotal,
+            현재총액: binanceCurrentTotal,
+            '계산PnL(USD)': binancePnlUsd,
+            포지션: isShort ? 'SHORT' : 'LONG',
+            futuresMarkPrice: (lastKimchiData as any)?.binanceFuturesMarkPrice,
+            dbMarkPrice: position.binanceMarkPrice,
+            spotPrice: currentBinancePrice
+          });
+        }
+
+        const binancePnl = binancePnlUsd * usdkrw;
+
+        // 청산 시 전달할 손익 데이터
+        const pnlForExit: PnLData = {
+          upbitPnl,
+          binancePnl,
+          binancePnlUsd
+        };
+
         return (
           <div key={position.id} className="bg-slate-800 p-3 rounded-lg mb-2">
             <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
@@ -177,36 +247,12 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
               <div className="flex flex-col md:flex-row md:items-center gap-2 ml-auto">
                 <div className="text-right">
                   {(() => {
-                    // 우측 상단 라인에 업비트/바이낸스 총 투자금액 기준 손익 표시
-                    // (현재 총 가치 - 진입 총 가치)
-                    const usdkrw = lastKimchiData?.usdkrw || 1400;
-                    const currentUpbitPrice = lastKimchiData?.upbit_price || 0;
-                    const currentBinancePrice = lastKimchiData?.binance_price || 0;
-
-                    const upbitQuantity = position.upbitQuantity || 0;
-                    const binanceQuantity = position.binanceQuantity || 0;
-
-                    // 업비트: DB에 저장된 진입가 사용 (계산하지 않음)
-                    const upEntryUnit = position.upbitEntryPrice || position.upbitPrice || 0;
-                    const upValueDiff = (currentUpbitPrice - upEntryUnit) * upbitQuantity;
-
-                    const sideLower = String(position.side || position.type || '').toLowerCase();
-                    const isShort = sideLower.includes('short') || sideLower.includes('sell');
-
-                    // 바이낸스: binanceEntryPrice는 단가 (1 BTC 가격)
-                    const binanceEntryUnitPrice = position.binanceEntryPrice || 0; // USD 단가
-                    const binanceEntryTotal = binanceEntryUnitPrice * Math.abs(binanceQuantity); // USD 총액
-                    const binanceCurrentTotal = currentBinancePrice * Math.abs(binanceQuantity); // 현재 USD 총액
-                    const binDiff = isShort ? (binanceEntryTotal - binanceCurrentTotal) : (binanceCurrentTotal - binanceEntryTotal); // 손익 (USD)
-                    const binanceValueDiff = binDiff * usdkrw; // 손익 (KRW)
-
-                    // 총 투자금액 기준 손익 표시
+                    // 총 투자금액 기준 손익 표시 (위에서 이미 계산한 값 재사용)
                     const fmtKRW = (v: number) => `₩${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}`;
-                    const upbitStr = fmtKRW(upValueDiff);
-                    const binancePnlUsd = binDiff; // USD 손익
-                    const binanceStrWithUsd = `${fmtKRW(binanceValueDiff)}($${binancePnlUsd >= 0 ? '+' : ''}${binancePnlUsd.toFixed(2)})`;
-                    const comparison = Math.abs(upValueDiff) > Math.abs(binanceValueDiff) ? '>' : '<';
-                    const isProfit = (upValueDiff + binanceValueDiff) >= 0;
+                    const upbitStr = fmtKRW(upbitPnl);
+                    const binanceStrWithUsd = `${fmtKRW(binancePnl)}($${binancePnlUsd >= 0 ? '+' : ''}${binancePnlUsd.toFixed(2)})`;
+                    const comparison = Math.abs(upbitPnl) > Math.abs(binancePnl) ? '>' : '<';
+                    const isProfit = (upbitPnl + binancePnl) >= 0;
 
                     const fmtInt = (n: number) => Math.round(n).toLocaleString();
                     const debugInfo = `U진입:₩${fmtInt(upEntryUnit)} 현재:₩${fmtInt(currentUpbitPrice)} | B진입:$${fmtInt(binanceEntryTotal)} 현재:$${fmtInt(binanceCurrentTotal)}`;
@@ -246,7 +292,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     size="sm"
                     variant="outline"
                     className="text-xs px-2 py-1 h-6 touch-manipulation active:scale-95 active:bg-slate-600 transition-transform duration-100"
-                    onClick={() => handleButtonClick(() => onLiveExit(position, pnlData.currentPremium, 0.5))}
+                    onClick={() => handleButtonClick(() => onLiveExit(position, pnlData.currentPremium, 0.5, pnlForExit))}
                   >
                     50% 청산
                   </Button>
@@ -254,7 +300,7 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     size="sm"
                     variant="destructive"
                     className="text-xs px-2 py-1 h-6 touch-manipulation active:scale-95 active:brightness-125 transition-transform duration-100"
-                    onClick={() => handleButtonClick(() => onLiveExit(position, pnlData.currentPremium, 1.0))}
+                    onClick={() => handleButtonClick(() => onLiveExit(position, pnlData.currentPremium, 1.0, pnlForExit))}
                   >
                     전체 청산
                   </Button>

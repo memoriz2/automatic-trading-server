@@ -65,10 +65,12 @@ export const useLiveTrading = ({
           if (response.ok) {
             const dbPositions = await response.json();
 
-            // 🔍 첫 번째 포지션의 바이낸스 데이터 확인
+            // 🔍 첫 번째 포지션의 데이터 확인
             if (dbPositions.length > 0) {
               console.log('🔍 [프론트엔드] API에서 받은 첫 번째 포지션:', {
                 id: dbPositions[0].id,
+                entryPremiumRate: dbPositions[0].entryPremiumRate,
+                entry_premium_rate: dbPositions[0].entry_premium_rate,
                 binanceMarkPrice: dbPositions[0].binanceMarkPrice,
                 binanceLiquidationPrice: dbPositions[0].binanceLiquidationPrice,
                 binanceSizeUsdt: dbPositions[0].binanceSizeUsdt,
@@ -80,34 +82,37 @@ export const useLiveTrading = ({
 
             const convertedPositions: LivePosition[] = dbPositions.map((pos: any) => {
               // 포지션 이름 생성
-              let displayName = pos.strategy_name;
+              let displayName = pos.strategyName || pos.strategy_name;
               if (!displayName) {
                 if (pos.type === 'force_entry') {
                   displayName = `강제진입${pos.id}`;
                 } else {
-                  displayName = `전략 #${pos.strategy_id}`;
+                  displayName = `전략 #${pos.strategyId || pos.strategy_id}`;
                 }
               }
 
               return {
                 id: `db-${pos.id}`,
-                strategyId: pos.strategy_id,
+                strategyId: pos.strategyId || pos.strategy_id,
                 strategyName: displayName,
                 symbol: pos.symbol,
-              entryTime: new Date(pos.entry_time),
-              entryPremiumRate: pos.entry_premium_rate || 0,
-              upbitQuantity: pos.quantity || 0,
-              upbitPrice: pos.entry_price || 0,
-              entryUsdKrw: 1394,
+                type: pos.type,
+              entryTime: new Date(pos.entryTime || pos.entry_time),
+              entryPremiumRate: pos.entryPremiumRate || pos.entry_premium_rate || 0,
+              upbitQuantity: pos.upbitQuantity || pos.quantity || 0,
+              upbitPrice: pos.upbitEntryPrice || pos.entry_price || 0,
+              entryUsdKrw: pos.entryUsdKrw || 1394,
               binanceSpotQuantity: 0,
-              binanceQuantity: pos.quantity || 0,
-              binancePrice: pos.binance_entry_price || pos.binance_price_usd || pos.entry_price || 0,
+              binanceQuantity: pos.binanceQuantity || pos.quantity || 0,
+              binancePrice: pos.binanceEntryPrice || pos.binance_entry_price || pos.binance_price_usd || pos.entry_price || 0,
               binanceSpotPrice: 0,
               status: pos.status === 'closed' ? 'closed' : 'open',
-              exitTime: pos.exit_time ? new Date(pos.exit_time) : undefined,
-              exitPremiumRate: pos.exit_premium_rate || 0,
-              realizedPnL: pos.realized_pnl || 0,
-              takeProfitTargets: pos.take_profit_offset, // 강제진입 익절 오프셋
+              exitTime: pos.exitTime || pos.exit_time ? new Date(pos.exitTime || pos.exit_time) : undefined,
+              exitPremiumRate: pos.exitPremiumRate || pos.exit_premium_rate || 0,
+              realizedPnL: pos.realizedPnl || pos.realized_pnl || 0,
+              takeProfitTargets: pos.takeProfitOffset || pos.take_profit_offset, // 강제진입 익절 오프셋
+              // 레버리지
+              leverage: pos.leverage || 1,
               // 바이낸스 선물 상세 정보 (API는 camelCase로 반환)
               binanceEntryPrice: pos.binanceEntryPrice,
               binanceMarkPrice: pos.binanceMarkPrice,
@@ -116,7 +121,10 @@ export const useLiveTrading = ({
               binanceMarginUsdt: pos.binanceMarginUsdt,
               binanceMarginRatio: pos.binanceMarginRatio,
               binanceMarginType: pos.binanceMarginType,
-              binanceUnrealizedPnl: pos.binanceUnrealizedPnl
+              binanceUnrealizedPnl: pos.binanceUnrealizedPnl,
+              // 미실현 손익
+              unrealizedPnl: pos.unrealizedPnl || 0,
+              realizedPnl: pos.realizedPnl || pos.realized_pnl || 0
               };
             });
 

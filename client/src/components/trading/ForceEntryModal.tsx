@@ -149,13 +149,11 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
       console.warn('강제진입 설정 저장 실패:', error);
     }
 
-    // 강제진입 실행
+    // 강제진입 실행 (성공/실패 toast는 부모 컴포넌트에서 처리)
     onForceEntry(settings);
 
-    toast({
-      title: '강제진입 실행',
-      description: `김프 ${currentKimp.toFixed(3)}%에서 ${investmentAmount} BTC 진입`,
-    });
+    // 모달 즉시 닫기
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -298,13 +296,6 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               >
                 닫기
               </Button>
-            </div>
-            
-            {/* 연속 진입 안내 */}
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground">
-                💡 모달을 열어둔 채로 <strong>강제진입 실행</strong> 버튼을 여러 번 눌러서 연속 진입이 가능합니다
-              </p>
             </div>
           </div>
         </CardContent>
