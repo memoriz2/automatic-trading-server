@@ -1031,6 +1031,8 @@ export class MultiStrategyTradingService {
           upbitOrderId: upbitResult.uuid,
           binanceOrderId: String(binanceResult.orderId),
           entryUsdKrw: usdtKrwRateForFee,
+          entryPremiumRate: signal.premiumRate, // ✅ 진입 김프율 유지 (임시 포지션에서 저장된 값)
+          currentPremiumRate: signal.premiumRate, // ✅ 현재 김프율 초기값
           ...binanceDetails
         });
 
