@@ -10,6 +10,7 @@ export interface SimpleKimchiData {
   symbol: string;
   upbitPrice: number;     // 업비트 KRW 가격
   binanceFuturesPrice: number;  // 바이낸스 현물 USD 가격
+  binanceFuturesMarkPrice?: number; // 바이낸스 선물 Mark Price (USD)
   usdKrwRate: number;     // 구글 파이낸스 USD→KRW 환율
   usdKrwSource?: string; // 환율 출처 (e.g., 'GOOGLE', 'NAVER', 'EMA')
   binancePriceKRW: number; // 바이낸스 가격을 KRW로 변환한 값 (바이낸스USD × 환율)
@@ -100,6 +101,14 @@ export class SimpleKimchiService {
           binanceSpotPrice = await this.getBinanceSpotPrice(symbol, userId);
         }
 
+        // 바이낸스 선물 Mark Price 조회 (API 호출)
+        let binanceFuturesMarkPrice: number | undefined;
+        try {
+          binanceFuturesMarkPrice = await this.getBinanceFuturesMarkPrice(symbol);
+        } catch (error) {
+          console.warn(`⚠️ ${symbol} 바이낸스 선물 Mark Price 조회 실패, 현물 가격 사용`);
+        }
+
         // 김프율 계산: kimpga 방식 - (업비트KRW - 바이낸스현물USD×환율) ÷ (바이낸스현물USD×환율) × 100
         const binancePriceKRW = binanceSpotPrice * usdKrwRate; // 바이낸스 현물 USD를 KRW로 변환
         const premiumRate = ((upbitPrice - binancePriceKRW) / binancePriceKRW) * 100;
@@ -116,6 +125,7 @@ export class SimpleKimchiService {
           symbol,
           upbitPrice,
           binanceFuturesPrice: binanceSpotPrice, // 현물 가격을 binanceFuturesPrice 필드에 저장 (호환성)
+          binanceFuturesMarkPrice, // 선물 Mark Price 추가
           usdKrwRate,
           binancePriceKRW: binancePriceKRW, // 바이낸스 가격을 KRW로 변환한 값
           premiumRate,
@@ -303,6 +313,23 @@ export class SimpleKimchiService {
     } catch (error) {
       console.error(`${symbol} 바이낸스 현물 가격 조회 실패:`, error);
       return 0;
+    }
+  }
+
+  /**
+   * 바이낸스 선물 Mark Price 조회 (공개 API)
+   */
+  private async getBinanceFuturesMarkPrice(symbol: string): Promise<number> {
+    try {
+      const response = await fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}USDT`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      return parseFloat(data.markPrice);
+    } catch (error) {
+      console.error(`${symbol} 바이낸스 선물 Mark Price 조회 실패:`, error);
+      throw error;
     }
   }
 

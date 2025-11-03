@@ -182,16 +182,27 @@ export class PositionsRepository extends BaseRepository {
      * 포지션 청산
      */
     async close(id, exitPrice, exitPremiumRate, realizedPnl, totalFees) {
-        const updates = {
-            status: 'closed',
-            exit_price: exitPrice,
-            exit_premium_rate: exitPremiumRate,
-            realized_pnl: realizedPnl,
-            total_fees: totalFees,
-            exit_time: new Date()
-        };
-        const updatedRows = await this.safeUpdate('positions', updates, { id });
-        return updatedRows > 0;
+        // SQL에서 직접 한국 시간으로 exit_time 설정
+        const query = `
+      UPDATE positions
+      SET status = $1,
+          exit_price = $2,
+          exit_premium_rate = $3,
+          realized_pnl = $4,
+          total_fees = $5,
+          exit_time = NOW() AT TIME ZONE 'Asia/Seoul',
+          updated_at = NOW()
+      WHERE id = $6
+    `;
+        const result = await this.pool.query(query, [
+            'closed',
+            exitPrice,
+            exitPremiumRate,
+            realizedPnl,
+            totalFees,
+            id
+        ]);
+        return (result.rowCount || 0) > 0;
     }
     /**
      * 사용자의 포지션 요약 정보 조회
@@ -287,7 +298,8 @@ export class PositionsRepository extends BaseRepository {
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM positions
-      WHERE strategy_id = $1 AND symbol = $2 AND status = 'open'       LIMIT 1
+      WHERE strategy_id = $1 AND symbol = $2 AND status IN ('open', 'pending')
+      LIMIT 1
     `;
         return this.queryOne(query, [strategyId, symbol]);
     }
@@ -521,16 +533,28 @@ export class PositionsRepository extends BaseRepository {
      * 포지션 완전 청산 (remaining_quantity도 0으로 설정)
      */
     async closeWithRemaining(id, exitPrice, exitPremiumRate, realizedPnl, totalFees) {
-        const updates = {
-            status: 'closed',
-            exit_price: exitPrice,
-            exit_premium_rate: exitPremiumRate,
-            realized_pnl: realizedPnl,
-            total_fees: totalFees,
-            remaining_quantity: 0, // 완전 청산 시 0으로 설정
-            exit_time: new Date()
-        };
-        const updatedRows = await this.safeUpdate('positions', updates, { id });
-        return updatedRows > 0;
+        // SQL에서 직접 한국 시간으로 exit_time 설정
+        const query = `
+      UPDATE positions
+      SET status = $1,
+          exit_price = $2,
+          exit_premium_rate = $3,
+          realized_pnl = $4,
+          total_fees = $5,
+          remaining_quantity = $6,
+          exit_time = NOW() AT TIME ZONE 'Asia/Seoul',
+          updated_at = NOW()
+      WHERE id = $7
+    `;
+        const result = await this.pool.query(query, [
+            'closed',
+            exitPrice,
+            exitPremiumRate,
+            realizedPnl,
+            totalFees,
+            0, // 완전 청산 시 0으로 설정
+            id
+        ]);
+        return (result.rowCount || 0) > 0;
     }
 }

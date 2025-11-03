@@ -1410,7 +1410,11 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             prev.upbit_price !== currentKimchiData.upbit_price ||
             prev.binance_price !== currentKimchiData.binance_price ||
             prev.binanceFuturesMarkPrice !== currentKimchiData.binanceFuturesMarkPrice) {
-          return currentKimchiData;
+          // 웹소켓 데이터와 병합하되, 이전에 있던 binanceFuturesMarkPrice 보존
+          return {
+            ...currentKimchiData,
+            binanceFuturesMarkPrice: currentKimchiData.binanceFuturesMarkPrice || prev?.binanceFuturesMarkPrice
+          };
         }
         return prev; // 변화 없으면 이전 값 유지
       });

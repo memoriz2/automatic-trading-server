@@ -526,7 +526,6 @@ export class DatabaseStorage {
       if (userId !== undefined) {
         query += ' AND user_id = $5';
         params.push(userId);
-        console.log(`🔍 [getActivePositionByStrategy] 사용자별 체크 (open/pending) - 사용자 ${userId}, 전략 ${strategyId}, 심볼 ${symbol}`);
       } else {
         console.warn(`⚠️ [getActivePositionByStrategy] userId 없이 호출됨 - 다중 진입 위험!`);
       }
@@ -534,12 +533,6 @@ export class DatabaseStorage {
       query += ' ORDER BY entry_time DESC LIMIT 1';
 
       const result = await this.pool.query(query, params);
-
-      if (result.rows[0]) {
-        console.log(`✅ [getActivePositionByStrategy] 활성/대기 포지션 발견: ID=${result.rows[0].id}, status=${result.rows[0].status}`);
-      } else {
-        console.log(`✅ [getActivePositionByStrategy] 활성/대기 포지션 없음`);
-      }
 
       return result.rows[0] || undefined;
     } catch (error) {

@@ -1346,7 +1346,6 @@ export class MultiStrategyTradingService {
                 if (!currentData)
                     continue;
                 // 실제 포지션이 진입된 경우에만 수익률 계산
-                const entryPremium = Number(position.entryPremiumRate || 0);
                 const currentPremium = currentData.premiumRate;
                 // 차익거래 수익 계산: 업비트 손익 + 바이낸스 손익
                 const quantity = Number(position.quantity || 0);
@@ -1369,10 +1368,6 @@ export class MultiStrategyTradingService {
                 }
                 // 총 손익 (수수료 제외)
                 const estimatedPnl = upbitPnl + binancePnl;
-                console.log(`📊 포지션 ${position.id} 수익 계산 (${position.side}):
-  업비트: 진입₩${upbitEntryPrice.toLocaleString()} → 현재₩${upbitCurrentPrice.toLocaleString()} = ${upbitPnl > 0 ? '+' : ''}₩${upbitPnl.toFixed(0)}
-  바이낸스(${position.side}): 진입$${binanceEntryPrice.toFixed(2)} → 현재$${binanceCurrentPrice.toFixed(2)} = ${binancePnl > 0 ? '+' : ''}₩${binancePnl.toFixed(0)}
-  총 예상수익: ${estimatedPnl > 0 ? '+' : ''}₩${estimatedPnl.toFixed(0)} (김프: ${entryPremium.toFixed(2)}% → ${currentPremium.toFixed(2)}%)`);
                 // 바이낸스 선물 포지션 상세 정보 조회
                 const binanceExtras = {};
                 try {

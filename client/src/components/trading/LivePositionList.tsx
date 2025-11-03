@@ -255,7 +255,8 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
                     const isProfit = (upbitPnl + binancePnl) >= 0;
 
                     const fmtInt = (n: number) => Math.round(n).toLocaleString();
-                    const debugInfo = `U진입:₩${fmtInt(upEntryUnit)} 현재:₩${fmtInt(currentUpbitPrice)} | B진입:$${fmtInt(binanceEntryTotal)} 현재:$${fmtInt(binanceCurrentTotal)}`;
+                    const fmtPrice = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const debugInfo = `U진입:₩${fmtInt(upEntryUnit)} 현재:₩${fmtInt(currentUpbitPrice)} | B진입:$${fmtPrice(binanceEntryUnitPrice)} Mark:$${fmtPrice(binanceCurrentPrice)}`;
 
                     return (
                       <>
