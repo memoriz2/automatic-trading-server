@@ -94,14 +94,9 @@ export default function History() {
         }
       });
       if (!response.ok) {
-        console.error('Positions API error:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
         return [];
       }
       const data = await response.json();
-      console.log('✅ Positions loaded:', data.length, 'positions');
-      console.log('First position:', data[0]);
       // closed 상태만 필터링
       return data.filter((pos: any) => pos.status === 'closed');
     },
@@ -131,15 +126,7 @@ export default function History() {
       if (!exitTime) return false;
       const exitDate = new Date(exitTime);
       if (isNaN(exitDate.getTime())) return false;
-      const isSame = isSameDay(exitDate, selectedDate);
-      if (positions.length > 0 && pos === positions[0]) {
-        console.log('📅 Date comparison for position', pos.id);
-        console.log('  Exit time:', exitTime);
-        console.log('  Exit date:', exitDate.toISOString());
-        console.log('  Selected date:', selectedDate.toISOString());
-        console.log('  Is same day?', isSame);
-      }
-      return isSame;
+      return isSameDay(exitDate, selectedDate);
     } catch (e) {
       return false;
     }
