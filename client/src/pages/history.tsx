@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import Calendar from 'react-calendar';
 import { format, startOfDay, isSameDay } from "date-fns";
 import { Calendar as CalendarIcon, FileText, TrendingUp, DollarSign, Clock } from "lucide-react";
-import type { Trade } from "@/types/trading";
 import { useAuth } from "@/hooks/useAuth";
 import 'react-calendar/dist/Calendar.css';
 
@@ -54,12 +53,11 @@ export default function History() {
   const { user } = useAuth();
 
   // 거래 내역 조회
-  const { data: trades = [], isLoading: tradesLoading } = useQuery<Trade[]>({
+  const { data: trades = [], isLoading: tradesLoading } = useQuery<any[]>({
     queryKey: [`/api/trades`],
     queryFn: async () => {
-      console.log(`🔍 거래 내역 조회: 세션 기반`);
       const response = await fetch('/api/trades', {
-        credentials: 'include', // 세션 쿠키 포함
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         }
@@ -68,102 +66,79 @@ export default function History() {
         throw new Error('Failed to fetch trades');
       }
       const data = await response.json();
-      console.log(`📊 거래 내역 응답:`, data);
-      // 서버 데이터를 클라이언트 타입에 맞게 변환
       return data.map((trade: any) => ({
         ...trade,
-        quantity: parseFloat(trade.quantity), // Decimal을 숫자로 변환
-        price: parseFloat(trade.price), // Decimal을 숫자로 변환
-        fee: parseFloat(trade.fee || 0), // Decimal을 숫자로 변환
+        quantity: parseFloat(trade.quantity),
+        price: parseFloat(trade.price),
+        fee: parseFloat(trade.fee || 0),
         amount: parseFloat(trade.quantity) * parseFloat(trade.price),
-        type: trade.side, // 호환성을 위해 type 필드 추가
-        profit: 0 // 기본값, 실제로는 계산 필요
+        type: trade.side,
+        profit: 0
       }));
     },
-    refetchInterval: 30000, // 30초마다 새로고침
-    enabled: !!user, // 사용자가 로그인되어 있을 때만 실행
+    refetchInterval: 30000,
+    enabled: !!user,
+  });
+
+  // 포지션 내역 조회 (실제 손익 계산용)
+  const { data: positions = [] } = useQuery<any[]>({
+    queryKey: [`/api/positions/history`],
+    queryFn: async () => {
+      const response = await fetch('/api/positions/history', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!response.ok) {
+        return [];
+      }
+      return response.json();
+    },
+    refetchInterval: 30000,
+    enabled: !!user,
   });
 
   // 선택된 날짜의 거래 내역
-  const selectedDateTrades = trades.filter(trade => 
+  const selectedDateTrades = trades.filter(trade =>
     isSameDay(new Date(trade.createdAt), selectedDate)
   );
 
   // 일일 통계 계산
-  const dailyStats = selectedDateTrades.reduce(
-    (acc, trade) => {
-      acc.totalTrades++;
-      acc.totalVolume += trade.amount || 0;
-      acc.totalProfit += trade.profit || 0;
-      if (trade.profit && trade.profit > 0) acc.profitTrades++;
-      
-      // 거래소별 통계
-      if (trade.exchange === 'upbit') {
-        acc.upbitTrades++;
-        acc.upbitVolume += trade.amount || 0;
-      } else if (trade.exchange === 'binance') {
-        acc.binanceTrades++;
-        acc.binanceVolume += trade.amount || 0;
-      }
-      
-      // 거래 유형별 통계
-      if (trade.side === 'buy') {
-        acc.buyTrades++;
-      } else if (trade.side === 'sell') {
-        acc.sellTrades++;
-      } else if (trade.side === 'short') {
-        acc.shortTrades++;
-      } else if (trade.side === 'cover') {
-        acc.coverTrades++;
-      }
-      
-      return acc;
-    },
-    { 
-      totalTrades: 0, 
-      totalVolume: 0, 
-      totalProfit: 0, 
-      profitTrades: 0,
-      upbitTrades: 0,
-      upbitVolume: 0,
-      binanceTrades: 0,
-      binanceVolume: 0,
-      buyTrades: 0,
-      sellTrades: 0,
-      shortTrades: 0,
-      coverTrades: 0
-    }
-  );
+  const dailyStats = {
+    totalTrades: selectedDateTrades.length,
+    upbitTrades: selectedDateTrades.filter(t => t.exchange === 'upbit').length,
+    binanceTrades: selectedDateTrades.filter(t => t.exchange === 'binance').length,
+    totalProfit: positions
+      .filter(pos => {
+        if (pos.status !== 'closed' || !pos.exit_time) return false;
+        const exitDate = new Date(pos.exit_time);
+        return exitDate.toDateString() === selectedDate.toDateString();
+      })
+      .reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0),
+    totalVolume: selectedDateTrades.reduce((sum, t) => sum + (t.amount || 0), 0),
+    profitTrades: 0,
+    upbitVolume: selectedDateTrades.filter(t => t.exchange === 'upbit').reduce((sum, t) => sum + (t.amount || 0), 0),
+    binanceVolume: selectedDateTrades.filter(t => t.exchange === 'binance').reduce((sum, t) => sum + (t.amount || 0), 0),
+    buyTrades: selectedDateTrades.filter(t => t.side === 'buy').length,
+    sellTrades: selectedDateTrades.filter(t => t.side === 'sell').length,
+    shortTrades: selectedDateTrades.filter(t => t.side === 'short').length,
+    coverTrades: selectedDateTrades.filter(t => t.side === 'cover').length,
+  };
 
-  // 전체 통계 계산 (모든 거래)
-  const overallStats = trades.reduce(
-    (acc, trade) => {
-      acc.totalTrades++;
-      acc.totalVolume += trade.amount || 0;
-      acc.totalProfit += trade.profit || 0;
-      if (trade.profit && trade.profit > 0) acc.profitTrades++;
-      
-      if (trade.exchange === 'upbit') {
-        acc.upbitTrades++;
-        acc.upbitVolume += trade.amount || 0;
-      } else if (trade.exchange === 'binance') {
-        acc.binanceTrades++;
-        acc.binanceVolume += trade.amount || 0;
-      }
-      
-      return acc;
-    },
-    { 
-      totalTrades: 0, 
-      totalVolume: 0, 
-      totalProfit: 0, 
-      profitTrades: 0,
-      upbitTrades: 0,
-      upbitVolume: 0,
-      binanceTrades: 0,
-      binanceVolume: 0
-    }
-  );
+  // 전체 통계 계산
+  const overallStats = {
+    totalTrades: trades.length,
+    upbitTrades: trades.filter(t => t.exchange === 'upbit').length,
+    binanceTrades: trades.filter(t => t.exchange === 'binance').length,
+    totalProfit: positions
+      .filter(pos => pos.status === 'closed')
+      .reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0),
+    totalVolume: trades.reduce((sum, t) => sum + (t.amount || 0), 0),
+    profitTrades: 0,
+    upbitVolume: trades.filter(t => t.exchange === 'upbit').reduce((sum, t) => sum + (t.amount || 0), 0),
+    binanceVolume: trades.filter(t => t.exchange === 'binance').reduce((sum, t) => sum + (t.amount || 0), 0),
+  };
 
   // 거래가 있는 날짜들
   const tradingDates = trades.map(trade => 
