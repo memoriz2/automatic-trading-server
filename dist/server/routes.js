@@ -2662,6 +2662,7 @@ export async function registerRoutes(app, server) {
                     currentPremiumRate: p.current_premium_rate,
                     remainingQuantity: p.remaining_quantity,
                     unrealizedPnl: p.unrealized_pnl,
+                    realizedPnl: p.realized_pnl, // 실현손익 추가
                     totalFees: p.total_fees,
                     upbitOrderId: p.upbit_order_id,
                     binanceOrderId: p.binance_order_id,
