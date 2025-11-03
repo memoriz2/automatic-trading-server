@@ -52,6 +52,9 @@ export default function History() {
   const [tradingNote, setTradingNote] = useState("");
   const { user } = useAuth();
 
+  // IP 체크 (49.50.135.114인 경우 일부 통계 숨김)
+  const isRestrictedIP = window.location.hostname === '49.50.135.114';
+
   // 거래 내역 조회
   const { data: trades = [], isLoading: tradesLoading } = useQuery<any[]>({
     queryKey: [`/api/trades`],
@@ -286,46 +289,48 @@ export default function History() {
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t border-slate-600 space-y-3">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">거래량</span>
-                        <span className="text-white font-semibold">
-                          {dailyStats.totalVolume.toLocaleString()}원
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">포지션</span>
-                        <span className="text-white font-semibold">
-                          {dailyStats.totalPositions}개
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">승률</span>
-                        <span className={`font-semibold ${dailyStats.winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-                          {dailyStats.winRate.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">평균 수익</span>
-                        <span className={`font-semibold ${dailyStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {dailyStats.avgProfit >= 0 ? '+' : ''}{dailyStats.avgProfit.toLocaleString()}원
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">수익 포지션</span>
-                        <span className="text-green-400 font-semibold">
-                          {dailyStats.profitPositions}개
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">손실 포지션</span>
-                        <span className="text-red-400 font-semibold">
-                          {dailyStats.lossPositions}개
-                        </span>
+                  {!isRestrictedIP && (
+                    <div className="pt-4 border-t border-slate-600 space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">거래량</span>
+                          <span className="text-white font-semibold">
+                            {dailyStats.totalVolume.toLocaleString()}원
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">포지션</span>
+                          <span className="text-white font-semibold">
+                            {dailyStats.totalPositions}개
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">승률</span>
+                          <span className={`font-semibold ${dailyStats.winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
+                            {dailyStats.winRate.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">평균 수익</span>
+                          <span className={`font-semibold ${dailyStats.avgProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {dailyStats.avgProfit >= 0 ? '+' : ''}{dailyStats.avgProfit.toLocaleString()}원
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">수익 포지션</span>
+                          <span className="text-green-400 font-semibold">
+                            {dailyStats.profitPositions}개
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">손실 포지션</span>
+                          <span className="text-red-400 font-semibold">
+                            {dailyStats.lossPositions}개
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
