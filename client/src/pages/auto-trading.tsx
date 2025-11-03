@@ -42,12 +42,6 @@ type KimpgaStatus = {
   trade_count: number;
   logs?: string[];
 };
-type KimpgaMetrics = {
-  loops: number;
-  orders_binance: number;
-  orders_upbit: number;
-  api_errors: number;
-};
 
 export default function AutoTrading() {
   // Redux hooks
@@ -88,15 +82,62 @@ export default function AutoTrading() {
       },
       refetchInterval: 30000, // 30초마다 조회 (API 제한으로 인한 조정)
     });
-  const { data: kimpgaMetrics } = useQuery<KimpgaMetrics>({
-    queryKey: ["/api/kimpga/metrics", tick],
+  // 거래 내역 조회 (오늘의 통계용)
+  const { data: trades = [] } = useQuery<any[]>({
+    queryKey: [`/api/trades`],
     queryFn: async () => {
-      const r = await fetch("/api/kimpga/metrics");
-      if (!r.ok) throw new Error("metrics failed");
-      return r.json();
+      const response = await fetch('/api/trades', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch trades');
+      }
+      const data = await response.json();
+      return data.map((trade: any) => ({
+        ...trade,
+        quantity: parseFloat(trade.quantity),
+        price: parseFloat(trade.price),
+        fee: parseFloat(trade.fee || 0),
+        amount: parseFloat(trade.quantity) * parseFloat(trade.price),
+        profit: 0
+      }));
     },
-    refetchInterval: 30000, // 30초마다 조회 (API 제한으로 인한 조정)
+    refetchInterval: 30000,
+    enabled: !!user,
   });
+
+  // 오늘의 통계 계산
+  const todayStats = trades
+    .filter(trade => {
+      const tradeDate = new Date(trade.createdAt);
+      const today = new Date();
+      return tradeDate.toDateString() === today.toDateString();
+    })
+    .reduce(
+      (acc, trade) => {
+        acc.totalTrades++;
+        acc.totalVolume += trade.amount || 0;
+        acc.totalProfit += trade.profit || 0;
+
+        if (trade.exchange === 'upbit') {
+          acc.upbitTrades++;
+        } else if (trade.exchange === 'binance') {
+          acc.binanceTrades++;
+        }
+
+        return acc;
+      },
+      {
+        totalTrades: 0,
+        totalVolume: 0,
+        totalProfit: 0,
+        upbitTrades: 0,
+        binanceTrades: 0
+      }
+    );
 
   // kimpga 제어
   const kimpgaStart = async () => {
@@ -835,31 +876,27 @@ export default function AutoTrading() {
 
         <Card>
           <CardHeader>
-            <CardTitle>메트릭</CardTitle>
+            <CardTitle>오늘의 통계</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <div className="text-xs text-muted-foreground">루프</div>
-              <div className="text-xl font-semibold">
-                {kimpgaMetrics?.loops ?? 0}
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-blue-400">{todayStats.totalTrades}</p>
+                <p className="text-xs text-slate-400">총 거래</p>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">API 오류</div>
-              <div className="text-xl font-semibold">
-                {kimpgaMetrics?.api_errors ?? 0}
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-400">{todayStats.upbitTrades}</p>
+                <p className="text-xs text-slate-400">업비트 거래</p>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Binance 주문</div>
-              <div className="text-xl font-semibold">
-                {kimpgaMetrics?.orders_binance ?? 0}
+              <div className="text-center">
+                <p className="text-2xl font-bold text-orange-400">{todayStats.binanceTrades}</p>
+                <p className="text-xs text-slate-400">바이낸스 거래</p>
               </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Upbit 주문</div>
-              <div className="text-xl font-semibold">
-                {kimpgaMetrics?.orders_upbit ?? 0}
+              <div className="text-center">
+                <p className={`text-2xl font-bold ${todayStats.totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {todayStats.totalProfit >= 0 ? '+' : ''}{Math.round(todayStats.totalProfit).toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-400">수익 (원)</p>
               </div>
             </div>
           </CardContent>
