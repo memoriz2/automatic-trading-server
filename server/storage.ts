@@ -1857,6 +1857,7 @@ export class DatabaseStorage {
                             p.side,
                             p.binance_leverage as leverage,
                             p.unrealized_pnl,
+                            p.realized_pnl,
                             p.total_fees,
                             p.upbit_order_id,
                             p.binance_order_id,
