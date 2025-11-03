@@ -147,6 +147,10 @@ export default function History() {
     lossPositions: closedPositions.filter(pos => parseFloat(pos.realized_pnl || 0) < 0).length,
     upbitVolume: trades.filter(t => t.exchange === 'upbit').reduce((sum, t) => sum + (t.amount || 0), 0),
     binanceVolume: trades.filter(t => t.exchange === 'binance').reduce((sum, t) => sum + (t.amount || 0), 0),
+    buyTrades: trades.filter(t => t.side === 'buy').length,
+    sellTrades: trades.filter(t => t.side === 'sell').length,
+    shortTrades: trades.filter(t => t.side === 'short').length,
+    coverTrades: trades.filter(t => t.side === 'cover').length,
     avgProfit: closedPositions.length > 0
       ? closedPositions.reduce((sum, pos) => sum + (parseFloat(pos.realized_pnl) || 0), 0) / closedPositions.length
       : 0,
@@ -380,6 +384,36 @@ export default function History() {
                           {overallStats.lossPositions}개
                         </span>
                       </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 전체 거래 유형별 통계 */}
+              <Card className="bg-slate-850 border-slate-700 mt-6">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2" />
+                    전체 거래 유형별 통계
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-green-400">{overallStats.buyTrades}</p>
+                      <p className="text-xs text-slate-400">매수 (BUY)</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-yellow-400">{overallStats.sellTrades}</p>
+                      <p className="text-xs text-slate-400">매도 (SELL)</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-red-400">{overallStats.shortTrades}</p>
+                      <p className="text-xs text-slate-400">숏 (SHORT)</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-blue-400">{overallStats.coverTrades}</p>
+                      <p className="text-xs text-slate-400">커버 (COVER)</p>
                     </div>
                   </div>
                 </CardContent>
