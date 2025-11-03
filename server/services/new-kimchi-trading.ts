@@ -24,6 +24,9 @@ export class MultiStrategyTradingService {
   // 웹소켓 이벤트 쓰로틀링을 위한 마지막 체크 시간
   private lastCheckTimes: Map<string, number> = new Map();
 
+  // 🔒 신호 분석 실행 중 플래그: 사용자별 신호 분석 중복 실행 방지
+  private isCheckingSignals: Map<string, boolean> = new Map();
+
   // 🔒 진입 Lock: 동시에 여러 진입 시도 방지 (strategyId -> 진행중 여부)
   private entryLocks: Map<number, boolean> = new Map();
 
@@ -149,13 +152,32 @@ export class MultiStrategyTradingService {
    * 쓰로틀링: 1초 이내 중복 실행 방지
    */
   private async checkAndExecuteSignals(userId: string): Promise<void> {
+    const timestamp = new Date().toISOString();
+    const callStack = new Error().stack?.split('\n')[2]?.trim() || 'unknown';
+    console.log(`\n🔍 [${timestamp}] checkAndExecuteSignals 호출 - userId: ${userId}`);
+    console.log(`📞 호출위치: ${callStack}`);
+
+    // 🔒🔒 실행 중 플래그 체크: 이미 실행 중이면 즉시 차단
+    if (this.isCheckingSignals.get(userId)) {
+      console.log(`🚫 이미 신호 분석 실행 중 - 중복 차단\n`);
+      return;
+    }
+
     // 🛡️ 쓰로틀링: 1초 이내 중복 실행 방지
     const lastCheckTime = this.lastCheckTimes.get(userId) || 0;
     const now = Date.now();
+    const timeDiff = now - lastCheckTime;
+    console.log(`⏱️  마지막 호출: ${timeDiff}ms 전`);
+
     if (now - lastCheckTime < 1000) {
+      console.log(`🚫 쓰로틀링 차단 (1초 이내)\n`);
       return; // 1초 쿨다운
     }
+
+    // 🔒 실행 중 플래그 설정
+    this.isCheckingSignals.set(userId, true);
     this.lastCheckTimes.set(userId, now);
+    console.log(`✅ 쓰로틀링 통과 - 신호 분석 시작 (실행 플래그 설정)`);
 
     try {
       // BTC 김프율만 확인 (단일 포지션)
@@ -220,6 +242,10 @@ export class MultiStrategyTradingService {
           error instanceof Error ? error.message : String(error)
         }`,
       });
+    } finally {
+      // 🔓 실행 중 플래그 해제 (성공/실패 관계없이)
+      this.isCheckingSignals.delete(userId);
+      console.log(`🔓 신호 분석 완료 - 실행 플래그 해제\n`);
     }
   }
 
@@ -445,12 +471,16 @@ export class MultiStrategyTradingService {
 
       if (shouldEnterBtc) {
         // 🔒 진입 신호 생성 시 즉시 Lock 설정 (다른 신호 생성 차단)
-        if (this.entryLocks.get(strategy.id)) {
-          console.log(`🔒 [전략 ${strategy.id}] 신호 생성 중 Lock 발견, 중복 신호 차단`);
+        const lockTimestamp = new Date().toISOString();
+        const lockExists = this.entryLocks.get(strategy.id);
+        console.log(`\n🔐 [${lockTimestamp}] Lock 체크 - 전략 ${strategy.id}, Lock 존재: ${lockExists}`);
+
+        if (lockExists) {
+          console.log(`🔒 [전략 ${strategy.id}] 신호 생성 중 Lock 발견, 중복 신호 차단\n`);
           return null;
         }
         this.entryLocks.set(strategy.id, true);
-        console.log(`🔐 [전략 ${strategy.id}] 진입 신호 생성 시 Lock 설정`);
+        console.log(`🔐✅ [전략 ${strategy.id}] 진입 신호 생성 시 Lock 설정 완료\n`);
 
         console.log(
           `🎯 BTC 진입 신호 발생! 현재=${premiumRate.toFixed(
@@ -1236,8 +1266,9 @@ export class MultiStrategyTradingService {
       throw error;
     } finally {
       // 🔓 Lock 해제 (성공/실패 관계없이)
+      const unlockTimestamp = new Date().toISOString();
       this.entryLocks.delete(strategy.id);
-      console.log(`🔓 [전략 ${strategy.id}] 진입 Lock 해제`);
+      console.log(`\n🔓 [${unlockTimestamp}] [전략 ${strategy.id}] 진입 Lock 해제 완료\n`);
     }
 
     // 🔥🔥 진입 완료 후 메모리에 거래 시간 기록 (모든 거래 성공 후)
