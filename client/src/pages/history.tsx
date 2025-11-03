@@ -515,7 +515,17 @@ export default function History() {
                             )}
                             <p className="text-sm text-slate-400 flex items-center">
                               <Clock className="w-3 h-3 mr-1" />
-                              {format(new Date(trade.executedAt), 'HH:mm:ss')}
+                              {(() => {
+                                try {
+                                  const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
+                                  if (!tradeDate) return '-';
+                                  const date = new Date(tradeDate);
+                                  if (isNaN(date.getTime())) return '-';
+                                  return format(date, 'HH:mm:ss');
+                                } catch (e) {
+                                  return '-';
+                                }
+                              })()}
                             </p>
                           </div>
                         </div>
