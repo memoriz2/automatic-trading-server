@@ -14,6 +14,7 @@ import LoginPage from "@/pages/login";
 import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import BacktestPage from "@/pages/backtest";
+import { RecommendedStrategies } from "@/components/RecommendedStrategies";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -103,6 +104,7 @@ function Router() {
           <Route path="/settings" component={Settings} />
           <Route path="/admin" component={AdminPage} />
           <Route path="/backtest" component={BacktestPage} />
+          <Route path="/recommended-strategies" component={RecommendedStrategies} />
           <Route component={NotFound} />
         </Switch>
       </main>

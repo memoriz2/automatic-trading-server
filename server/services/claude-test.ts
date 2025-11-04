@@ -1,3 +1,4 @@
+// @ts-ignore
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 
