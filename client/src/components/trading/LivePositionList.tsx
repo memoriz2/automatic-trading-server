@@ -166,23 +166,19 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
 
         // 각 포지션의 진입가와 수량으로 개별 계산 (binanceUnrealizedPnl은 전체 포지션 합이므로 사용하지 않음)
         if (binanceQuantity !== 0) {
-          const sideLower = String(position.side || position.type || '').toLowerCase();
-          const isShort = sideLower.includes('short') || sideLower.includes('sell');
-
+          // 김프 거래는 바이낸스가 항상 숏 포지션 (업비트 롱 + 바이낸스 숏)
           // 숏: (entryPrice - markPrice) × |qty| = (진입총액 - 마크총액)
-          // 롱: (markPrice - entryPrice) × |qty| = (마크총액 - 진입총액)
-          binancePnlUsd = isShort
-            ? (binanceEntryTotal - binanceCurrentTotal)
-            : (binanceCurrentTotal - binanceEntryTotal);
+          // 가격이 오르면 손실(음수), 가격이 내리면 이익(양수)
+          binancePnlUsd = binanceEntryTotal - binanceCurrentTotal;
 
           console.log(`[PnL Debug] 포지션 ${position.id}:`, {
             진입가: binanceEntryUnitPrice,
             현재Mark가: binanceCurrentPrice,
             수량: binanceQuantity,
-            진입총액: binanceEntryTotal,
-            현재총액: binanceCurrentTotal,
-            '계산PnL(USD)': binancePnlUsd,
-            포지션: isShort ? 'SHORT' : 'LONG',
+            진입총액: binanceEntryTotal.toFixed(2),
+            현재총액: binanceCurrentTotal.toFixed(2),
+            '계산PnL(USD)': binancePnlUsd.toFixed(2),
+            포지션: 'SHORT (김프 거래)',
             futuresMarkPrice: (lastKimchiData as any)?.binanceFuturesMarkPrice,
             dbMarkPrice: position.binanceMarkPrice,
             spotPrice: currentBinancePrice
