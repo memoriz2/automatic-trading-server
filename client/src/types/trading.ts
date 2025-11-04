@@ -154,14 +154,17 @@ export interface LivePosition {
   strategyName?: string;
   symbol: string;
   type?: string; // 포지션 타입 (force_entry 등)
+  side?: 'long' | 'short' | 'LONG' | 'SHORT';
   entryTime: Date;
   entryPremiumRate: number;
   upbitQuantity: number;
   upbitPrice: number;
+  upbitEntryPrice?: number; // 업비트 진입가
   entryUsdKrw?: number;
   binanceSpotQuantity: number;
   binanceQuantity: number;
   binancePrice: number;
+  binanceEntryPrice?: number; // 바이낸스 진입가
   binanceSpotPrice?: number;
   leverage: number;
   status: 'open' | 'closed';
@@ -174,6 +177,15 @@ export interface LivePosition {
   binanceOrderId?: string;
   isRealTrade?: boolean;
   takeProfitTargets?: any; // 강제진입 익절 구간
+
+  // 바이낸스 선물 상세 정보
+  binanceMarkPrice?: number; // 마크 가격
+  binanceLiquidationPrice?: number; // 청산 가격
+  binanceSizeUsdt?: number; // Size (USDT) - 진입가 기준 명목 가치
+  binanceMarginUsdt?: number; // Margin (USDT) - 실제 투자 금액
+  binanceMarginRatio?: number; // 마진 비율 (%)
+  binanceMarginType?: 'cross' | 'isolated'; // 마진 모드
+  binanceUnrealizedPnl?: number; // 미실현 손익 (USDT)
 }
 
 export interface KimchiData {

@@ -8,6 +8,8 @@ interface LiveBalance {
   binanceBtc: number;
   binanceSpotBtc: number;
   binanceUsdt: number;
+  availableUsdt?: number; // 사용 가능한 USDT (옵션)
+  positionMargin?: number; // 포지션 마진 합계 (옵션)
 }
 
 interface LiveBalanceDisplayProps {
@@ -88,8 +90,14 @@ export const LiveBalanceDisplay: React.FC<LiveBalanceDisplayProps> = ({
           <p className="text-base md:text-xl font-bold text-green-400">
             ${Math.floor(liveBalance.binanceUsdt || 0).toLocaleString()}
           </p>
+          {(liveBalance.availableUsdt !== undefined || liveBalance.positionMargin !== undefined) && (
+            <div className="text-xs text-slate-500 mt-1">
+              <div>사용 가능: ${Math.floor(liveBalance.availableUsdt || 0).toLocaleString()}</div>
+              <div>포지션 마진: ${Math.floor(liveBalance.positionMargin || 0).toLocaleString()}</div>
+            </div>
+          )}
           {usdtKrwRate && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 mt-1">
               ≈ ₩{Math.floor((liveBalance.binanceUsdt || 0) * usdtKrwRate).toLocaleString()}
             </p>
           )}

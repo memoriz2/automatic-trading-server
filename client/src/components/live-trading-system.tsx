@@ -2059,15 +2059,25 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
           const computedTotalPnl = sums.totalUp + sums.totalBin;
           const computedProfitRate = sums.exposure > 0 ? (computedTotalPnl / sums.exposure) * 100 : 0;
 
+          // 포지션별 마진 합계 계산
+          const totalPositionMargin = livePositions
+            .filter(p => p.status === 'open')
+            .reduce((sum, p) => sum + (p.binanceMarginUsdt || 0), 0);
+
+          const availableUsdt = liveBalances?.real?.usdt || 0;
+          const totalUsdt = availableUsdt + totalPositionMargin;
+
           return (
             <LiveBalanceDisplay
               liveBalance={isLiveMode ? {
                 krw: liveBalances?.real?.krw || 0,
                 btc: liveBalances?.real?.btc_upbit || 0,
-                usdt: liveBalances?.real?.usdt || 0,
+                usdt: availableUsdt,
                 binanceBtc: openBinanceQty, // 활성 포지션 기반
                 binanceSpotBtc: 0,
-                binanceUsdt: liveBalances?.real?.usdt || 0
+                binanceUsdt: totalUsdt, // 사용 가능 + 포지션 마진
+                availableUsdt: availableUsdt, // 사용 가능한 USDT
+                positionMargin: totalPositionMargin // 포지션 마진 합계
               } : liveBalance}
               openUpbitQty={isLiveMode ? (liveBalances?.real?.btc_upbit || 0) : liveBalance.btc}
               openBinanceQty={openBinanceQty}
