@@ -492,43 +492,91 @@ export default function History() {
                                   <div className="w-3 h-3 rounded-full bg-blue-400 mr-2"></div>
                                   매수 ({buyTrades.length}건)
                                 </h4>
-                                {buyTrades.map((trade) => (
-                                  <div
-                                    key={trade.id}
-                                    className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-blue-500/30 ml-5"
-                                  >
-                                    <div>
-                                      <p className="text-white font-medium text-sm">
-                                        {trade.symbol} {trade.side === 'buy' ? '매수' : '숏'}
-                                      </p>
-                                      <p className="text-xs text-slate-400">
-                                        {trade.quantity.toFixed(6)} × {trade.price.toLocaleString()}원
-                                      </p>
-                                      <p className="text-xs text-slate-500">
-                                        {trade.exchange.toUpperCase()}
-                                      </p>
+                                {/* 2개씩 짝지어서 표시 */}
+                                {Array.from({ length: Math.ceil(buyTrades.length / 2) }).map((_, pairIndex) => {
+                                  const trade1 = buyTrades[pairIndex * 2];
+                                  const trade2 = buyTrades[pairIndex * 2 + 1];
+
+                                  return (
+                                    <div
+                                      key={`pair-${pairIndex}`}
+                                      className="p-3 bg-slate-800/50 rounded-lg border border-blue-500/30 ml-5"
+                                    >
+                                      {/* 첫 번째 거래 */}
+                                      <div className="flex items-center justify-between pb-2">
+                                        <div>
+                                          <p className="text-white font-medium text-sm">
+                                            {trade1.symbol} {trade1.side === 'buy' ? '매수' : '숏'}
+                                          </p>
+                                          <p className="text-xs text-slate-400">
+                                            {trade1.quantity.toFixed(6)} × {trade1.price.toLocaleString()}원
+                                          </p>
+                                          <p className="text-xs text-slate-500">
+                                            {trade1.exchange.toUpperCase()}
+                                          </p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-white font-medium text-sm">
+                                            {(trade1.amount || 0).toLocaleString()}원
+                                          </p>
+                                          <p className="text-xs text-slate-400 flex items-center justify-end">
+                                            <Clock className="w-3 h-3 mr-1" />
+                                            {(() => {
+                                              try {
+                                                const tradeDate = trade1.executed_at || trade1.executedAt || trade1.created_at || trade1.createdAt;
+                                                if (!tradeDate) return '-';
+                                                const date = new Date(tradeDate);
+                                                if (isNaN(date.getTime())) return '-';
+                                                return format(date, 'HH:mm:ss');
+                                              } catch (e) {
+                                                return '-';
+                                              }
+                                            })()}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* 두 번째 거래 (있으면) */}
+                                      {trade2 && (
+                                        <>
+                                          <div className="border-t border-slate-600 my-2"></div>
+                                          <div className="flex items-center justify-between pt-2">
+                                            <div>
+                                              <p className="text-white font-medium text-sm">
+                                                {trade2.symbol} {trade2.side === 'buy' ? '매수' : '숏'}
+                                              </p>
+                                              <p className="text-xs text-slate-400">
+                                                {trade2.quantity.toFixed(6)} × {trade2.price.toLocaleString()}원
+                                              </p>
+                                              <p className="text-xs text-slate-500">
+                                                {trade2.exchange.toUpperCase()}
+                                              </p>
+                                            </div>
+                                            <div className="text-right">
+                                              <p className="text-white font-medium text-sm">
+                                                {(trade2.amount || 0).toLocaleString()}원
+                                              </p>
+                                              <p className="text-xs text-slate-400 flex items-center justify-end">
+                                                <Clock className="w-3 h-3 mr-1" />
+                                                {(() => {
+                                                  try {
+                                                    const tradeDate = trade2.executed_at || trade2.executedAt || trade2.created_at || trade2.createdAt;
+                                                    if (!tradeDate) return '-';
+                                                    const date = new Date(tradeDate);
+                                                    if (isNaN(date.getTime())) return '-';
+                                                    return format(date, 'HH:mm:ss');
+                                                  } catch (e) {
+                                                    return '-';
+                                                  }
+                                                })()}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-white font-medium text-sm">
-                                        {(trade.amount || 0).toLocaleString()}원
-                                      </p>
-                                      <p className="text-xs text-slate-400 flex items-center justify-end">
-                                        <Clock className="w-3 h-3 mr-1" />
-                                        {(() => {
-                                          try {
-                                            const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
-                                            if (!tradeDate) return '-';
-                                            const date = new Date(tradeDate);
-                                            if (isNaN(date.getTime())) return '-';
-                                            return format(date, 'HH:mm:ss');
-                                          } catch (e) {
-                                            return '-';
-                                          }
-                                        })()}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                                 <div className="ml-5 p-2 bg-blue-500/10 rounded text-right">
                                   <p className="text-blue-400 font-semibold">
                                     매수 합계: {buyTotal.toLocaleString()}원
@@ -544,43 +592,91 @@ export default function History() {
                                   <div className="w-3 h-3 rounded-full bg-red-400 mr-2"></div>
                                   청산 ({sellTrades.length}건)
                                 </h4>
-                                {sellTrades.map((trade) => (
-                                  <div
-                                    key={trade.id}
-                                    className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-red-500/30 ml-5"
-                                  >
-                                    <div>
-                                      <p className="text-white font-medium text-sm">
-                                        {trade.symbol} {trade.side === 'sell' ? '매도' : '커버'}
-                                      </p>
-                                      <p className="text-xs text-slate-400">
-                                        {trade.quantity.toFixed(6)} × {trade.price.toLocaleString()}원
-                                      </p>
-                                      <p className="text-xs text-slate-500">
-                                        {trade.exchange.toUpperCase()}
-                                      </p>
+                                {/* 2개씩 짝지어서 표시 */}
+                                {Array.from({ length: Math.ceil(sellTrades.length / 2) }).map((_, pairIndex) => {
+                                  const trade1 = sellTrades[pairIndex * 2];
+                                  const trade2 = sellTrades[pairIndex * 2 + 1];
+
+                                  return (
+                                    <div
+                                      key={`pair-${pairIndex}`}
+                                      className="p-3 bg-slate-800/50 rounded-lg border border-red-500/30 ml-5"
+                                    >
+                                      {/* 첫 번째 거래 */}
+                                      <div className="flex items-center justify-between pb-2">
+                                        <div>
+                                          <p className="text-white font-medium text-sm">
+                                            {trade1.symbol} {trade1.side === 'sell' ? '매도' : '커버'}
+                                          </p>
+                                          <p className="text-xs text-slate-400">
+                                            {trade1.quantity.toFixed(6)} × {trade1.price.toLocaleString()}원
+                                          </p>
+                                          <p className="text-xs text-slate-500">
+                                            {trade1.exchange.toUpperCase()}
+                                          </p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-white font-medium text-sm">
+                                            {(trade1.amount || 0).toLocaleString()}원
+                                          </p>
+                                          <p className="text-xs text-slate-400 flex items-center justify-end">
+                                            <Clock className="w-3 h-3 mr-1" />
+                                            {(() => {
+                                              try {
+                                                const tradeDate = trade1.executed_at || trade1.executedAt || trade1.created_at || trade1.createdAt;
+                                                if (!tradeDate) return '-';
+                                                const date = new Date(tradeDate);
+                                                if (isNaN(date.getTime())) return '-';
+                                                return format(date, 'HH:mm:ss');
+                                              } catch (e) {
+                                                return '-';
+                                              }
+                                            })()}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* 두 번째 거래 (있으면) */}
+                                      {trade2 && (
+                                        <>
+                                          <div className="border-t border-slate-600 my-2"></div>
+                                          <div className="flex items-center justify-between pt-2">
+                                            <div>
+                                              <p className="text-white font-medium text-sm">
+                                                {trade2.symbol} {trade2.side === 'sell' ? '매도' : '커버'}
+                                              </p>
+                                              <p className="text-xs text-slate-400">
+                                                {trade2.quantity.toFixed(6)} × {trade2.price.toLocaleString()}원
+                                              </p>
+                                              <p className="text-xs text-slate-500">
+                                                {trade2.exchange.toUpperCase()}
+                                              </p>
+                                            </div>
+                                            <div className="text-right">
+                                              <p className="text-white font-medium text-sm">
+                                                {(trade2.amount || 0).toLocaleString()}원
+                                              </p>
+                                              <p className="text-xs text-slate-400 flex items-center justify-end">
+                                                <Clock className="w-3 h-3 mr-1" />
+                                                {(() => {
+                                                  try {
+                                                    const tradeDate = trade2.executed_at || trade2.executedAt || trade2.created_at || trade2.createdAt;
+                                                    if (!tradeDate) return '-';
+                                                    const date = new Date(tradeDate);
+                                                    if (isNaN(date.getTime())) return '-';
+                                                    return format(date, 'HH:mm:ss');
+                                                  } catch (e) {
+                                                    return '-';
+                                                  }
+                                                })()}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </>
+                                      )}
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-white font-medium text-sm">
-                                        {(trade.amount || 0).toLocaleString()}원
-                                      </p>
-                                      <p className="text-xs text-slate-400 flex items-center justify-end">
-                                        <Clock className="w-3 h-3 mr-1" />
-                                        {(() => {
-                                          try {
-                                            const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
-                                            if (!tradeDate) return '-';
-                                            const date = new Date(tradeDate);
-                                            if (isNaN(date.getTime())) return '-';
-                                            return format(date, 'HH:mm:ss');
-                                          } catch (e) {
-                                            return '-';
-                                          }
-                                        })()}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                                 <div className="ml-5 p-2 bg-red-500/10 rounded text-right">
                                   <p className="text-red-400 font-semibold">
                                     청산 합계: {sellTotal.toLocaleString()}원
