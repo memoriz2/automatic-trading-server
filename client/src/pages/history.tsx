@@ -491,144 +491,107 @@ export default function History() {
                     </div>
                   ) : selectedDateTrades.length > 0 ? (
                     <div className="space-y-3">
-                      {/* 시간순으로 2개씩 묶어서 표시 */}
+                      {/* 포지션별로 그룹화해서 표시 */}
                       {(() => {
-                        const buyTrades = selectedDateTrades.filter(t => t.side === 'buy' || t.side === 'short');
-                        const sellTrades = selectedDateTrades.filter(t => t.side === 'sell' || t.side === 'cover');
-                        const buyTotal = buyTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
-                        const sellTotal = sellTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
-                        const totalProfit = sellTotal - buyTotal;
+                        // 포지션 ID별로 그룹화
+                        const groupedByPosition = selectedDateTrades.reduce((acc: any, trade: any) => {
+                          const posId = trade.position_id || trade.positionId || 'unknown';
+                          if (!acc[posId]) {
+                            acc[posId] = [];
+                          }
+                          acc[posId].push(trade);
+                          return acc;
+                        }, {});
+
+                        const getTradeLabel = (side: string) => {
+                          if (side === 'buy') return '매수';
+                          if (side === 'short') return '숏';
+                          if (side === 'sell') return '매도';
+                          return '커버';
+                        };
+
+                        const calculateAmount = (trade: any) => {
+                          if (trade.exchange === 'binance') {
+                            return trade.quantity * trade.price * usdtKrwRate;
+                          }
+                          return trade.quantity * trade.price;
+                        };
+
+                        let grandTotal = 0;
 
                         return (
                           <>
-                            {Array.from({ length: Math.ceil(selectedDateTrades.length / 2) }).map((_, pairIndex) => {
-                              const trade1 = selectedDateTrades[pairIndex * 2];
-                              const trade2 = selectedDateTrades[pairIndex * 2 + 1];
-
-                              const getTradeColor = (side: string) => {
-                                if (side === 'buy' || side === 'short') return 'blue';
-                                return 'red';
-                              };
-
-                              const getTradeLabel = (side: string) => {
-                                if (side === 'buy') return '매수';
-                                if (side === 'short') return '숏';
-                                if (side === 'sell') return '매도';
-                                return '커버';
-                              };
+                            {Object.entries(groupedByPosition).map(([positionId, trades]: [string, any]) => {
+                              const buyTrades = trades.filter((t: any) => t.side === 'buy' || t.side === 'short');
+                              const sellTrades = trades.filter((t: any) => t.side === 'sell' || t.side === 'cover');
+                              const buyTotal = buyTrades.reduce((sum: number, t: any) => sum + calculateAmount(t), 0);
+                              const sellTotal = sellTrades.reduce((sum: number, t: any) => sum + calculateAmount(t), 0);
+                              const positionProfit = sellTotal - buyTotal;
+                              grandTotal += positionProfit;
 
                               return (
-                                <div
-                                  key={`pair-${pairIndex}`}
-                                  className="p-3 bg-slate-800 rounded-lg border border-slate-600"
-                                >
-                                  {/* 첫 번째 거래 */}
-                                  <div className="flex items-center justify-between pb-2">
-                                    <div className="flex items-center space-x-3">
-                                      <div className={`w-3 h-3 rounded-full ${
-                                        getTradeColor(trade1.side) === 'blue' ? 'bg-blue-400' : 'bg-red-400'
-                                      }`}></div>
-                                      <div>
-                                        <p className="text-white font-medium text-sm">
-                                          {trade1.symbol} {getTradeLabel(trade1.side)}
-                                        </p>
-                                        <p className="text-xs text-slate-400">
-                                          {trade1.quantity.toFixed(6)} × {
-                                            trade1.exchange === 'binance'
-                                              ? `${trade1.price.toLocaleString()}$ (${(trade1.price * usdtKrwRate).toLocaleString()}원)`
-                                              : `${trade1.price.toLocaleString()}원`
-                                          }
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                          {trade1.exchange.toUpperCase()}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-white font-medium text-sm">
-                                        {(trade1.amount || 0).toLocaleString()}원
-                                      </p>
-                                      <p className="text-xs text-slate-400 flex items-center justify-end">
-                                        <Clock className="w-3 h-3 mr-1" />
-                                        {(() => {
-                                          try {
-                                            const tradeDate = trade1.executed_at || trade1.executedAt || trade1.created_at || trade1.createdAt;
-                                            if (!tradeDate) return '-';
-                                            const date = new Date(tradeDate);
-                                            if (isNaN(date.getTime())) return '-';
-                                            return format(date, 'HH:mm:ss');
-                                          } catch (e) {
-                                            return '-';
-                                          }
-                                        })()}
-                                      </p>
-                                    </div>
+                                <div key={positionId} className="border border-slate-600 rounded-lg p-4 bg-slate-900">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-semibold text-slate-300">포지션 #{positionId}</h3>
+                                    <span className={`text-sm font-bold ${positionProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                      {positionProfit >= 0 ? '+' : ''}{Math.floor(positionProfit).toLocaleString()}원
+                                    </span>
                                   </div>
 
-                                  {/* 두 번째 거래 (있으면) */}
-                                  {trade2 && (
-                                    <>
-                                      <div className="border-t border-slate-600 my-2"></div>
-                                      <div className="flex items-center justify-between pt-2">
-                                        <div className="flex items-center space-x-3">
-                                          <div className={`w-3 h-3 rounded-full ${
-                                            getTradeColor(trade2.side) === 'blue' ? 'bg-blue-400' : 'bg-red-400'
-                                          }`}></div>
-                                          <div>
-                                            <p className="text-white font-medium text-sm">
-                                              {trade2.symbol} {getTradeLabel(trade2.side)}
-                                            </p>
-                                            <p className="text-xs text-slate-400">
-                                              {trade2.quantity.toFixed(6)} × {
-                                                trade2.exchange === 'binance'
-                                                  ? `${trade2.price.toLocaleString()}$ (${(trade2.price * usdtKrwRate).toLocaleString()}원)`
-                                                  : `${trade2.price.toLocaleString()}원`
-                                              }
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                              {trade2.exchange.toUpperCase()}
-                                            </p>
-                                          </div>
+                                  {/* 매수/숏 거래들 */}
+                                  {buyTrades.length > 0 && (
+                                    <div className="mb-2">
+                                      <p className="text-xs text-blue-400 font-semibold mb-1">매수 {Math.floor(buyTotal).toLocaleString()}원</p>
+                                      {buyTrades.map((trade: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between py-1 text-xs">
+                                          <span className="text-slate-400">
+                                            {trade.symbol} {getTradeLabel(trade.side)} {trade.quantity.toFixed(6)} × {
+                                              trade.exchange === 'binance'
+                                                ? `${trade.price.toLocaleString()}$ (${Math.floor(trade.price * usdtKrwRate).toLocaleString()}원)`
+                                                : `${trade.price.toLocaleString()}원`
+                                            }
+                                          </span>
+                                          <span className="text-white">{Math.floor(calculateAmount(trade)).toLocaleString()}원</span>
                                         </div>
-                                        <div className="text-right">
-                                          <p className="text-white font-medium text-sm">
-                                            {(trade2.amount || 0).toLocaleString()}원
-                                          </p>
-                                          <p className="text-xs text-slate-400 flex items-center justify-end">
-                                            <Clock className="w-3 h-3 mr-1" />
-                                            {(() => {
-                                              try {
-                                                const tradeDate = trade2.executed_at || trade2.executedAt || trade2.created_at || trade2.createdAt;
-                                                if (!tradeDate) return '-';
-                                                const date = new Date(tradeDate);
-                                                if (isNaN(date.getTime())) return '-';
-                                                return format(date, 'HH:mm:ss');
-                                              } catch (e) {
-                                                return '-';
-                                              }
-                                            })()}
-                                          </p>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* 매도/커버 거래들 */}
+                                  {sellTrades.length > 0 && (
+                                    <div>
+                                      <p className="text-xs text-red-400 font-semibold mb-1">청산 {Math.floor(sellTotal).toLocaleString()}원</p>
+                                      {sellTrades.map((trade: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between py-1 text-xs">
+                                          <span className="text-slate-400">
+                                            {trade.symbol} {getTradeLabel(trade.side)} {trade.quantity.toFixed(6)} × {
+                                              trade.exchange === 'binance'
+                                                ? `${trade.price.toLocaleString()}$ (${Math.floor(trade.price * usdtKrwRate).toLocaleString()}원)`
+                                                : `${trade.price.toLocaleString()}원`
+                                            }
+                                          </span>
+                                          <span className="text-white">{Math.floor(calculateAmount(trade)).toLocaleString()}원</span>
                                         </div>
-                                      </div>
-                                    </>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
                               );
                             })}
 
                             {/* 총 수익금 */}
-                            {buyTrades.length > 0 && sellTrades.length > 0 && (
+                            {Object.keys(groupedByPosition).length > 0 && (
                               <div className={`p-4 rounded-lg border-2 ${
-                                totalProfit >= 0
+                                grandTotal >= 0
                                   ? 'bg-green-500/10 border-green-500/50'
                                   : 'bg-red-500/10 border-red-500/50'
                               }`}>
                                 <div className="flex items-center justify-between">
                                   <span className="text-lg font-semibold text-white">총 수익금</span>
                                   <span className={`text-xl font-bold ${
-                                    totalProfit >= 0 ? 'text-green-400' : 'text-red-400'
+                                    grandTotal >= 0 ? 'text-green-400' : 'text-red-400'
                                   }`}>
-                                    {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString()}원
+                                    {grandTotal >= 0 ? '+' : ''}{Math.floor(grandTotal).toLocaleString()}원
                                   </span>
                                 </div>
                               </div>
