@@ -310,30 +310,23 @@ async function executeRealLiquidation(userId, position) {
                     const binancePrice = parseFloat(binanceOrderDetail.avgPrice || binanceOrderDetail.price || '0');
                     const binanceQuantity = parseFloat(binanceOrderDetail.executedQty || '0');
                     const binanceFee = parseFloat(binanceOrderDetail.commission || '0');
-                    // trades 테이블에 저장
-                    if (binanceFee > 0) {
-                        await storage.createTrade({
-                            userId: parseInt(userId),
-                            positionId: position.id,
-                            strategyId: position.strategy_id || null,
-                            symbol: 'BTC',
-                            side: positionAmt < 0 ? 'cover' : 'sell',
-                            exchange: 'binance',
-                            quantity: binanceQuantity,
-                            price: binancePrice,
-                            fee: binanceFee,
-                            exchangeOrderId: closeResult.orderId.toString()
-                        });
-                        logInfo('바이낸스 청산 거래 기록 저장 완료', {
-                            orderId: closeResult.orderId,
-                            fee: binanceFee
-                        });
-                    }
-                    else {
-                        logInfo('⚠️ 바이낸스 청산 수수료 0이므로 거래 기록 저장 안 함', {
-                            orderId: closeResult.orderId
-                        });
-                    }
+                    // trades 테이블에 저장 (createTrade에서 검증)
+                    await storage.createTrade({
+                        userId: parseInt(userId),
+                        positionId: position.id,
+                        strategyId: position.strategy_id || null,
+                        symbol: 'BTC',
+                        side: positionAmt < 0 ? 'cover' : 'sell',
+                        exchange: 'binance',
+                        quantity: binanceQuantity,
+                        price: binancePrice,
+                        fee: binanceFee,
+                        exchangeOrderId: closeResult.orderId.toString()
+                    });
+                    logInfo('바이낸스 청산 거래 기록 저장 완료', {
+                        orderId: closeResult.orderId,
+                        fee: binanceFee
+                    });
                     results.push({
                         exchange: 'binance',
                         action: 'close',
@@ -3869,31 +3862,26 @@ export async function registerRoutes(app, server) {
                         }
                     }
                 }
-                // trades 테이블에 저장 (fee > 0인 경우만)
-                if (commission > 0) {
-                    savedTrade = await storage.createTrade({
-                        userId: userId,
-                        positionId: finalPositionId,
-                        strategyId: strategyId || null,
-                        exchange: 'binance',
-                        symbol: symbolOnly,
-                        side: 'cover', // 숏 포지션 청산은 'cover'
-                        quantity: executedQty,
-                        price: avgPrice,
-                        fee: commission,
-                        feeCurrency: 'USDT',
-                        exchangeOrderId: closeResult.orderId.toString(),
-                        executedAt: new Date(),
-                        isMock: false
-                    });
-                    console.log(`✅ 바이낸스 청산 거래 기록 DB 저장 성공 (positionId: ${finalPositionId}, fee: ${commission})`);
-                    // ✅ positionId가 있으면 exit_price 및 exit_premium_rate 계산 및 업데이트
-                    if (finalPositionId) {
-                        await updatePositionExitPrice(finalPositionId);
-                    }
-                }
-                else {
-                    console.log(`⚠️ 바이낸스 청산 수수료 0이므로 거래 기록 저장 안 함`);
+                // trades 테이블에 저장 (createTrade에서 검증)
+                savedTrade = await storage.createTrade({
+                    userId: userId,
+                    positionId: finalPositionId,
+                    strategyId: strategyId || null,
+                    exchange: 'binance',
+                    symbol: symbolOnly,
+                    side: 'cover', // 숏 포지션 청산은 'cover'
+                    quantity: executedQty,
+                    price: avgPrice,
+                    fee: commission,
+                    feeCurrency: 'USDT',
+                    exchangeOrderId: closeResult.orderId.toString(),
+                    executedAt: new Date(),
+                    isMock: false
+                });
+                console.log(`✅ 바이낸스 청산 거래 기록 DB 저장 성공 (positionId: ${finalPositionId}, fee: ${commission})`);
+                // ✅ positionId가 있으면 exit_price 및 exit_premium_rate 계산 및 업데이트
+                if (finalPositionId) {
+                    await updatePositionExitPrice(finalPositionId);
                 }
             }
             catch (dbError) {

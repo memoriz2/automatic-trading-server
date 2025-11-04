@@ -704,10 +704,18 @@ export class DatabaseStorage {
   
   async createTrade(data: any): Promise<any> {
     try {
-      // ⚠️ CRITICAL: fee가 0이어도 거래는 무조건 저장해야 함!
-      // 실제 거래소에서 거래가 발생했는데 DB에 저장 안 되면 큰 문제 발생
-      if (!data.fee || data.fee <= 0) {
-        console.error('🚨 [createTrade] fee가 0입니다! 하지만 거래 기록은 저장합니다 (실제 거래 발생):', {
+      // 필수 필드 검증
+      const requiredFields = ['userId', 'symbol', 'side', 'exchange', 'quantity', 'price'];
+      for (const field of requiredFields) {
+        if (data[field] === undefined || data[field] === null) {
+          throw new Error(`Required field '${field}' is missing`);
+        }
+      }
+
+      // 🚨 CRITICAL: 청산 거래(sell/cover)는 반드시 position_id가 있어야 함
+      if ((data.side === 'sell' || data.side === 'cover') && !data.positionId) {
+        const errorMsg = `🚨 CRITICAL ERROR: 청산 거래인데 position_id가 없습니다!`;
+        console.error(errorMsg, {
           userId: data.userId,
           symbol: data.symbol,
           exchange: data.exchange,
@@ -716,16 +724,23 @@ export class DatabaseStorage {
           price: data.price,
           exchangeOrderId: data.exchangeOrderId
         });
-        // fee를 0.00000001로 최소값 설정 (DB에 NULL 방지)
-        data.fee = 0.00000001;
+        throw new Error(`${errorMsg} - 거래를 저장할 수 없습니다. position_id를 찾아서 다시 시도하세요.`);
       }
 
-      // 필수 필드 검증
-      const requiredFields = ['userId', 'symbol', 'side', 'exchange', 'quantity', 'price'];
-      for (const field of requiredFields) {
-        if (data[field] === undefined || data[field] === null) {
-          throw new Error(`Required field '${field}' is missing`);
-        }
+      // 🚨 CRITICAL: fee가 없으면 에러 발생
+      if (!data.fee || data.fee <= 0) {
+        const errorMsg = `🚨 CRITICAL ERROR: 수수료(fee)가 0이거나 없습니다!`;
+        console.error(errorMsg, {
+          userId: data.userId,
+          symbol: data.symbol,
+          exchange: data.exchange,
+          side: data.side,
+          quantity: data.quantity,
+          price: data.price,
+          fee: data.fee,
+          exchangeOrderId: data.exchangeOrderId
+        });
+        throw new Error(`${errorMsg} - 실제 거래에는 반드시 수수료가 있어야 합니다. 거래소 API 응답을 확인하세요.`);
       }
 
       // 숫자 필드 검증
