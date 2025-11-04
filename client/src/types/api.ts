@@ -46,6 +46,12 @@ export interface Balance {
   total: number;
   usdValue?: number;
   krwValue?: number;
+  // 바이낸스 포지션 정보 (포지션별 마진 표시용)
+  symbol?: string; // 포지션 심볼 (예: BTCUSDT)
+  positionMargin?: number; // 포지션에 할당된 마진 (USDT)
+  positionSize?: number; // 포지션 크기 (USDT)
+  leverage?: number; // 레버리지
+  unrealizedPnl?: number; // 미실현 손익 (USDT)
 }
 
 export interface BalanceInfo {
