@@ -493,8 +493,15 @@ export default function History() {
                     <div className="space-y-3">
                       {/* 포지션별로 그룹화해서 표시 */}
                       {(() => {
+                        // 시간순 내림차순 정렬 (최신 거래가 위로)
+                        const sortedTrades = [...selectedDateTrades].sort((a, b) => {
+                          const timeA = new Date(a.executed_at || a.executedAt || 0).getTime();
+                          const timeB = new Date(b.executed_at || b.executedAt || 0).getTime();
+                          return timeB - timeA; // 내림차순
+                        });
+
                         // 포지션 ID별로 그룹화
-                        const groupedByPosition = selectedDateTrades.reduce((acc: any, trade: any) => {
+                        const groupedByPosition = sortedTrades.reduce((acc: any, trade: any) => {
                           const posId = trade.position_id || trade.positionId || 'unknown';
                           if (!acc[posId]) {
                             acc[posId] = [];
