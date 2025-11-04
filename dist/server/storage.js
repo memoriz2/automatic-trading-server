@@ -582,9 +582,9 @@ export class DatabaseStorage {
                     console.error('❌ position_id 자동 복구 중 에러:', recoveryError);
                 }
             }
-            // 🚨 CRITICAL WARNING: fee가 없으면 경고하고 최소값으로 복구
+            // 🚨 CRITICAL WARNING: fee가 없으면 경고하고 API로 조회하여 복구
             if (!data.fee || data.fee <= 0) {
-                console.error('🚨 CRITICAL WARNING: 수수료(fee)가 0이거나 없습니다! 최소값으로 복구합니다.', {
+                console.error('🚨 CRITICAL WARNING: 수수료(fee)가 0이거나 없습니다! API 조회로 복구를 시도합니다.', {
                     userId: data.userId,
                     symbol: data.symbol,
                     exchange: data.exchange,
@@ -594,9 +594,57 @@ export class DatabaseStorage {
                     originalFee: data.fee,
                     exchangeOrderId: data.exchangeOrderId
                 });
-                // 🔧 자동 복구: 최소 수수료로 설정하여 거래 저장
-                data.fee = 0.00000001;
-                console.log('✅ fee 자동 복구: 0.00000001로 설정');
+                // 🔧 자동 복구: 거래소 API로 주문 상세 조회하여 실제 수수료 가져오기
+                try {
+                    if (data.exchangeOrderId) {
+                        const decryptedExchange = await this.getDecryptedExchange(data.userId, data.exchange);
+                        if (decryptedExchange) {
+                            if (data.exchange === 'binance') {
+                                // 바이낸스 API로 주문 조회
+                                const { BinanceService } = await import('./services/binance.js');
+                                const binanceService = new BinanceService(decryptedExchange.apiKey, decryptedExchange.apiSecret);
+                                const orderDetail = await binanceService.getFuturesOrderDetail(data.symbol, parseInt(data.exchangeOrderId));
+                                const commission = parseFloat(orderDetail.commission || '0');
+                                if (commission > 0) {
+                                    data.fee = commission;
+                                    console.log(`✅ fee 자동 복구 성공 (바이낸스 API): ${commission}`);
+                                }
+                                else {
+                                    data.fee = 0.00000001;
+                                    console.error('❌ fee 자동 복구 실패: API에서도 수수료 0. 최소값으로 설정');
+                                }
+                            }
+                            else if (data.exchange === 'upbit') {
+                                // 업비트 API로 주문 조회
+                                const { UpbitService } = await import('./services/upbit.js');
+                                const upbitService = new UpbitService(decryptedExchange.apiKey, decryptedExchange.apiSecret);
+                                const orderDetail = await upbitService.getOrderDetail(data.exchangeOrderId);
+                                const paidFee = parseFloat(orderDetail.paid_fee || '0');
+                                if (paidFee > 0) {
+                                    data.fee = paidFee;
+                                    console.log(`✅ fee 자동 복구 성공 (업비트 API): ${paidFee}`);
+                                }
+                                else {
+                                    data.fee = 0.00000001;
+                                    console.error('❌ fee 자동 복구 실패: API에서도 수수료 0. 최소값으로 설정');
+                                }
+                            }
+                        }
+                        else {
+                            data.fee = 0.00000001;
+                            console.error('❌ fee 자동 복구 실패: API 키 없음. 최소값으로 설정');
+                        }
+                    }
+                    else {
+                        data.fee = 0.00000001;
+                        console.error('❌ fee 자동 복구 실패: exchangeOrderId 없음. 최소값으로 설정');
+                    }
+                }
+                catch (apiError) {
+                    console.error('❌ fee 자동 복구 중 API 조회 에러:', apiError);
+                    data.fee = 0.00000001;
+                    console.log('✅ fee 최소값으로 설정: 0.00000001');
+                }
             }
             // 숫자 필드 검증
             const numericFields = ['quantity', 'price'];
