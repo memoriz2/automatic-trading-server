@@ -164,11 +164,8 @@ export const LivePositionList: React.FC<LivePositionListProps> = React.memo(({
 
         let binancePnlUsd = 0;
 
-        // 1순위: 바이낸스 API가 제공하는 Unrealized PnL 사용 (가장 정확)
-        if (typeof position.binanceUnrealizedPnl === 'number') {
-          binancePnlUsd = position.binanceUnrealizedPnl;
-        } else if (binanceQuantity !== 0) {
-          // 2순위: 수동 계산 (실시간 Futures Mark Price 기준)
+        // 각 포지션의 진입가와 수량으로 개별 계산 (binanceUnrealizedPnl은 전체 포지션 합이므로 사용하지 않음)
+        if (binanceQuantity !== 0) {
           const sideLower = String(position.side || position.type || '').toLowerCase();
           const isShort = sideLower.includes('short') || sideLower.includes('sell');
 
