@@ -69,8 +69,6 @@ export default function History() {
     enabled: !!user,
   });
 
-  const btcKrwPrice = priceData?.btcKrwPrice || 0;
-  const btcUsdPrice = priceData?.btcUsdPrice || 0;
   const usdtKrwRate = priceData?.usdtKrwRate || 0;
 
   // 거래 내역 조회
