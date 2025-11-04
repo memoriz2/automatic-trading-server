@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import Calendar from 'react-calendar';
 import { format, startOfDay, isSameDay } from "date-fns";
-import { Calendar as CalendarIcon, FileText, TrendingUp, DollarSign, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, FileText, TrendingUp, DollarSign } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import 'react-calendar/dist/Calendar.css';
 
