@@ -3846,13 +3846,28 @@ export async function registerRoutes(app, server) {
                     executedQty,
                     commission
                 });
-                // 활성 포지션 찾기 (positionId 우선, 없으면 strategyId로 찾기)
+                // 활성 포지션 찾기 (positionId 우선, 없으면 strategyId로 찾기, 없으면 사용자의 활성 포지션 찾기)
                 const symbolOnly = symbol.replace('USDT', '');
                 let finalPositionId = positionId || null;
-                // positionId가 없고 strategyId가 있으면 포지션 찾기 (사용자별)
-                if (!finalPositionId && strategyId) {
-                    const activePosition = await storage.getActivePositionByStrategy(strategyId, symbolOnly, userId);
-                    finalPositionId = activePosition?.id || null;
+                // positionId가 없으면 포지션 찾기 시도
+                if (!finalPositionId) {
+                    if (strategyId) {
+                        // strategyId가 있으면 전략별 활성 포지션 찾기
+                        const activePosition = await storage.getActivePositionByStrategy(strategyId, symbolOnly, userId);
+                        finalPositionId = activePosition?.id || null;
+                    }
+                    // 여전히 없으면 사용자의 활성 포지션 중 해당 심볼 찾기
+                    if (!finalPositionId) {
+                        const userPositions = await storage.getPositions({ userId, status: 'open' });
+                        const matchingPosition = userPositions.find((p) => p.symbol === symbolOnly &&
+                            p.status === 'open' &&
+                            p.binance_quantity < 0 // 숏 포지션
+                        );
+                        finalPositionId = matchingPosition?.id || null;
+                        if (matchingPosition) {
+                            console.log(`📌 사용자의 활성 숏 포지션 자동 매칭: position_id=${finalPositionId}`);
+                        }
+                    }
                 }
                 // trades 테이블에 저장 (fee > 0인 경우만)
                 if (commission > 0) {
