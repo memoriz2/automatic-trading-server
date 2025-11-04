@@ -64,18 +64,43 @@ export class BalanceService {
                             // exchangeTestService 결과에서 사용 가능한 USDT 잔고 추출
                             const availableBalance = parseFloat(testResult.details?.availableBalance || '0');
                             const totalBalance = parseFloat(testResult.details?.totalWalletBalance || '0');
-                            // 사용 가능 잔고 우선, 없으면 총 잔고 사용
-                            const usdtBalance = availableBalance > 0 ? availableBalance : totalBalance;
-                            if (usdtBalance > 0) {
+                            // 포지션별 마진 정보 조회
+                            const { BinanceService } = await import('./binance.js');
+                            const binanceService = new BinanceService(apiKey.apiKey, apiKey.secretKey);
+                            const positions = await binanceService.getFuturesPositions();
+                            // 전체 잔고 추가
+                            allBalances.push({
+                                exchange: 'binance',
+                                currency: 'USDT',
+                                available: availableBalance,
+                                locked: totalBalance - availableBalance,
+                                total: totalBalance
+                            });
+                            // 각 포지션별 마진을 별도 항목으로 추가
+                            for (const position of positions) {
                                 allBalances.push({
                                     exchange: 'binance',
                                     currency: 'USDT',
-                                    available: usdtBalance,
-                                    locked: totalBalance - availableBalance, // 사용 중인 금액
-                                    total: totalBalance
+                                    symbol: position.symbol, // 포지션 심볼 (예: BTCUSDT)
+                                    positionMargin: position.marginUsdt, // 포지션에 할당된 마진
+                                    positionSize: position.sizeUsdt, // 포지션 크기 (USDT)
+                                    leverage: position.leverage, // 레버리지
+                                    unrealizedPnl: position.unRealizedProfit, // 미실현 손익
+                                    available: 0, // 포지션 마진은 사용 불가
+                                    locked: position.marginUsdt,
+                                    total: position.marginUsdt
                                 });
-                                // 바이낸스 USDT 잔고 로그 제거
                             }
+                            console.log(`📊 바이낸스 포지션별 마진 정보:`, {
+                                totalPositions: positions.length,
+                                positions: positions.map(p => ({
+                                    symbol: p.symbol,
+                                    margin: p.marginUsdt.toFixed(2),
+                                    size: p.sizeUsdt.toFixed(2),
+                                    leverage: p.leverage,
+                                    pnl: p.unRealizedProfit.toFixed(2)
+                                }))
+                            });
                         }
                     }
                     else {

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { formatBTC, formatPrice } from '@/utils/trading/formatters';
-import { formatKoreanTime } from '@/utils/datetime';
+import { formatBTC } from '@/utils/trading/formatters';
 import { useAuth } from '@/hooks/useAuth';
 
 interface LiveTrade {
@@ -72,6 +71,7 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
 
   // DB 거래가 있으면 DB 데이터 우선 사용 (고정된 시간)
   const displayTrades = dbTrades.length > 0 ? dbTrades : recentTrades;
+
   // 개발 환경에서만 의미 있는 경고 출력 (컴포넌트 로드 후 5초 뒤에도 거래 기록이 없을 때만)
   React.useEffect((): (() => void) | void => {
     if (process.env.NODE_ENV === 'development') {
@@ -84,9 +84,16 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
       return () => clearTimeout(timer);
     }
   }, []); // 의존성 배열을 빈 배열로 변경하여 마운트 시 한 번만 실행
-  const getTradeTypeDisplay = (trade: LiveTrade, strategy?: Strategy) => {
-    return trade.type?.toUpperCase() || (strategy?.name?.includes('강제진입') ? strategy.name : 'UNKNOWN');
-  };
+
+  // 전략별로 그룹화
+  const groupedByStrategy = displayTrades.reduce((acc: { [key: string]: LiveTrade[] }, trade) => {
+    const strategyKey = trade.strategyId || 'unknown';
+    if (!acc[strategyKey]) {
+      acc[strategyKey] = [];
+    }
+    acc[strategyKey].push(trade);
+    return acc;
+  }, {});
 
   return (
     <>
@@ -123,44 +130,45 @@ export const LiveTradeHistory: React.FC<LiveTradeHistoryProps> = ({
               </p>
             </div>
           ) : (
-            displayTrades.map(trade => {
-              const strategy = strategies.find(s => s.id === trade.strategyId);
+            Object.entries(groupedByStrategy).map(([strategyId, trades]) => {
+              const strategy = strategies.find(s => s.id === strategyId);
+              const strategyName = strategy?.name || (strategyId !== 'unknown' ? `전략 #${strategyId}` : '전략 정보 없음');
+
+              // 매수(buy+short)와 청산(sell+cover)로 그룹화
+              const entryTrades = trades.filter(t => t.type === 'buy' || t.type === 'short');
+              const exitTrades = trades.filter(t => t.type === 'sell' || t.type === 'cover');
+
+              const entryTotal = entryTrades.reduce((sum, t) => sum + Number(t.quantity || 0), 0);
+              const exitTotal = exitTrades.reduce((sum, t) => sum + Number(t.quantity || 0), 0);
+              const totalFee = trades.reduce((sum, t) => sum + Number(t.fee || 0), 0);
+
               return (
-                <div key={trade.id} className="bg-slate-700 p-2 rounded mb-1 text-xs border border-slate-600">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white">
-                      {formatKoreanTime(trade.timestamp)} | <span className="font-bold">{trade.exchange}</span> | <span className={`${
-                        trade.type === 'buy' ? 'text-blue-400' : 
-                        trade.type === 'sell' ? 'text-yellow-400' :
-                        trade.type === 'short' ? 'text-red-400' :
-                        'text-green-400'
-                      } font-bold`}>
-                        {getTradeTypeDisplay(trade, strategy)}
-                      </span>
-                      {trade.strategyName && trade.strategyName !== '전략 정보 없음' ? (
-                        <span className="text-purple-300 font-medium ml-2">
-                          📋 전략: {trade.strategyName}
-                        </span>
-                      ) : trade.strategyId ? (
-                        <span className="text-purple-300 font-medium ml-2">
-                          📋 전략: ID #{trade.strategyId}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-medium ml-2">
-                          📋 전략: 정보없음
-                        </span>
-                      )}
-                    </span>
-                    <span className={`font-medium ${
-                      trade.type === 'buy' ? 'text-blue-400' : 
-                      trade.type === 'sell' ? 'text-yellow-400' :
-                      trade.type === 'short' ? 'text-red-400' :
-                      'text-green-400'
-                    }`}>
-                      {formatBTC(Number(trade.quantity) || 0)} BTC @ ₩{formatPrice(Number(trade.price) || 0)}
-                      {trade.exchange === 'binance' && (trade.type === 'short' || trade.type === 'cover') && ' (선물)'}
-                    </span>
-                  </div>
+                <div key={strategyId} className="mb-3 border border-slate-600 rounded-lg p-3 bg-slate-900">
+                  <h5 className="text-sm font-semibold text-slate-300 mb-2">{strategyName}</h5>
+
+                  {/* 매수 */}
+                  {entryTrades.length > 0 && (
+                    <div className="flex items-center justify-between py-1 text-xs">
+                      <span className="text-blue-400 font-semibold">매수</span>
+                      <span className="text-white font-semibold">{formatBTC(entryTotal)}</span>
+                    </div>
+                  )}
+
+                  {/* 청산 */}
+                  {exitTrades.length > 0 && (
+                    <div className="flex items-center justify-between py-1 text-xs">
+                      <span className="text-red-400 font-semibold">청산</span>
+                      <span className="text-white font-semibold">{formatBTC(exitTotal)}</span>
+                    </div>
+                  )}
+
+                  {/* 수수료 */}
+                  {totalFee > 0 && (
+                    <div className="flex items-center justify-between py-1 text-xs">
+                      <span className="text-slate-400 font-semibold">수수료</span>
+                      <span className="text-orange-400 font-semibold">-{totalFee.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               );
             })

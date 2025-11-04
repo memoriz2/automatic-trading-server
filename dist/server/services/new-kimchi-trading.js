@@ -368,6 +368,7 @@ export class MultiStrategyTradingService {
                 }
                 this.entryLocks.set(strategy.id, true);
                 console.log(`🎯 BTC 진입 신호 발생! 현재=${premiumRate.toFixed(2)}%, 설정=${entryRate}% (±${tolerance}%)`);
+                console.log(`🔍 [DEBUG] 진입 신호 생성: premiumRate = ${premiumRate} (type: ${typeof premiumRate}), kimchiData.premiumRate = ${kimchiData.premiumRate}`);
                 return {
                     action: "entry",
                     symbol: "BTC",
@@ -504,6 +505,7 @@ export class MultiStrategyTradingService {
             }
             console.log(`✅ [전략 ${strategy.id}] DB 중복 체크 통과 - 사용자 ${userId}의 활성 포지션 없음`);
             // 🔒 즉시 임시 포지션 생성하여 다른 요청 차단 (Race Condition 방지)
+            console.log(`🔍 [DEBUG] 임시 포지션 생성: signal.premiumRate = ${signal.premiumRate} (type: ${typeof signal.premiumRate})`);
             const tempPosition = await storage.pool.query(`
         INSERT INTO positions (
           user_id, strategy_id, symbol, type, side, status,
@@ -810,6 +812,7 @@ export class MultiStrategyTradingService {
                 if (!reservedPositionId) {
                     throw new Error('임시 포지션 ID가 없습니다');
                 }
+                console.log(`🔍 [DEBUG] 포지션 업데이트: signal.premiumRate = ${signal.premiumRate} (type: ${typeof signal.premiumRate})`);
                 await storage.updatePosition(reservedPositionId, {
                     status: 'open',
                     entryPrice: String(upbitActualEntryPricePerBtc), // ✅ 실제 업비트 거래 평균 단가 사용
@@ -1359,7 +1362,7 @@ export class MultiStrategyTradingService {
                     positionId: position.id,
                     strategyId: position.strategy_id, // 전략 ID 추가
                     symbol: signal.symbol,
-                    side: "buy",
+                    side: "cover", // ✅ 바이낸스 숏 포지션 청산은 cover
                     exchange: "binance",
                     quantity: String(binanceCloseQuantity),
                     price: String(binanceClosePrice),

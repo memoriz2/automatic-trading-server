@@ -167,6 +167,10 @@ export class TradingManager {
                 console.warn(`⚠️ 바이낸스 포지션 상세 정보 조회 실패 (계속 진행):`, binanceError);
             }
             // 6. DB에 실거래 포지션 저장 (실제 체결가와 수량 사용)
+            // 실제 체결가 기준으로 정확한 진입 김프율 계산
+            const actualEntryPremiumRate = actualUpbitPrice && actualBinancePrice && fees.usdtKrwRate
+                ? ((actualUpbitPrice - (actualBinancePrice * fees.usdtKrwRate)) / (actualBinancePrice * fees.usdtKrwRate)) * 100
+                : (params.currentKimp || 0);
             const realPosition = {
                 userId,
                 symbol: params.symbol,
@@ -177,18 +181,19 @@ export class TradingManager {
                 quantity: actualUpbitQuantity, // 실제 체결된 업비트 BTC 수량
                 binanceQuantity: actualUpbitQuantity, // 바이낸스 수량 (동일)
                 remainingQuantity: actualUpbitQuantity, // 남은 수량 (초기값 = 전체 수량)
-                entryPremiumRate: params.currentKimp,
-                currentPremiumRate: params.currentKimp,
+                entryPremiumRate: actualEntryPremiumRate, // 실제 체결가 기준 김프율
+                currentPremiumRate: actualEntryPremiumRate, // 실제 체결가 기준 김프율
                 unrealizedPnl: 0, // 초기값 0 (이후 백그라운드에서 업데이트)
                 totalFees: fees.totalFeeKRW, // 총 수수료 (KRW)
                 status: 'open',
-                side: 'long',
+                side: 'short', // 김프 거래: 바이낸스 선물 숏
                 isMock: false,
                 leverage: params.leverage,
                 binanceLeverage: params.leverage, // 바이낸스 레버리지
                 upbitOrderId: upbitOrder.uuid,
                 binanceOrderId: binanceOrder.orderId.toString(),
                 forceEntrySettingsId: forceEntrySettingsId, // 강제진입 설정 ID 추가
+                entryUsdKrw: fees.usdtKrwRate, // 진입 시점 환율 저장
                 ...binanceDetails // 바이낸스 선물 상세 정보 추가
             };
             // 진입가 경고 (0이면 백그라운드에서 수정 예정)

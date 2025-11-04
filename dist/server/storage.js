@@ -557,25 +557,48 @@ export class DatabaseStorage {
                     price: data.price,
                     exchangeOrderId: data.exchangeOrderId
                 });
-                // 🔧 자동 복구: 사용자의 활성 포지션 중 매칭되는 것 찾기
+                // 🔧 자동 복구: 사용자의 활성 또는 최근 종료된 포지션 중 매칭되는 것 찾기
                 try {
-                    const positions = await this.getPositions({ userId: data.userId, status: 'open' });
+                    // 청산 거래는 포지션이 이미 closed로 변경된 후에 저장될 수 있으므로
+                    // 최근 1시간 내에 종료된 포지션도 함께 검색
+                    const result = await this.pool.query(`
+            SELECT id, symbol, status, upbit_quantity, binance_quantity, quantity, strategy_id, exit_time
+            FROM positions
+            WHERE user_id = $1
+              AND symbol = $2
+              AND (
+                status = 'open'
+                OR (status = 'closed' AND exit_time > NOW() - INTERVAL '1 hour')
+              )
+            ORDER BY
+              CASE WHEN status = 'open' THEN 0 ELSE 1 END,
+              exit_time DESC NULLS LAST
+            LIMIT 10
+          `, [data.userId, data.symbol]);
+                    const positions = result.rows;
                     const matchingPosition = positions.find((p) => {
-                        if (p.symbol !== data.symbol)
-                            return false;
                         // 청산 타입에 따라 매칭
-                        if (data.side === 'sell' && data.exchange === 'upbit')
-                            return p.upbit_quantity > 0;
-                        if (data.side === 'cover' && data.exchange === 'binance')
-                            return p.binance_quantity < 0;
+                        if (data.side === 'sell' && data.exchange === 'upbit') {
+                            // 업비트 매도는 upbit_quantity가 있는 포지션
+                            return (p.upbit_quantity || p.quantity) > 0;
+                        }
+                        if (data.side === 'cover' && data.exchange === 'binance') {
+                            // 바이낸스 커버는 binance_quantity가 있는 포지션 (숏 포지션도 양수)
+                            return (p.binance_quantity || p.quantity) > 0;
+                        }
                         return false;
                     });
                     if (matchingPosition) {
                         data.positionId = matchingPosition.id;
-                        console.log(`✅ position_id 자동 복구 성공: ${data.positionId}`);
+                        console.log(`✅ position_id 자동 복구 성공: ${data.positionId} (상태: ${matchingPosition.status}, 전략: ${matchingPosition.strategy_id})`);
+                        // strategy_id도 함께 복구
+                        if (matchingPosition.strategy_id && !data.strategyId) {
+                            data.strategyId = matchingPosition.strategy_id;
+                            console.log(`✅ strategy_id도 자동 복구: ${data.strategyId}`);
+                        }
                     }
                     else {
-                        console.error('❌ position_id 자동 복구 실패: 매칭되는 활성 포지션 없음. null로 저장합니다.');
+                        console.error('❌ position_id 자동 복구 실패: 매칭되는 포지션 없음 (open 또는 1시간 내 closed). null로 저장합니다.');
                     }
                 }
                 catch (recoveryError) {

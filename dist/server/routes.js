@@ -1180,18 +1180,22 @@ export async function registerRoutes(app, server) {
                 return;
             }
             const positions = await storage.getActivePositions(userIdNum);
-            // 바이낸스 포지션 상세 정보 가져오기
+            // 바이낸스 포지션 상세 정보 가져오기 (symbol별 배열로 저장)
             let binancePositionsMap = new Map();
             try {
                 const { ExchangeServiceFactory } = await import('./services/exchange-factory.js');
                 const services = await ExchangeServiceFactory.initializeByUserId(userIdNum);
                 if (services.binanceService) {
                     const binancePositions = await services.binanceService.getFuturesPositions();
-                    // symbol을 키로 하는 맵 생성 (BTCUSDT -> BTC)
+                    // symbol별로 포지션 배열 생성 (BTCUSDT -> BTC)
                     binancePositions.forEach(pos => {
                         const symbol = pos.symbol.replace('USDT', '');
-                        binancePositionsMap.set(symbol, pos);
+                        if (!binancePositionsMap.has(symbol)) {
+                            binancePositionsMap.set(symbol, []);
+                        }
+                        binancePositionsMap.get(symbol).push(pos);
                     });
+                    console.log('📊 바이낸스 포지션 맵:', Array.from(binancePositionsMap.entries()).map(([sym, positions]) => `${sym}: ${positions.length}개 (${positions.map(p => `${p.positionAmt} BTC`).join(', ')})`));
                 }
             }
             catch (error) {
@@ -1210,8 +1214,24 @@ export async function registerRoutes(app, server) {
                         mapped_binancePrice: binancePrice
                     });
                 }
-                // 바이낸스 포지션 상세 정보 병합
-                const binanceDetails = binancePositionsMap.get(p.symbol);
+                // 바이낸스 포지션 상세 정보 병합 - DB 수량과 가장 가까운 포지션 매칭
+                const binancePositionsList = binancePositionsMap.get(p.symbol) || [];
+                const dbBinanceQty = Number(p.binancequantity || p.upbitquantity) || 0;
+                // DB 수량과 가장 가까운 바이낸스 포지션 찾기
+                let binanceDetails = null;
+                if (binancePositionsList.length > 0) {
+                    binanceDetails = binancePositionsList.reduce((closest, current) => {
+                        const closestDiff = Math.abs(closest.positionAmt - dbBinanceQty);
+                        const currentDiff = Math.abs(current.positionAmt - dbBinanceQty);
+                        return currentDiff < closestDiff ? current : closest;
+                    });
+                    console.log(`🔍 포지션 ${p.id} (${p.symbol}) 매칭:`, {
+                        DB수량: dbBinanceQty,
+                        API수량: binanceDetails.positionAmt,
+                        차이: Math.abs(binanceDetails.positionAmt - dbBinanceQty),
+                        UnrealizedPnL: binanceDetails.unRealizedProfit
+                    });
+                }
                 const binanceExtras = binanceDetails ? {
                     // binanceEntryPrice는 DB 값 우선 사용 (API는 신뢰 불가)
                     binanceMarkPrice: binanceDetails.markPrice, // 마크 가격
@@ -1221,6 +1241,7 @@ export async function registerRoutes(app, server) {
                     binanceMarginRatio: binanceDetails.marginRatio, // 마진 비율
                     binanceMarginType: binanceDetails.marginType, // 마진 타입
                     binanceUnrealizedPnl: binanceDetails.unRealizedProfit, // 미실현 손익 (USDT)
+                    binancePositionAmt: binanceDetails.positionAmt, // 실제 포지션 수량
                 } : {};
                 return {
                     ...p,
@@ -1228,7 +1249,10 @@ export async function registerRoutes(app, server) {
                     binancePrice, // 바이낸스 진입가 매핑
                     leverage: p.binance_leverage || 1,
                     upbitQuantity: Number(p.upbitquantity) || 0, // upbitQuantity alias 사용
-                    binanceQuantity: Number(p.binancequantity || p.upbitquantity) || 0, // binanceQuantity 우선
+                    // 바이낸스 실제 포지션 수량 우선, 없으면 DB 값 사용
+                    binanceQuantity: binanceExtras.binancePositionAmt !== undefined
+                        ? binanceExtras.binancePositionAmt
+                        : (Number(p.binancequantity || p.upbitquantity) || 0),
                     binanceSpotQuantity: 0, // 사용하지 않음
                     entryPremiumRate: Number(p.entry_premium_rate) || 0,
                     unrealizedPnl: Number(p.unrealized_pnl) || 0,
