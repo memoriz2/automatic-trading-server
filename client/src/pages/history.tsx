@@ -474,71 +474,141 @@ export default function History() {
                       <p className="text-slate-400">거래 내역을 불러오는 중...</p>
                     </div>
                   ) : selectedDateTrades.length > 0 ? (
-                    <div className="space-y-3">
-                      {selectedDateTrades.map((trade) => (
-                        <div 
-                          key={trade.id} 
-                          className="flex items-center justify-between p-4 bg-slate-800 rounded-lg border border-slate-600"
-                        >
-                          <div className="flex items-center space-x-4">
-                            <div className={`w-3 h-3 rounded-full ${
-                              trade.side === 'buy' ? 'bg-green-400' : 
-                              trade.side === 'sell' ? 'bg-yellow-400' :
-                              trade.side === 'short' ? 'bg-red-400' : 'bg-blue-400'
-                            }`}></div>
-                            <div>
-                              <p className="text-white font-semibold">
-                                {trade.symbol} {
-                                  trade.side === 'buy' ? '매수' : 
-                                  trade.side === 'sell' ? '매도' :
-                                  trade.side === 'short' ? '숏' : '커버'
-                                }
-                              </p>
-                              <p className="text-sm text-slate-400">
-                                {trade.quantity.toFixed(6)} × {trade.price.toLocaleString()}원
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {trade.exchange.toUpperCase()} | {trade.orderType || 'MARKET'}
-                              </p>
-                              {/* 전략 정보 표시 */}
-                              {trade.strategyName && (
-                                <p className="text-xs text-blue-400">
-                                  📋 {trade.strategyName} (ID: {trade.strategyId})
-                                </p>
-                              )}
-                              {trade.positionId && (
-                                <p className="text-xs text-purple-400">
-                                  🎯 포지션 #{trade.positionId}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-white font-semibold">
-                              {(trade.amount || 0).toLocaleString()}원
-                            </p>
-                            {trade.fee && (
-                              <p className="text-xs text-slate-400">
-                                수수료: {trade.fee.toFixed(4)}
-                              </p>
+                    <div className="space-y-4">
+                      {/* 매수/청산 그룹화 */}
+                      {(() => {
+                        const buyTrades = selectedDateTrades.filter(t => t.side === 'buy' || t.side === 'short');
+                        const sellTrades = selectedDateTrades.filter(t => t.side === 'sell' || t.side === 'cover');
+                        const buyTotal = buyTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
+                        const sellTotal = sellTrades.reduce((sum, t) => sum + (t.amount || 0), 0);
+                        const totalProfit = sellTotal - buyTotal;
+
+                        return (
+                          <>
+                            {/* 매수 섹션 */}
+                            {buyTrades.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-blue-400 font-semibold flex items-center">
+                                  <div className="w-3 h-3 rounded-full bg-blue-400 mr-2"></div>
+                                  매수 ({buyTrades.length}건)
+                                </h4>
+                                {buyTrades.map((trade) => (
+                                  <div
+                                    key={trade.id}
+                                    className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-blue-500/30 ml-5"
+                                  >
+                                    <div>
+                                      <p className="text-white font-medium text-sm">
+                                        {trade.symbol} {trade.side === 'buy' ? '매수' : '숏'}
+                                      </p>
+                                      <p className="text-xs text-slate-400">
+                                        {trade.quantity.toFixed(6)} × {trade.price.toLocaleString()}원
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {trade.exchange.toUpperCase()}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-white font-medium text-sm">
+                                        {(trade.amount || 0).toLocaleString()}원
+                                      </p>
+                                      <p className="text-xs text-slate-400 flex items-center justify-end">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        {(() => {
+                                          try {
+                                            const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
+                                            if (!tradeDate) return '-';
+                                            const date = new Date(tradeDate);
+                                            if (isNaN(date.getTime())) return '-';
+                                            return format(date, 'HH:mm:ss');
+                                          } catch (e) {
+                                            return '-';
+                                          }
+                                        })()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="ml-5 p-2 bg-blue-500/10 rounded text-right">
+                                  <p className="text-blue-400 font-semibold">
+                                    매수 합계: {buyTotal.toLocaleString()}원
+                                  </p>
+                                </div>
+                              </div>
                             )}
-                            <p className="text-sm text-slate-400 flex items-center">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {(() => {
-                                try {
-                                  const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
-                                  if (!tradeDate) return '-';
-                                  const date = new Date(tradeDate);
-                                  if (isNaN(date.getTime())) return '-';
-                                  return format(date, 'HH:mm:ss');
-                                } catch (e) {
-                                  return '-';
-                                }
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+
+                            {/* 청산 섹션 */}
+                            {sellTrades.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-red-400 font-semibold flex items-center">
+                                  <div className="w-3 h-3 rounded-full bg-red-400 mr-2"></div>
+                                  청산 ({sellTrades.length}건)
+                                </h4>
+                                {sellTrades.map((trade) => (
+                                  <div
+                                    key={trade.id}
+                                    className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-red-500/30 ml-5"
+                                  >
+                                    <div>
+                                      <p className="text-white font-medium text-sm">
+                                        {trade.symbol} {trade.side === 'sell' ? '매도' : '커버'}
+                                      </p>
+                                      <p className="text-xs text-slate-400">
+                                        {trade.quantity.toFixed(6)} × {trade.price.toLocaleString()}원
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {trade.exchange.toUpperCase()}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-white font-medium text-sm">
+                                        {(trade.amount || 0).toLocaleString()}원
+                                      </p>
+                                      <p className="text-xs text-slate-400 flex items-center justify-end">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        {(() => {
+                                          try {
+                                            const tradeDate = trade.executed_at || trade.executedAt || trade.created_at || trade.createdAt;
+                                            if (!tradeDate) return '-';
+                                            const date = new Date(tradeDate);
+                                            if (isNaN(date.getTime())) return '-';
+                                            return format(date, 'HH:mm:ss');
+                                          } catch (e) {
+                                            return '-';
+                                          }
+                                        })()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="ml-5 p-2 bg-red-500/10 rounded text-right">
+                                  <p className="text-red-400 font-semibold">
+                                    청산 합계: {sellTotal.toLocaleString()}원
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 총 수익금 */}
+                            {buyTrades.length > 0 && sellTrades.length > 0 && (
+                              <div className={`p-4 rounded-lg border-2 ${
+                                totalProfit >= 0
+                                  ? 'bg-green-500/10 border-green-500/50'
+                                  : 'bg-red-500/10 border-red-500/50'
+                              }`}>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-lg font-semibold text-white">총 수익금</span>
+                                  <span className={`text-xl font-bold ${
+                                    totalProfit >= 0 ? 'text-green-400' : 'text-red-400'
+                                  }`}>
+                                    {totalProfit >= 0 ? '+' : ''}{totalProfit.toLocaleString()}원
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div className="text-center py-8">
