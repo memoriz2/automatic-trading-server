@@ -55,21 +55,21 @@ export default function History() {
   // IP 체크 (49.50.135.114인 경우 일부 통계 숨김)
   const isRestrictedIP = window.location.hostname === '49.50.135.114';
 
-  // 실시간 가격 정보 조회
-  const { data: priceData } = useQuery({
-    queryKey: ['/api/prices/live'],
+  // 실시간 가격 정보 조회 (김치 프리미엄 API 사용)
+  const { data: kimchiData } = useQuery({
+    queryKey: ['/api/kimchi-premium/simple'],
     queryFn: async () => {
-      const response = await fetch('/api/prices/live', {
+      const response = await fetch('/api/kimchi-premium/simple', {
         credentials: 'include',
       });
-      if (!response.ok) return { btcKrwPrice: 0, btcUsdPrice: 0, usdtKrwRate: 0 };
+      if (!response.ok) return null;
       return response.json();
     },
     refetchInterval: 5000,
     enabled: !!user,
   });
 
-  const usdtKrwRate = priceData?.usdtKrwRate || 0;
+  const usdtKrwRate = kimchiData?.[0]?.usdkrw || 1400; // 기본값 1400원
 
   // 거래 내역 조회
   const { data: trades = [], isLoading: tradesLoading } = useQuery<any[]>({
