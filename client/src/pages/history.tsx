@@ -55,6 +55,24 @@ export default function History() {
   // IP 체크 (49.50.135.114인 경우 일부 통계 숨김)
   const isRestrictedIP = window.location.hostname === '49.50.135.114';
 
+  // 실시간 가격 정보 조회
+  const { data: priceData } = useQuery({
+    queryKey: ['/api/prices/live'],
+    queryFn: async () => {
+      const response = await fetch('/api/prices/live', {
+        credentials: 'include',
+      });
+      if (!response.ok) return { btcKrwPrice: 0, btcUsdPrice: 0, usdtKrwRate: 0 };
+      return response.json();
+    },
+    refetchInterval: 5000,
+    enabled: !!user,
+  });
+
+  const btcKrwPrice = priceData?.btcKrwPrice || 0;
+  const btcUsdPrice = priceData?.btcUsdPrice || 0;
+  const usdtKrwRate = priceData?.usdtKrwRate || 0;
+
   // 거래 내역 조회
   const { data: trades = [], isLoading: tradesLoading } = useQuery<any[]>({
     queryKey: [`/api/trades`],
@@ -517,7 +535,11 @@ export default function History() {
                                           {trade1.symbol} {getTradeLabel(trade1.side)}
                                         </p>
                                         <p className="text-xs text-slate-400">
-                                          {trade1.quantity.toFixed(6)} × {trade1.price.toLocaleString()}원
+                                          {trade1.quantity.toFixed(6)} × {
+                                            trade1.exchange === 'binance'
+                                              ? `${trade1.price.toLocaleString()}$ (${(trade1.price * usdtKrwRate).toLocaleString()}원)`
+                                              : `${trade1.price.toLocaleString()}원`
+                                          }
                                         </p>
                                         <p className="text-xs text-slate-500">
                                           {trade1.exchange.toUpperCase()}
@@ -559,7 +581,11 @@ export default function History() {
                                               {trade2.symbol} {getTradeLabel(trade2.side)}
                                             </p>
                                             <p className="text-xs text-slate-400">
-                                              {trade2.quantity.toFixed(6)} × {trade2.price.toLocaleString()}원
+                                              {trade2.quantity.toFixed(6)} × {
+                                                trade2.exchange === 'binance'
+                                                  ? `${trade2.price.toLocaleString()}$ (${(trade2.price * usdtKrwRate).toLocaleString()}원)`
+                                                  : `${trade2.price.toLocaleString()}원`
+                                              }
                                             </p>
                                             <p className="text-xs text-slate-500">
                                               {trade2.exchange.toUpperCase()}
