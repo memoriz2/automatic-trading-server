@@ -510,13 +510,6 @@ export default function History() {
                           return acc;
                         }, {});
 
-                        const getTradeLabel = (side: string) => {
-                          if (side === 'buy') return '매수';
-                          if (side === 'short') return '숏';
-                          if (side === 'sell') return '매도';
-                          return '커버';
-                        };
-
                         const calculateAmount = (trade: any) => {
                           if (trade.exchange === 'binance') {
                             return trade.quantity * trade.price * usdtKrwRate;
@@ -545,43 +538,36 @@ export default function History() {
                                     </span>
                                   </div>
 
-                                  {/* 매수/숏 거래들 */}
+                                  {/* 매수 합계 */}
                                   {buyTrades.length > 0 && (
-                                    <div className="mb-2">
-                                      <p className="text-xs text-blue-400 font-semibold mb-1">매수 {Math.floor(buyTotal).toLocaleString()}원</p>
-                                      {buyTrades.map((trade: any, idx: number) => (
-                                        <div key={idx} className="flex items-center justify-between py-1 text-xs">
-                                          <span className="text-slate-400">
-                                            {trade.symbol} {getTradeLabel(trade.side)} {trade.quantity.toFixed(6)} × {
-                                              trade.exchange === 'binance'
-                                                ? `${trade.price.toLocaleString()}$ (${Math.floor(trade.price * usdtKrwRate).toLocaleString()}원)`
-                                                : `${trade.price.toLocaleString()}원`
-                                            }
-                                          </span>
-                                          <span className="text-white">{Math.floor(calculateAmount(trade)).toLocaleString()}원</span>
-                                        </div>
-                                      ))}
+                                    <div className="flex items-center justify-between py-1 text-xs mb-1">
+                                      <span className="text-blue-400 font-semibold">매수</span>
+                                      <span className="text-white font-semibold">{Math.floor(buyTotal).toLocaleString()}원</span>
                                     </div>
                                   )}
 
-                                  {/* 매도/커버 거래들 */}
+                                  {/* 청산 합계 */}
                                   {sellTrades.length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-red-400 font-semibold mb-1">청산 {Math.floor(sellTotal).toLocaleString()}원</p>
-                                      {sellTrades.map((trade: any, idx: number) => (
-                                        <div key={idx} className="flex items-center justify-between py-1 text-xs">
-                                          <span className="text-slate-400">
-                                            {trade.symbol} {getTradeLabel(trade.side)} {trade.quantity.toFixed(6)} × {
-                                              trade.exchange === 'binance'
-                                                ? `${trade.price.toLocaleString()}$ (${Math.floor(trade.price * usdtKrwRate).toLocaleString()}원)`
-                                                : `${trade.price.toLocaleString()}원`
-                                            }
-                                          </span>
-                                          <span className="text-white">{Math.floor(calculateAmount(trade)).toLocaleString()}원</span>
-                                        </div>
-                                      ))}
+                                    <div className="flex items-center justify-between py-1 text-xs mb-1">
+                                      <span className="text-red-400 font-semibold">청산</span>
+                                      <span className="text-white font-semibold">{Math.floor(sellTotal).toLocaleString()}원</span>
                                     </div>
                                   )}
+
+                                  {/* 총 수수료 */}
+                                  {(() => {
+                                    const allTrades = [...buyTrades, ...sellTrades];
+                                    const totalFee = allTrades.reduce((sum: number, t: any) => {
+                                      const fee = t.fee || 0;
+                                      return sum + (t.exchange === 'binance' ? fee * usdtKrwRate : fee);
+                                    }, 0);
+                                    return totalFee > 0 && (
+                                      <div className="flex items-center justify-between py-1 text-xs">
+                                        <span className="text-slate-400 font-semibold">수수료</span>
+                                        <span className="text-orange-400 font-semibold">-{Math.floor(totalFee).toLocaleString()}원</span>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               );
                             })}
