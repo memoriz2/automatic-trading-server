@@ -1250,7 +1250,7 @@ const LegacyAutoTradingPage = () => {
               <LiveTradingSystem
                 strategies={realStrategies} // DB 기반 전략
                 currentKimchiData={{
-                  kimp: Number(kimp?.kimp) || 0.5,
+                  kimp: kimp?.kimp !== undefined ? Number(kimp.kimp) : 0,
                   upbit_price: Number(kimp?.upbit_price) || 0,
                   binance_price: Number(kimp?.binance_price) || 0,
                   usdkrw: Number(kimp?.usdkrw) || 0,
@@ -1754,49 +1754,30 @@ const LegacyAutoTradingPage = () => {
                     setNewStrategy((prev: any) => ({ ...prev, investmentAmount: formattedValue }));
                   }}
                 />
-                <div className="text-xs text-muted-foreground">
-                  ₩{parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0').toLocaleString('ko-KR', { maximumFractionDigits: 0 })} ÷ {newStrategy.leverage}배 = {(parseInt(newStrategy.baseAmount || STRATEGY_DEFAULTS.BASE_AMOUNT || '0') / getSafeLeverage(newStrategy.leverage)).toLocaleString('ko-KR', { maximumFractionDigits: 0 })}원 증거금
-                </div>
               </div>
               <div className="space-y-2">
                 <label
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  htmlFor=":r12a:-form-item"
                 >
-                  기본 투자 금액 (원)
+                  투자수량 원화 환산
                 </label>
-                <input
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                <div
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base items-center"
                   style={{
                     backgroundColor: '#0b1220',
                     border: '1px solid #1e293b',
-                    color: '#dbe6ff',
+                    color: '#94a3b8',
                     borderRadius: '10px'
                   }}
-                  name="baseAmount"
-                  placeholder="0"
-                  data-testid="input-base-amount"
-                  id=":r12a:-form-item"
-                  key={`base-amount-${newStrategy.baseAmount}`}
-                  value={newStrategy.baseAmount}
-                  onChange={(e) => {
-                    const baseAmount = parseFloat(e.target.value) || 0;
+                >
+                  {(() => {
+                    const investmentBTC = parseFloat(newStrategy.investmentAmount) || 0;
                     const leverage = getSafeLeverage(newStrategy.leverage);
                     const btcPrice = Number(kimp?.upbit_price) || 0;
-                    
-                    // BTC 가격이 없으면 계산하지 않음
-                    const calculatedBTC = btcPrice > 0 && baseAmount > 0
-                      ? parseFloat((baseAmount / leverage / btcPrice).toFixed(8))
-                      : 0;
-                    
-                    setNewStrategy((prev: any) => ({
-                      ...prev,
-                      baseAmount: e.target.value,
-                      investmentAmount: calculatedBTC > 0 ? String(calculatedBTC) : '0.00000000',
-                      tolerance: prev.tolerance
-                    }));
-                  }}
-                />
+                    const krwAmount = (investmentBTC * btcPrice) / leverage;
+                    return `₩${Math.round(krwAmount).toLocaleString()}`;
+                  })()}
+                </div>
               </div>
             </div>
 
