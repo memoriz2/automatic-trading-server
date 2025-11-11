@@ -1095,12 +1095,20 @@ export class MultiStrategyTradingService {
                 });
             }
             // 2. 바이낸스 선물 포지션 청산 (업비트 실패와 무관하게 실행)
-            console.log(`바이낸스 선물 청산: ${signal.symbol}, 수량: ${binanceQuantity}`);
+            console.log(`🔍 [청산 시작] 바이낸스 선물 청산: ${signal.symbol}, 수량: ${binanceQuantity}`);
+            console.log(`🔍 [청산 시작] closeFuturesPosition 메서드 호출 (BUY 주문 실행)`);
             let binanceResult = null;
             let binanceError = null;
             try {
                 binanceResult = await binanceService.closeFuturesPosition(signal.symbol, binanceQuantity);
                 console.log(`✅ 바이낸스 청산 성공:`, binanceResult);
+                console.log(`🔍 [청산 검증] 주문 side: ${binanceResult.side}, 예상: BUY`);
+                // 🚨 청산 검증: side가 BUY가 아니면 경고
+                if (binanceResult.side !== 'BUY') {
+                    console.error(`🚨 [청산 오류] 바이낸스 청산 주문이 BUY가 아닙니다! 실제: ${binanceResult.side}`);
+                    console.error(`🚨 [청산 오류] 이것은 새로운 숏 포지션을 열었을 가능성이 높습니다!`);
+                    throw new Error(`바이낸스 청산 오류: SELL 주문이 실행되었습니다 (예상: BUY)`);
+                }
             }
             catch (error) {
                 binanceError = error;

@@ -83,12 +83,10 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
     const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000; // 김프에 따른 BTC 가격
     const calculatedMargin = Math.round((investment * btcPrice) / leverage);
 
-    // 입력값을 formatBTC로 정리해서 저장
-    const formattedInvestment = formatBTC(investment);
-
+    // 입력 중에는 원본 값 유지 (formatBTC 하지 않음)
     setSettings(prev => ({
       ...prev,
-      investmentAmount: formattedInvestment,
+      investmentAmount: investmentValue,
       margin: String(calculatedMargin)
     }));
   };
@@ -208,6 +206,14 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
                 step="0.001"
                 value={settings.investmentAmount}
                 onChange={(e) => handleInvestmentChange(e.target.value)}
+                onBlur={(e) => {
+                  // 포커스를 잃을 때 포맷팅
+                  const value = parseFloat(e.target.value) || 0.003;
+                  setSettings(prev => ({
+                    ...prev,
+                    investmentAmount: formatBTC(value)
+                  }));
+                }}
                 placeholder="0.003"
                 className="mt-1"
               />

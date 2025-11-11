@@ -739,21 +739,40 @@ export class DatabaseStorage {
       GROUP BY exchange, side
     `, [positionId]);
         const updates = {};
+        let upbitEntryPrice;
+        let binanceEntryPrice;
         for (const row of entryResult.rows) {
             if (row.exchange === 'upbit' && row.side === 'buy') {
-                updates.upbitEntryPrice = parseFloat(row.avg_price);
+                upbitEntryPrice = parseFloat(row.avg_price);
+                updates.upbitEntryPrice = upbitEntryPrice;
                 updates.upbitQuantity = parseFloat(row.total_quantity);
-                updates.entryPrice = parseFloat(row.avg_price); // entry_price도 업비트 진입가로 설정
+                updates.entryPrice = upbitEntryPrice; // entry_price도 업비트 진입가로 설정
                 updates.quantity = parseFloat(row.total_quantity); // quantity도 업비트 수량으로 설정
             }
             else if (row.exchange === 'binance' && row.side === 'short') {
-                updates.binanceEntryPrice = parseFloat(row.avg_price);
+                binanceEntryPrice = parseFloat(row.avg_price);
+                updates.binanceEntryPrice = binanceEntryPrice;
                 updates.binanceQuantity = parseFloat(row.total_quantity);
+            }
+        }
+        // entry_premium_rate 재계산 (기존 값이 없거나 0일 때만)
+        if (upbitEntryPrice && binanceEntryPrice) {
+            const positionResult = await this.pool.query(`
+        SELECT entry_usd_krw, entry_premium_rate FROM positions WHERE id = $1
+      `, [positionId]);
+            const existingPremiumRate = positionResult.rows[0]?.entry_premium_rate;
+            // 기존 값이 없거나 0일 때만 재계산
+            if (!existingPremiumRate || existingPremiumRate === 0) {
+                const entryUsdKrw = positionResult.rows[0]?.entry_usd_krw;
+                if (entryUsdKrw) { // 환율이 있을 때만 계산
+                    const binanceEntryPriceKrw = binanceEntryPrice * entryUsdKrw;
+                    const entryPremiumRate = ((upbitEntryPrice / binanceEntryPriceKrw) - 1) * 100;
+                    updates.entryPremiumRate = entryPremiumRate;
+                }
             }
         }
         if (Object.keys(updates).length > 0) {
             await this.updatePosition(positionId, updates);
-            console.log(`✅ 포지션 ${positionId} 자동 업데이트:`, updates);
         }
     }
     // positionId로 거래 기록 업데이트

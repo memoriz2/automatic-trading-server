@@ -544,15 +544,18 @@ export async function registerRoutes(app, server) {
             }
             console.log(`✅ [realtime-balances] 최종 결과: 업비트 ${upbitBtc} BTC, 바이낸스 ${binanceBtc} BTC`);
             // 포지션 상태 및 수량 자동 동기화
+            // ⚠️ 자동 청산 로직 비활성화: API 오류로 인한 오청산 방지
+            // 실제 청산은 거래소 API 오류를 확인한 후 수동으로 처리해야 함
             try {
                 const allPositions = await storage.getAllPositions(parseInt(userId));
                 const openPositions = allPositions.filter((pos) => pos.status === 'open' && pos.symbol === 'BTC');
                 for (const position of openPositions) {
-                    // 1. 바이낸스 포지션이 0인데 DB에 open 상태 포지션이 있으면 닫기
+                    // 1. 바이낸스 포지션이 0인데 DB에 open 상태 포지션이 있으면 경고만 출력
                     if (binanceBtc === 0 && position.side === 'short' && position.binance_order_id) {
-                        console.log(`🔄 [auto-sync] 바이낸스 포지션 0이므로 포지션 ID ${position.id} 자동 닫기`);
-                        await storage.closePosition(position.id);
-                        console.log(`✅ [auto-sync] 포지션 ID ${position.id} 상태를 closed로 변경 완료`);
+                        console.warn(`⚠️ [auto-sync] 바이낸스 포지션 0이지만 DB에 포지션 ID ${position.id}가 open 상태입니다.`);
+                        console.warn(`⚠️ [auto-sync] 실제 거래소 확인 필요 - 자동 청산하지 않음`);
+                        // ❌ 자동 청산 비활성화 - API 오류로 인한 오청산 방지
+                        // await storage.closePosition(position.id);
                     }
                     // 2. 업비트 실제 잔고와 DB quantity 동기화 로직 제거
                     // (updatePositionFromTrades에서 거래 기록 기반으로 정확하게 업데이트하므로 불필요)

@@ -1796,7 +1796,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
             <Button
               variant="destructive"
               size="sm"
-              className="h-7 md:h-9 px-2 md:px-3 text-xs md:text-sm flex-1 md:flex-none" 
+              className="hidden h-7 md:h-9 px-2 md:px-3 text-xs md:text-sm flex-1 md:flex-none"
               onClick={async () => {
                 // 활성 포지션 전체 청산 (실제 API 호출 포함)
                 const activePositions = livePositions.filter(p => p.status === 'open');
