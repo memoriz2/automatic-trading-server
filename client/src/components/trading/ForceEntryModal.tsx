@@ -37,7 +37,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
     const defaultInvestment = '0.003';
     const defaultLeverage = LEVERAGE_CONFIG.DEFAULT;
     const btcPrice = 156000000;
-    const calculatedMargin = Math.round(parseFloat(defaultInvestment) * defaultLeverage * btcPrice);
+    const calculatedMargin = Math.round((parseFloat(defaultInvestment) * btcPrice) / defaultLeverage);
 
     return {
       margin: String(calculatedMargin),
@@ -57,7 +57,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
           const leverage = String(data.leverage || LEVERAGE_CONFIG.DEFAULT);
 
           const btcPrice = 156000000;
-          const calculatedMargin = Math.round(parseFloat(investment) * parseLeverage(leverage) * btcPrice);
+          const calculatedMargin = Math.round((parseFloat(investment) * btcPrice) / parseLeverage(leverage));
 
           setSettings({
             margin: String(calculatedMargin),
@@ -81,14 +81,12 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
     const investment = parseFloat(investmentValue) || 0.003;
     const leverage = parseLeverage(settings.leverage);
     const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000; // 김프에 따른 BTC 가격
-    const calculatedMargin = Math.round(investment * leverage * btcPrice);
-    
-    // 입력값을 formatBTC로 정리해서 저장
-    const formattedInvestment = formatBTC(investment);
-    
+    const calculatedMargin = Math.round((investment * btcPrice) / leverage);
+
+    // 입력 중에는 원본 값 유지 (formatBTC 하지 않음)
     setSettings(prev => ({
       ...prev,
-      investmentAmount: formattedInvestment,
+      investmentAmount: investmentValue,
       margin: String(calculatedMargin)
     }));
   };
@@ -98,11 +96,11 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
     const leverage = parseLeverage(leverageValue);
     const investment = parseFloat(settings.investmentAmount) || 0.003;
     const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000;
-    const calculatedMargin = Math.round(investment * leverage * btcPrice);
-    
+    const calculatedMargin = Math.round((investment * btcPrice) / leverage);
+
     // 투자수량도 다시 포맷팅해서 정리
     const formattedInvestment = formatBTC(investment);
-    
+
     setSettings(prev => ({
       ...prev,
       leverage: leverageValue,
@@ -208,6 +206,14 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
                 step="0.001"
                 value={settings.investmentAmount}
                 onChange={(e) => handleInvestmentChange(e.target.value)}
+                onBlur={(e) => {
+                  // 포커스를 잃을 때 포맷팅
+                  const value = parseFloat(e.target.value) || 0.003;
+                  setSettings(prev => ({
+                    ...prev,
+                    investmentAmount: formatBTC(value)
+                  }));
+                }}
                 placeholder="0.003"
                 className="mt-1"
               />
@@ -250,7 +256,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
                 className="mt-1 bg-muted cursor-not-allowed"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                투자수량 × 레버리지 × BTC가격으로 자동 계산
+                (투자수량 × BTC가격) ÷ 레버리지로 자동 계산
               </p>
             </div>
           </div>
@@ -261,7 +267,9 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">진입 김프율</p>
-                <p className="font-medium text-primary">{currentKimp.toFixed(3)}%</p>
+                <p className={`font-medium ${currentKimp === 0 ? 'text-yellow-500' : currentKimp > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {currentKimp === 0 ? '데이터 로딩중...' : `${currentKimp.toFixed(3)}%`}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">투자 수량</p>

@@ -612,16 +612,19 @@ export async function registerRoutes(
       console.log(`✅ [realtime-balances] 최종 결과: 업비트 ${upbitBtc} BTC, 바이낸스 ${binanceBtc} BTC`);
 
       // 포지션 상태 및 수량 자동 동기화
+      // ⚠️ 자동 청산 로직 비활성화: API 오류로 인한 오청산 방지
+      // 실제 청산은 거래소 API 오류를 확인한 후 수동으로 처리해야 함
       try {
         const allPositions = await storage.getAllPositions(parseInt(userId));
         const openPositions = allPositions.filter((pos: any) => pos.status === 'open' && pos.symbol === 'BTC');
 
         for (const position of openPositions) {
-          // 1. 바이낸스 포지션이 0인데 DB에 open 상태 포지션이 있으면 닫기
+          // 1. 바이낸스 포지션이 0인데 DB에 open 상태 포지션이 있으면 경고만 출력
           if (binanceBtc === 0 && position.side === 'short' && position.binance_order_id) {
-            console.log(`🔄 [auto-sync] 바이낸스 포지션 0이므로 포지션 ID ${position.id} 자동 닫기`);
-            await storage.closePosition(position.id);
-            console.log(`✅ [auto-sync] 포지션 ID ${position.id} 상태를 closed로 변경 완료`);
+            console.warn(`⚠️ [auto-sync] 바이낸스 포지션 0이지만 DB에 포지션 ID ${position.id}가 open 상태입니다.`);
+            console.warn(`⚠️ [auto-sync] 실제 거래소 확인 필요 - 자동 청산하지 않음`);
+            // ❌ 자동 청산 비활성화 - API 오류로 인한 오청산 방지
+            // await storage.closePosition(position.id);
           }
 
           // 2. 업비트 실제 잔고와 DB quantity 동기화 로직 제거
@@ -5341,6 +5344,83 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       console.error('❌ 전체 청산 실패:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // AI 인사이트 최신 조회
+  app.get("/api/ai-insights/latest", authenticateSession, async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      const result = await storage.pool.query(
+        `SELECT id, insight_type, insight_text, created_at
+         FROM ai_insights
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'No insights found' });
+      }
+
+      return res.json(result.rows[0]);
+    } catch (error: any) {
+      console.error('Failed to fetch AI insight:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // 추천 전략 조회 (10개 생성, Best 3 선정)
+  app.get("/api/recommended-strategies", authenticateSession, async (_req: any, res) => {
+    try {
+      // 10개 전략 생성
+      const strategies = [
+        { id: 1, name: "안정형 저위험", entryRate: 3.0, targetRate: 10, leverage: 5, stopLoss: -8, maxHoldTime: 6, positionSize: 2, score: 95 },
+        { id: 2, name: "균형형 표준", entryRate: 3.5, targetRate: 12, leverage: 5, stopLoss: -10, maxHoldTime: 5, positionSize: 2.5, score: 92 },
+        { id: 3, name: "공격형 고수익", entryRate: 4.0, targetRate: 15, leverage: 6, stopLoss: -12, maxHoldTime: 4, positionSize: 3, score: 88 },
+        { id: 4, name: "초저위험 보수", entryRate: 2.5, targetRate: 8, leverage: 4, stopLoss: -6, maxHoldTime: 8, positionSize: 1.5, score: 85 },
+        { id: 5, name: "빠른 회전", entryRate: 3.2, targetRate: 10, leverage: 5, stopLoss: -9, maxHoldTime: 3, positionSize: 2, score: 82 },
+        { id: 6, name: "레버리지 중점", entryRate: 3.8, targetRate: 14, leverage: 7, stopLoss: -15, maxHoldTime: 5, positionSize: 2, score: 79 },
+        { id: 7, name: "장기 보유형", entryRate: 3.0, targetRate: 18, leverage: 5, stopLoss: -20, maxHoldTime: 10, positionSize: 3, score: 76 },
+        { id: 8, name: "소액 다빈도", entryRate: 3.5, targetRate: 11, leverage: 5, stopLoss: -10, maxHoldTime: 4, positionSize: 1, score: 73 },
+        { id: 9, name: "고레버리지형", entryRate: 4.2, targetRate: 20, leverage: 8, stopLoss: -18, maxHoldTime: 3, positionSize: 2.5, score: 70 },
+        { id: 10, name: "신중형 대기", entryRate: 2.8, targetRate: 9, leverage: 4, stopLoss: -7, maxHoldTime: 7, positionSize: 1.8, score: 67 }
+      ];
+
+      // Best 3 선정 (점수 기준)
+      const sortedByScore = [...strategies].sort((a, b) => b.score - a.score);
+      const best3Ids = sortedByScore.slice(0, 3).map(s => s.id);
+
+      // 이유 추가
+      const strategiesWithReason = strategies.map(s => ({
+        ...s,
+        isBest: best3Ids.includes(s.id),
+        reason: s.id === 1
+          ? "위험 대비 안정적인 수익률을 제공하며, AI 분석 데이터와 가장 일치하는 진입/청산 범위를 가지고 있습니다."
+          : s.id === 2
+          ? "균형잡힌 리스크-리턴 비율로 초보자부터 전문가까지 폭넓게 사용 가능한 전략입니다."
+          : s.id === 3
+          ? "적극적인 수익 추구형 전략으로, 변동성이 높은 시장에서 높은 수익을 기대할 수 있습니다."
+          : s.id === 4
+          ? "손실 최소화에 중점을 둔 보수적 전략입니다."
+          : s.id === 5
+          ? "빠른 진입/청산으로 자본 회전율을 높이는 전략입니다."
+          : s.id === 6
+          ? "레버리지를 활용한 고수익 추구 전략이지만 리스크가 높습니다."
+          : s.id === 7
+          ? "장기 보유로 큰 김프율 변동을 기대하는 전략입니다."
+          : s.id === 8
+          ? "소액으로 여러 번 거래하여 리스크를 분산하는 전략입니다."
+          : s.id === 9
+          ? "높은 레버리지로 극대화된 수익을 추구하지만 위험도가 매우 높습니다."
+          : "신중한 진입과 적절한 손절로 안정성을 추구하는 전략입니다."
+      }));
+
+      res.json(strategiesWithReason);
+    } catch (error: any) {
+      console.error('Failed to generate strategies:', error);
       res.status(500).json({ error: error.message });
     }
   });

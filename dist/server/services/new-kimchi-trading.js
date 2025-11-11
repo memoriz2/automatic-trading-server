@@ -256,13 +256,9 @@ export class MultiStrategyTradingService {
         const entryRate = Number(strategy.entry_rate);
         const exitRate = Number(strategy.exit_rate);
         const tolerance = Number(strategy.tolerance_rate || strategy.tolerance);
-        console.log(`🔍 [서버] BTC 자동매매 체크 - 전략 #${strategy.id}: 현재김프=${premiumRate}%, 진입율=${entryRate}%, 청산율=${exitRate}%, 허용오차=${tolerance}%`);
-        console.log(`🔍 [서버] 포지션 확인: existingPosition=${existingPosition ? 'O' : 'X'}`);
         // 🔒🔒🔒 전체 쿨다운 가드: 진입/청산 모두 쿨다운 체크 (맨 앞에 배치)
         const strategyUserId = strategy.user_id || strategy.userId;
-        console.log(`🚨🚨🚨 [자동매매 쿨다운] 전략 ${strategy.id} 체크 실행 - 코드 버전: 2025-11-01-v6`);
         const cooldownMs = TRADING_CONSTANTS.MIN_ENTRY_COOLDOWN_MS;
-        console.log(`🚨 [자동매매 쿨다운] 설정값: ${cooldownMs}ms = ${cooldownMs / 1000}초 (수동 거래는 무시)`);
         // 🔥 1단계: 메모리 기반 즉시 차단 (DB 조회 전)
         const userIdStr = String(strategyUserId);
         const lastTradeTime = this.userLastTradeTimes.get(userIdStr);
@@ -270,16 +266,9 @@ export class MultiStrategyTradingService {
             const elapsedMs = Date.now() - lastTradeTime;
             if (elapsedMs < cooldownMs) {
                 const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
-                console.log(`🔒🔥 [자동매매 메모리 차단] 마지막 자동매매로부터 ${remainSec}초 남음 (전략 ${strategy.id})`);
-                console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초 / 필요: ${cooldownMs / 1000}초`);
+                console.log(`🔒 [쿨다운] 전략 ${strategy.id} 차단 (${remainSec}초 남음)`);
                 return null; // 🚫 거래소 API 호출 전에 즉시 차단
             }
-            else {
-                console.log(`✅ [자동매매 메모리 통과] 마지막 자동매매로부터 ${(elapsedMs / 1000).toFixed(1)}초 경과`);
-            }
-        }
-        else {
-            console.log(`✅ [자동매매 메모리 통과] 최초 거래 또는 메모리에 기록 없음`);
         }
         // 🔥 2단계: DB 기반 이중 검증 (메모리와 동기화)
         try {
@@ -299,22 +288,13 @@ export class MultiStrategyTradingService {
                 const elapsedMs = parseFloat(recentTradeResult.rows[0].elapsed_ms);
                 // 🔄 메모리와 DB 동기화 (DB가 더 최신이면 메모리 업데이트)
                 if (!lastTradeTime || dbLastTradeTime > lastTradeTime) {
-                    console.log(`🔄 [자동매매 메모리 동기화] DB 자동매매 시간으로 갱신: ${new Date(dbLastTradeTime).toLocaleString('ko-KR')}`);
                     this.userLastTradeTimes.set(userIdStr, dbLastTradeTime);
                 }
                 if (elapsedMs < cooldownMs) {
                     const remainSec = Math.ceil((cooldownMs - elapsedMs) / 1000);
-                    console.log(`🔒 [자동매매 DB 차단] 마지막 자동매매로부터 ${remainSec}초 남음 (전략 ${strategy.id})`);
-                    console.log(`   최근 자동매매 시간: ${recentTradeResult.rows[0].last_trade_time}`);
-                    console.log(`   경과 시간: ${(elapsedMs / 1000).toFixed(1)}초 / 필요: ${cooldownMs / 1000}초`);
+                    console.log(`🔒 [DB 쿨다운] 전략 ${strategy.id} 차단 (${remainSec}초 남음)`);
                     return null; // 🚫 쿨다운 중에는 진입/청산 모두 차단
                 }
-                else {
-                    console.log(`✅ [자동매매 DB 통과] 마지막 자동매매로부터 ${(elapsedMs / 1000).toFixed(1)}초 경과 (필요: ${cooldownMs / 1000}초)`);
-                }
-            }
-            else {
-                console.log(`✅ [자동매매 DB 통과] 최근 10분 내 자동매매 없음 (수동 거래는 무시됨)`);
             }
         }
         catch (cooldownError) {
@@ -359,16 +339,13 @@ export class MultiStrategyTradingService {
             const sameSign = (entryRate >= 0 && premiumRate >= 0) ||
                 (entryRate < 0 && premiumRate < 0);
             const shouldEnterBtc = entryDifference <= tolerance && sameSign;
-            console.log(`🔍 진입 조건 체크: 차이=${entryDifference.toFixed(4)}% (허용=${tolerance}%), 동일부호=${sameSign} → ${shouldEnterBtc}`);
             if (shouldEnterBtc) {
                 // 🔒 진입 신호 생성 시 즉시 Lock 설정 (다른 신호 생성 차단)
                 if (this.entryLocks.get(strategy.id)) {
-                    console.log(`🔒 [전략 ${strategy.id}] 신호 생성 중 Lock 발견, 중복 신호 차단`);
                     return null;
                 }
                 this.entryLocks.set(strategy.id, true);
-                console.log(`🎯 BTC 진입 신호 발생! 현재=${premiumRate.toFixed(2)}%, 설정=${entryRate}% (±${tolerance}%)`);
-                console.log(`🔍 [DEBUG] 진입 신호 생성: premiumRate = ${premiumRate} (type: ${typeof premiumRate}), kimchiData.premiumRate = ${kimchiData.premiumRate}`);
+                console.log(`🎯 진입 신호! 전략 ${strategy.id}: 현재=${premiumRate.toFixed(2)}%, 설정=${entryRate}%`);
                 return {
                     action: "entry",
                     symbol: "BTC",
@@ -378,20 +355,13 @@ export class MultiStrategyTradingService {
                     confidence: 0.8,
                 };
             }
-            else {
-                console.log(`❌ BTC 진입 조건 미충족: 차이=${entryDifference.toFixed(4)}% > 허용오차=${tolerance}%`);
-            }
-        }
-        else {
-            console.log(`⏳ BTC 진입 불가: 이미 활성 포지션 존재`);
         }
         // 청산 조건 체크 (포지션이 있을 때만)
         if (existingPosition) {
             // 🎯 청산은 단순 임계값 비교 (허용오차 없음)
             const shouldExit = premiumRate >= exitRate; // 김프율이 청산율 이상이면 청산
-            console.log(`🔍 [서버] 청산 조건 체크: 현재김프=${premiumRate.toFixed(4)}% >= 청산율=${exitRate}% → ${shouldExit}`);
             if (shouldExit) {
-                console.log(`💰 BTC 청산 신호 발생! 현재=${premiumRate.toFixed(2)}%, 설정청산율=${exitRate}% (±${tolerance}%) → 포지션 전량 청산`);
+                console.log(`💰 청산 신호! 전략 ${strategy.id}: 현재=${premiumRate.toFixed(2)}%, 설정=${exitRate}%`);
                 return {
                     symbol: "BTC",
                     action: "exit",
@@ -400,9 +370,6 @@ export class MultiStrategyTradingService {
                     strategyId: strategy.id,
                     strategyName: strategy.name,
                 };
-            }
-            else {
-                console.log(`❌ [서버] BTC 청산 조건 미충족: 현재김프=${premiumRate.toFixed(4)}% < 청산율=${exitRate}%`);
             }
         }
         return null;
@@ -812,7 +779,11 @@ export class MultiStrategyTradingService {
                 if (!reservedPositionId) {
                     throw new Error('임시 포지션 ID가 없습니다');
                 }
-                console.log(`🔍 [DEBUG] 포지션 업데이트: signal.premiumRate = ${signal.premiumRate} (type: ${typeof signal.premiumRate})`);
+                // ✅ 실제 체결가 기준으로 정확한 진입 김프율 계산
+                const actualEntryPremiumRate = upbitActualEntryPricePerBtc && currentPrice && usdtKrwRateForFee
+                    ? ((upbitActualEntryPricePerBtc - (currentPrice * usdtKrwRateForFee)) / (currentPrice * usdtKrwRateForFee)) * 100
+                    : currentPremiumRate; // 계산 실패 시 실시간 김프율 사용
+                console.log(`🔍 [DEBUG] 포지션 업데이트: actualEntryPremiumRate = ${actualEntryPremiumRate.toFixed(4)}% (체결가 기준), currentPremiumRate = ${currentPremiumRate.toFixed(4)}% (실시간)`);
                 await storage.updatePosition(reservedPositionId, {
                     status: 'open',
                     entryPrice: String(upbitActualEntryPricePerBtc), // ✅ 실제 업비트 거래 평균 단가 사용
@@ -827,8 +798,8 @@ export class MultiStrategyTradingService {
                     upbitOrderId: upbitResult.uuid,
                     binanceOrderId: String(binanceResult.orderId),
                     entryUsdKrw: usdtKrwRateForFee,
-                    entryPremiumRate: signal.premiumRate, // ✅ 진입 김프율 유지 (임시 포지션에서 저장된 값)
-                    currentPremiumRate: signal.premiumRate, // ✅ 현재 김프율 초기값
+                    entryPremiumRate: actualEntryPremiumRate, // ✅ 실제 체결가 기준 진입 김프율
+                    currentPremiumRate: actualEntryPremiumRate, // ✅ 현재 김프율 초기값 (실제 체결가 기준)
                     ...binanceDetails
                 });
                 // 업데이트된 포지션 조회
@@ -950,6 +921,8 @@ export class MultiStrategyTradingService {
                 upbit_quantity = $3,
                 upbit_order_id = $5,
                 binance_order_id = $6,
+                entry_premium_rate = $8,
+                current_premium_rate = $8,
                 entry_time = NOW(),
                 updated_at = NOW()
               WHERE id = $7
@@ -961,7 +934,8 @@ export class MultiStrategyTradingService {
                             bt.quantity,
                             ut.exchange_order_id,
                             bt.exchange_order_id,
-                            reservedPositionId
+                            reservedPositionId,
+                            String(signal.premiumRate)
                         ]);
                         // position_id 업데이트
                         if (reservedPositionId) {
@@ -1121,12 +1095,20 @@ export class MultiStrategyTradingService {
                 });
             }
             // 2. 바이낸스 선물 포지션 청산 (업비트 실패와 무관하게 실행)
-            console.log(`바이낸스 선물 청산: ${signal.symbol}, 수량: ${binanceQuantity}`);
+            console.log(`🔍 [청산 시작] 바이낸스 선물 청산: ${signal.symbol}, 수량: ${binanceQuantity}`);
+            console.log(`🔍 [청산 시작] closeFuturesPosition 메서드 호출 (BUY 주문 실행)`);
             let binanceResult = null;
             let binanceError = null;
             try {
                 binanceResult = await binanceService.closeFuturesPosition(signal.symbol, binanceQuantity);
                 console.log(`✅ 바이낸스 청산 성공:`, binanceResult);
+                console.log(`🔍 [청산 검증] 주문 side: ${binanceResult.side}, 예상: BUY`);
+                // 🚨 청산 검증: side가 BUY가 아니면 경고
+                if (binanceResult.side !== 'BUY') {
+                    console.error(`🚨 [청산 오류] 바이낸스 청산 주문이 BUY가 아닙니다! 실제: ${binanceResult.side}`);
+                    console.error(`🚨 [청산 오류] 이것은 새로운 숏 포지션을 열었을 가능성이 높습니다!`);
+                    throw new Error(`바이낸스 청산 오류: SELL 주문이 실행되었습니다 (예상: BUY)`);
+                }
             }
             catch (error) {
                 binanceError = error;

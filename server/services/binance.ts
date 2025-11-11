@@ -753,6 +753,8 @@ export class BinanceService {
   // 선물 포지션 청산 (숏 포지션 커버)
   async closeFuturesPosition(symbol: string, quantity: number): Promise<any> {
     try {
+      console.log(`🔍 [closeFuturesPosition] 호출됨: ${symbol}, 수량: ${quantity}`);
+
       if (!this.apiKey) {
         throw new Error('Binance API key not configured');
       }
@@ -763,12 +765,15 @@ export class BinanceService {
         side: 'BUY', // 숏 포지션 청산은 매수
         type: 'MARKET',
         quantity: quantity.toString(),
+        reduceOnly: 'true', // 🔥 포지션 감소만 허용 (새 포지션 진입 방지)
         timestamp: timestamp.toString()
       };
 
+      console.log(`🔍 [closeFuturesPosition] 요청 파라미터 (reduceOnly=true):`, params);
+
       const queryString = new URLSearchParams(params).toString();
       const signature = this.generateSignature(queryString);
-      
+
       const response = await fetch(`${this.futuresBaseUrl}/fapi/v1/order?${queryString}&signature=${signature}`, {
         method: 'POST',
         headers: {
