@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { X, TrendingUp } from 'lucide-react';
-import { LEVERAGE_CONFIG, parseLeverage, validateLeverage} from '@/utils/trading/leverage';
+import { LEVERAGE_CONFIG, validateLeverage} from '@/utils/trading/leverage';
+import { getSafeLeverage } from '@/config/strategy-defaults';
 import { formatBTC } from '@/utils/trading/formatters';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,6 +22,7 @@ interface ForceEntryModalProps {
   currentKimp: number;
   onForceEntry: (settings: ForceEntrySettings) => void;
   isLiveMode: boolean;
+  btcPrice: number; // 실시간 업비트 BTC 가격
 }
 
 export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
@@ -28,7 +30,8 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   onClose,
   currentKimp,
   onForceEntry,
-  isLiveMode
+  isLiveMode,
+  btcPrice
 }) => {
   const { toast } = useToast();
 
@@ -36,8 +39,8 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
   const [settings, setSettings] = useState<ForceEntrySettings>(() => {
     const defaultInvestment = '0.003';
     const defaultLeverage = LEVERAGE_CONFIG.DEFAULT;
-    const btcPrice = 156000000;
-    const calculatedMargin = Math.round((parseFloat(defaultInvestment) * btcPrice) / defaultLeverage);
+    const leverage = getSafeLeverage(defaultLeverage);
+    const calculatedMargin = Math.round((parseFloat(defaultInvestment) * btcPrice) / leverage);
 
     return {
       margin: String(calculatedMargin),
@@ -54,14 +57,14 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
         if (response.ok) {
           const data = await response.json();
           const investment = data.investmentAmount || '0.003';
-          const leverage = String(data.leverage || LEVERAGE_CONFIG.DEFAULT);
+          const leverageValue = String(data.leverage || LEVERAGE_CONFIG.DEFAULT);
+          const leverage = getSafeLeverage(leverageValue);
 
-          const btcPrice = 156000000;
-          const calculatedMargin = Math.round((parseFloat(investment) * btcPrice) / parseLeverage(leverage));
+          const calculatedMargin = Math.round((parseFloat(investment) * btcPrice) / leverage);
 
           setSettings({
             margin: String(calculatedMargin),
-            leverage: leverage,
+            leverage: leverageValue,
             investmentAmount: formatBTC(parseFloat(investment))
           });
         }
@@ -75,12 +78,22 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
     }
   }, [isOpen]);
 
+  // btcPrice 변경 시 증거금 재계산
+  useEffect(() => {
+    const investment = parseFloat(settings.investmentAmount) || 0.003;
+    const leverage = getSafeLeverage(settings.leverage);
+    const calculatedMargin = Math.round((investment * btcPrice) / leverage);
+
+    setSettings(prev => ({
+      ...prev,
+      margin: String(calculatedMargin)
+    }));
+  }, [btcPrice]);
 
   // 투자수량 변경 시 증거금 자동 계산
   const handleInvestmentChange = (investmentValue: string) => {
     const investment = parseFloat(investmentValue) || 0.003;
-    const leverage = parseLeverage(settings.leverage);
-    const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000; // 김프에 따른 BTC 가격
+    const leverage = getSafeLeverage(settings.leverage);
     const calculatedMargin = Math.round((investment * btcPrice) / leverage);
 
     // 입력 중에는 원본 값 유지 (formatBTC 하지 않음)
@@ -93,9 +106,8 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
 
   // 레버리지 변경 시 증거금 자동 계산
   const handleLeverageChange = (leverageValue: string) => {
-    const leverage = parseLeverage(leverageValue);
+    const leverage = getSafeLeverage(leverageValue);
     const investment = parseFloat(settings.investmentAmount) || 0.003;
-    const btcPrice = currentKimp ? (currentKimp > 0 ? 156000000 : 112000 * 1390) : 156000000;
     const calculatedMargin = Math.round((investment * btcPrice) / leverage);
 
     // 투자수량도 다시 포맷팅해서 정리
@@ -111,7 +123,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
 
   // 강제진입 실행
   const handleExecuteEntry = async () => {
-    const leverageValidation = validateLeverage(parseLeverage(settings.leverage));
+    const leverageValidation = validateLeverage(getSafeLeverage(settings.leverage));
     if (!leverageValidation.isValid) {
       toast({
         title: '레버리지 오류',
@@ -277,7 +289,7 @@ export const ForceEntryModal: React.FC<ForceEntryModalProps> = React.memo(({
               </div>
               <div>
                 <p className="text-muted-foreground">실효 레버리지</p>
-                <p className="font-medium text-orange-500">{parseLeverage(settings.leverage)}배</p>
+                <p className="font-medium text-orange-500">{getSafeLeverage(settings.leverage)}배</p>
               </div>
               <div>
                 <p className="text-muted-foreground">필요 증거금</p>

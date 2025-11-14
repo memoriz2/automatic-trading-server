@@ -2188,6 +2188,7 @@ export const LiveTradingSystem: React.FC<LiveTradingSystemProps> = ({
       currentKimp={currentKimchiData?.kimp || 0}
       onForceEntry={handleForceEntry}
       isLiveMode={actualTradingMode === 'real'}
+      btcPrice={currentKimchiData?.upbit_price || 156000000}
     />
     </>
   );
