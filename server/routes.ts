@@ -228,6 +228,8 @@ async function executeRealLiquidation(userId: string, position: any): Promise<{
   message?: string;
   error?: string;
   pnl?: number;
+  bothSuccess?: boolean;
+  partialSuccess?: boolean;
 }> {
   try {
     logInfo('실제 거래소 청산 시작', {
@@ -395,23 +397,83 @@ async function executeRealLiquidation(userId: string, position: any): Promise<{
     
     const successfulResults = results.filter(r => r.success);
     const failedResults = results.filter(r => !r.success);
-    
+
+    // 청산 결과 분석
+    const upbitSuccess = results.find(r => r.exchange === 'upbit' && r.success);
+    const binanceSuccess = results.find(r => r.exchange === 'binance' && r.success);
+    const bothSuccess: boolean = !!(upbitSuccess && binanceSuccess);
+    const partialSuccess: boolean = !!(upbitSuccess && !binanceSuccess) || !!(!upbitSuccess && binanceSuccess);
+
+    // 부분 청산 시 포지션 수량 업데이트
+    if (partialSuccess) {
+      const updateData: any = {};
+
+      if (upbitSuccess) {
+        updateData.upbitQuantity = 0;
+        logInfo('부분 청산: 업비트만 성공, upbit_quantity → 0', { positionId: position.id });
+
+        // 시스템 알림 생성
+        await storage.createSystemAlert({
+          type: 'warning',
+          title: '부분 청산 발생',
+          message: `포지션 ${position.id}: 업비트 매도 완료, 바이낸스 청산 실패 - 수동 청산 필요`,
+          userId: parseInt(userId)
+        });
+      }
+
+      if (binanceSuccess) {
+        updateData.binanceQuantity = 0;
+        logInfo('부분 청산: 바이낸스만 성공, binance_quantity → 0', { positionId: position.id });
+
+        // 시스템 알림 생성
+        await storage.createSystemAlert({
+          type: 'warning',
+          title: '부분 청산 발생',
+          message: `포지션 ${position.id}: 바이낸스 청산 완료, 업비트 매도 실패 - 수동 매도 필요`,
+          userId: parseInt(userId)
+        });
+      }
+
+      // 포지션 수량 업데이트 (상태는 'open' 유지)
+      if (Object.keys(updateData).length > 0) {
+        await storage.updatePosition(position.id, updateData);
+      }
+    }
+
+    // 양쪽 모두 실패 시 알림
+    if (!upbitSuccess && !binanceSuccess && results.length > 0) {
+      await storage.createSystemAlert({
+        type: 'error',
+        title: '완전 청산 실패',
+        message: `포지션 ${position.id}: 업비트, 바이낸스 모두 청산 실패 - 즉시 수동 처리 필요`,
+        userId: parseInt(userId)
+      });
+    }
+
     return {
       success: successfulResults.length > 0,
-      message: `거래소 청산 완료: 성공 ${successfulResults.length}개, 실패 ${failedResults.length}개`,
-      pnl: 0 // 실제 손익은 별도 계산 필요
+      message: bothSuccess
+        ? `거래소 청산 완료: 업비트, 바이낸스 모두 성공`
+        : partialSuccess
+        ? `부분 청산: 성공 ${successfulResults.length}개, 실패 ${failedResults.length}개 - 수동 처리 필요`
+        : `청산 실패: 모두 실패`,
+      pnl: 0, // 실제 손익은 trades 테이블에서 계산
+      bothSuccess,
+      partialSuccess
     };
-    
+
   } catch (error: any) {
     logError('실제 거래소 청산 오류', {
       userId: parseInt(userId),
       positionId: position.id,
       error: error.message
     });
-    
+
     return {
       success: false,
-      error: error.message
+      error: error.message,
+      bothSuccess: false,
+      partialSuccess: false
     };
   }
 }
@@ -1496,20 +1558,92 @@ export async function registerRoutes(
     }
   });
 
-  // 포지션 청산
-  app.post("/api/positions/:id/close", async (req, res) => {
+  // 포지션 청산 (실제 거래소 청산 + DB 업데이트)
+  app.post("/api/positions/:id/close", authenticateSession, async (req: any, res) => {
     try {
       const positionId = parseInt(req.params.id);
-      const position = await storage.closePosition(positionId);
+      const userId = String(req.user.id);
+
+      logInfo('단일 포지션 청산 시작', { userId: parseInt(userId), positionId });
+
+      // 1. 포지션 조회
+      const position = await storage.getPositionById(positionId);
 
       if (!position) {
         res.status(404).json({ error: "Position not found" });
         return;
       }
 
-      res.json(position);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to close position" });
+      // 2. 권한 확인 (본인 포지션인지)
+      if (position.user_id !== parseInt(userId)) {
+        res.status(403).json({ error: "Unauthorized: This is not your position" });
+        return;
+      }
+
+      // 3. 이미 청산된 포지션인지 확인
+      if (position.status === 'closed') {
+        res.status(400).json({ error: "Position already closed" });
+        return;
+      }
+
+      // 4. 실제 거래소에서 청산 실행
+      logInfo('실제 거래소 청산 실행', { positionId, symbol: position.symbol });
+      const liquidationResult = await executeRealLiquidation(userId, position);
+
+      if (!liquidationResult.success) {
+        logError('거래소 청산 완료 실패', {
+          positionId,
+          error: liquidationResult.error
+        });
+        res.status(500).json({
+          error: "Failed to close position on exchange",
+          details: liquidationResult.error
+        });
+        return;
+      }
+
+      // 5. 양쪽 모두 성공했을 때만 포지션 상태를 'closed'로 업데이트
+      let updatedPosition;
+      if (liquidationResult.bothSuccess) {
+        updatedPosition = await storage.updatePosition(position.id, {
+          status: 'closed',
+          exit_time: new Date(),
+          realized_pnl: liquidationResult.pnl || 0
+        });
+
+        logInfo('포지션 완전 청산 완료', {
+          positionId,
+          message: liquidationResult.message
+        });
+      } else if (liquidationResult.partialSuccess) {
+        // 부분 청산: 수량은 executeRealLiquidation에서 이미 업데이트됨
+        updatedPosition = await storage.getPositionById(position.id);
+
+        logInfo('포지션 부분 청산', {
+          positionId,
+          message: liquidationResult.message,
+          warning: '수동 처리 필요'
+        });
+      }
+
+      res.json({
+        success: true,
+        bothSuccess: liquidationResult.bothSuccess,
+        partialSuccess: liquidationResult.partialSuccess,
+        position: updatedPosition,
+        message: liquidationResult.message,
+        warning: liquidationResult.partialSuccess ? '일부만 청산되었습니다. 나머지는 수동으로 처리해주세요.' : undefined
+      });
+
+    } catch (error: any) {
+      logError('포지션 청산 오류', {
+        positionId: req.params.id,
+        error: error.message
+      });
+      res.status(500).json({
+        error: "Failed to close position",
+        details: error.message
+      });
     }
   });
 
@@ -1545,20 +1679,33 @@ export async function registerRoutes(
           
           // 3. 실제 거래소에서 청산 실행
           const liquidationResult = await executeRealLiquidation(userId, position);
-          
+
           if (liquidationResult.success) {
-            // 4. 성공 시 DB에서 포지션 상태 업데이트
-            await storage.updatePosition(position.id, { 
-              status: 'closed',
-              exit_time: new Date(),
-              realized_pnl: liquidationResult.pnl || 0
-            });
-            successCount++;
-            results.push({
-              positionId: position.id,
-              success: true,
-              message: liquidationResult.message
-            });
+            // 4. 양쪽 모두 성공했을 때만 포지션 상태를 'closed'로 업데이트
+            if (liquidationResult.bothSuccess) {
+              await storage.updatePosition(position.id, {
+                status: 'closed',
+                exit_time: new Date(),
+                realized_pnl: liquidationResult.pnl || 0
+              });
+              successCount++;
+              results.push({
+                positionId: position.id,
+                success: true,
+                bothSuccess: true,
+                message: liquidationResult.message
+              });
+            } else if (liquidationResult.partialSuccess) {
+              // 부분 청산: 수량은 executeRealLiquidation에서 이미 업데이트됨
+              successCount++; // 부분 성공도 카운트
+              results.push({
+                positionId: position.id,
+                success: true,
+                partialSuccess: true,
+                message: liquidationResult.message,
+                warning: '부분 청산 - 수동 처리 필요'
+              });
+            }
           } else {
             errorCount++;
             results.push({
