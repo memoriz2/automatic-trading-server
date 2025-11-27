@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+// import { Button } from "@/components/ui/button";
+// import { Textarea } from "@/components/ui/textarea";
 import Calendar from 'react-calendar';
 import { format, startOfDay, isSameDay } from "date-fns";
-import { Calendar as CalendarIcon, FileText, TrendingUp, DollarSign } from "lucide-react";
+import { Calendar as CalendarIcon, TrendingUp, DollarSign } from "lucide-react";
+// import { FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import 'react-calendar/dist/Calendar.css';
 
@@ -49,30 +50,30 @@ const calendarStyles = `
 
 export default function History() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [tradingNote, setTradingNote] = useState("");
+  // const [tradingNote, setTradingNote] = useState("");
   const { user } = useAuth();
 
   // IP 체크 (49.50.135.114인 경우 일부 통계 숨김)
   const isRestrictedIP = window.location.hostname === '49.50.135.114';
 
-  // 실시간 가격 정보 조회 (김치 프리미엄 API 사용)
-  const { data: kimchiData } = useQuery({
-    queryKey: ['/api/kimchi-premium/simple'],
-    queryFn: async () => {
-      const response = await fetch('/api/kimchi-premium/simple', {
-        credentials: 'include',
-      });
-      if (!response.ok) return null;
-      return response.json();
-    },
-    refetchInterval: 5000,
-    enabled: !!user,
-  });
+  // 실시간 가격 정보 조회 (김치 프리미엄 API 사용) - 숨김 처리
+  // const { data: kimchiData } = useQuery({
+  //   queryKey: ['/api/kimchi-premium/simple'],
+  //   queryFn: async () => {
+  //     const response = await fetch('/api/kimchi-premium/simple', {
+  //       credentials: 'include',
+  //     });
+  //     if (!response.ok) return null;
+  //     return response.json();
+  //   },
+  //   refetchInterval: 5000,
+  //   enabled: !!user,
+  // });
 
-  const usdtKrwRate = kimchiData?.[0]?.usdkrw || 1400; // 기본값 1400원
+  // const usdtKrwRate = kimchiData?.[0]?.usdkrw || 1400; // 기본값 1400원
 
   // 거래 내역 조회
-  const { data: trades = [], isLoading: tradesLoading } = useQuery<any[]>({
+  const { data: trades = [] } = useQuery<any[]>({
     queryKey: [`/api/trades`],
     queryFn: async () => {
       const response = await fetch('/api/trades', {
@@ -261,9 +262,12 @@ export default function History() {
                   />
                 </CardContent>
               </Card>
+            </div>
 
+            {/* 통계 카드들 */}
+            <div className="lg:col-span-2 space-y-6">
               {/* 일일 통계 */}
-              <Card className="bg-slate-850 border-slate-700 mt-6">
+              <Card className="bg-slate-850 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
                     <TrendingUp className="w-5 h-5 mr-2" />
@@ -291,7 +295,7 @@ export default function History() {
                       <p className="text-xs text-slate-400">수익 (원)</p>
                     </div>
                   </div>
-                  
+
                   {!isRestrictedIP && (
                     <div className="pt-4 border-t border-slate-600 space-y-3">
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -338,7 +342,7 @@ export default function History() {
               </Card>
 
               {/* 거래 유형별 통계 */}
-              <Card className="bg-slate-850 border-slate-700 mt-6">
+              <Card className="bg-slate-850 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
                     <DollarSign className="w-5 h-5 mr-2" />
@@ -368,7 +372,7 @@ export default function History() {
               </Card>
 
               {/* 전체 통계 */}
-              <Card className="bg-slate-850 border-slate-700 mt-6">
+              <Card className="bg-slate-850 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
                     <TrendingUp className="w-5 h-5 mr-2" />
@@ -443,7 +447,7 @@ export default function History() {
               </Card>
 
               {/* 전체 거래 유형별 통계 */}
-              <Card className="bg-slate-850 border-slate-700 mt-6">
+              <Card className="bg-slate-850 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
                     <DollarSign className="w-5 h-5 mr-2" />
@@ -473,9 +477,8 @@ export default function History() {
               </Card>
             </div>
 
-            {/* 거래 내역 및 메모 */}
+            {/* 거래 내역 및 메모 - 숨김 처리
             <div className="lg:col-span-2 space-y-6">
-              {/* 거래 내역 */}
               <Card className="bg-slate-850 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
@@ -491,16 +494,13 @@ export default function History() {
                     </div>
                   ) : selectedDateTrades.length > 0 ? (
                     <div className="space-y-3">
-                      {/* 포지션별로 그룹화해서 표시 */}
                       {(() => {
-                        // 시간순 내림차순 정렬 (최신 거래가 위로)
                         const sortedTrades = [...selectedDateTrades].sort((a, b) => {
                           const timeA = new Date(a.executed_at || a.executedAt || 0).getTime();
                           const timeB = new Date(b.executed_at || b.executedAt || 0).getTime();
-                          return timeB - timeA; // 내림차순
+                          return timeB - timeA;
                         });
 
-                        // 포지션 ID별로 그룹화
                         const groupedByPosition = sortedTrades.reduce((acc: any, trade: any) => {
                           const posId = trade.position_id || trade.positionId || 'unknown';
                           if (!acc[posId]) {
@@ -538,7 +538,6 @@ export default function History() {
                                     </span>
                                   </div>
 
-                                  {/* 매수 합계 */}
                                   {buyTrades.length > 0 && (
                                     <div className="flex items-center justify-between py-1 text-xs mb-1">
                                       <span className="text-blue-400 font-semibold">매수</span>
@@ -546,7 +545,6 @@ export default function History() {
                                     </div>
                                   )}
 
-                                  {/* 청산 합계 */}
                                   {sellTrades.length > 0 && (
                                     <div className="flex items-center justify-between py-1 text-xs mb-1">
                                       <span className="text-red-400 font-semibold">청산</span>
@@ -554,7 +552,6 @@ export default function History() {
                                     </div>
                                   )}
 
-                                  {/* 총 수수료 */}
                                   {(() => {
                                     const allTrades = [...buyTrades, ...sellTrades];
                                     const totalFee = allTrades.reduce((sum: number, t: any) => {
@@ -572,7 +569,6 @@ export default function History() {
                               );
                             })}
 
-                            {/* 총 수익금 */}
                             {Object.keys(groupedByPosition).length > 0 && (
                               <div className={`p-4 rounded-lg border-2 ${
                                 grandTotal >= 0
@@ -605,7 +601,6 @@ export default function History() {
                 </CardContent>
               </Card>
 
-              {/* 매매 일지 */}
               <Card className="bg-slate-850 border-slate-700">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center">
@@ -620,10 +615,9 @@ export default function History() {
                     onChange={(e) => setTradingNote(e.target.value)}
                     className="bg-slate-800 border-slate-600 text-white min-h-[120px]"
                   />
-                  <Button 
+                  <Button
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     onClick={() => {
-                      // TODO: 메모 저장 API 호출
                       console.log('매매 일지 저장:', {
                         date: selectedDate,
                         note: tradingNote
@@ -635,6 +629,7 @@ export default function History() {
                 </CardContent>
               </Card>
             </div>
+            */}
           </div>
         </main>
       </div>

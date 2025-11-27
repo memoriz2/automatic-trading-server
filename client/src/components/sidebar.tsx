@@ -4,14 +4,14 @@ import {
   BarChart3,
   ArrowLeftRight,
   History,
-  TrendingUp,
+  // TrendingUp,
   Settings,
   User,
   Activity,
   LogOut,
   Menu,
   X,
-  Sparkles,
+  // Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +23,8 @@ const navigation = [
   { name: "자동매매", href: "/legacy-auto-trading", icon: Activity },
   { name: "실시간 거래", href: "/trading", icon: ArrowLeftRight },
   { name: "거래 내역", href: "/history", icon: History },
-  { name: "백테스트", href: "/backtest", icon: TrendingUp },
-  { name: "AI 추천전략", href: "/recommended-strategies", icon: Sparkles },
+  // { name: "백테스트", href: "/backtest", icon: TrendingUp },
+  // { name: "AI 추천전략", href: "/recommended-strategies", icon: Sparkles },
   { name: "설정", href: "/settings", icon: Settings },
 ];
 

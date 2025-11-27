@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Lock, User, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -148,13 +147,6 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-white mb-2">에이펙스아비트라지㈜</h1>
         </div>
 
-        {/* 보안 알림 */}
-        <Alert className="mb-6 border-emerald-500 bg-emerald-50 dark:bg-emerald-950">
-          <AlertCircle className="h-4 w-4 text-emerald-600" />
-          <AlertDescription className="text-emerald-700 dark:text-emerald-300">
-            모든 API 키와 비밀번호는 암호화되어 안전하게 저장됩니다
-          </AlertDescription>
-        </Alert>
 
         <Card className="border-slate-700">
           <CardHeader>
@@ -259,12 +251,6 @@ export default function LoginPage() {
             </Tabs>
           </CardContent>
         </Card>
-
-        {/* 보안 정보 */}
-        <div className="mt-8 text-center text-sm text-slate-400">
-          <p className="mb-2">🔒 모든 데이터는 암호화되어 보호됩니다</p>
-          <p>🔑 API 키는 AES 암호화로 안전하게 저장됩니다</p>
-        </div>
       </div>
 
       {/* 승인 대기 모달 */}
